@@ -56,7 +56,33 @@ env:
   MOCK_RUNNER_IMAGE: ghcr.io/tuna-os/mock-runner:centos-stream-10
 
 jobs:
+  # `desktop: all` used to mean "one runner builds all 60 tiers", which cannot
+  # finish: tier gnome-00 alone took 288 minutes of build step in run
+  # 31137480986, against a 360-minute job cap.  Fan out instead, one job per
+  # desktop.  The desktops come out of the manifest, not a list kept in step
+  # with the `options:` above by hand.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      desktops: ${{ steps.plan.outputs.desktops }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update -q && sudo apt-get install -y -q python3-yaml
+      - id: plan
+        run: |
+          python3 scripts/plan_hummingbird_matrix.py \
+            --manifest "${MANIFEST}" \
+            --desktop "${{ inputs.desktop }}" \
+            --tiers "${{ inputs.tiers }}" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: plan
+    strategy:
+      # One desktop failing must not cancel the other four: they share nothing
+      # but R2, and a partial publish is the design (see the publish step).
+      fail-fast: false
+      matrix:
+        desktop: ${{ fromJson(needs.plan.outputs.desktops) }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -94,7 +120,11 @@ jobs:
         env:
           # Through the environment, not `${{ }}` inside the script: these are
           # dispatch inputs and they are not shell.
-          IN_DESKTOP: ${{ inputs.desktop }}
+          # matrix.desktop, not inputs.desktop: `desktop: all` fans out to one
+          # job per desktop (see the plan job), and each job resolves only its
+          # own share. Reading the input here would make all five jobs select
+          # the same tiers and build the identical work five times.
+          IN_DESKTOP: ${{ matrix.desktop }}
           IN_TIERS: ${{ inputs.tiers }}
           IN_EXCLUDE: ${{ inputs.exclude_tiers }}
         run: |
@@ -102,7 +132,9 @@ jobs:
           # desktops, so a tier named gnome-* holds packages XFCE needs too and
           # `xfce-*` covers a fraction of XFCE. select-desktop-tiers.py resolves
           # the desktop through the gap report's own package list, and fails if
-          # anything it needs is in no tier -- see the module docstring.
+          # anything it needs is in no tier -- see the module docstring. It also
+          # prepends the bootstrap-* tiers (#268's PEP-517 backends), which is
+          # why the inline prefix match that used to live here is gone.
           list=$(python3 scripts/select-desktop-tiers.py \
             --manifest "${MANIFEST}" \
             --gap-report docs/hummingbird-desktop-gap.json \
@@ -127,6 +159,9 @@ jobs:
           TIER_ARGS=()
           IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
           for tier in "${TIERS[@]}"; do TIER_ARGS+=(--tier "${tier}"); done
+          # --jobs 4, not 8: src.fedoraproject.org throttles the client, not
+          # the clone, and eight at a time went over its limit for minutes at a
+          # stretch (run 31270801603 lost 20 of 66 imports even with retries).
           python3 scripts/import-fedora-distgit.py \
             --build-order "${MANIFEST}" \
             "${TIER_ARGS[@]}" \
@@ -138,11 +173,44 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: hummingbird-import-state
+          name: hummingbird-import-state-${{ matrix.desktop }}
           path: hummingbird-imports.json
           if-no-files-found: warn
 
       - name: Build tiers
+        env:
+          # Give mock ONE buildroot for the whole job instead of one per
+          # package.  /var/cache/mock lives inside the per-package container
+          # and dies with it, so mock rebuilt the minimal buildroot from
+          # scratch for every single package: across five runs, 194 packages,
+          # `Start: creating root cache` fired 194 times and `unpacking root
+          # cache` zero times.  The floor that costs is 43s -- the shortest
+          # mock invocation observed anywhere in those runs -- which is 34% of
+          # the 6.8 hours of mock time they spent (docs/hummingbird-
+          # throughput.md).
+          #
+          # Persisting it across packages is what mock's root_cache plugin is
+          # for, and --uniqueext does not defeat it: buildroot.py keeps
+          # `shared_root_name` from before uniqueext is appended and derives
+          # `cachedir` from that, precisely so per-package chroots share one
+          # cache, with an fcntl lock (shared to unpack, exclusive to rebuild)
+          # around it.  Package 1 pays the dnf install and tars the result;
+          # packages 2..N untar it, chroot_was_initialized comes back True and
+          # _init_pkg_management() is skipped entirely.
+          #
+          # Safe against the local repo moving underneath it, which it does
+          # every time a tier publishes: the root cache holds only the MINIMAL
+          # buildroot (BuildRequires are installed after the unpack, from the
+          # live repos), and the package manager cache re-reads repomd.xml
+          # every transaction because mock's fedora-rawhide template -- which
+          # hummingbird-ci.cfg includes -- sets metadata_expire=0 in [main].
+          #
+          # runner.temp, not github.workspace: the package manager cache keeps
+          # every RPM it downloads (keepcache=1, from the same template), so
+          # this directory fills with unsigned third-party RPMs.  Keeping it
+          # out of the checkout means no future glob over the workspace can
+          # sweep one of them into the signed repository by accident.
+          MOCK_CACHE_DIR: ${{ runner.temp }}/mock-cache
         run: |
           IFS=',' read -ra TIERS <<< "${{ steps.tiers.outputs.list }}"
           # One worker per core. This was hardcoded to 2, which was the right
@@ -193,6 +261,6 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: hummingbird-rpms
+          name: hummingbird-rpms-${{ matrix.desktop }}
           path: local-repo-hummingbird
           if-no-files-found: warn

@@ -28,16 +28,69 @@ import argparse
 import concurrent.futures
 import json
 import pathlib
+import random
 import re
 import shutil
 import subprocess
-import time
 import tempfile
+import threading
+import time
 
 import yaml
 
 RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
 
+# Retrying on a per-package schedule is not enough on its own: the server does
+# not throttle one clone, it throttles the client, so the whole batch is
+# refused at once and independent retries land back inside the same window and
+# add to the load that caused it.  Run 31270801603 lost 20 of 66 imports that
+# way, with four attempts each already in place.  So the backoff is shared: the
+# first throttled clone parks every worker, and each fresh wave of throttling
+# doubles the pause.
+COOLDOWN_BASE = 5.0
+COOLDOWN_CAP = 60.0
+
+
+class Throttle:
+    """A cooldown shared by every clone worker.
+
+    `penalise()` is called by whichever worker the server refused; it parks
+    *all* of them until the cooldown expires, so a throttled batch retries as
+    one quiet pause instead of as N independent retries that keep the client
+    over the limit.  Repeated waves back off further, up to `cap`.
+    """
+
+    def __init__(
+        self,
+        base: float = COOLDOWN_BASE,
+        cap: float = COOLDOWN_CAP,
+        clock=time.monotonic,
+        sleep=time.sleep,
+    ) -> None:
+        self._lock = threading.Lock()
+        self._clock = clock
+        self._sleep = sleep
+        self._cap = cap
+        self._delay = base
+        self._until = 0.0
+
+    def wait(self) -> None:
+        with self._lock:
+            remaining = self._until - self._clock()
+        if remaining > 0:
+            # Jittered, so the clones parked together do not all resume in the
+            # same instant and get throttled together again.
+            self._sleep(remaining + random.uniform(0, 2))
+
+    def penalise(self) -> None:
+        with self._lock:
+            now = self._clock()
+            if now < self._until:
+                # Already cooling down; this is another casualty of the same
+                # wave, not a sign that the wait should be longer still.
+                return
+            self._until = now + self._delay
+            self._delay = min(self._delay * 2, self._cap)
 
 
 # A dist-git clone that fails is usually src.fedoraproject.org refusing or
@@ -61,7 +114,8 @@ RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
 #
 # Eight of eleven clones needed a retry and six of them recovered, so retrying
 # is right; three attempts over six seconds is just too impatient for a server
-# that is asking us to slow down. Hence five attempts, backing off to 16s.
+# that is asking us to slow down. Hence five attempts, and a batch that waits
+# out each refusal together (see Throttle) rather than one clone at a time.
 PERMANENT_CLONE_ERRORS = ("not found", "does not exist", "could not read username")
 
 
@@ -76,12 +130,27 @@ def clone_is_permanent_failure(stderr: str) -> bool:
     return any(marker in lowered for marker in PERMANENT_CLONE_ERRORS)
 
 
-def clone_with_retry(package, branch, checkout, attempts=3, runner=None, sleeper=None):
+def clone_with_retry(
+    package, branch, checkout, attempts=3, runner=None, sleeper=None, throttle=None
+):
+    """Clone one package, retrying a refused or dropped connection.
+
+    With a `throttle` the waiting is shared: the worker parks on the batch's
+    cooldown before every attempt and reports each refusal to it, instead of
+    keeping a private backoff schedule that would land back inside the window
+    that refused it.  Without one -- a single clone, or a unit test -- the
+    worker backs off on its own.
+    """
     runner = runner or subprocess.run
     sleeper = sleeper or time.sleep
     url = f"https://src.fedoraproject.org/rpms/{package}.git"
     result = None
     for attempt in range(1, max(1, attempts) + 1):
+        # Nothing is asked of the server while it is refusing clones,
+        # including this worker's first attempt: joining a throttled wave only
+        # prolongs it.
+        if throttle is not None:
+            throttle.wait()
         # git refuses to clone into an existing non-empty directory, so a
         # partial checkout left by a failed attempt would turn one transient
         # error into a permanent one.
@@ -95,10 +164,13 @@ def clone_with_retry(package, branch, checkout, attempts=3, runner=None, sleeper
             return result
         if clone_is_permanent_failure(result.stderr or ""):
             return result
+        if throttle is not None:
+            throttle.penalise()
         if attempt < max(1, attempts):
             tail = (result.stderr or "").strip().splitlines()[-1:] or ["clone failed"]
             print(f"Retrying {package} ({attempt}/{attempts - 1}): {tail[0]}")
-            sleeper(2 ** attempt)
+            if throttle is None:
+                sleeper(2 ** attempt)
     return result
 
 
@@ -190,6 +262,12 @@ def main() -> None:
         help="Attempts per dist-git clone before giving up. A clone that fails "
              "because the package does not exist is not retried.",
     )
+    parser.add_argument(
+        "--clone-cooldown", type=float, default=COOLDOWN_BASE, metavar="SECONDS",
+        help="First pause taken by every worker once src.fedoraproject.org "
+             "starts refusing clones; it doubles per wave. 0 disables the "
+             "wait, which is only useful against a stub server.",
+    )
     args = parser.parse_args()
 
     if args.packages:
@@ -217,10 +295,13 @@ def main() -> None:
                 continue
             pending.append((package, relative, target))
 
+        throttle = Throttle(base=args.clone_cooldown)
+
         def clone_one(item):
             package, _, _ = item
             return item, clone_with_retry(
-                package, args.branch, tempdir / package, args.clone_attempts
+                package, args.branch, tempdir / package, args.clone_attempts,
+                throttle=throttle,
             )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:

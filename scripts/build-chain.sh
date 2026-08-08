@@ -577,7 +577,20 @@ build_package_podman() {
                 # (run 30654065913).
                 mkdir -p /tmp/mock-configdir
                 cp -a /etc/mock/. /tmp/mock-configdir/
-                cp /repo-mock/*.cfg /tmp/mock-configdir/
+                # -p, and it is load-bearing. mock invalidates its root cache
+                # when any file in config_paths is newer than the cache
+                # tarball (plugins/root_cache.py _unpack_root_cache). A plain
+                # cp stamps the profile with the CURRENT time in every
+                # container, so the config was always newer than a cache any
+                # earlier package had written and mock unlinked it before it
+                # could ever be read. Measured in run 31268488082, which had
+                # MOCK_CACHE_DIR set and mounted correctly and still logged
+                #   INFO: /tmp/mock-configdir/hummingbird-ci.cfg newer than
+                #   root cache; cache will be rebuilt
+                # 18 times, unpacked the cache 0 times, and came out 39.5m
+                # against a 39.0m no-cache baseline (31265993115). The mount
+                # was right; this one flag was what made it worthless.
+                cp -p /repo-mock/*.cfg /tmp/mock-configdir/
                 chmod -R a+rX /tmp/mock-configdir
                 # SHARED lock: mock only READS /local-repo as a dnf repo, so
                 # any number of builds can hold it at once. The exclusive half
