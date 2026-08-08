@@ -28,6 +28,7 @@ import argparse
 import concurrent.futures
 import json
 import pathlib
+import random
 import re
 import shutil
 import subprocess
@@ -65,6 +66,29 @@ RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
 PERMANENT_CLONE_ERRORS = ("not found", "does not exist", "could not read username")
 
 
+def backoff_delay(attempt: int, jitter=None) -> float:
+    """`2 ** attempt`, spread over the top half of that interval.
+
+    The spread is the point, not a refinement.  The clones run as one burst of
+    --jobs, so when the server sheds load they fail *together* -- and a delay
+    that is a pure function of the attempt number re-issues every one of them
+    at the same instant, rebuilding the burst that caused the failure.  Drawing
+    each retry independently spreads the arrivals across the window.
+
+    Run 31270801603 is what this is for: `niri-00` is 66 packages since #271
+    regenerated the manifest, and 20 of them still failed *after their retries
+    were exhausted*, in lockstep.  More attempts against a synchronised burst
+    mostly buys a longer red.
+
+    The floor is half the interval rather than zero, so this only ever spreads
+    the wait and never shortens it below `2 ** (attempt - 1)`.  The ladder was
+    chosen to be patient with a server asking us to slow down, and full jitter
+    would halve the average wait and undercut that.
+    """
+    jitter = jitter or random.uniform
+    return jitter(0.5, 1.0) * (2 ** attempt)
+
+
 def clone_is_permanent_failure(stderr: str) -> bool:
     """True when retrying cannot help -- the package is not there.
 
@@ -76,7 +100,9 @@ def clone_is_permanent_failure(stderr: str) -> bool:
     return any(marker in lowered for marker in PERMANENT_CLONE_ERRORS)
 
 
-def clone_with_retry(package, branch, checkout, attempts=3, runner=None, sleeper=None):
+def clone_with_retry(
+    package, branch, checkout, attempts=3, runner=None, sleeper=None, jitter=None
+):
     runner = runner or subprocess.run
     sleeper = sleeper or time.sleep
     url = f"https://src.fedoraproject.org/rpms/{package}.git"
@@ -98,7 +124,7 @@ def clone_with_retry(package, branch, checkout, attempts=3, runner=None, sleeper
         if attempt < max(1, attempts):
             tail = (result.stderr or "").strip().splitlines()[-1:] or ["clone failed"]
             print(f"Retrying {package} ({attempt}/{attempts - 1}): {tail[0]}")
-            sleeper(2 ** attempt)
+            sleeper(backoff_delay(attempt, jitter))
     return result
 
 

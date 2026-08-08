@@ -51,7 +51,10 @@ def test_transient_failure_is_retried_until_it_succeeds(tmp_path):
     )
     assert result.returncode == 0
     assert len(run.calls) == 2
-    assert slept == [2]
+    # Spread across the top half of the interval (see backoff_delay), so this
+    # asserts the bound rather than a single value.
+    assert len(slept) == 1
+    assert 1.0 <= slept[0] <= 2.0
 
 
 def test_a_package_that_does_not_exist_is_not_retried(tmp_path):
@@ -80,7 +83,33 @@ def test_backoff_grows(tmp_path):
     IFD.clone_with_retry(
         "python-flaky", "rawhide", tmp_path / "co", 4, runner=run, sleeper=slept.append
     )
-    assert slept == [2, 4, 8]
+    assert len(slept) == 3
+    for attempt, delay in enumerate(slept, start=1):
+        assert 2 ** (attempt - 1) <= delay <= 2 ** attempt
+    assert slept[0] < slept[1] < slept[2], "each rung must still dominate the last"
+
+
+def test_backoff_never_shortens_the_wait(tmp_path):
+    """The floor is half the interval, so spreading never makes us more impatient.
+
+    The ladder was chosen to be patient with a server that is asking us to slow
+    down; full jitter would halve the average wait and undercut that.
+    """
+    for attempt in range(1, 6):
+        assert IFD.backoff_delay(attempt, jitter=lambda a, _b: a) == 2 ** (attempt - 1)
+        assert IFD.backoff_delay(attempt, jitter=lambda _a, b: b) == 2 ** attempt
+
+
+def test_concurrent_retries_do_not_land_together(tmp_path):
+    """The failure this exists to prevent.
+
+    Clones run as one burst of --jobs, so a shed fails them together. A delay
+    that is a pure function of the attempt number re-issues all of them at the
+    same instant. Run 31270801603 lost 20 of 66 packages with their retries
+    exhausted, in lockstep.
+    """
+    delays = {IFD.backoff_delay(1) for _ in range(200)}
+    assert len(delays) > 1, "identical delays would re-synchronise the burst"
 
 
 def test_a_503_is_transient(tmp_path):
