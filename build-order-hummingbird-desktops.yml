@@ -9,9 +9,9 @@
 #     --report-json docs/hummingbird-desktop-gap.json \
 #     --build-order build-order-hummingbird-desktops.yml
 #
-# Measured 2026-08-08T14:44:50.001394+00:00
-# target primary.xml   sha256 3c2eaf99d82289b58747895801df4d7a9e5fbe4328899d7e93626b5ffb0f0c68
-# reference primary.xml sha256 f0af43336f6a0d7043d3508e19feaa56ada38c153da334e29085ac05032aba77
+# Measured 2026-08-08T19:29:15.493007+00:00
+# target primary.xml   sha256 b92541eaf43fd4a8976710fa0035ae0c69b38aae7a0f241d61d87cd9bdd2a512
+# reference primary.xml sha256 dc3c7ec50508105e880c74f0178bf4723e770c73766654d833d1b2ad541e3774
 #
 # `distgit:` means the packaging is imported from Fedora Rawhide
 # dist-git at build time (scripts/import-fedora-distgit.py).  A package
