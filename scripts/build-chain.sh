@@ -367,19 +367,45 @@ prepare_sources() {
     if [[ -f "$sources_file" ]]; then
         local lookaside_name entry_name entry_hash
         lookaside_name="$(basename "$abs_pkg_dir")"
+        local entry_algo
         while IFS= read -r line; do
-            [[ "$line" =~ ^SHA512\ \((.+)\)\ =\ ([0-9a-f]{128})$ ]] || continue
-            entry_name="${BASH_REMATCH[1]}"
-            entry_hash="${BASH_REMATCH[2]}"
+            # Two formats, both current in Rawhide today.
+            #
+            #   SHA512 (foo-1.0.tar.gz) = <128 hex>     the modern one
+            #   <32 hex>  foo-1.0.tar.gz                the legacy md5 one
+            #
+            # Matching only the first silently skips the second -- `continue`
+            # on a line that is not an error -- and the package then dies in
+            # rpmbuild with "Bad file: /builddir/SOURCES/...: No such file or
+            # directory", which names the tarball but not the reason.
+            #
+            # That is what happened to lockdev and redhat-menus in gnome-00 of
+            # run 31272392927. Both still carry md5 sources files; both are
+            # old packages nobody has re-uploaded, and there are more like them
+            # across a 1248-package manifest.
+            if [[ "$line" =~ ^SHA512\ \((.+)\)\ =\ ([0-9a-f]{128})$ ]]; then
+                entry_name="${BASH_REMATCH[1]}"
+                entry_hash="${BASH_REMATCH[2]}"
+                entry_algo="sha512"
+            elif [[ "$line" =~ ^([0-9a-f]{32})\ \ (.+)$ ]]; then
+                entry_hash="${BASH_REMATCH[1]}"
+                entry_name="${BASH_REMATCH[2]}"
+                entry_algo="md5"
+            else
+                continue
+            fi
             [[ -f "${builddir}/SOURCES/${entry_name}" ]] && continue
-            echo "==> [${pkg_name}] Fetching ${entry_name} from the Fedora lookaside cache..."
+            echo "==> [${pkg_name}] Fetching ${entry_name} from the Fedora lookaside cache (${entry_algo})..."
+            # The lookaside path carries the algorithm, so the legacy entries
+            # live under .../md5/<hash>/... and not under sha512.
             curl -fsSL --retry 3 \
                 -o "${builddir}/SOURCES/${entry_name}" \
-                "https://src.fedoraproject.org/lookaside/pkgs/rpms/${lookaside_name}/${entry_name}/sha512/${entry_hash}/${entry_name}" || {
+                "https://src.fedoraproject.org/lookaside/pkgs/rpms/${lookaside_name}/${entry_name}/${entry_algo}/${entry_hash}/${entry_name}" || {
                 err "lookaside fetch failed for ${entry_name} (${pkg_name})"
                 return 1
             }
-            echo "${entry_hash}  ${builddir}/SOURCES/${entry_name}" | sha512sum --check --quiet - || {
+            echo "${entry_hash}  ${builddir}/SOURCES/${entry_name}" \
+                | "${entry_algo}sum" --check --quiet - || {
                 err "lookaside checksum mismatch for ${entry_name} (${pkg_name})"
                 return 1
             }
