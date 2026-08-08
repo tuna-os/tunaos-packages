@@ -229,56 +229,95 @@ def closure(roots, reference, have, source_index=None):
         else:
             absent_roots.append(root)
     queue = list(resolved_roots)
-    while queue:
-        name = queue.pop()
-        if name in seen:
-            continue
-        seen.add(name)
-        info = packages.get(name)
-        if info is None:
-            absent_roots.append(name)
-            continue
-        for requirement in info["requires"]:
-            if requirement in have:
-                continue
-            if requirement.startswith(RICH_DEP_PREFIX):
-                continue
-            candidates = provides.get(requirement)
-            if not candidates:
-                unresolved.setdefault(requirement, []).append(name)
-                continue
-            provider = choose_provider(requirement, candidates)
-            if provider not in seen:
-                queue.append(provider)
 
-        if not queue and source_index is not None:
-            # Runtime frontier is exhausted. Fold in the BuildRequires of every
-            # source package behind what we have reached; anything new restarts
-            # the runtime walk above, which is why this sits inside the loop.
-            #
-            # folded_sources keeps this from rescanning the whole of `seen`
-            # every time the queue drains -- with 23k SRPMs that turns a linear
-            # walk quadratic.
-            for binary in sorted(seen):
-                info = packages.get(binary)
-                if info is None:
+    def walk_runtime() -> None:
+        while queue:
+            name = queue.pop()
+            if name in seen:
+                continue
+            seen.add(name)
+            info = packages.get(name)
+            if info is None:
+                absent_roots.append(name)
+                continue
+            for requirement in info["requires"]:
+                if requirement in have:
                     continue
-                source = srpm_name(info.get("srpm"))
-                if source is None or source in folded_sources:
+                if requirement.startswith(RICH_DEP_PREFIX):
                     continue
-                folded_sources.add(source)
-                for requirement in source_index.get(source, ()):
-                    if requirement in have or requirement in seen:
-                        continue
-                    if requirement.startswith(RICH_DEP_PREFIX):
-                        continue
-                    candidates = provides.get(requirement)
-                    if not candidates:
-                        unresolved.setdefault(requirement, []).append(source)
-                        continue
-                    provider = choose_provider(requirement, candidates)
-                    if provider not in seen:
-                        queue.append(provider)
+                candidates = provides.get(requirement)
+                if not candidates:
+                    unresolved.setdefault(requirement, []).append(name)
+                    continue
+                provider = choose_provider(requirement, candidates)
+                if provider not in seen:
+                    queue.append(provider)
+
+    def fold_buildrequires() -> None:
+        """Queue the providers of every BuildRequires: not yet reached.
+
+        folded_sources keeps this from rescanning the whole of `seen` each
+        time the runtime frontier drains -- with 23k SRPMs that turns a linear
+        walk quadratic.
+        """
+        for binary in sorted(seen):
+            info = packages.get(binary)
+            if info is None:
+                continue
+            source = srpm_name(info.get("srpm"))
+            if source is None or source in folded_sources:
+                continue
+            folded_sources.add(source)
+            for requirement in source_index.get(source, ()):
+                if requirement in have or requirement in seen:
+                    continue
+                if requirement.startswith(RICH_DEP_PREFIX):
+                    continue
+                candidates = provides.get(requirement)
+                if not candidates:
+                    unresolved.setdefault(requirement, []).append(source)
+                    continue
+                provider = choose_provider(requirement, candidates)
+                if provider not in seen:
+                    queue.append(provider)
+
+    # Alternate to a fixpoint. The two halves are separate passes rather than
+    # one loop with the fold hanging off the end of the body, because that is
+    # what the previous shape was and it dropped the last fold every time:
+    #
+    #     while queue:
+    #         name = queue.pop()
+    #         if name in seen:
+    #             continue          # <-- jumps past the fold below
+    #         ...
+    #         if not queue and source_index is not None:
+    #             ...fold...
+    #
+    # When the queue drained on an already-seen name -- a duplicate, which is
+    # common -- control went back to `while queue:`, found it empty and left,
+    # with the newest sources never folded. Whether a desktop got its build
+    # dependencies came down to whether the last pop happened to be a
+    # duplicate, and that is why it looked like a per-desktop problem: cosmic
+    # reached `vala` and ordered dconf after it at tier 11, gnome did not
+    # reach it at all and sorted dconf into tier 0 with no build dependencies,
+    # where it failed against Rawhide's Python 3.15 (see #287).
+    while True:
+        walk_runtime()
+        if source_index is None:
+            break
+        fold_buildrequires()
+        if not queue:
+            break
+        walk_runtime()
+        if not queue:
+            # The fold produced nothing new on the last pass; another fold
+            # cannot either, since folded_sources only grows.
+            if all(
+                srpm_name(packages[b].get("srpm")) in folded_sources
+                for b in seen
+                if b in packages and packages[b].get("srpm")
+            ):
+                break
     return seen, absent_roots, unresolved
 
 
