@@ -43,10 +43,11 @@ files:
   common:
     - usr/bin/example-tool
 # How the gate proves this package actually installed and works. These used to
-# be hand-written matrix keys in build-tideforge-supported.yml, which is how a
+# be hand-written matrix keys in per-family payload workflows, which is how a
 # target could be declared with no cell asserting it at all (#139) -- nothing
-# connected the recipe to the job. State it here and the cell follows the
-# recipe instead of being remembered separately.
+# connected the recipe to the job. State it here and the unified factory
+# (plan-package-factory.py) derives the cell from the recipe instead of
+# remembering it separately.
 #
 # `smoke` runs inside a clean container after the built package is installed
 # from an ephemeral repository. It must fail loudly if the package is broken;

@@ -38,11 +38,12 @@ live DNF/APT/Pacman endpoint.
 
 ### What enforces this today
 
-`build-tideforge-supported.yml` and `build-tideforge-arch.yml` are the
-enforcement. For each covered recipe they render the native metadata, fetch the
-checksum-locked source, build in a clean target buildroot with only the declared
-build dependencies, lint the built artifact, publish it to an ephemeral
-repository, and clean-install it in a second container before running a
+The unified factory (`package-factory.yml` + `scripts/plan-package-factory.py`)
+is the enforcement. It derives one cell per declared (recipe, target) pair and
+each cell renders the native metadata, fetches the checksum-locked source,
+builds in a clean target buildroot with only the declared build dependencies,
+lints the built artifact, publishes it to an ephemeral repository, and
+clean-installs it in a second container before running a
 command/file/service smoke check. `xfconf` additionally proves the
 split-package contract: both halves are separate artifacts, the development
 half pulls in the runtime half, and the headers are absent from the runtime

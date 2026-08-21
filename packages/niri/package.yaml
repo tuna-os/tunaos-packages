@@ -69,7 +69,7 @@ verify:
     # every session-integration file missing -- the same way flounder:niri
     # shipped a compositor no display manager could discover. This records
     # what that cell checks today rather than pretending it checks more; raise
-    # it to the full contract above when build-tideforge-arch.yml is free
+    # it to the full contract above when the arch gate is free
     # (it is held by #156 right now).
     arch:
       smoke: niri --help

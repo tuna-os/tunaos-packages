@@ -400,8 +400,10 @@ packages:
     referenced_by:
       - manifests/target-queues/gnome.yaml
   - name: bazaar
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      deb:
+        tideforge: packages/bazaar
       pkg.tar.zst:
         tideforge: packages/bazaar
     upstream:
@@ -410,23 +412,11 @@ packages:
       sha256: 1b2783845b183a9cea87048e582dcbdd71d7771a7f65f89d7ec8a563af2d550f
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: bazaar
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/bazaar
-    upstream:
-      version: 0.9.1
-      source: https://github.com/bazaar-org/bazaar/archive/refs/tags/v0.9.1.tar.gz
-      sha256: 1b2783845b183a9cea87048e582dcbdd71d7771a7f65f89d7ec8a563af2d550f
-    targets:
       - debian
+      - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: blueman
     family: hummingbird-desktops
     packaging:
@@ -590,8 +580,12 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
   - name: cli11-devel
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/cli11-devel
+      deb:
+        tideforge: packages/cli11-devel
       pkg.tar.zst:
         tideforge: packages/cli11-devel
     upstream:
@@ -600,25 +594,13 @@ packages:
       sha256: 17e02b4cddc2fa348e5dbdbb582c59a3486fa2b2433e70a0c3bacb871334fd55
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: cli11-devel
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/cli11-devel
-    upstream:
-      version: 2.5.0
-      source: https://github.com/CLIUtils/CLI11/archive/refs/tags/v2.5.0.tar.gz
-      sha256: 17e02b4cddc2fa348e5dbdbb582c59a3486fa2b2433e70a0c3bacb871334fd55
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: cliphist
     family: hummingbird-desktops
     packaging:
@@ -735,6 +717,24 @@ packages:
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
+  - name: cosmic-bg
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-bg
+      deb:
+        tideforge: packages/cosmic-bg
+    upstream:
+      version: 1.4.0
+      source: https://github.com/pop-os/cosmic-bg/archive/epoch-1.4.0.tar.gz
+      sha256: 401b1753d5dfa2c45b00eac34dd5a675dcd02d5e9c7ee7cd3676cf37c2242d30
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cosmic-comp
     family: hummingbird-desktops
     packaging:
@@ -768,9 +768,11 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-comp
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/cosmic-comp
+      deb:
         tideforge: packages/cosmic-comp
     upstream:
       version: 1.4.0
@@ -778,10 +780,11 @@ packages:
       sha256: 713f2dfdfa0e1b6899a45fd7dec172fb0f299a60daff4a624b8432de43fa229b
     targets:
       - debian
+      - el10
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: cosmic-config-fedora
     family: hummingbird-desktops
     packaging:
@@ -839,19 +842,23 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-greeter
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/cosmic-greeter
+      deb:
         tideforge: packages/cosmic-greeter
     upstream:
       version: 1.4.0
       source: https://github.com/pop-os/cosmic-greeter/archive/epoch-1.4.0.tar.gz
       sha256: 121ea127cb26efa0c414d8d5c191bb7d2e890b1543edd17065004e2d9bf7baab
     targets:
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: cosmic-icon-theme
     family: hummingbird-desktops
     packaging:
@@ -883,6 +890,24 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-icon-theme
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-icon-theme
+      deb:
+        tideforge: packages/cosmic-icon-theme
+    upstream:
+      version: 1.4.0
+      source: https://github.com/pop-os/cosmic-icons/archive/epoch-1.4.0.tar.gz
+      sha256: cdcad65105822f5df86492ae4c55c31880dc0aad5f901b1e0cb9a38a0cc5b9d2
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
+  - name: cosmic-icon-theme
     family: tideforge-debs
     packaging:
       deb:
@@ -897,21 +922,6 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/publish-tideforge-debs.yml
-  - name: cosmic-icon-theme
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/cosmic-icon-theme
-    upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-icons/archive/epoch-1.4.0.tar.gz
-      sha256: cdcad65105822f5df86492ae4c55c31880dc0aad5f901b1e0cb9a38a0cc5b9d2
-    targets:
-      - debian
-      - ubuntu
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
   - name: cosmic-idle
     family: hummingbird-desktops
     packaging:
@@ -943,19 +953,23 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-idle
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/cosmic-idle
+      deb:
         tideforge: packages/cosmic-idle
     upstream:
       version: 1.4.0
       source: https://github.com/pop-os/cosmic-idle/archive/epoch-1.4.0.tar.gz
       sha256: f399774b598b278f9f2a49bc0dc15b5e44cfdfe519762076e08ff73efa3d8186
     targets:
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: cosmic-initial-setup
     family: hummingbird-desktops
     packaging:
@@ -1011,19 +1025,23 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-notifications
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/cosmic-notifications
+      deb:
         tideforge: packages/cosmic-notifications
     upstream:
       version: 1.4.0
       source: https://github.com/pop-os/cosmic-notifications/archive/epoch-1.4.0.tar.gz
       sha256: 8431557ec6efe06507c10a214f99352d1a702bd438e53d79193ea288d7152b3a
     targets:
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: cosmic-osd
     family: hummingbird-desktops
     packaging:
@@ -1055,19 +1073,23 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-osd
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/cosmic-osd
+      deb:
         tideforge: packages/cosmic-osd
     upstream:
       version: 1.4.0
       source: https://github.com/pop-os/cosmic-osd/archive/epoch-1.4.0.tar.gz
       sha256: 5ea21a076bc177fba888b2a5eb4e70d7524b4db0351a6e99d6d9bee4222267b2
     targets:
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: cosmic-panel
     family: hummingbird-desktops
     packaging:
@@ -1099,6 +1121,24 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-panel
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-panel
+      deb:
+        tideforge: packages/cosmic-panel
+    upstream:
+      version: 1.4.0
+      source: https://github.com/pop-os/cosmic-panel/archive/epoch-1.4.0.tar.gz
+      sha256: c41d843f5e57b530ed74078f665fea6452e343a3c1bfe9cf637bcb029e4f5709
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
+  - name: cosmic-panel
     family: tideforge-debs
     packaging:
       deb:
@@ -1113,22 +1153,6 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/publish-tideforge-debs.yml
-  - name: cosmic-panel
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/cosmic-panel
-    upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-panel/archive/epoch-1.4.0.tar.gz
-      sha256: c41d843f5e57b530ed74078f665fea6452e343a3c1bfe9cf637bcb029e4f5709
-    targets:
-      - debian
-      - el10
-      - ubuntu
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
   - name: cosmic-randr
     family: hummingbird-desktops
     packaging:
@@ -1160,6 +1184,24 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-randr
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-randr
+      deb:
+        tideforge: packages/cosmic-randr
+    upstream:
+      version: 1.4.0
+      source: https://github.com/pop-os/cosmic-randr/archive/epoch-1.4.0.tar.gz
+      sha256: 37745fa8229e30ce1a3f38e724ccab3f4805af0acaaeb26ce1ffe80ad8d73852
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
+  - name: cosmic-randr
     family: tideforge-debs
     packaging:
       deb:
@@ -1174,22 +1216,6 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/publish-tideforge-debs.yml
-  - name: cosmic-randr
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/cosmic-randr
-    upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-randr/archive/epoch-1.4.0.tar.gz
-      sha256: 37745fa8229e30ce1a3f38e724ccab3f4805af0acaaeb26ce1ffe80ad8d73852
-    targets:
-      - debian
-      - el10
-      - ubuntu
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
   - name: cosmic-screenshot
     family: hummingbird-desktops
     packaging:
@@ -1235,9 +1261,11 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-session
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/cosmic-session
+      deb:
         tideforge: packages/cosmic-session
     upstream:
       version: 1.4.0
@@ -1249,7 +1277,7 @@ packages:
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: cosmic-settings
     family: hummingbird-desktops
     packaging:
@@ -1283,9 +1311,11 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-settings
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/cosmic-settings
+      deb:
         tideforge: packages/cosmic-settings
     upstream:
       version: 1.4.0
@@ -1297,7 +1327,7 @@ packages:
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: cosmic-settings-daemon
     family: hummingbird-desktops
     packaging:
@@ -1329,19 +1359,23 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: cosmic-settings-daemon
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/cosmic-settings-daemon
+      deb:
         tideforge: packages/cosmic-settings-daemon
     upstream:
       version: 1.4.0
       source: https://github.com/pop-os/cosmic-settings-daemon/archive/epoch-1.4.0.tar.gz
       sha256: 83057e054570d26e8106b2069f9bbef9c20cb0f6ead18e259a66465f13c3b2df
     targets:
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: cosmic-term
     family: hummingbird-desktops
     packaging:
@@ -1378,6 +1412,28 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cpptrace-devel
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cpptrace-devel
+      deb:
+        tideforge: packages/cpptrace-devel
+      pkg.tar.zst:
+        tideforge: packages/cpptrace-devel
+    upstream:
+      version: 1.0.4
+      source: https://github.com/jeremy-rifkin/cpptrace/archive/refs/tags/v1.0.4.tar.gz
+      sha256: 5c9f5b301e903714a4d01f1057b9543fa540f7bfcc5e3f8bd1748e652e24f9ea
+    targets:
+      - arch
+      - debian
+      - el10
+      - opensuse-tumbleweed
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cups-pk-helper
     family: hummingbird-desktops
     packaging:
@@ -1405,7 +1461,7 @@ packages:
     referenced_by:
       - manifests/target-queues/niri.yaml
   - name: dankcalendar
-    family: tideforge-arch
+    family: tideforge
     packaging:
       pkg.tar.zst:
         tideforge: packages/dankcalendar
@@ -1417,7 +1473,7 @@ packages:
       - arch
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
+      - .github/workflows/package-factory.yml
   - name: danksearch
     family: hummingbird-desktops
     packaging:
@@ -1454,8 +1510,12 @@ packages:
     referenced_by:
       - manifests/target-queues/niri.yaml
   - name: danksearch
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/danksearch
+      deb:
+        tideforge: packages/danksearch
       pkg.tar.zst:
         tideforge: packages/danksearch
     upstream:
@@ -1464,25 +1524,13 @@ packages:
       sha256: 9454a2935c149ca3eb64106d59c266f513daff90438bac8b58e3a66b477521a9
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: danksearch
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/danksearch
-    upstream:
-      version: 0.3.2
-      source: https://github.com/AvengeMedia/danksearch/archive/refs/tags/v0.3.2.tar.gz
-      sha256: 9454a2935c149ca3eb64106d59c266f513daff90438bac8b58e3a66b477521a9
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: dconf
     family: hummingbird-desktops
     packaging:
@@ -1579,8 +1627,12 @@ packages:
     referenced_by:
       - manifests/target-queues/niri.yaml
   - name: dgop
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/dgop
+      deb:
+        tideforge: packages/dgop
       pkg.tar.zst:
         tideforge: packages/dgop
     upstream:
@@ -1589,25 +1641,13 @@ packages:
       sha256: afd2f9542ce25c739b13d6213fdfbc5493bce537d5afec309b4df945e318ff1a
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: dgop
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/dgop
-    upstream:
-      version: 0.2.3
-      source: https://github.com/AvengeMedia/dgop/archive/refs/tags/v0.2.3.tar.gz
-      sha256: afd2f9542ce25c739b13d6213fdfbc5493bce537d5afec309b4df945e318ff1a
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: dmidecode
     family: hummingbird-desktops
     packaging:
@@ -1644,21 +1684,27 @@ packages:
     referenced_by:
       - manifests/target-queues/niri.yaml
   - name: dms
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/dms
+      deb:
+        tideforge: packages/dms
+      pkg.tar.zst:
         tideforge: packages/dms
     upstream:
       version: 1.5.2
       source: https://github.com/AvengeMedia/DankMaterialShell/releases/download/v1.5.2/dms-qml.tar.gz
       sha256: a504d4684aed1fde07bc3cad3ea1ba417331bfd43cb97420133082ae70da1478
     targets:
+      - arch
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: dms-cli
     family: queue-niri
     packaging:
@@ -1683,21 +1729,27 @@ packages:
     referenced_by:
       - manifests/target-queues/niri.yaml
   - name: dms-cli
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/dms-cli
+      deb:
+        tideforge: packages/dms-cli
+      pkg.tar.zst:
         tideforge: packages/dms-cli
     upstream:
       version: 1.5.2
       source: https://github.com/AvengeMedia/DankMaterialShell/archive/refs/tags/v1.5.2.tar.gz
       sha256: 2fa4fccb9e3fd259fb5e2c8d6e5fe329096f893ca6b8ac9766c699061e0b347c
     targets:
+      - arch
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: dms-greeter
     family: queue-niri
     packaging:
@@ -1722,8 +1774,12 @@ packages:
     referenced_by:
       - manifests/target-queues/niri.yaml
   - name: dms-greeter
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/dms-greeter
+      deb:
+        tideforge: packages/dms-greeter
       pkg.tar.zst:
         tideforge: packages/dms-greeter
     upstream:
@@ -1732,25 +1788,13 @@ packages:
       sha256: a504d4684aed1fde07bc3cad3ea1ba417331bfd43cb97420133082ae70da1478
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: dms-greeter
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/dms-greeter
-    upstream:
-      version: 1.5.2
-      source: https://github.com/AvengeMedia/DankMaterialShell/releases/download/v1.5.2/dms-qml.tar.gz
-      sha256: a504d4684aed1fde07bc3cad3ea1ba417331bfd43cb97420133082ae70da1478
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: docbook-dtds
     family: hummingbird-desktops
     packaging:
@@ -1838,7 +1882,7 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
   - name: evtest
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
         tideforge: packages/evtest
@@ -1850,7 +1894,7 @@ packages:
       - el10
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: exempi
     family: hummingbird-desktops
     packaging:
@@ -3119,8 +3163,12 @@ packages:
     referenced_by:
       - manifests/target-queues/niri.yaml
   - name: greetd
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/greetd
+      deb:
+        tideforge: packages/greetd
       pkg.tar.zst:
         tideforge: packages/greetd
     upstream:
@@ -3129,25 +3177,13 @@ packages:
       sha256: ee5cb70e0add4ca9c9fe57e47581ab0002d44c07743fb5492469f3b570db640b
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: greetd
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/greetd
-    upstream:
-      version: 0.10.3
-      source: https://git.sr.ht/~kennylevinsen/greetd/archive/0.10.3.tar.gz
-      sha256: ee5cb70e0add4ca9c9fe57e47581ab0002d44c07743fb5492469f3b570db640b
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: gsettings-desktop-schemas
     family: gnome50
     packaging:
@@ -3313,7 +3349,7 @@ packages:
     referenced_by:
       - manifests/target-queues/xfce.yaml
   - name: gtk-layer-shell
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
         tideforge: packages/gtk-layer-shell
@@ -3325,7 +3361,7 @@ packages:
       - el10
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: gtk-layer-shell
     family: xfce
     packaging:
@@ -3440,6 +3476,20 @@ packages:
     membership: runtime
     referenced_by:
       - manifests/target-queues/xfce.yaml
+  - name: gtkgreet
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/gtkgreet
+    upstream:
+      version: '0.8'
+      source: https://git.sr.ht/~kennylevinsen/gtkgreet/archive/0.8.tar.gz
+      sha256: e5c70219da191a60e2e009412603e05c36cee15bbbf7657dbbeaa1d21a692873
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: gtkgreet
     family: xfce
     packaging:
@@ -3740,6 +3790,28 @@ packages:
     membership: runtime
     referenced_by:
       - manifests/target-queues/niri.yaml
+  - name: iio-niri
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/iio-niri
+      deb:
+        tideforge: packages/iio-niri
+      pkg.tar.zst:
+        tideforge: packages/iio-niri
+    upstream:
+      version: 2.3.1
+      source: https://github.com/Zhaith-Izaliel/iio-niri/archive/refs/tags/v2.3.1.tar.gz
+      sha256: b30cb1934a9a0a8e1be3b0f89e37349b6b3f7f87d25a2a526d92dabf4a5a22b1
+    targets:
+      - arch
+      - debian
+      - el10
+      - opensuse-tumbleweed
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: iio-sensor-proxy
     family: hummingbird-desktops
     packaging:
@@ -3815,19 +3887,22 @@ packages:
     referenced_by:
       - build-order.yml
   - name: input-remapper
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/input-remapper
+      pkg.tar.zst:
         tideforge: packages/input-remapper
     upstream:
       version: 2.2.1
       source: https://github.com/sezanzeb/input-remapper/archive/refs/tags/2.2.1.tar.gz
       sha256: 6ad3d58829e29f2943cbc874b910a94e699428547240f3e5b2a4acbd34e62d2f
     targets:
+      - arch
       - el10
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: iso-codes
     family: hummingbird-desktops
     packaging:
@@ -3942,8 +4017,12 @@ packages:
     referenced_by:
       - manifests/target-queues/kde.yaml
   - name: kairpods
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/kairpods
+      deb:
+        tideforge: packages/kairpods
       pkg.tar.zst:
         tideforge: packages/kairpods
     upstream:
@@ -3952,25 +4031,13 @@ packages:
       sha256: bdc60d10749f4383ab71da9f9360e15541be59984bd68b8a6f06842560d6313b
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: kairpods
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/kairpods
-    upstream:
-      version: 0.2.2
-      source: https://github.com/can1357/kAirPods/archive/refs/tags/v0.2.2.tar.gz
-      sha256: bdc60d10749f4383ab71da9f9360e15541be59984bd68b8a6f06842560d6313b
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: kate
     family: hummingbird-desktops
     packaging:
@@ -4963,8 +5030,12 @@ packages:
     referenced_by:
       - manifests/target-queues/kde.yaml
   - name: krunner-bazaar
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/krunner-bazaar
+      deb:
+        tideforge: packages/krunner-bazaar
       pkg.tar.zst:
         tideforge: packages/krunner-bazaar
     upstream:
@@ -4973,24 +5044,13 @@ packages:
       sha256: 793f59b414973b85160573b0d8d5f8fc38bd216d106f976a3c416c86b37a0d09
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: krunner-bazaar
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/krunner-bazaar
-    upstream:
-      version: 1.3.0
-      source: https://github.com/bazaar-org/krunner-bazaar/archive/refs/tags/v1.3.0.tar.gz
-      sha256: 793f59b414973b85160573b0d8d5f8fc38bd216d106f976a3c416c86b37a0d09
-    targets:
       - debian
+      - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: kscreenlocker
     family: hummingbird-desktops
     packaging:
@@ -5076,7 +5136,7 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
   - name: labwc
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
         tideforge: packages/labwc
@@ -5088,7 +5148,7 @@ packages:
       - el10
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: lame
     family: hummingbird-desktops
     packaging:
@@ -6666,21 +6726,27 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
   - name: libseat
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/libseat
+      deb:
+        tideforge: packages/libseat
+      pkg.tar.zst:
         tideforge: packages/libseat
     upstream:
       version: 0.9.3
       source: https://github.com/kennylevinsen/seatd/archive/refs/tags/0.9.3.tar.gz
       sha256: 302564d54d8e28191fadfd734f2675ecb0c9e0615a58011b89ef15dfa4dbaa96
     targets:
+      - arch
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: libsecret
     family: hummingbird-desktops
     packaging:
@@ -6866,8 +6932,12 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
   - name: libunwind-devel
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/libunwind-devel
+      deb:
+        tideforge: packages/libunwind-devel
       pkg.tar.zst:
         tideforge: packages/libunwind-devel
     upstream:
@@ -6876,25 +6946,13 @@ packages:
       sha256: 38833b7b1582db7d76485a62a213706c9252b3dab7380069fea5824e823d8e41
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: libunwind-devel
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/libunwind-devel
-    upstream:
-      version: 1.8.1
-      source: https://github.com/libunwind/libunwind/archive/refs/tags/v1.8.1.tar.gz
-      sha256: 38833b7b1582db7d76485a62a213706c9252b3dab7380069fea5824e823d8e41
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: libusbmuxd
     family: hummingbird-desktops
     packaging:
@@ -7776,8 +7834,12 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
   - name: ninja-build
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/ninja-build
+      deb:
+        tideforge: packages/ninja-build
       pkg.tar.zst:
         tideforge: packages/ninja-build
     upstream:
@@ -7786,25 +7848,13 @@ packages:
       sha256: 974d6b2f4eeefa25625d34da3cb36bdcebe7fbce40f4c16ac0835fd1c0cbae17
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: ninja-build
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/ninja-build
-    upstream:
-      version: 1.13.2
-      source: https://github.com/ninja-build/ninja/archive/refs/tags/v1.13.2.tar.gz
-      sha256: 974d6b2f4eeefa25625d34da3cb36bdcebe7fbce40f4c16ac0835fd1c0cbae17
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: niri
     family: hummingbird-desktops
     packaging:
@@ -7843,8 +7893,12 @@ packages:
     referenced_by:
       - manifests/target-queues/niri.yaml
   - name: niri
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/niri
+      deb:
+        tideforge: packages/niri
       pkg.tar.zst:
         tideforge: packages/niri
     upstream:
@@ -7853,24 +7907,13 @@ packages:
       sha256: 134c602d8e0d53413a52d6cd58f9ce7e79a07d03288ee0a51ba1abd5db1b1ad9
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: niri
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/niri
-    upstream:
-      version: '26.04'
-      source: https://github.com/niri-wm/niri/archive/refs/tags/v26.04.tar.gz
-      sha256: 134c602d8e0d53413a52d6cd58f9ce7e79a07d03288ee0a51ba1abd5db1b1ad9
-    targets:
       - debian
+      - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: noopenh264
     family: hummingbird-desktops
     packaging:
@@ -8093,8 +8136,12 @@ packages:
     referenced_by:
       - manifests/target-queues/kde.yaml
   - name: oversteer-udev
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/oversteer-udev
+      deb:
+        tideforge: packages/oversteer-udev
       pkg.tar.zst:
         tideforge: packages/oversteer-udev
     upstream:
@@ -8103,25 +8150,13 @@ packages:
       sha256: 996f0a34c65ce4805360e674c04678a7612c647c54a9aad7f2c7d7d5c830c2c2
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: oversteer-udev
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/oversteer-udev
-    upstream:
-      version: 0.8.3+git74c7484
-      source: https://github.com/berarma/oversteer/archive/74c748436a1dff2e42a340b581db0d0e4e0cafb2.tar.gz
-      sha256: 996f0a34c65ce4805360e674c04678a7612c647c54a9aad7f2c7d7d5c830c2c2
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: pango
     family: gnome50
     packaging:
@@ -8403,7 +8438,7 @@ packages:
     referenced_by:
       - manifests/target-queues/kde.yaml
   - name: plasma-setup
-    family: tideforge-arch
+    family: tideforge
     packaging:
       pkg.tar.zst:
         tideforge: packages/plasma-setup
@@ -8415,7 +8450,7 @@ packages:
       - arch
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
+      - .github/workflows/package-factory.yml
   - name: plasma-systemsettings
     family: hummingbird-desktops
     packaging:
@@ -8535,6 +8570,24 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: pop-icon-theme
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/pop-icon-theme
+      deb:
+        tideforge: packages/pop-icon-theme
+    upstream:
+      version: 3.5.0
+      source: https://github.com/pop-os/icon-theme/archive/v3.5.0.tar.gz
+      sha256: 917f5e300e927fe2557355717793f3284aee869a6ae0b81cd31507f20090d796
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
+  - name: pop-icon-theme
     family: tideforge-debs
     packaging:
       deb:
@@ -8549,22 +8602,6 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/publish-tideforge-debs.yml
-  - name: pop-icon-theme
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/pop-icon-theme
-    upstream:
-      version: 3.5.0
-      source: https://github.com/pop-os/icon-theme/archive/v3.5.0.tar.gz
-      sha256: 917f5e300e927fe2557355717793f3284aee869a6ae0b81cd31507f20090d796
-    targets:
-      - debian
-      - el10
-      - ubuntu
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
   - name: pop-launcher
     family: hummingbird-desktops
     packaging:
@@ -9154,7 +9191,7 @@ packages:
     referenced_by:
       - build-order.yml
   - name: python3-evdev
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
         tideforge: packages/python3-evdev
@@ -9166,7 +9203,7 @@ packages:
       - el10
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: pytz
     family: hummingbird-desktops
     packaging:
@@ -9514,6 +9551,28 @@ packages:
     membership: runtime
     referenced_by:
       - manifests/target-queues/niri.yaml
+  - name: quickshell
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/quickshell
+      deb:
+        tideforge: packages/quickshell
+      pkg.tar.zst:
+        tideforge: packages/quickshell
+    upstream:
+      version: 0.3.0
+      source: https://github.com/quickshell-mirror/quickshell/archive/refs/tags/v0.3.0.tar.gz
+      sha256: 5229069b0f1d375f34b0a04a4e6a69156e2f010995d9ec5a943793424e589b5d
+    targets:
+      - arch
+      - debian
+      - el10
+      - opensuse-tumbleweed
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: redhat-menus
     family: hummingbird-desktops
     packaging:
@@ -10421,8 +10480,12 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
   - name: uupd
-    family: tideforge-arch
+    family: tideforge
     packaging:
+      rpm:
+        tideforge: packages/uupd
+      deb:
+        tideforge: packages/uupd
       pkg.tar.zst:
         tideforge: packages/uupd
     upstream:
@@ -10431,25 +10494,13 @@ packages:
       sha256: ab38f5869831f98e4ee637a013ad03ccd7e183aab3c5175eec76041586ced024
     targets:
       - arch
-    membership: runtime
-    referenced_by:
-      - .github/workflows/build-tideforge-arch.yml
-  - name: uupd
-    family: tideforge-supported
-    packaging:
-      rpm:
-        tideforge: packages/uupd
-    upstream:
-      version: 1.4.0
-      source: https://github.com/ublue-os/uupd/archive/refs/tags/v1.4.0.tar.gz
-      sha256: ab38f5869831f98e4ee637a013ad03ccd7e183aab3c5175eec76041586ced024
-    targets:
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: v4l-utils
     family: hummingbird-desktops
     packaging:
@@ -10685,21 +10736,27 @@ packages:
     referenced_by:
       - build-order-gnome51.yml
   - name: wayland-protocols
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/wayland-protocols
+      deb:
+        tideforge: packages/wayland-protocols
+      pkg.tar.zst:
         tideforge: packages/wayland-protocols
     upstream:
       version: '1.49'
       source: https://gitlab.freedesktop.org/wayland/wayland-protocols/-/archive/1.49/wayland-protocols-1.49.tar.gz
       sha256: 8d94eee148db4d8111ccc0d4331de2f82d4b28c38e30eace9f052886480f7d86
     targets:
+      - arch
       - debian
       - el10
+      - opensuse-tumbleweed
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: webkitgtk
     family: hummingbird-desktops
     packaging:
@@ -10969,19 +11026,23 @@ packages:
     referenced_by:
       - manifests/target-queues/cosmic.yaml
   - name: xdg-desktop-portal-cosmic
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/xdg-desktop-portal-cosmic
+      deb:
         tideforge: packages/xdg-desktop-portal-cosmic
     upstream:
       version: 1.4.0
       source: https://github.com/pop-os/xdg-desktop-portal-cosmic/archive/epoch-1.4.0.tar.gz
       sha256: 87abf4fdfce157ae7e36b9055f79ba1584fb1fa20e8946821d7e32f1d1f0cae1
     targets:
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: xdg-desktop-portal-gnome
     family: gnome50
     packaging:
@@ -11515,9 +11576,11 @@ packages:
     referenced_by:
       - manifests/target-queues/xfce.yaml
   - name: xfconf
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
+        tideforge: packages/xfconf
+      deb:
         tideforge: packages/xfconf
     upstream:
       version: 4.21.2
@@ -11529,7 +11592,7 @@ packages:
       - ubuntu
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: xfconf
     family: xfce
     packaging:
@@ -11607,6 +11670,24 @@ packages:
     referenced_by:
       - manifests/target-queues/xfce.yaml
   - name: xfwl4
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/xfwl4
+      deb:
+        tideforge: packages/xfwl4
+    upstream:
+      version: 4.21.0
+      source: https://gitlab.xfce.org/xfce/xfwl4/-/archive/465880f67b5705136895bf69c60e2178ad351856/xfwl4-465880f67b5705136895bf69c60e2178ad351856.tar.gz
+      sha256: 4507f6ea9da24dc756df4ac02441a3b7452187ba64bce8893eaf1cbe62a0850b
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
+  - name: xfwl4
     family: xfce
     packaging:
       rpm:
@@ -11659,7 +11740,7 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
   - name: xfwm4-themes
-    family: tideforge-supported
+    family: tideforge
     packaging:
       rpm:
         tideforge: packages/xfwm4-themes
@@ -11671,7 +11752,7 @@ packages:
       - el10
     membership: runtime
     referenced_by:
-      - .github/workflows/build-tideforge-supported.yml
+      - .github/workflows/package-factory.yml
   - name: xhost
     family: hummingbird-desktops
     packaging:
@@ -11912,25 +11993,3 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-  - name: cpptrace-devel
-    family: tideforge
-    packaging:
-      rpm:
-        tideforge: packages/cpptrace-devel
-      deb:
-        tideforge: packages/cpptrace-devel
-      pkg.tar.zst:
-        tideforge: packages/cpptrace-devel
-    upstream:
-      version: 1.0.4
-      source: https://github.com/jeremy-rifkin/cpptrace/archive/refs/tags/v1.0.4.tar.gz
-      sha256: 5c9f5b301e903714a4d01f1057b9543fa540f7bfcc5e3f8bd1748e652e24f9ea
-    targets:
-      - arch
-      - debian
-      - el10
-      - opensuse-tumbleweed
-      - ubuntu
-    membership: runtime
-    referenced_by:
-      - packages/cpptrace-devel/package.yaml

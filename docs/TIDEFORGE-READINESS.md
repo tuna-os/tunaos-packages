@@ -85,15 +85,18 @@ that gnome-shell survives without crash-looping, and scans the journal for crash
 signatures. That is the standard Tideforge has to meet, and it already exists as a
 worked example to copy.
 
-## COSMIC is payload-only by design, today
+## COSMIC installs and smokes, but the full staged closure is still ahead
 
-`build-tideforge-supported.yml` says so in its own comment:
+cosmic-session's gate cell (unified factory, #430) installs the package into a
+clean container and runs its smoke contract -- `start-cosmic` and the
+wayland-sessions desktop file are present -- but the desktop still cannot be
+staged end-to-end: the remaining runtime closure (greetd-selinux,
+adw-gtk3-theme, and the nine cosmic siblings cosmic-session depends on) is not
+all factory-built yet.
 
-> COSMIC is deliberately payload-only for now: a full staged install requires the
-> remaining runtime closure, which is not all factory-built yet.
-
-So COSMIC meets 1 of its 4 declared gates (`mock-build`), not the
-`rpm-md-stage-install`, `greetd-login`, or `cosmic-session-smoke` it claims.
+So COSMIC meets its install/smoke gate per package, but not the
+full staged-desktop gates (`rpm-md-stage-install`, `greetd-login`, or
+`cosmic-session-smoke` on a complete session) that the desktop edition needs.
 
 ## Other gaps found
 

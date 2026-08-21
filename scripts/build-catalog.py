@@ -34,7 +34,9 @@ Upstream provenance, by payload kind:
 from __future__ import annotations
 
 import glob
+import importlib.util
 import os
+import pathlib
 import re
 import sys
 
@@ -63,6 +65,25 @@ def family_of(order_file: str) -> str:
     name = base.replace("build-order-", "").replace("build-order", "").replace(
         ".yml", "").strip("-")
     return name or "gnome50"  # build-order.yml is the GNOME 50 main queue
+
+
+def tideforge_cells(root: pathlib.Path) -> list[dict]:
+    """Unified-factory cells (RFC 011, #430): the executed gate set.
+
+    The per-family payload matrices (build-tideforge-supported.yml,
+    build-tideforge-arch.yml) were retired by the unified factory; the
+    planner now derives one cell per declared (recipe, target, arch) pair.
+    Import it rather than re-deriving cells here so the catalog and the gate
+    share one source of truth.
+    """
+    spec = importlib.util.spec_from_file_location(
+        "plan_package_factory",
+        os.path.join(ROOT, "scripts", "plan-package-factory.py"),
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.tideforge_cells(root)
 
 
 def load_yaml(path: str):
@@ -172,14 +193,37 @@ def collect() -> dict:
                     rpm.setdefault("native", path)
                     rpm["missing_on_disk"] = True
 
-    # ── Tideforge workflow matrices ──────────────────────────────────────
-    # These families' executed sets live as inline `strategy.matrix` lists in
-    # the workflow files, not in a build-order file. The per-file map names
-    # the default (target, format) a bare `package:` cell means; include-list
-    # cells that carry their own `target:` override it.
+    # ── Unified factory cells ────────────────────────────────────────────
+    # The per-family gate workflows (build-tideforge-supported.yml,
+    # build-tideforge-arch.yml) were retired by the unified factory (#430):
+    # cells now derive from the planner (plan-package-factory.py), which
+    # emits one tideforge cell per declared (recipe, target, architecture)
+    # pair. Read those same cells so the catalog cannot drift from the gate
+    # again -- the #139 defect class. publish-tideforge-debs.yml below is a
+    # publisher, not a gate, and stays a separate family.
+    unified_rel = ".github/workflows/package-factory.yml"
+    for cell in tideforge_cells(pathlib.Path(ROOT)):
+        name = cell["package"]
+        e = entry(name, "tideforge")
+        target = cell["target"]
+        fmt = cell["format"]
+        if target not in e["targets"]:
+            e["targets"].append(target)
+        if unified_rel not in e["referenced_by"]:
+            e["referenced_by"].append(unified_rel)
+        pk = e["packaging"].setdefault(fmt, {})
+        recipe_dir = os.path.join(ROOT, "packages", name)
+        if os.path.isdir(recipe_dir):
+            pk.setdefault("tideforge", f"packages/{name}")
+            if not e["upstream"].get("version"):
+                e["upstream"].update(tideforge_upstream(recipe_dir))
+        else:
+            pk["missing_on_disk"] = True
+
+    # ── Tideforge publisher matrices ─────────────────────────────────────
+    # publish-tideforge-debs.yml still carries an inline matrix (the deb
+    # publisher's wave list) and is kept for that reason.
     workflow_defaults = {
-        ".github/workflows/build-tideforge-supported.yml": ("el10", "rpm"),
-        ".github/workflows/build-tideforge-arch.yml": ("arch", "pkg.tar.zst"),
         ".github/workflows/publish-tideforge-debs.yml": ("ubuntu", "deb"),
     }
     for rel, (default_target, fmt) in workflow_defaults.items():
