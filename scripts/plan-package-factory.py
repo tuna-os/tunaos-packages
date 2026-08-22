@@ -81,7 +81,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                     continue
                 cells.append(
                     {
-                        "id": f"tideforge-{package}-{target_id}-{architecture}",
+                        "id": factory_contract.tideforge_cell_id(package, target_id, architecture),
                         "engine": "tideforge",
                         "package": package,
                         "recipe": recipe_path.relative_to(root).as_posix(),

@@ -32,11 +32,17 @@ imported, not duplicated.
 
 A field belongs in this set only when NO build and NO verify reads it --
 checked by grepping consumers, not by reading the name. published_index is
-the field that makes the distinction sharp: it looks like publishing metadata
-and is inert for deb and Arch, but an rpm buildroot genuinely adds it as a
-repo, so for rpm it is a live build input and must keep re-keying. Getting
-that backwards would let a cell reuse output built against a different
-package universe.
+the field that makes the distinction sharp, and it also shows why the check
+must be re-run rather than trusted: it looks like publishing metadata, and
+was listed inert for deb on that reading, but the deb buildroot did not
+consume it because of a GAP, not by design. #476 closed that gap -- deb now
+adds each index as a pinned apt source exactly as rpm adds a yum repo -- so
+published_index became a live build input for deb and had to start re-keying
+with it. Arch still never looks at it.
+
+The failure this prevents is silent: a cell reusing output built against a
+different package universe. When a build path starts reading a field, this
+table must move in the same commit.
 """
 from __future__ import annotations
 
@@ -52,14 +58,28 @@ BUILD_INERT_KEYS = frozenset({
     "r2_path_aarch64",
     "gap_measurement",
     "status",
+    # published_index_pending  names arches deliberately without an index yet.
+    #                          published_index.py reads published_index and
+    #                          nothing else, so no buildroot and no verify can
+    #                          see this; it exists to tell the manifest's own
+    #                          tests that an absence is a decision rather than
+    #                          an omission. Checked by grep, per the rule
+    #                          below, not by reading the name.
+    "published_index_pending",
 })
 
-# Inert for these formats only. An rpm buildroot ADDS published_index as a
-# repo (scripts/run-package-factory-cell.sh writes it into
-# /etc/yum.repos.d), so for rpm it is a live build input; the deb and Arch
-# pipelines never look at it.
+# Inert for these formats only.
+#
+# rpm and deb buildroots both ADD published_index as a package source --
+# run-package-factory-cell.sh writes /etc/yum.repos.d/tunaos-published.repo
+# for rpm and /etc/apt/sources.list.d/tunaos-published-N.list for deb -- so
+# for both it is a live build input that must keep re-keying.
+#
+# Arch is the only format left here: its pkg.tar.zst path has no equivalent
+# source and resolves everything from the distro. Adding one would make this
+# entry wrong, and the deb entry that used to sit beside it is exactly the
+# precedent for noticing.
 FORMAT_INERT_KEYS: dict[str, frozenset[str]] = {
-    "deb": frozenset({"published_index"}),
     "pkg.tar.zst": frozenset({"published_index"}),
 }
 
@@ -81,3 +101,21 @@ def build_view(spec: Any) -> Any:
         return spec
     drop = inert_keys(spec)
     return {key: value for key, value in spec.items() if key not in drop}
+
+
+def tideforge_cell_id(package: str, target: str, architecture: str) -> str:
+    """The identity a tideforge cell works under.
+
+    Both a name and a location: `.factory/<cell_id>/` is where the build
+    writes and where the action cache restores to. actions/cache extracts a
+    hit to the paths the SAVE recorded, so two workflows that want to share a
+    cache entry must agree on this string exactly -- a publisher that invented
+    its own `publish-...` prefix would restore a hit into the gate's directory
+    and then build in its own, reporting a hit while rebuilding everything
+    (#481).
+
+    That makes it the same class of fact as the inert-key table above: two
+    readers, and a divergence between them is silent. So it is imported, not
+    re-spelled.
+    """
+    return f"tideforge-{package}-{target}-{architecture}"

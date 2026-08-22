@@ -56,9 +56,43 @@ def resolve_capabilities(capabilities: list[str], target: str) -> list[str]:
     return packages
 
 
+def implied_capabilities(recipe: dict) -> list[str]:
+    """Capabilities a recipe's build settings require without naming them.
+
+    `build.cmake_generator: Ninja` makes ninja a build-time requirement on
+    every target, but nothing made that automatic: each target list had to
+    remember it by hand, and openSUSE's did not (#478). Its cells installed
+    no ninja, configured a Ninja tree anyway, and died in %cmake_build.
+    Deriving the dependency from the setting that causes it stops the two
+    drifting apart again -- and the catalog supplies the per-distro spelling
+    (`ninja-build` on EL and Debian, `ninja` on openSUSE and Arch), which is
+    the other half of what each list had to get right by hand.
+    """
+    if recipe.get("build_system") != "cmake":
+        return []
+    return ["ninja"] if recipe.get("build", {}).get("cmake_generator") == "Ninja" else []
+
+
+def deduplicate(names: list[str]) -> list[str]:
+    """Drop repeats, keeping first occurrence.
+
+    An implied capability can name a package a target list already carries
+    explicitly. Emitting it twice is harmless to every package manager here
+    but noisy in the rendered spec/control/PKGBUILD, and a duplicated
+    Build-Depends reads like a mistake to anyone auditing one.
+    """
+    seen: set[str] = set()
+    return [name for name in names if not (name in seen or seen.add(name))]
+
+
 def target_dependencies(recipe: dict, target: str) -> list[str]:
     build = recipe.get("dependencies", {}).get("build", {})
-    return list(build.get("common", [])) + resolve_capabilities(list(build.get("capabilities", [])), target) + list(build.get("targets", {}).get(target, []))
+    capabilities = list(build.get("capabilities", [])) + implied_capabilities(recipe)
+    return deduplicate(
+        list(build.get("common", []))
+        + resolve_capabilities(capabilities, target)
+        + list(build.get("targets", {}).get(target, []))
+    )
 
 
 def target_runtime_dependencies(recipe: dict, target: str) -> list[str]:
@@ -579,6 +613,57 @@ def rpm_build_lines(build_system: str, recipe: dict | None = None) -> tuple[str,
     return f"%cmake {options}\n%cmake_build".rstrip(), "%cmake_install"
 
 
+def ships_a_shared_library(paths: list[str]) -> bool:
+    """Whether a file list installs a versioned shared library.
+
+    Matches `libfoo.so.1`, `libfoo.so.1.0.4` and the globs recipes write for
+    them (`usr/lib64/libcpptrace.so*`), while ignoring a bare `libfoo.so`
+    development symlink on its own -- that alone needs no ldconfig.
+    """
+    for path in paths:
+        name = path.rsplit("/", 1)[-1]
+        if ".so" not in name:
+            continue
+        tail = name.split(".so", 1)[1]
+        if tail.startswith(".") or tail.startswith("*"):
+            return True
+    return False
+
+
+def rpm_ldconfig_scriptlets(recipe: dict) -> str:
+    """`%post`/`%postun` ldconfig for every RPM subpackage shipping a library.
+
+    Fedora and EL do not need these: their glibc carries RPM FILE TRIGGERS
+    that run ldconfig for anything landing in a library directory, so a spec
+    omitting them still ends up with a correct cache. openSUSE has no such
+    trigger. cpptrace-devel installed cleanly on Tumbleweed and then failed
+    its own smoke contract:
+
+        ldconfig -p | grep -F libcpptrace.so.1     -> no match, exit 1
+
+    while both el10 cells passed the identical assertion. rpmlint had been
+    reporting the cause on every openSUSE build all along:
+
+        E: library-without-ldconfig-postin  /usr/lib64/libcpptrace.so.1.0.4
+        E: library-without-ldconfig-postun  /usr/lib64/libcpptrace.so.1.0.4
+
+    Written as `%post -p /sbin/ldconfig` rather than Fedora's
+    `%ldconfig_scriptlets`, because that macro is not defined on openSUSE --
+    using it would leave the literal text in the spec on the one distro that
+    actually needs the scriptlet.
+    """
+    rpm_output = recipe.get("outputs", {}).get("rpm", {})
+    blocks: list[str] = []
+    if ships_a_shared_library(list(rpm_output.get("files", recipe["files"]["common"]))):
+        blocks.append("%post -p /sbin/ldconfig")
+        blocks.append("%postun -p /sbin/ldconfig")
+    for subpackage in rpm_output.get("subpackages", []):
+        if ships_a_shared_library(list(subpackage.get("files", []))):
+            blocks.append(f"%post {subpackage['name']} -p /sbin/ldconfig")
+            blocks.append(f"%postun {subpackage['name']} -p /sbin/ldconfig")
+    return "\n".join(blocks)
+
+
 def rpm_subpackage_block(subpackage: dict) -> str:
     # A -devel (or similarly split-out) subpackage ships only the unversioned
     # .so symlink, headers, and pkg-config metadata; the runtime library and any
@@ -663,6 +748,28 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     rpm_preamble = ""
     if recipe["build_system"] in {"go", "data", "custom", "python"} or not debug_package_enabled(recipe):
         rpm_preamble = "%global debug_package %{nil}\n"
+    # openSUSE derives the CMake generator FROM %__builder rather than from
+    # anything the spec passes: its %cmake emits -G"Unix Makefiles" unless
+    # %__builder differs from %__make, and its %cmake_build expands to plain
+    # `%__builder ... %{?_smp_mflags}`. A recipe asking for Ninja therefore
+    # got a Ninja tree (our -G wins, being last) that %cmake_build then drove
+    # with make -- "No targets specified and no makefile found. Stop." (#478).
+    #
+    # Setting %__builder fixes the whole chain at once: %cmake emits -GNinja
+    # itself, %__builder_verbose becomes -v, %cmake_build runs `ninja -v`, and
+    # %cmake_install runs `ninja install -C build`.
+    #
+    # Emitted for every RPM target rather than gated on the target name.
+    # Fedora and EL never read %__builder -- zero references in both
+    # cmake's macros.cmake.in and redhat-rpm-config/macros, checked against
+    # rawhide -- so it is inert there, and a mechanism-driven emit cannot
+    # regress the way a name list would when the next openSUSE-family target
+    # is added. %__ninja is the sanctioned spelling and both distributions'
+    # ninja packages define it; implied_capabilities guarantees one is
+    # installed whenever this line is emitted.
+    if recipe["build_system"] == "cmake" and cmake_generator(recipe):
+        rpm_preamble += "%global __builder %__ninja\n"
+    ldconfig_scriptlets = rpm_ldconfig_scriptlets(recipe)
     auxiliary_sources_str = "".join(f"Source{index}:        {rpm_source_field(source, index)}\n" for index, source in enumerate(auxiliary_sources, start=1))
     spec = f"""{rpm_preamble}Name:           {recipe['name']}
 Version:        {recipe['version']}
@@ -688,6 +795,8 @@ Source0:        {rpm_source_field(recipe['source'], 0)}
 %install
 {install}
 {extra_install}
+
+{ldconfig_scriptlets}
 
 %files
 {files}
@@ -739,6 +848,21 @@ Rules-Requires-Root: no
 {package_stanzas}
 """
     buildsystem = {"meson": "meson", "autotools": "autoconf", "cmake": "cmake", "python": "pybuild"}.get(recipe["build_system"])
+    # debhelper's `cmake` buildsystem runs `make` in dh_auto_build regardless of
+    # the generator. Passing -G Ninja through dh_auto_configure therefore wrote
+    # build.ninja and then ran make against it, for every deb cell of a recipe
+    # that asked for Ninja (run 32556308211):
+    #
+    #     cd obj-x86_64-linux-gnu && make -j4 ...
+    #     make[1]: *** No targets specified and no makefile found.  Stop.
+    #
+    # cmake+ninja is debhelper's own generator-aware variant: it passes -GNinja
+    # at configure time AND builds with ninja. The generator must then NOT be
+    # passed by hand as well -- the configure line already carried debhelper's
+    # "-GUnix Makefiles" plus our "-G Ninja", and two -G flags is exactly the
+    # ambiguity that produced this.
+    if recipe["build_system"] == "cmake" and cmake_generator(recipe):
+        buildsystem = "cmake+ninja"
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
         selector = f" --package {cargo_package}" if cargo_package else ""
@@ -772,7 +896,8 @@ Rules-Requires-Root: no
         # the same recipe built on el10 and failed on debian/ubuntu.
         rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem=none\n\noverride_dh_auto_build:\n\t:\n\noverride_dh_auto_install:\n\t:\n"
     else:
-        options = " ".join(filter(None, [cmake_generator(recipe), cmake_options(recipe)])) if recipe["build_system"] == "cmake" else meson_options(recipe) if recipe["build_system"] == "meson" else ""
+        cmake_configure_options = [cmake_options(recipe)] if buildsystem == "cmake+ninja" else [cmake_generator(recipe), cmake_options(recipe)]
+        options = " ".join(filter(None, cmake_configure_options)) if recipe["build_system"] == "cmake" else meson_options(recipe) if recipe["build_system"] == "meson" else ""
         if options:
             configure = f"\noverride_dh_auto_configure:\n\tdh_auto_configure -- {options}\n"
         elif recipe["build_system"] == "autotools" and autoreconf_enabled(recipe):

@@ -23,7 +23,21 @@ BuildRequires: intltool
 BuildRequires: gettext
 
 Requires: xfce4-panel
-Requires: pulseaudio
+# pulseaudio-daemon, not pulseaudio. CentOS Stream 10 ships no pulseaudio
+# package at all: pipewire-pulseaudio OBSOLETES it and provides
+# pulseaudio-daemon, pulseaudio-module-bluetooth and pulseaudio-module-jack --
+# but NOT the bare `pulseaudio` name. Verified against CS10 AppStream
+# metadata, where pipewire-pulseaudio is the sole provider of
+# pulseaudio-daemon. So `Requires: pulseaudio` could never resolve, and the
+# clean-install verify failed with "nothing provides pulseaudio needed by
+# xfce4-pulseaudio-plugin" on BOTH arches (#482).
+#
+# This is what upstream Fedora's own spec requires, for the same reason.
+Requires: pulseaudio-daemon
+# The plugin's "Audio mixer..." action launches pavucontrol; without it that
+# menu entry is dead. Upstream Fedora requires it too, and CS10 AppStream
+# carries it, so matching upstream costs nothing here.
+Requires: pavucontrol
 
 %description
 PulseAudio volume control panel plugin for the Xfce desktop environment

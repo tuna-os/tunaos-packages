@@ -22,6 +22,22 @@ dependencies:
       debian: [cmake, g++, libunwind-dev]
       opensuse-tumbleweed: [cmake, gcc-c++, libunwind-devel]
       arch: [cmake, gcc, libunwind]
+  # Arch only. cpptrace links libunwind.so.8 (-DCPPTRACE_UNWIND_WITH_LIBUNWIND=ON
+  # puts `-lunwind` on the link line), and every other format derives that
+  # automatically: rpmbuild generates Requires from ELF sonames and
+  # dpkg-shlibdeps fills ${shlibs:Depends}. makepkg does NEITHER -- it only
+  # warns -- so the Arch package installed cleanly and shipped a library
+  # nothing could load. assert-arch-runtime-closure caught it:
+  #
+  #   unresolved libraries in /usr/lib/libcpptrace.so.1
+  #       libunwind.so.8 => not found
+  #    -> cpptrace-devel's recipe under-declares its runtime depends.
+  #
+  # (run 32566033598, tideforge-cpptrace-devel-arch-x86_64.) Same shape as
+  # quickshell's arch runtime block, and the same reason it is arch-only.
+  runtime:
+    targets:
+      arch: [libunwind]
 files:
   common: [usr/include/cpptrace, usr/include/ctrace]
 outputs:
@@ -34,6 +50,21 @@ outputs:
         description: C++ stacktrace library built with libunwind.
         files: [usr/include/cpptrace, usr/include/ctrace, usr/lib/*/libcpptrace.so*, usr/lib/*/cmake/cpptrace]
 verify:
+  # The deb outputs are named libcpptrace-dev, not cpptrace-devel — Debian
+  # spells a headers package that way, and outputs.deb.packages above says so.
+  # Without this the verify installs the RECIPE name and the cell dies after a
+  # clean build:
+  #
+  #   dpkg-scanpackages: warning:   libcpptrace-dev     <- what was built
+  #   E: Unable to locate package cpptrace-devel        <- what verify asked for
+  #
+  # (run 32550564218, all four deb cells.) Same shape as the xfconf precedent
+  # in tideforge.verify_metadata: xfconf on el10, libxfconf-0-4 on deb.
+  targets:
+    ubuntu:
+      install_name: libcpptrace-dev
+    debian:
+      install_name: libcpptrace-dev
   # The ldconfig assertion is the el10 gate job's long-standing third check:
   # headers existing proves nothing about the shared library actually being
   # installed and registered. Recorded here so the recipe carries the gate's

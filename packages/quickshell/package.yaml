@@ -15,20 +15,156 @@ build:
   # optional upstream; use its standard allocator path until a native package
   # becomes available.
   cmake_generator: Ninja
-  cmake_options: [-DUSE_JEMALLOC=OFF]
+  # CMAKE_SKIP_INSTALL_RPATH: quickshell's CMake stamps
+  # `RUNPATH: $ORIGIN:$ORIGIN/../lib64` onto /usr/bin/quickshell. For an
+  # FHS install that is redundant -- from /usr/bin those resolve to /usr/bin
+  # (no libraries) and /usr/lib64 (already on the default loader path) --
+  # and rpmlint's `binary-or-shlib-defines-rpath` is in this factory's
+  # curated fatal set, so the cell dies AFTER a clean 12-minute compile:
+  #
+  #   quickshell.aarch64: E: binary-or-shlib-defines-rpath /usr/bin/quickshell
+  #   lint-generated-rpm: FATAL finding 'binary-or-shlib-defines-rpath'
+  #
+  # (tideforge-quickshell-el10-aarch64, run 32534325163.) An $ORIGIN RUNPATH
+  # in a distro package is a genuine packaging defect rather than a lint
+  # false positive, so this drops it at the source instead of exempting the
+  # check. The cell's own `quickshell --help` smoke test is the backstop if
+  # anything did depend on it.
+  cmake_options: [-DUSE_JEMALLOC=OFF, -DCMAKE_SKIP_INSTALL_RPATH=ON]
 dependencies:
   build:
     # Toolchain and Qt build-time deps are listed per-target: a common list
     # with gcc-c++ would leak into Arch where that package name does not
     # exist (Arch ships C and C++ compilers together as gcc).
     targets:
+      # Per-target names are NOT cosmetic variants of each other; each list
+      # below was wrong in a different way and each was measured, not guessed
+      # (run 32541649752):
+      #
+      #   arch  - `pacman` reported `target not found` for cli11-devel,
+      #           cpptrace-devel and ninja-build. Those are EL spellings.
+      #           Arch ships all three in `extra` as cli11, cpptrace, ninja.
+      #   suse  - the deps resolved fine and CMake then failed with
+      #           `Failed to find required Qt component "QuickPrivate"`.
+      #           QuickPrivate is in the DECLARATIVE private package, not the
+      #           base one the list already carried.
+      #   deb   - Debian sid installs libcli11-dev and libcpptrace-dev from
+      #           its own archive; its only gap was ninja-build, since
+      #           build.cmake_generator is Ninja.
+      #
+      # Round 2 (run 32548094304). Fixing the above uncovered the NEXT layer
+      # on each, which is why these lists keep growing rather than being
+      # wrong once:
+      #
+      #   arch  - reaches CMake now, then: find_package(VulkanHeaders) fails.
+      #           el10 lists no vulkan package and still passes, so it comes
+      #           in transitively there and not on Arch. vulkan-headers is in
+      #           Arch `extra` (verified).
+      #   suse  - QuickPrivate is gone; now `wayland-protocols>=1.41` is not
+      #           found. el10 carries wayland-protocols and mesa-libgbm-devel;
+      #           the openSUSE list carried neither.
+      #
+      # The openSUSE additions are pkgconfig() CAPABILITIES, not package
+      # names, and that is deliberate: this environment cannot reach the
+      # openSUSE package search (401/403), so a literal name would be a
+      # guess. Every RPM distro exposes pkgconfig(foo) as a virtual provide,
+      # so the capability resolves without knowing what openSUSE calls the
+      # package — and it keeps resolving if the package is ever renamed.
+      #
       # Quickshell uses Qt's private API.  EL10 supplies the corresponding
       # metadata in CRB as qt6-qtbase-private-devel.
-      el10: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, ninja-build, cli11-devel, cpptrace-devel, wayland-protocols]
-      ubuntu: [cmake, g++, qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
-      debian: [cmake, g++, qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
-      opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, jemalloc-devel, cli11-devel, cpptrace-devel]
-      arch: [cmake, gcc, qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, jemalloc, cli11-devel, cpptrace-devel, ninja-build, wayland-protocols, libunwind]
+      #
+      # Round 3 (run 32552737391). deb resolved every build-dep this time,
+      # including libcpptrace-dev 1.0.4-2 from Debian's own archive, reached
+      # CMake, and hit the SAME wall openSUSE did:
+      #
+      #     Checking for modules 'wayland-client;wayland-protocols>=1.41'
+      #     Package 'wayland-protocols' not found
+      #     src/wayland/CMakeLists.txt:3 (pkg_check_modules)
+      #
+      # Versions checked rather than assumed, because ">=1.41" is the part
+      # that can silently not hold: Debian sid ships wayland-protocols 1.49-1
+      # (sources.debian.org) and Ubuntu resolute 1.47-1 (Launchpad). Both
+      # clear it, so the distro package is enough and nothing needs
+      # publishing here.
+      #
+      # libgbm-dev is added on EVIDENCE rather than on a log line, and the
+      # difference is worth stating: el10 carries mesa-libgbm-devel and
+      # openSUSE pkgconfig(gbm), so quickshell does need an explicit gbm
+      # provider somewhere -- CMake just stops at the first failing
+      # pkg_check_modules, so deb has not reached it. Existence was verified
+      # in both archives first (sid 26.1.6-1, resolute present), because a
+      # name that does not resolve would make this cell fail EARLIER than it
+      # does now.
+      #
+      # Round 4 (run 32553771431). Both round-3 additions landed and were
+      # needed. The deb probe read back `wayland-protocols 1.47-1` and
+      # `libgbm-dev 26.0.8-1ubuntu0.3`, and CMake then cleared the first
+      # group and got INTO the next before stopping:
+      #
+      #     Found wayland-client ... Found wayland-protocols, version 1.47
+      #     Checking for modules 'libdrm;gbm;egl'
+      #       Found libdrm ... Found gbm ...
+      #     Package 'egl' not found
+      #     src/wayland/buffer/CMakeLists.txt:2 (pkg_check_modules)
+      #
+      # egl.pc is in libegl-dev (libglvnd) on both archives, verified before
+      # adding: sid 1.7.0-3+b1, present in resolute.
+      #
+      # No egl entry for el10 or openSUSE. openSUSE's own log for this exact
+      # group reads "Found egl, version 1.5", so both RPM targets get it
+      # transitively and naming it there would be an unneeded dependency --
+      # the same reasoning that kept vulkan off openSUSE in round 2.
+      #
+      # polkit-agent-1 is added in the same step, from the same log rather
+      # than from a guess: openSUSE got far enough to run every remaining
+      # check, and the full set quickshell asks pkg-config for is
+      #
+      #     libdrm | libdrm;gbm;egl | wayland-client;wayland-protocols>=1.41
+      #     libpipewire-0.3 | glib-2.0>=2.36 | gobject-2.0
+      #     polkit-agent-1 | polkit-gobject-1
+      #
+      # On deb, polkit-agent-1.pc is in libpolkit-agent-1-dev -- a DIFFERENT
+      # package from the libpolkit-gobject-1-dev already listed (confirmed
+      # from its file list, sid 127-3, present in resolute). On the RPM
+      # targets one polkit-devel carries both, which is why this gap only
+      # exists here.
+      #
+      # glib-2.0 and gobject-2.0 need nothing added: libpolkit-gobject-1-dev
+      # depends on libglib2.0-dev, checked rather than assumed. That accounts
+      # for every module in the list above, so this round is intended to be
+      # the last dependency round for deb.
+      el10: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, cli11-devel, cpptrace-devel, wayland-protocols]
+      ubuntu: [cmake, g++, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev, libegl-dev, libpolkit-agent-1-dev]
+      debian: [cmake, g++, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev, libegl-dev, libpolkit-agent-1-dev]
+      opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-declarative-private-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, jemalloc-devel, cli11-devel, cpptrace-devel, 'pkgconfig(wayland-protocols)', 'pkgconfig(gbm)']
+      arch: [cmake, gcc, qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, jemalloc, cli11, cpptrace, wayland-protocols, vulkan-headers, libunwind]
+  # Arch is the ONLY target that needs this, and the reason is mechanical
+  # rather than a property of quickshell: rpmbuild auto-generates Requires
+  # from ELF sonames and dpkg-shlibdeps fills ${shlibs:Depends}, so el10,
+  # openSUSE and the deb targets derive their runtime closure from the
+  # binary. makepkg does NOT populate depends=() -- it only warns -- so on
+  # Arch an undeclared shared library becomes a package that installs
+  # cleanly and cannot start.
+  #
+  # Which is exactly what happened (run 32553124546): arch compiled, packaged
+  # and installed, then the smoke gate caught it at runtime:
+  #
+  #     assert-arch-runtime-closure: smoke: bash /smoke.sh
+  #     quickshell: error while loading shared libraries: libcpptrace.so.1:
+  #       cannot open shared object file: No such file or directory
+  #
+  # libcpptrace.so.1 is the one the log names, because the loader stops at the
+  # first miss. The rest of this list is the remainder of the BUILD list that
+  # ships shared libraries, so the closure is declared in one step instead of
+  # one loader error per round. Every name here already resolved on this
+  # target during the build, so none of them is a new guess.
+  #
+  # Deliberately absent: cli11 is header-only, and jemalloc is not linked --
+  # build.cmake_options passes -DUSE_JEMALLOC=OFF.
+  runtime:
+    targets:
+      arch: [qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, cpptrace, libunwind]
 files:
   common:
     - usr/bin/quickshell

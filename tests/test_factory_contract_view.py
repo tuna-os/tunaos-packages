@@ -61,14 +61,45 @@ def test_write_paths_and_reporting_labels_are_inert():
     assert view == {"format": "rpm", "buildroot": "epel-10"}
 
 
-def test_published_index_is_live_for_rpm_and_inert_for_the_rest():
-    """The one field where the answer depends on the format."""
+def test_published_index_is_live_wherever_a_buildroot_adds_it_as_a_source():
+    """The one field where the answer depends on the format.
+
+    rpm and deb both add it: run-package-factory-cell.sh writes
+    /etc/yum.repos.d/tunaos-published.repo for rpm and
+    /etc/apt/sources.list.d/tunaos-published-N.list for deb. Arch has no
+    equivalent and resolves everything from the distro.
+    """
     url = {"x86_64": "https://repo.example/"}
-    assert fc.build_view({"format": "rpm", "published_index": url}) == {
-        "format": "rpm", "published_index": url,
+    for fmt in ("rpm", "deb"):
+        assert fc.build_view({"format": fmt, "published_index": url}) == {
+            "format": fmt, "published_index": url,
+        }, fmt
+    assert fc.build_view({"format": "pkg.tar.zst", "published_index": url}) == {
+        "format": "pkg.tar.zst",
     }
-    for fmt in ("deb", "pkg.tar.zst"):
-        assert fc.build_view({"format": fmt, "published_index": url}) == {"format": fmt}
+
+
+def test_deb_rekeys_on_a_changed_index():
+    """The reason deb moved out of the inert set (#476).
+
+    deb used to be listed inert on the reading that published_index was
+    publishing metadata. It was not consumed because of a GAP -- the deb
+    container was never passed PUBLISHED_INDEX -- so a recipe whose
+    BuildRequires are themselves factory-built could not resolve them at all.
+    Now that the deb buildroot adds the index, two deb builds against
+    DIFFERENT package universes must not share an action key.
+    """
+    a = fc.build_view({"format": "deb", "published_index": {"amd64": "https://a/"}})
+    b = fc.build_view({"format": "deb", "published_index": {"amd64": "https://b/"}})
+    assert a != b
+
+
+def test_arch_still_does_not_rekey_on_the_index():
+    """Guards the other direction: pkg.tar.zst genuinely does not read it, and
+    re-keying on it would rebuild every Arch cell for nothing."""
+    a = fc.build_view({"format": "pkg.tar.zst", "published_index": {"x86_64": "https://a/"}})
+    b = fc.build_view({"format": "pkg.tar.zst", "published_index": {"x86_64": "https://b/"}})
+    assert a == b
 
 
 def test_a_malformed_contract_passes_through_untouched():

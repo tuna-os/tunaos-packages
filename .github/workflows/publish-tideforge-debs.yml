@@ -13,6 +13,24 @@ name: Publish Tideforge debs
 
 on:
   workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated recipe names under packages/ to build and publish
+        # The curated wave. Deliberately a LIST rather than "every recipe
+        # targeting deb": "nothing gets published that a gate cell has not
+        # exercised" is a judgement a person makes, and deriving it would
+        # silently widen what ships. The planner validates the list; it does
+        # not invent it.
+        default: cpptrace-devel,pop-icon-theme,cosmic-randr,cosmic-panel,cosmic-icon-theme
+        required: true
+      distros:
+        description: Comma-separated distro labels (ubuntu, debian-sid)
+        default: ubuntu,debian-sid
+        required: true
+      arches:
+        description: Comma-separated arches; empty means every arch the target declares
+        default: ''
+        required: false
 
 env:
   R2_BUCKET: bluefin
@@ -21,50 +39,47 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: ${{ matrix.package }} (${{ matrix.distro }})
+  # Derive the matrix instead of hand-listing it (#479). A literal `include:`
+  # cannot report a MISSING row -- a row nobody wrote looks exactly like a row
+  # nobody wanted, which is how every deb ever published turned out to be
+  # amd64: the matrix had no `arch` key at all. Architectures now come from
+  # the target's own `architectures` in manifests/package-factory.yaml, the
+  # same list the gate builds, so the two cannot drift apart again.
+  plan:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # First wave: the two recipes with proven deb gate cells. Widen this
-          # matrix in lockstep with the deb gate as recipes prove out —
-          # nothing gets published that a gate cell has not exercised.
-          - package: pop-icon-theme
-            distro: ubuntu
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - package: pop-icon-theme
-            distro: debian-sid
-            target: debian
-            image: docker.io/library/debian:sid
-          - package: cosmic-randr
-            distro: ubuntu
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - package: cosmic-randr
-            distro: debian-sid
-            target: debian
-            image: docker.io/library/debian:sid
-          - package: cosmic-panel
-            distro: ubuntu
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - package: cosmic-panel
-            distro: debian-sid
-            target: debian
-            image: docker.io/library/debian:sid
-          - package: cosmic-icon-theme
-            distro: ubuntu
-            target: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - package: cosmic-icon-theme
-            distro: debian-sid
-            target: debian
-            image: docker.io/library/debian:sid
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      verify_matrix: ${{ steps.plan.outputs.verify_matrix }}
+      distros: ${{ steps.plan.outputs.distros }}
+      arches: ${{ steps.plan.outputs.arches }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - id: plan
+        run: |
+          set -euo pipefail
+          python3 scripts/plan-deb-publish.py \
+            --packages '${{ inputs.packages }}' \
+            --distros '${{ inputs.distros }}' \
+            --arches '${{ inputs.arches }}' \
+            --github-output "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    name: ${{ matrix.package }} (${{ matrix.distro }}, ${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The action key derives SOURCE_DATE_EPOCH from the recipe
+          # directory's last author date, which a shallow clone cannot answer.
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: '3.14'
@@ -73,54 +88,65 @@ jobs:
         uses: ./.github/actions/tideforge-source-cache
         with:
           recipe: packages/${{ matrix.package }}/package.yaml
-      - name: Render and assemble the Debian source tree
-        run: |
-          set -euo pipefail
-          recipe="packages/${{ matrix.package }}/package.yaml"
-          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
-          python3 scripts/tideforge.py validate "$recipe"
-          python3 scripts/verify-tideforge-source.py "$recipe" --cache-dir "$HOME/.cache/tideforge/sources"
-          python3 scripts/tideforge.py render "$recipe" --target "${{ matrix.target }}" --output "$root/rendered"
-          python3 scripts/assemble-deb-source-tree.py "$recipe" "$root"
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh "${{ matrix.image }}"
-      - name: Build the deb with only declared Build-Depends
-        run: |
-          set -euo pipefail
-          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
-          docker run --rm --volume "$root:/work" "${{ matrix.image }}" bash -lc '
-            set -euo pipefail
-            export DEBIAN_FRONTEND=noninteractive
-            apt-get update -qq
-            apt-get install -y --no-install-recommends build-essential ca-certificates devscripts equivs
-            cd "$(cat /work/source-dir)"
-            mk-build-deps --install --remove --tool "apt-get -y --no-install-recommends" debian/control
-            dpkg-buildpackage -us -uc -b
-            mkdir -p /work/artifacts
-            cp ../*.deb /work/artifacts/
-          '
-      - name: Lint the built deb
-        run: |
-          set -euo pipefail
-          root="$PWD/.tideforge/deb/${{ matrix.target }}-${{ matrix.package }}"
-          docker run --rm --volume "$root:/work:ro" --volume "$PWD/scripts:/scripts:ro" "${{ matrix.image }}" \
-            bash /scripts/lint-generated-deb.sh /work/artifacts
+      - name: Restore the gated build, or build it if there is none
+        # Replaces an inline render/assemble/dpkg-buildpackage/lint sequence
+        # that diverged from the gate in three ways at once (#481):
+        #
+        #   different bytes   it rebuilt rather than restoring the ActionResult
+        #                     the gate produced, and used %ct for
+        #                     SOURCE_DATE_EPOCH where the gate uses %at, so the
+        #                     two could not agree even in principle.
+        #   no clean-install  it ran lint-generated-deb.sh and stopped. The rpm
+        #                     and arch publishers both run
+        #                     verify-package-factory-cell.sh; the deb one never
+        #                     did, so debs shipped without the #179 check on
+        #                     the publish path.
+        #   no factory index  its `mk-build-deps` container had only the
+        #                     distro's own archive. run-package-factory-cell.sh
+        #                     adds each published_index as a pinned apt source
+        #                     (#476), so a deb whose Build-Depends name another
+        #                     factory package builds in the gate and could not
+        #                     build here.
+        uses: ./.github/actions/tideforge-cached-cell
+        with:
+          cell-id: ${{ matrix.cell_id }}
+          package: ${{ matrix.package }}
+          recipe: packages/${{ matrix.package }}/package.yaml
+          target: ${{ matrix.target }}
+          format: deb
+          architecture: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
       - uses: actions/upload-artifact@v7
         with:
-          name: publish-deb-${{ matrix.distro }}-${{ matrix.package }}
-          path: .tideforge/deb/${{ matrix.target }}-${{ matrix.package }}/artifacts/*.deb
+          # The arch is part of the NAME, not just the contents: without it the
+          # two arches collide on one artifact. The publish job globs
+          # `publish-deb-<distro>-*` with merge-multiple, so both land in the
+          # same pool and apt-ftparchive indexes them into one flat Packages
+          # -- which is what a flat repo wants, since apt selects on the
+          # Architecture field.
+          name: publish-deb-${{ matrix.distro }}-${{ matrix.package }}-${{ matrix.arch }}
+          path: .factory/${{ matrix.cell_id }}/artifacts/*.deb
+          # A build that produced nothing must fail here rather than upload an
+          # empty artifact: the publish job downloads the pool and `rclone
+          # sync`s it, and sync makes the destination match the source (#124).
+          if-no-files-found: error
           retention-days: 1
 
   publish:
-    needs: build
+    needs: [plan, build]
     runs-on: ubuntu-latest
     strategy:
-      # Serial, not parallel: both iterations sync against the same bucket
+      # Serial, not parallel: the iterations sync against the same bucket
       # prefix family and rclone config; one at a time keeps the failure
       # story readable.
       max-parallel: 1
+      # Only the distros this wave actually built. Hard-coding both meant a
+      # narrowed wave would rclone sync an EMPTY tree over the other one's
+      # live repository -- the #124 repo-wipe shape.
       matrix:
-        distro: [ubuntu, debian-sid]
+        distro: ${{ fromJSON(needs.plan.outputs.distros) }}
     steps:
       - uses: actions/checkout@v7
       - name: Install tooling
@@ -186,16 +212,16 @@ jobs:
   # package level. Today it asserts the two published packages; it graduates
   # to cosmic-session (the closure root) when the widening reaches it.
   verify:
-    needs: publish
-    runs-on: ubuntu-latest
+    needs: [plan, publish]
+    # Both arches, for the reason this job exists at all: publishing an
+    # architecture nothing ever installs is exactly the #179 shape -- a repo
+    # sitting behind a green workflow that no one has actually resolved
+    # against. The build matrix now produces arm64, so the verification has to
+    # cover it, natively, on an arm64 runner.
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - distro: ubuntu
-            image: docker.io/library/ubuntu:26.04
-          - distro: debian-sid
-            image: docker.io/library/debian:sid
+      matrix: ${{ fromJSON(needs.plan.outputs.verify_matrix) }}
     steps:
       - name: Install from the published repo with no third-party sources
         run: |

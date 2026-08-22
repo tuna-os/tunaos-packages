@@ -17,6 +17,14 @@ fatal_checks=(
 # directly; EL may need EPEL. Capability detection keeps this generic for
 # future RPM targets without treating Fedora as an EL derivative.
 if command -v zypper >/dev/null 2>&1; then
+    # `zypper install` refreshes implicitly, and a Tumbleweed mirror caught
+    # mid-snapshot-rotation makes that refresh fail the whole repository --
+    # which surfaces here as the confusing "No provider of 'rpmlint' found"
+    # rather than as a network error. Refresh explicitly first, with retries.
+    # Runs from /scripts, which every caller of this script already mounts.
+    if [ -r /scripts/zypper-refresh-with-retry.sh ]; then
+        bash /scripts/zypper-refresh-with-retry.sh
+    fi
     zypper --non-interactive install rpmlint >/dev/null
 else
     dnf_options=()

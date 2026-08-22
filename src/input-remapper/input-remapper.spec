@@ -30,7 +30,7 @@ BuildRequires:  gettext
 #   python3 -m pip install . --target <buildroot>/.../site-packages --no-deps
 # to place the Python package, and install/__main__.py imports gi while
 # checking dependencies. Neither is in the mock buildroot by default, so
-# %install died at 'No module named pip' after logging 'Missing Python
+# %%install died at 'No module named pip' after logging 'Missing Python
 # module: No module named gi' (gnome50-el10-x86_64, run 32418295773 — one of
 # that chain's five failed packages).
 #

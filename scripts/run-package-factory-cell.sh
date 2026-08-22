@@ -63,9 +63,13 @@ case ${FORMAT:?} in
     if [[ $target == opensuse-tumbleweed ]]; then
       docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
         --env TARGET="$target" \
+        --volume "$PWD/scripts:/scripts:ro" \
         --volume "$root:/work" "$image" bash -lc '
           set -euo pipefail
-          zypper --non-interactive --gpg-auto-import-keys refresh
+          # Retried, because download.opensuse.org is a redirector to mirrors
+          # that sync at different speeds and one caught mid-snapshot-rotation
+          # serves a repomd naming files it does not have yet. See the script.
+          bash /scripts/zypper-refresh-with-retry.sh
           zypper --non-interactive install rpm-build
           mapfile -t requirements < <(rpmspec -q --buildrequires /work/rpmbuild/SPECS/*.spec)
           ((${#requirements[@]} == 0)) || zypper --non-interactive install "${requirements[@]}"
@@ -131,15 +135,106 @@ case ${FORMAT:?} in
     ;;
   deb)
     root="$out/deb"
+    # The deb buildroot resolves the published factory index for the same
+    # reason the rpm one does: a recipe whose BuildRequires are themselves
+    # factory-built (quickshell needs libcpptrace-dev, which Ubuntu does not
+    # ship at all -- Debian sid does) can only get them from an earlier
+    # wave's published repo. This was missing until #476: PUBLISHED_INDEX was
+    # passed to the rpm container only, so every deb cell built with just its
+    # distro's archive and a cross-cell BuildRequires was unsatisfiable by
+    # construction.
+    published_index="$(python3 scripts/published_index.py "$target" "${ARCHITECTURE:-}" --join)"
     python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root/rendered"
     python3 scripts/assemble-deb-source-tree.py "$recipe" "$root"
     docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
+      --env PUBLISHED_INDEX="$published_index" \
       --volume "$root:/work" "$image" bash -lc '
         set -euo pipefail
         export DEBIAN_FRONTEND=noninteractive
+        # Ubuntu keeps a large share of Debian-synced packages in `universe`,
+        # and quickshell needs two of them (libcli11-dev, libcpptrace-dev).
+        # Debian has no such component and no ubuntu.sources, so this is a
+        # no-op there. It is also a no-op when universe is already enabled --
+        # the point is that the buildroot must not depend on whichever
+        # components the base image happens to ship with.
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sed -i -E "s/^Components:.*/Components: main restricted universe multiverse/" \
+            /etc/apt/sources.list.d/ubuntu.sources
+        fi
+        # One flat apt source per declared index, pinned BELOW the distro
+        # default of 500 so the published repo can only ever fill a gap. The
+        # rpm path learned this the hard way -- priority=999 there exists
+        # because a served repo package outranked and replaced a base one
+        # (the glib2 Obsoletes incident, publish run 32405815822). A
+        # buildroot must take every package it can from its own archive.
+        # trusted=yes because the flat repo is signed with the publisher key,
+        # which a stock buildroot has no reason to carry; the same idiom the
+        # deb verify path already uses.
+        # ca-certificates FIRST, and this ordering is the whole point.
+        #
+        # The published indexes are served over HTTPS. Adding them before the
+        # buildroot has a CA bundle makes apt skip them with a WARNING and
+        # exit 0:
+        #
+        #   W: Failed to fetch https://repo.tunaos.org/tideforge/ubuntu/./InRelease
+        #      SSL connection failed: certificate verify failed
+        #
+        # The cell then failed a hundred lines later at `libcpptrace-dev
+        # NOT AVAILABLE`, pointing at the recipe instead of at the buildroot.
+        # The Ubuntu archive itself is plain HTTP, which is why everything else
+        # resolved and hid this.
         apt-get update -qq
         apt-get install -y --no-install-recommends build-essential ca-certificates
+        published_n=0
+        for published_url in ${PUBLISHED_INDEX:-}; do
+          printf "deb [trusted=yes] %s ./\n" "$published_url" \
+            > "/etc/apt/sources.list.d/tunaos-published-${published_n}.list"
+          published_host=$(printf "%s" "$published_url" | sed -E "s#^[a-z]+://([^/]+).*#\\1#")
+          printf "Package: *\nPin: origin \"%s\"\nPin-Priority: 100\n" "$published_host" \
+            > "/etc/apt/preferences.d/tunaos-published-${published_n}.pref"
+          published_n=$((published_n + 1))
+        done
+        if [ "$published_n" -gt 0 ]; then
+          # Not -qq, and the output is inspected: apt treats an unreachable
+          # source as a warning and still exits 0, so the only way to notice
+          # is to read it. A declared index that cannot be fetched is a
+          # buildroot fault and must say so here, not as a missing package.
+          apt-get update > /tmp/apt-update.log 2>&1 || { cat /tmp/apt-update.log >&2; exit 1; }
+          cat /tmp/apt-update.log
+          if grep -q "Failed to fetch" /tmp/apt-update.log; then
+            echo "ERROR: a declared published index could not be fetched (see above)." >&2
+            echo "       The buildroot cannot see factory-built packages; failing here" >&2
+            echo "       rather than later as an unexplained missing dependency." >&2
+            exit 1
+          fi
+        fi
         cd "$(cat /work/source-dir)"
+        # apt-get build-dep reports an unsatisfiable dependency as a cascade:
+        # the one genuinely missing package is buried under a dozen "but it is
+        # not going to be installed" lines for packages that are fine. Printing
+        # the policy for each declared build-dep first names the real one, so a
+        # failure here does not need a second run to interpret.
+        echo "==> build-dependency availability"
+        # `|| true` is load-bearing: a recipe whose only Build-Depends is
+        # debhelper-compat (every build_system: data package, wayland-protocols
+        # included) leaves grep with nothing to print, and grep exits 1 on no
+        # match. Under `set -o pipefail` that failed the whole cell right after
+        # printing this header. Not hypothetical -- it took out all four
+        # wayland-protocols deb cells, and wayland-protocols is a planner
+        # canary, so it rides along on every infra change.
+        declared_deps=$(
+          awk "/^Build-Depends:/{f=1; print; next} f && /^[[:space:]]/{print; next} f{exit}" debian/control \
+            | tr "," "\n" | sed -E "s/^Build-Depends: *//; s/\(.*\)//; s/^ +| +$//g" \
+            | grep -vE "^$|^debhelper-compat" || true
+        )
+        if [ -z "$declared_deps" ]; then
+          echo "(none declared beyond debhelper-compat)"
+        else
+          printf "%s\n" "$declared_deps" | while read -r dep; do
+            printf "%-28s %s\n" "$dep" \
+              "$(apt-cache policy "$dep" 2>/dev/null | awk "/Candidate:/{print \$2; found=1} END{if(!found) print \"NOT AVAILABLE\"}")"
+          done
+        fi
         apt-get build-dep -y --no-install-recommends "$PWD"
         dpkg-buildpackage -us -uc -b
         mkdir -p /work/artifacts

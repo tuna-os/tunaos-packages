@@ -610,8 +610,18 @@ def test_cmake_ninja_generator_renders_for_every_native_format(recipe: dict) -> 
     deb = tideforge.render(recipe, "ubuntu")["debian/rules"]
     arch = tideforge.render(recipe, "arch")["PKGBUILD"]
     assert "%cmake -G Ninja -DUSE_DEMO=OFF" in rpm
-    assert "dh_auto_configure -- -G Ninja -DUSE_DEMO=OFF" in deb
     assert "cmake -B build -S . -DCMAKE_INSTALL_PREFIX=/usr -G Ninja -DUSE_DEMO=OFF" in arch
+    # deb expresses the generator as the BUILDSYSTEM, not as a flag, and this
+    # test used to assert the flag. That was the bug: debhelper's `cmake`
+    # buildsystem runs make in dh_auto_build whatever -G says, so the flag
+    # configured Ninja and then make ran against build.ninja --
+    # "No targets specified and no makefile found" on every deb cell that asked
+    # for Ninja (run 32556308211). cmake+ninja passes -GNinja itself and builds
+    # with ninja, so passing -G by hand as well would put two -G flags on one
+    # command line.
+    assert "--buildsystem=cmake+ninja" in deb
+    assert "dh_auto_configure -- -DUSE_DEMO=OFF" in deb
+    assert "-G Ninja" not in deb
 
 
 def test_dependency_capabilities_resolve_to_native_target_packages(recipe: dict) -> None:

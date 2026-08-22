@@ -180,19 +180,35 @@ def test_shared_executor_dominates_a_simultaneous_target_contract_change(tmp_pat
     assert {cell["target"] for cell in selected} == {"el10", "debian"}
 
 
-def test_measurement_only_contract_keys_do_not_reprove_deb_families():
-    """published_index is read by the rpm build/verify paths but by neither
-    the deb nor the arch pipeline — there it exists solely for
-    factory-status measurement. Declaring a served apt index must not
-    re-plan every deb cell (run 32397627179 blocked a measurement-only
-    change on the family's pre-existing breakage); the same key on an rpm
-    target IS pipeline-visible and must keep re-proving."""
-    old = {"format": "deb", "suites": ["resolute"]}
-    new = {"format": "deb", "suites": ["resolute"],
-           "published_index": {"amd64": "https://repo.example/tideforge/ubuntu/"}}
-    assert planner._pipeline_view(old) == planner._pipeline_view(new)
+def test_published_index_reproves_wherever_a_buildroot_reads_it():
+    """This assertion USED to say the opposite for deb, and the reversal is
+    the point.
 
-    old_rpm = {"format": "rpm"}
-    new_rpm = {"format": "rpm",
-               "published_index": {"x86_64": "https://repo.example/repo/10/x86_64/"}}
-    assert planner._pipeline_view(old_rpm) != planner._pipeline_view(new_rpm)
+    published_index was treated as measurement-only for deb because the deb
+    pipeline did not read it — run 32397627179 is the incident behind that:
+    declaring a served apt index re-planned every deb cell and the change was
+    blocked by the family's pre-existing breakage.
+
+    But deb ignored the index because of a GAP, not by design: the deb
+    container was never passed PUBLISHED_INDEX, so any recipe whose
+    BuildRequires are themselves factory-built was unsatisfiable. #476 closed
+    that. The index is now a real build input for deb, so changing it MUST
+    re-prove those cells — reusing a deb built against a different package
+    universe is exactly the silent failure the contract exists to prevent.
+
+    The cost named in the old docstring is real and returns: a deb index
+    change now re-plans deb cells, and a broken family blocks it. That is the
+    correct trade once the index can change what gets built.
+
+    Arch is unchanged: pkg.tar.zst still has no equivalent source.
+    """
+    for fmt, url in (("deb", "https://repo.example/tideforge/ubuntu/"),
+                     ("rpm", "https://repo.example/repo/10/x86_64/")):
+        old = {"format": fmt}
+        new = {"format": fmt, "published_index": {"amd64": url}}
+        assert planner._pipeline_view(old) != planner._pipeline_view(new), fmt
+
+    old_arch = {"format": "pkg.tar.zst"}
+    new_arch = {"format": "pkg.tar.zst",
+                "published_index": {"x86_64": "https://repo.example/pacman/"}}
+    assert planner._pipeline_view(old_arch) == planner._pipeline_view(new_arch)

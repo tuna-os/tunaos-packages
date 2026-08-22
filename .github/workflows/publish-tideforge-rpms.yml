@@ -34,8 +34,12 @@ on:
         default: libseat,greetd,gtk-layer-shell,wayland-protocols,ninja-build,libunwind-devel,python3-evdev,evtest,uupd,oversteer-udev,kairpods,dgop,danksearch,xfwm4-themes,cosmic-panel,cosmic-randr
         required: true
       arches:
-        description: Comma-separated arches (x86_64, aarch64)
+        description: Comma-separated arches; empty means every arch the target declares
         default: x86_64,aarch64
+        required: true
+      target:
+        description: Which contract target to publish (el10, opensuse-tumbleweed)
+        default: el10
         required: true
 
 concurrency:
@@ -57,7 +61,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
+      publish_matrix: ${{ steps.plan.outputs.publish_matrix }}
       arches: ${{ steps.plan.outputs.arches }}
+      image: ${{ steps.plan.outputs.image }}
+      target: ${{ steps.plan.outputs.target }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -65,38 +72,13 @@ jobs:
           python-version: '3.14'
       - run: pip install pyyaml==6.0.3
       - id: plan
-        env:
-          PACKAGES: ${{ inputs.packages }}
-          ARCHES: ${{ inputs.arches }}
         run: |
           set -euo pipefail
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json, os, pathlib, sys, yaml
-
-          runners = {"x86_64": "ubuntu-latest", "aarch64": "ubuntu-24.04-arm"}
-          arches = [a.strip() for a in os.environ["ARCHES"].split(",") if a.strip()]
-          unknown = sorted(set(arches) - set(runners))
-          if unknown:
-              sys.exit(f"unknown arch(es): {unknown}")
-
-          include = []
-          for name in (p.strip() for p in os.environ["PACKAGES"].split(",")):
-              if not name:
-                  continue
-              recipe = pathlib.Path("packages") / name / "package.yaml"
-              if not recipe.is_file():
-                  sys.exit(f"no recipe at {recipe}")
-              data = yaml.safe_load(recipe.read_text()) or {}
-              if "el10" not in (data.get("targets") or []):
-                  sys.exit(f"{name} does not target el10; refusing to publish it there")
-              for arch in arches:
-                  include.append({"package": name, "arch": arch, "runner": runners[arch]})
-
-          if not include:
-              sys.exit("empty publish matrix")
-          print(f"matrix={json.dumps({'include': include})}")
-          print(f"arches={json.dumps(arches)}")
-          PY
+          python3 scripts/plan-rpm-publish.py \
+            --target '${{ inputs.target }}' \
+            --packages '${{ inputs.packages }}' \
+            --arches '${{ inputs.arches }}' \
+            --github-output "$GITHUB_OUTPUT"
 
   build:
     name: ${{ matrix.package }} (${{ matrix.arch }})
@@ -107,13 +89,11 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
-      CELL_ID: publish-tideforge-${{ matrix.package }}-el10-${{ matrix.arch }}
-      ENGINE: tideforge
+      # The GATE's cell id, so a restore lands where the build would have
+      # written. See .github/actions/tideforge-cached-cell (#481).
+      CELL_ID: ${{ matrix.cell_id }}
       RECIPE: packages/${{ matrix.package }}/package.yaml
-      TARGET: el10
-      FORMAT: rpm
-      ARCHITECTURE: ${{ matrix.arch }}
-      IMAGE: quay.io/centos/centos:stream10
+      IMAGE: ${{ matrix.image }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -128,17 +108,19 @@ jobs:
           recipe: ${{ env.RECIPE }}
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh "$IMAGE"
-      - name: Build the cell
-        run: |
-          set -euo pipefail
-          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct -- "$(dirname "$RECIPE")")
-          export SOURCE_DATE_EPOCH
-          bash scripts/run-package-factory-cell.sh
-      - name: Validate package installation and smoke contract
-        run: bash scripts/verify-package-factory-cell.sh
+      - name: Restore the gated build, or build it if there is none
+        uses: ./.github/actions/tideforge-cached-cell
+        with:
+          cell-id: ${{ matrix.cell_id }}
+          package: ${{ matrix.package }}
+          recipe: packages/${{ matrix.package }}/package.yaml
+          target: ${{ matrix.target }}
+          format: rpm
+          architecture: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
       - uses: actions/upload-artifact@v7
         with:
-          name: publish-rpm-${{ matrix.arch }}-${{ matrix.package }}
+          name: publish-rpm-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.package }}
           path: .factory/${{ env.CELL_ID }}/artifacts/*.rpm
           if-no-files-found: error
           retention-days: 1
@@ -150,8 +132,7 @@ jobs:
       # Serial: both arches talk to the same bucket and rclone config; one
       # at a time keeps the failure story readable (deb publisher precedent).
       max-parallel: 1
-      matrix:
-        arch: ${{ fromJSON(needs.plan.outputs.arches) }}
+      matrix: ${{ fromJSON(needs.plan.outputs.publish_matrix) }}
     steps:
       - uses: actions/checkout@v7
       - name: Install tooling
@@ -189,28 +170,27 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p repo
-          case "${{ matrix.arch }}" in
-            x86_64)  src="repo/10-stream-x86_64" ;;
-            aarch64) src="rpm/el10/aarch64" ;;
-          esac
+          src='${{ matrix.src }}'
           echo "src=$src" >> "$GITHUB_ENV"
           rclone sync "r2:${R2_BUCKET}/${src}/" repo/ --exclude "repodata/**" || true
           # The #124 / INCIDENT-repo-wipe-gnome lesson: rclone sync makes the
           # destination match the source, so an accidentally-partial local
-          # tree would DELETE the served repo. The x86_64 destination is the
-          # live COPR-mirror repo with hundreds of packages — refuse to
-          # continue from a suspiciously small download. aarch64 starts
-          # empty by design (this workflow creates that index).
-          if [ "${{ matrix.arch }}" = x86_64 ]; then
+          # tree would DELETE the served repo. A prefix known to hold hundreds
+          # of packages refuses to continue from a suspiciously small
+          # download; a prefix this workflow CREATES starts empty by design
+          # and carries min_rpms 0, because a minimum would make the first
+          # publish impossible. The planner decides which is which.
+          min_rpms='${{ matrix.min_rpms }}'
+          if [ "${min_rpms:-0}" -gt 0 ]; then
             count=$(find repo -name '*.rpm' | wc -l)
-            if [ "$count" -lt 100 ]; then
-              echo "ERROR: only $count RPMs synced down from ${src}; refusing to risk a repo wipe" >&2
+            if [ "$count" -lt "$min_rpms" ]; then
+              echo "ERROR: only $count RPMs synced down from ${src}; expected at least ${min_rpms}; refusing to risk a repo wipe" >&2
               exit 1
             fi
           fi
       - uses: actions/download-artifact@v8
         with:
-          pattern: publish-rpm-${{ matrix.arch }}-*
+          pattern: publish-rpm-${{ needs.plan.outputs.target }}-${{ matrix.arch }}-*
           path: staged
           merge-multiple: true
       - name: Sign and index
@@ -228,8 +208,11 @@ jobs:
         run: |
           set -euo pipefail
           rclone sync repo/ "r2:${R2_BUCKET}/${src}/"
-          if [ "${{ matrix.arch }}" = x86_64 ]; then
-            rclone sync repo/ "r2:${R2_BUCKET}/repo/10-x86_64/"
+          # el10 x86_64 additionally mirrors into the legacy COPR prefix that
+          # buildroots actually read. Only that one row declares a mirror.
+          mirror='${{ matrix.mirror }}'
+          if [ -n "$mirror" ]; then
+            rclone sync repo/ "r2:${R2_BUCKET}/${mirror}/"
           fi
 
   # The anti-#179 job, from the FIRST publish: install every published
@@ -238,22 +221,18 @@ jobs:
   # never actually published can never sit behind a green workflow.
   verify:
     needs: [plan, publish]
-    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix:
-        arch: ${{ fromJSON(needs.plan.outputs.arches) }}
+      matrix: ${{ fromJSON(needs.plan.outputs.publish_matrix) }}
     steps:
       - name: Install the published wave from the served repo
         env:
           PACKAGES: ${{ inputs.packages }}
         run: |
           set -euo pipefail
-          case "${{ matrix.arch }}" in
-            x86_64)  url="https://repo.tunaos.org/repo/10/x86_64/" ;;
-            aarch64) url="https://repo.tunaos.org/rpm/el10/aarch64/" ;;
-          esac
-          docker run --rm --env PACKAGES --env URL="$url" quay.io/centos/centos:stream10 bash -lc '
+          url='${{ matrix.served }}'
+          docker run --rm --env PACKAGES --env URL="$url" '${{ needs.plan.outputs.image }}' bash -lc '
             set -euo pipefail
             dnf -y install epel-release "dnf-command(config-manager)"
             dnf config-manager --set-enabled crb

@@ -6,7 +6,23 @@ on:
   push:
     branches: [main]
   schedule:
+    # Nightly: the flagship family, ~570 packages, the one whose drift against
+    # upstream is tracked.
     - cron: '0 12 * * *'
+    # Weekly: every build-chain family, so the desktops have a periodic proof
+    # they still build.
+    #
+    # Without this the nightly's hard-coded family=hummingbird-desktops was
+    # the ONLY unattended run, and it overrode any selector. So xfce (el10 and
+    # fedora, both arches), gnome49, gnome50, gnome51 and fprintd were built
+    # only when someone happened to touch their sources -- a desktop could
+    # have been broken by a CentOS Stream rebase for weeks with every check on
+    # main still green, because nothing asked. `engine=build-chain` is the
+    # whole set, hummingbird included.
+    #
+    # Sunday 03:00 UTC: off the nightly by nine hours, and off the working
+    # week, since this is the long one.
+    - cron: '0 3 * * 0'
   workflow_dispatch:
     inputs:
       cell:
@@ -18,9 +34,54 @@ on:
         required: false
         type: string
 
+# The scheduled full-family run gets its OWN group and is never cancelled.
+#
+# Both the schedule and a push to main resolve github.ref to refs/heads/main,
+# so they shared one cancel-in-progress group and every merge killed the
+# nightly. Measured, not inferred: all three scheduled runs on record were
+# cancelled, and on 2026-08-21 the push run created at 13:51:50Z cancelled
+# the 13:00:22Z nightly at 13:52:27Z -- 37 seconds later.
+#
+#   12:55:51 push      cancelled
+#   13:00:22 schedule  cancelled 13:52:27
+#   13:51:50 push      cancelled
+#   14:51:12 push      cancelled
+#   17:01:55 push      cancelled
+#
+# On a busy merge day nothing on main finished at all, which is why
+# hummingbird's aarch64 index serves 1358 package names against x86_64's
+# 7986 (#480): the slower arch is further from done when the next merge
+# lands, so it loses more work every time.
+#
+# Pull requests keep cancel-in-progress -- there a new commit genuinely
+# supersedes the old one. Two nightlies cannot overlap either; sharing one
+# group with cancel-in-progress false makes the second QUEUE rather than
+# evict the first.
+#
+# Each schedule gets its own group, keyed on the cron that fired it. The two
+# are nine hours apart, but a nightly that overran into the weekly's slot would
+# otherwise make the weekly queue behind it and then be superseded -- the same
+# starvation this block exists to prevent, one level up.
+#
+# Each DISPATCH likewise gets a group keyed on what it was asked to build.
+# Dispatches keep cancel-in-progress, and every dispatch on a branch used to
+# resolve to that branch's ref -- so dispatching one cell killed an unrelated
+# cell dispatched minutes earlier on the same branch, up to an hour of aarch64
+# build time discarded for no reason. Two dispatches of DIFFERENT cells are
+# independent work and must both run; re-dispatching the SAME cell is a genuine
+# supersede and still cancels, because the key is identical.
+#
+# github.event.inputs rather than the inputs context: it is readable from any
+# expression that can read github, including this workflow-level block.
 concurrency:
-  group: package-factory-${{ github.ref }}
-  cancel-in-progress: true
+  group: >-
+    package-factory-${{ github.event_name == 'schedule'
+      && format('schedule-{0}', github.event.schedule)
+      || github.event_name == 'workflow_dispatch'
+      && format('dispatch-{0}-{1}-{2}', github.ref,
+                github.event.inputs.cell, github.event.inputs.selector)
+      || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
   contents: read
@@ -58,6 +119,7 @@ jobs:
           REQUESTED_CELL: ${{ inputs.cell || '' }}
           REQUESTED_SELECTOR: ${{ inputs.selector || '' }}
           EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule || '' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           set -euo pipefail
@@ -65,8 +127,13 @@ jobs:
           [ ! -f changed-files.txt ] || args+=(--changed-files changed-files.txt)
           [ -z "${BASE_SHA:-}" ] || args+=(--base "$BASE_SHA")
           [ -z "$REQUESTED_CELL" ] || args+=(--cell "$REQUESTED_CELL")
+          # A schedule carries no inputs, so the selector comes from WHICH cron
+          # fired -- github.event.schedule is the cron expression verbatim.
           if [ "$EVENT_NAME" = schedule ]; then
-            REQUESTED_SELECTOR=family=hummingbird-desktops
+            case "$SCHEDULE" in
+              '0 3 * * 0') REQUESTED_SELECTOR=engine=build-chain ;;
+              *)           REQUESTED_SELECTOR=family=hummingbird-desktops ;;
+            esac
           fi
           case "$EVENT_NAME" in
             pull_request|merge_group) args+=(--canary-common) ;;

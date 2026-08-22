@@ -192,12 +192,30 @@ def collect() -> dict:
         cells = []
         for job in (wf.get("jobs") or {}).values():
             matrix = ((job.get("strategy") or {}).get("matrix")) or {}
+            # A planner-driven matrix is the STRING "${{ fromJSON(...) }}",
+            # not a mapping (#479). The executed set for such a workflow is
+            # its curated dispatch default instead -- read below. Skipping
+            # rather than failing keeps this reader working for the
+            # workflows that still carry an inline matrix.
+            if not isinstance(matrix, dict):
+                continue
             for name in matrix.get("package") or []:
                 cells.append((name, default_target))
             for inc in matrix.get("include") or []:
                 if isinstance(inc, dict) and inc.get("package"):
                     cells.append((inc["package"],
                                   inc.get("target", default_target)))
+        # publish-tideforge-debs.yml derives its matrix, so the package set
+        # it executes is the `packages` dispatch input's default -- the
+        # curated wave a person maintains deliberately. Same names the inline
+        # matrix used to carry; only the place they are written moved.
+        triggers = wf.get(True) if True in wf else wf.get("on")
+        packages_input = (((triggers or {}).get("workflow_dispatch") or {})
+                          .get("inputs") or {}).get("packages") or {}
+        for name in str(packages_input.get("default", "")).split(","):
+            name = name.strip()
+            if name:
+                cells.append((name, default_target))
         for name, target in cells:
             e = entry(name, fam)
             if target not in e["targets"]:

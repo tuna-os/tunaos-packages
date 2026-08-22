@@ -43,6 +43,60 @@ native_builds:
     mock_config: centos-stream-10-ci-gnome51
     source_paths: [src/gnome-51/, src/deps/]
     r2_path: gnome51/10-stream-x86_64
+  # gnome50 on aarch64. Reuses build-order.yml unchanged: the manifest's
+  # `target:` feeds only the %{dist} derivation, which is .el10 for
+  # centos-stream-10-* on either arch, and its `r2_path:` is overridden by the
+  # cell's. That is the pattern xfce-el10-aarch64 and hummingbird-aarch64
+  # already use -- neither has an arch-specific manifest.
+  #
+  # A FRESH r2 prefix, not the x86_64 one. gnome50's x86_64 leg publishes into
+  # repo/10-x86_64, the shared pre-existing COPR-mirror prefix that el10
+  # tideforge packages also merge into; there is no aarch64 equivalent and
+  # inventing one would mean a new leg writing into a prefix it does not own.
+  # gnome50/10-stream-aarch64 matches how gnome51 already names its own.
+  #
+  # Not yet in el10's published_index.aarch64: manifests/package-factory.yaml
+  # says a prefix goes in only once it actually resolves, and this one 404s
+  # until the first wave publishes.
+  - id: gnome50-el10-aarch64
+    family: gnome50
+    track: stable
+    series: '50'
+    dependency_tree: manifests/dependency-trees/gnome.yaml
+    target_queue: manifests/target-queues/gnome.yaml
+    target: el10
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    verify_image: quay.io/centos/centos:stream10
+    manifest: build-order.yml
+    mock_config: centos-stream-10-ci-aarch64
+    source_paths:
+      - src/gnome-50/
+      - src/deps/
+    r2_path: gnome50/10-stream-aarch64
+
+  # gnome51 on aarch64. Same reasoning as gnome50 above; its r2 prefix is the
+  # straight arch swap of the x86_64 one, which was already a clean
+  # family-owned path.
+  - id: gnome51-el10-aarch64
+    family: gnome51
+    track: next
+    series: '51'
+    dependency_tree: manifests/dependency-trees/gnome.yaml
+    target_queue: manifests/target-queues/gnome.yaml
+    target: el10
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    verify_image: quay.io/centos/centos:stream10
+    manifest: build-order-gnome51.yml
+    mock_config: centos-stream-10-ci-gnome51-aarch64
+    source_paths:
+      - src/gnome-51/
+      - src/deps/
+    r2_path: gnome51/10-stream-aarch64
+
   - id: xfce-el10-x86_64
     family: xfce
     target: el10
@@ -53,6 +107,41 @@ native_builds:
     mock_config: centos-stream-10-ci
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/10-stream-x86_64
+  # The aarch64 counterpart, added because el10/aarch64 had NO xfce packages
+  # at all: xfce/10-stream-aarch64 404s while the x86_64 prefix serves 110
+  # package names, and 88 of the 91 names el10/x86_64 has that aarch64 lacks
+  # are build-chain products of this family and the gnome ones (#480). XFCE
+  # simply could not be assembled on el10 aarch64.
+  #
+  # Reuses build-order-xfce.yml rather than taking a -aarch64 copy. The
+  # fprintd pair needed two manifests only because that file's own
+  # `target:`/`r2_path:` differ per arch; the CELL supplies mock_config and
+  # r2_path and run-package-factory-cell.sh passes `--mock-config` straight
+  # through, so the manifest's values are not what the build uses.
+  # hummingbird-aarch64 already shares one manifest with its x86_64 twin the
+  # same way.
+  #
+  # Nothing structurally blocked this: centos-stream-10-ci-aarch64.cfg is a
+  # general EL10 aarch64 target ("aarch64 counterpart to
+  # centos-stream-10-ci.cfg — same shape"), already proven by the green
+  # fprintd-el10-aarch64 cell, and none of the 35 specs under
+  # src/xfce-wayland/ carries ExclusiveArch, ExcludeArch or %ifarch.
+  #
+  # el10's published_index.aarch64 deliberately does NOT list
+  # xfce/10-stream-aarch64 yet — that prefix does not exist until a publish
+  # wave writes it, and the target contract's rule is to declare only an
+  # index that actually resolves.
+  - id: xfce-el10-aarch64
+    family: xfce
+    target: el10
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    verify_image: quay.io/centos/centos:stream10
+    manifest: build-order-xfce.yml
+    mock_config: centos-stream-10-ci-aarch64
+    source_paths: [src/xfce-wayland/]
+    r2_path: xfce/10-stream-aarch64
   - id: xfce-fedora-x86_64
     family: xfce
     target: fedora
@@ -65,6 +154,22 @@ native_builds:
     mock_config: fedora-44-ci
     source_paths: [src/xfce-wayland/]
     r2_path: xfce/44-x86_64
+  # The aarch64 counterpart. Cheap here in a way the el10 xfce family is not:
+  # this chain builds three packages against stock Fedora, because Fedora 44
+  # already ships XFCE 4.20 and greetd/gtkgreet/cage are in Fedora proper. So
+  # it carries neither of the two Requires that cannot resolve on EL10 (#482),
+  # and needed only a mock config that did not exist (#480).
+  - id: xfce-fedora-aarch64
+    family: xfce
+    target: fedora
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    verify_image: registry.fedoraproject.org/fedora:44
+    manifest: build-order-xfce-fedora.yml
+    mock_config: fedora-44-ci-aarch64
+    source_paths: [src/xfce-wayland/]
+    r2_path: xfce/44-aarch64
   - id: hummingbird-x86_64
     family: hummingbird-desktops
     target: hummingbird

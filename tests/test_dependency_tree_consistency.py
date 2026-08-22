@@ -18,13 +18,18 @@ Two directions:
 """
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import tideforge  # noqa: E402
+
 TREES = sorted((ROOT / "manifests" / "dependency-trees").glob("*.yaml"))
+CATALOG = tideforge.load_dependency_catalog()
 PACKAGES = {
     path.parent.name: yaml.safe_load(path.read_text())
     for path in (ROOT / "packages").glob("*/package.yaml")
@@ -78,6 +83,19 @@ def _factory_dependencies(recipe: dict, kind: str) -> set[str]:
     names = list(block.get("common") or [])
     for target_list in (block.get("targets") or {}).values():
         names.extend(target_list or [])
+    # Capabilities were invisible here. A capability resolves to a different
+    # native name per target and a tree edge names one of them, so a
+    # capability-declared dependency read as UNDECLARED -- latent until
+    # quickshell stopped hand-listing ninja and started deriving it from
+    # build.cmake_generator (#478), at which point a real, still-required
+    # edge looked stale. Expanding every target's mapping keeps a capability
+    # exactly as visible as a hand-written name.
+    capabilities = list(block.get("capabilities") or [])
+    if kind == "build":
+        capabilities += tideforge.implied_capabilities(recipe)
+    for capability in capabilities:
+        for target_packages in (CATALOG.get(capability) or {}).values():
+            names.extend(target_packages or [])
     return {PROVIDES[_base(name)] for name in names if _base(name) in PROVIDES}
 
 

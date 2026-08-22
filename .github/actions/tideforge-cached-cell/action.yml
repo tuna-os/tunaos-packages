@@ -1,0 +1,171 @@
+name: Tideforge cached cell
+description: >-
+  Restore the gate's validated ActionResult for a tideforge cell, building only
+  on a genuine miss, and validate the install and smoke contract either way.
+
+# Why this exists (#481, #479 proposal 2)
+#
+# The three publishers each rebuilt every cell from scratch inside the publish
+# workflow. That was wasteful -- the action cache is measurably effective since
+# #472, with 14/14 hits and 171-382 KB entries in run 32568880740 -- but the
+# cost was the smaller half of the problem.
+#
+# The correctness half: rebuilding means the bytes that get PUBLISHED are not
+# the bytes that were GATED. They are a second, independently produced set. An
+# ActionResult keyed on immutable inputs exists precisely so those two are the
+# same object, and the publishers were throwing that away.
+#
+# It also gives the guarantee #479 wanted from a separate mechanism. In
+# package-factory-cell.yml the save step runs strictly AFTER `Validate package
+# installation and smoke contract`, so a failed verify never reaches it: an
+# ActionResult existing for a key is proof the package built AND passed verify
+# and smoke. A publisher that restores rather than rebuilds inherits that proof
+# instead of needing its own.
+#
+# On a miss it builds, records and saves exactly as the gate does, so
+# publishing something never gated still works -- and the ::notice makes it
+# visible rather than silent.
+
+inputs:
+  cell-id:
+    description: >-
+      Must equal the gate's cell id (factory_contract.tideforge_cell_id).
+      actions/cache extracts a hit to the paths the save recorded, so a
+      publisher with its own prefix would restore into the gate's directory and
+      build in its own -- reporting a hit while rebuilding everything.
+    required: true
+  package:
+    required: true
+  recipe:
+    required: true
+  target:
+    required: true
+  format:
+    required: true
+  architecture:
+    required: true
+  image:
+    required: true
+
+outputs:
+  cache-hit:
+    description: true when the published bytes came from the gate's ActionResult
+    value: ${{ steps.verdict.outputs.hit }}
+
+runs:
+  using: composite
+  steps:
+    - id: identity
+      name: Resolve immutable inputs and action key
+      shell: bash
+      env:
+        RECIPE: ${{ inputs.recipe }}
+        TARGET: ${{ inputs.target }}
+        ARCHITECTURE: ${{ inputs.architecture }}
+        IMAGE: ${{ inputs.image }}
+      run: |
+        set -euo pipefail
+        digest=$(docker image inspect --format '{{json .RepoDigests}}' "$IMAGE" | jq -r 'sort | .[0]')
+        # %at (AUTHOR date), matching package-factory-cell.yml. The publishers
+        # used %ct, which is a different number for the same tree after any
+        # rebase, cherry-pick, amend or squash-merge -- this repo's merge
+        # convention. SOURCE_DATE_EPOCH is baked into the built packages AND is
+        # an input to the action key, so %ct here meant the publisher could
+        # never hit the gate's entry and, when it did rebuild, produced
+        # different bytes than the gate had approved. See #477.
+        epoch=$(git log -1 --format=%at -- "$(dirname "$RECIPE")")
+        payload=$(python3 scripts/tideforge-action-cache.py key \
+          --recipe "$RECIPE" --target "$TARGET" --arch "$ARCHITECTURE" \
+          --image "$digest" --source-date-epoch "$epoch")
+        echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
+        echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
+        jq . <<<"$payload"
+    - id: restore
+      uses: ./.github/actions/tideforge-action-cache
+      with:
+        operation: restore
+        action-key: ${{ steps.identity.outputs.key }}
+        # The same three paths package-factory-cell.yml saves. package-info.txt
+        # is a build product the Arch verify path reads (#472).
+        path: |
+          .factory/${{ inputs.cell-id }}/artifacts
+          .factory/${{ inputs.cell-id }}/action-result.json
+          .factory/${{ inputs.cell-id }}/package-info.txt
+    - id: verdict
+      name: Verify restored output
+      shell: bash
+      env:
+        CELL_ID: ${{ inputs.cell-id }}
+        KEY: ${{ steps.identity.outputs.key }}
+        RESTORED: ${{ steps.restore.outputs.cache-hit }}
+      run: |
+        set -euo pipefail
+        hit=false
+        if [ "$RESTORED" = true ]; then
+          python3 scripts/tideforge-action-cache.py verify \
+            --result ".factory/${CELL_ID}/action-result.json" \
+            --artifact-dir ".factory/${CELL_ID}/artifacts" \
+            --expected-action-key "$KEY"
+          hit=true
+        fi
+        echo "hit=$hit" >> "$GITHUB_OUTPUT"
+        verdict=miss
+        if [ "$hit" = true ]; then verdict=hit; fi
+        echo "::notice title=action-cache::${verdict} ${CELL_ID}"
+        echo "action-cache ${verdict}: \`${CELL_ID}\` (publish)" >> "$GITHUB_STEP_SUMMARY"
+    - name: Build on a genuine miss
+      if: steps.verdict.outputs.hit != 'true'
+      shell: bash
+      env:
+        CELL_ID: ${{ inputs.cell-id }}
+        ENGINE: tideforge
+        PACKAGE: ${{ inputs.package }}
+        RECIPE: ${{ inputs.recipe }}
+        TARGET: ${{ inputs.target }}
+        FORMAT: ${{ inputs.format }}
+        ARCHITECTURE: ${{ inputs.architecture }}
+        IMAGE: ${{ inputs.image }}
+        SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
+      run: bash scripts/run-package-factory-cell.sh
+    - name: Record a new ActionResult
+      if: steps.verdict.outputs.hit != 'true'
+      shell: bash
+      env:
+        CELL_ID: ${{ inputs.cell-id }}
+        KEY: ${{ steps.identity.outputs.key }}
+      run: |
+        set -euo pipefail
+        artifacts=()
+        while IFS= read -r -d '' path; do artifacts+=(--artifact "$path"); done \
+          < <(find ".factory/${CELL_ID}/artifacts" -type f \
+            \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' \) -print0)
+        python3 scripts/tideforge-action-cache.py result \
+          --action-key "$KEY" "${artifacts[@]}" \
+          > ".factory/${CELL_ID}/action-result.json"
+    - name: Validate package installation and smoke contract
+      # Unconditional, on a hit as much as a miss. Restoring bytes the gate
+      # approved is not the same as proving they still install against today's
+      # published universe, which is what #179 was about.
+      shell: bash
+      env:
+        CELL_ID: ${{ inputs.cell-id }}
+        ENGINE: tideforge
+        RECIPE: ${{ inputs.recipe }}
+        TARGET: ${{ inputs.target }}
+        FORMAT: ${{ inputs.format }}
+        ARCHITECTURE: ${{ inputs.architecture }}
+        IMAGE: ${{ inputs.image }}
+      run: bash scripts/verify-package-factory-cell.sh
+    - name: Save validated output
+      # AFTER validate, never before: this ordering is what makes an entry's
+      # existence a proof of passing verify rather than merely of compiling.
+      if: steps.verdict.outputs.hit != 'true'
+      continue-on-error: true
+      uses: ./.github/actions/tideforge-action-cache
+      with:
+        operation: save
+        action-key: ${{ steps.identity.outputs.key }}
+        path: |
+          .factory/${{ inputs.cell-id }}/artifacts
+          .factory/${{ inputs.cell-id }}/action-result.json
+          .factory/${{ inputs.cell-id }}/package-info.txt

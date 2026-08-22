@@ -1,0 +1,201 @@
+# Publish Tideforge-built Arch packages to the R2-backed pacman repository.
+#
+# The pkg.tar.zst half of what publish-tideforge-rpms.yml does for RPMs and
+# publish-tideforge-debs.yml for debs. Arch was the last format with no
+# publisher at all (#479): 23 recipes target it -- the DankMaterialShell stack,
+# niri, greetd, bazaar, libseat -- and every one was planned, built, verified,
+# smoke-tested and then unreachable, with docs/FACTORY-STATUS.md reporting the
+# target as "no published_index declared".
+#
+# A flat pacman repository at r2:bluefin/pacman/arch/<arch>/, served as
+# https://repo.tunaos.org/pacman/arch/<arch>/.
+#
+# Dispatch-only. Publishing is a deliberate act, not a side effect of a merge;
+# the gate cells prove PRs, this workflow ships what main has.
+name: Publish Tideforge Arch packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated recipe names under packages/ to build and publish
+        # The curated wave, not "every recipe targeting arch". Which packages a
+        # gate cell has actually exercised is a judgement a person makes; the
+        # planner validates the list rather than inventing it.
+        default: greetd,libseat,dgop,danksearch
+        required: true
+      arches:
+        description: Comma-separated arches; empty means every arch the target declares
+        default: ''
+        required: false
+
+env:
+  R2_BUCKET: bluefin
+
+permissions:
+  contents: read
+
+concurrency:
+  # SHARED with the other publishers: they all rclone sync into the same
+  # bucket, and sync makes the destination match the source, so two running at
+  # once can delete each other's packages (#124 / INCIDENT-repo-wipe-gnome).
+  group: publish-rpms
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      publish_matrix: ${{ steps.plan.outputs.publish_matrix }}
+      arches: ${{ steps.plan.outputs.arches }}
+      image: ${{ steps.plan.outputs.image }}
+      repo_name: ${{ steps.plan.outputs.repo_name }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - id: plan
+        run: |
+          set -euo pipefail
+          python3 scripts/plan-arch-publish.py \
+            --packages '${{ inputs.packages }}' \
+            --arches '${{ inputs.arches }}' \
+            --github-output "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    name: ${{ matrix.package }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      # The GATE's cell id, so a restore lands where the build would have
+      # written. See .github/actions/tideforge-cached-cell (#481).
+      CELL_ID: ${{ matrix.cell_id }}
+      RECIPE: packages/${{ matrix.package }}/package.yaml
+      IMAGE: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: ${{ env.RECIPE }}
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh "$IMAGE"
+      - name: Restore the gated build, or build it if there is none
+        uses: ./.github/actions/tideforge-cached-cell
+        with:
+          cell-id: ${{ matrix.cell_id }}
+          package: ${{ matrix.package }}
+          recipe: packages/${{ matrix.package }}/package.yaml
+          target: arch
+          format: pkg.tar.zst
+          architecture: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: publish-arch-${{ matrix.arch }}-${{ matrix.package }}
+          path: .factory/${{ env.CELL_ID }}/artifacts/*.pkg.tar.*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    strategy:
+      # Serial: the arches talk to the same bucket and rclone config.
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.publish_matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tooling
+        # Only rclone on the host. repo-add ships in Arch's `pacman` package
+        # and does NOT exist on ubuntu-latest, so indexing happens inside the
+        # Arch container below rather than here.
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+      - name: Pull the Arch image, retrying transient registry failures
+        run: scripts/pull-container-image.sh '${{ needs.plan.outputs.image }}'
+      - name: Configure rclone for R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.config/rclone
+          umask 077
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+      - name: Sync down the existing repository
+        run: |
+          set -euo pipefail
+          mkdir -p repo
+          # The db is regenerated from the full package set below, so it is
+          # excluded here rather than round-tripped.
+          rclone sync "r2:${R2_BUCKET}/${{ matrix.src }}/" repo/ \
+            --exclude "*.db*" --exclude "*.files*" || true
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: publish-arch-${{ matrix.arch }}-*
+          path: staged
+          merge-multiple: true
+      - name: Sign and index
+        # Inside the Arch container: repo-add and gnupg both live in its base
+        # image. The key is imported there rather than mounting the runner's
+        # ~/.gnupg, which brings permission and uid-mapping problems.
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --env GPG_PRIVATE_KEY --env GPG_PASSPHRASE \
+            --volume "$PWD/repo:/work/repo" \
+            --volume "$PWD/staged:/work/staged:ro" \
+            --volume "$PWD/scripts:/scripts:ro" \
+            '${{ needs.plan.outputs.image }}' \
+            bash /scripts/publish-arch-wave.sh \
+              --staged /work/staged --repo /work/repo --name '${{ matrix.repo_name }}'
+      - name: Sync up
+        run: |
+          set -euo pipefail
+          rclone sync repo/ "r2:${R2_BUCKET}/${{ matrix.src }}/"
+
+  # The anti-#179 job: install every published package from the SERVED URL on a
+  # clean Arch container, so a repository that was never actually published
+  # cannot sit behind a green workflow.
+  verify:
+    needs: [plan, publish]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.publish_matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install the published wave from the served repository
+        env:
+          PACKAGES: ${{ inputs.packages }}
+          URL: ${{ matrix.served }}
+          REPO_NAME: ${{ matrix.repo_name }}
+        run: |
+          set -euo pipefail
+          docker run --rm --env PACKAGES --env URL --env REPO_NAME \
+            --volume "$PWD/scripts:/scripts:ro" \
+            '${{ needs.plan.outputs.image }}' bash /scripts/arch-verify-published.sh

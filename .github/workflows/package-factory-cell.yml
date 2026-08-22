@@ -44,15 +44,24 @@ jobs:
         run: |
           set -euo pipefail
           image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          # %at (AUTHOR date), not %ct (committer date). This epoch is an
+          # input to the action key, and a commit object's COMMITTER time
+          # changes on every history rewrite even when the tree does not --
+          # rebase, cherry-pick, amend, and squash-merge, which is this
+          # repo's merge convention. With %ct, a rebased branch rebuilt every
+          # cell from scratch despite a byte-identical recipe (runs
+          # 32540188656 and 32541649752, ~15 min per cell, twice). Author date
+          # survives all of those, so an unchanged recipe keeps its key.
+          # See #477.
           if [ '${{ matrix.engine }}' = tideforge ]; then
-            epoch=$(git log -1 --format=%ct -- "$(dirname '${{ matrix.recipe }}')")
+            epoch=$(git log -1 --format=%at -- "$(dirname '${{ matrix.recipe }}')")
             payload=$(python3 scripts/tideforge-action-cache.py key \
               --recipe '${{ matrix.recipe }}' --target '${{ matrix.target }}' \
               --arch '${{ matrix.architecture }}' --image "$image" \
               --source-date-epoch "$epoch")
           else
             mapfile -t source_paths < <(jq -r '.source_paths[]' <<<"$CELL")
-            epoch=$(git log -1 --format=%ct -- '${{ matrix.manifest }}' "${source_paths[@]}")
+            epoch=$(git log -1 --format=%at -- '${{ matrix.manifest }}' "${source_paths[@]}")
             args=()
             for path in "${source_paths[@]}"; do args+=(--input "$path"); done
             payload=$(python3 scripts/tideforge-action-cache.py native-key \
@@ -86,9 +95,28 @@ jobs:
         with:
           operation: restore
           action-key: ${{ steps.identity.outputs.key }}
+          # package-info.txt is a BUILD product that the VERIFY path reads:
+          # validate-built-arch-package.py takes it as an argument on the
+          # pkg.tar.zst branch. #472 trimmed this list to artifacts/ +
+          # action-result.json on the claim that verify reads "$out/artifacts
+          # and nothing else" — true for rpm and deb, wrong for Arch, and the
+          # grep behind that claim did not cover this branch.
+          #
+          # It stayed latent because Arch cells kept MISSING and a fresh build
+          # writes the file. Once #477 made keys stable across rebases they
+          # started hitting, and every Arch hit then died:
+          #
+          #   FileNotFoundError: .../package-info.txt
+          #
+          # (tideforge-wayland-protocols-arch-x86_64, run 32551508574 — a
+          # canary cell, which is what canary cells are for.)
+          #
+          # The other two $out paths verify touches are safe: artifacts/ is
+          # here, and smoke.sh is written by verify itself before use.
           path: |
             .factory/${{ matrix.id }}/artifacts
             .factory/${{ matrix.id }}/action-result.json
+            .factory/${{ matrix.id }}/package-info.txt
       - id: verdict
         name: Verify restored output
         run: |
@@ -191,9 +219,28 @@ jobs:
         with:
           operation: save
           action-key: ${{ steps.identity.outputs.key }}
+          # package-info.txt is a BUILD product that the VERIFY path reads:
+          # validate-built-arch-package.py takes it as an argument on the
+          # pkg.tar.zst branch. #472 trimmed this list to artifacts/ +
+          # action-result.json on the claim that verify reads "$out/artifacts
+          # and nothing else" — true for rpm and deb, wrong for Arch, and the
+          # grep behind that claim did not cover this branch.
+          #
+          # It stayed latent because Arch cells kept MISSING and a fresh build
+          # writes the file. Once #477 made keys stable across rebases they
+          # started hitting, and every Arch hit then died:
+          #
+          #   FileNotFoundError: .../package-info.txt
+          #
+          # (tideforge-wayland-protocols-arch-x86_64, run 32551508574 — a
+          # canary cell, which is what canary cells are for.)
+          #
+          # The other two $out paths verify touches are safe: artifacts/ is
+          # here, and smoke.sh is written by verify itself before use.
           path: |
             .factory/${{ matrix.id }}/artifacts
             .factory/${{ matrix.id }}/action-result.json
+            .factory/${{ matrix.id }}/package-info.txt
       # Split by outcome (#472). On success the packages and their
       # supply-chain metadata are the deliverable, and uploading the build
       # tree alongside them cost multi-hundred-MB transfers per cell for

@@ -52,6 +52,24 @@ def _paths(step: dict) -> list[str]:
 
 
 def test_both_cache_steps_store_only_the_output():
+    """The output, and nothing else — but "the output" is what VERIFY needs,
+    not what I assumed it needed.
+
+    This assertion originally listed just artifacts/ and action-result.json,
+    on the claim that verify reads "$out/artifacts and nothing else". That is
+    true for rpm and deb and false for Arch, whose branch passes
+    $out/package-info.txt to validate-built-arch-package.py. Every Arch cache
+    HIT then died on FileNotFoundError, latent only for as long as Arch cells
+    kept missing.
+
+    package-info.txt is a few hundred bytes of metadata, so it does not
+    reopen what this test exists to prevent: the multi-hundred-MB build trees
+    (deb/, rpm/, arch/), which the two tests below still ban outright.
+
+    test_cache_carries_what_verify_reads.py derives this list from the verify
+    script rather than restating it, and is the one that catches the next
+    branch to read something new.
+    """
     steps = _cache_steps()
     assert len(steps) == 2, "expected exactly a restore and a save"
     for step in steps:
@@ -59,7 +77,19 @@ def test_both_cache_steps_store_only_the_output():
         assert paths == [
             ".factory/${{ matrix.id }}/artifacts",
             ".factory/${{ matrix.id }}/action-result.json",
+            ".factory/${{ matrix.id }}/package-info.txt",
         ], step.get("id") or step.get("name")
+
+
+def test_the_cache_stays_small():
+    """The point of #472 was size. Guard it by kind: only the artifacts
+    directory may be a directory; everything else must be a named file, so a
+    future addition cannot quietly drag a tree back in."""
+    for step in _cache_steps():
+        for path in _paths(step):
+            if path.endswith("/artifacts"):
+                continue
+            assert "." in path.rsplit("/", 1)[-1], path
 
 
 def test_the_cache_never_names_a_build_tree():
