@@ -152,7 +152,18 @@ def test_the_unified_planner_covers_every_declared_pair() -> None:
     # el10+ubuntu+debian, taking the declared-pair floor from 122 to 156.
     # The ratchet pins the floor so a future target removal fails loudly
     # instead of quietly shrinking the gate again.
-    assert len(declared) >= 156
+    #
+    # Deliberate #460 reduction, 156 -> 152: quickshell declared ubuntu,
+    # debian, opensuse-tumbleweed and arch but has never built on any of
+    # them — the planner only plans a recipe's cells when the recipe
+    # changes, and its first change since landing (run 32429102251) failed
+    # all eight non-el10 cells in dependency resolution. Three of the four
+    # need the deb/zypper published-index gap filler the rpm path already
+    # has, and arch needs native dependency names (#461). This ratchet
+    # working as designed is why the reduction is stated here rather than
+    # slipping through: restore the floor in the PR that proves those
+    # targets green.
+    assert len(declared) >= 152
     assert coverage.gate_pairs(tree) == declared
     assert coverage.uncovered(tree) == set()
 

@@ -15,7 +15,12 @@ build:
   # optional upstream; use its standard allocator path until a native package
   # becomes available.
   cmake_generator: Ninja
-  cmake_options: [-DUSE_JEMALLOC=OFF]
+  # CMAKE_SKIP_INSTALL_RPATH: upstream installs /usr/bin/quickshell with
+  # RUNPATH $ORIGIN:$ORIGIN/../lib64, which lint-generated-rpm treats as
+  # fatal (binary-or-shlib-defines-rpath — publish run 32427186464). The
+  # package ships no private libraries for $ORIGIN to find, so dropping
+  # the install rpath loses nothing.
+  cmake_options: [-DUSE_JEMALLOC=OFF, -DCMAKE_SKIP_INSTALL_RPATH=ON]
 dependencies:
   build:
     # Toolchain and Qt build-time deps are listed per-target: a common list
@@ -25,8 +30,8 @@ dependencies:
       # Quickshell uses Qt's private API.  EL10 supplies the corresponding
       # metadata in CRB as qt6-qtbase-private-devel.
       el10: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, ninja-build, cli11-devel, cpptrace-devel, wayland-protocols]
-      ubuntu: [cmake, g++, qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
-      debian: [cmake, g++, qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
+      ubuntu: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
+      debian: [cmake, g++, ninja-build, qt6-base-dev, qt6-declarative-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev]
       opensuse-tumbleweed: [cmake, gcc-c++, qt6-base-private-devel, qt6-declarative-devel, qt6-wayland-devel, qt6-shadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, jemalloc-devel, cli11-devel, cpptrace-devel]
       arch: [cmake, gcc, qt6-base, qt6-declarative, qt6-wayland, qt6-shadertools, pipewire, pam, polkit, libdrm, jemalloc, cli11-devel, cpptrace-devel, ninja-build, wayland-protocols, libunwind]
 files:
@@ -37,4 +42,20 @@ files:
     - usr/share/icons/hicolor/scalable/apps/org.quickshell.svg
 verify:
   smoke: "quickshell --help"
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+# el10 only, for now. The other four targets were declared but have never
+# been buildable, which stayed invisible because the planner only plans
+# quickshell cells when this recipe changes — the rpath fix above is the
+# first change since the recipe landed, and it planned all five (run
+# 32429102251):
+#   * ubuntu/debian: "libcpptrace-dev but it is not installable" — neither
+#     archive carries it. cpptrace IS a factory package, but the deb build
+#     path has no published-index gap filler (the rpm builddep path got one
+#     in #450/#455), so apt-get build-dep cannot see the factory's own
+#     output the way dnf builddep now can.
+#   * arch: the dependency list uses Fedora names — "target not found:
+#     cli11-devel / cpptrace-devel / ninja-build".
+#   * opensuse-tumbleweed: same cpptrace-devel gap on the zypper path.
+# Declaring only what serves keeps the gate honest; restoring the other
+# targets is tracked separately and needs the deb/zypper gap filler plus
+# native Arch dependency names.
+targets: [el10]
