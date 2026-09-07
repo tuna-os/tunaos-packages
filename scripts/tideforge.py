@@ -346,6 +346,25 @@ def build_environment_exports(recipe: dict) -> str:
     return "\n".join(f"export {name}={shlex.quote(value)}" for name, value in environment.items())
 
 
+def make_environment_exports(recipe: dict) -> str:
+    """Render make `export` directives for debian/rules.
+
+    A shell export cannot be used here. Every line of a make recipe runs in
+    its OWN shell, so `export LIBS=-lgcc_s` written inside
+    override_dh_auto_configure would not survive to the next line, let alone
+    to dh_auto_build. Make's own export directive, declared at file scope,
+    puts the variable into the environment of every recipe shell in the file.
+
+    No shell quoting: make passes the directive's value through literally, so
+    shlex.quote would export the quote characters themselves. Only `$` needs
+    escaping, because make would otherwise expand it as a make variable.
+    """
+    environment = recipe.get("build", {}).get("environment", {})
+    # Reuse the normal validator before retaining the raw values.
+    build_environment(recipe)
+    return "\n".join(f"export {name} := {value.replace('$', '$$')}" for name, value in environment.items())
+
+
 def source_entries(recipe: dict) -> list[dict]:
     """Return the primary source followed by pinned auxiliary source trees.
 
@@ -933,7 +952,16 @@ Rules-Requires-Root: no
             configure = f"\noverride_dh_auto_configure:\n\tdh_auto_configure -- {configure_options(recipe)}\n"
         else:
             configure = ""
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem={buildsystem}\n{configure}"
+        # #469 wired build.environment into the RPM autotools path only, so
+        # libunwind's `LIBS: -lgcc_s` -- the whole reason that key exists on
+        # this recipe -- was still dropped on debian and ubuntu. The deb
+        # matrix builds arm64, where the same missing libgcc link produces
+        # the same undefined __aarch64_cas8_acq_rel at load. Declared at file
+        # scope so it covers dh_auto_configure (autoconf AC_SUBSTs LIBS into
+        # the generated Makefiles) and dh_auto_build alike.
+        exports = make_environment_exports(recipe)
+        preamble = f"{exports}\n\n" if exports else ""
+        rules = f"#!/usr/bin/make -f\n\n{preamble}%:\n\tdh $@ --buildsystem={buildsystem}\n{configure}"
     extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}", make_escape=True), install_directories(recipe, f"debian/{recipe['name']}", exclude_generated_debian=True)]))
     if extra_install:
         rules = rules.rstrip() + "\n\t" + extra_install.replace("\n", "\n\t") + "\n"
@@ -1053,7 +1081,12 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         build = f"arch-meson build {meson_options(recipe)}\n  meson compile -C build".rstrip()
         install = "DESTDIR=\"$pkgdir\" meson install -C build"
     elif recipe["build_system"] == "autotools":
-        prefix = "autoreconf -fi\n  " if autoreconf_enabled(recipe) else ""
+        # Same gap as the deb path: #469 exported build.environment before
+        # %configure in the spec, but a PKGBUILD's build() reached ./configure
+        # with the recipe's declared LIBS still missing. build() is a plain
+        # bash function, so ordinary shell exports are enough here.
+        prefix = "".join(f"{line}\n  " for line in build_environment_exports(recipe).splitlines())
+        prefix += "autoreconf -fi\n  " if autoreconf_enabled(recipe) else ""
         build = f"{prefix}./configure --prefix=/usr {configure_options(recipe)}\n  make".rstrip()
         install = "make DESTDIR=\"$pkgdir\" install"
     else:
