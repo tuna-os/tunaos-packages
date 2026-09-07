@@ -110,3 +110,78 @@ def test_libunwind_does_not_clobber_the_hardened_ldflags() -> None:
 def test_libunwind_renders_the_export() -> None:
     recipe = yaml.safe_load(RECIPE.read_text())
     assert "export LIBS=-lgcc_s" in render(recipe)
+
+
+# --- the other two autotools renderers -------------------------------------
+#
+# The first pass at this fixed the spec path only. The recipe builds on five
+# targets, and debian, ubuntu and arch do not go through rpm_build_lines, so
+# `LIBS: -lgcc_s` was still silently dropped on three of them -- including the
+# arm64 deb cells, where the missing libgcc link reproduces this issue's exact
+# undefined __aarch64_cas8_acq_rel.
+
+
+def test_the_environment_reaches_the_deb_autotools_build() -> None:
+    recipe = yaml.safe_load(RECIPE.read_text())
+    rules = tf.render_deb(recipe, "debian")["debian/rules"]
+    assert "export LIBS := -lgcc_s" in rules
+
+
+def test_the_deb_export_is_a_make_directive_at_file_scope() -> None:
+    """Each line of a make recipe runs in its own shell.
+
+    A shell `export` written under override_dh_auto_configure would not
+    survive to the next line, so the directive has to sit outside any target
+    -- above the first one -- to reach both configure and build.
+    """
+    recipe = yaml.safe_load(RECIPE.read_text())
+    rules = tf.render_deb(recipe, "debian")["debian/rules"]
+    lines = rules.splitlines()
+    assert lines.index("export LIBS := -lgcc_s") < lines.index("%:")
+    assert not any(line.startswith("\t") and "LIBS" in line for line in lines)
+
+
+def test_a_deb_recipe_without_environment_keeps_its_rules_file() -> None:
+    recipe = yaml.safe_load(RECIPE.read_text())
+    recipe["build"].pop("environment")
+    rules = tf.render_deb(recipe, "debian")["debian/rules"]
+    assert "export" not in rules
+    assert rules.startswith("#!/usr/bin/make -f\n\n%:\n")
+
+
+def test_the_environment_reaches_the_pkgbuild_autotools_build() -> None:
+    recipe = yaml.safe_load(RECIPE.read_text())
+    pkgbuild = tf.render_pkgbuild(recipe, "arch")["PKGBUILD"]
+    assert "export LIBS=-lgcc_s" in pkgbuild
+
+
+def test_the_pkgbuild_export_precedes_configure() -> None:
+    recipe = yaml.safe_load(RECIPE.read_text())
+    pkgbuild = tf.render_pkgbuild(recipe, "arch")["PKGBUILD"]
+    assert pkgbuild.index("export LIBS=") < pkgbuild.index("./configure")
+
+
+def test_a_pkgbuild_without_environment_is_unchanged() -> None:
+    recipe = yaml.safe_load(RECIPE.read_text())
+    recipe["build"].pop("environment")
+    pkgbuild = tf.render_pkgbuild(recipe, "arch")["PKGBUILD"]
+    assert "export" not in pkgbuild
+    assert "autoreconf -fi\n  ./configure --prefix=/usr" in pkgbuild
+
+
+def test_make_exports_are_not_shell_quoted() -> None:
+    """make passes the directive value through literally.
+
+    shlex.quote here would export the quote characters themselves, so a
+    multi-word LIBS would arrive at configure wrapped in stray apostrophes.
+    """
+    assert tf.make_environment_exports(
+        {"build": {"environment": {"LIBS": "-lgcc_s -lfoo bar"}}}
+    ) == "export LIBS := -lgcc_s -lfoo bar"
+
+
+def test_make_exports_escape_the_dollar_sign() -> None:
+    """An unescaped $ would be expanded by make, not by the shell."""
+    assert tf.make_environment_exports(
+        {"build": {"environment": {"LDFLAGS": "-Wl,-rpath,$ORIGIN"}}}
+    ) == "export LDFLAGS := -Wl,-rpath,$$ORIGIN"
