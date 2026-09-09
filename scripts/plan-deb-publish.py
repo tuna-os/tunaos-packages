@@ -41,13 +41,11 @@ import json
 import pathlib
 import sys
 
-import yaml
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
+import publisher_contract  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FACTORY = ROOT / "manifests" / "package-factory.yaml"
 
 # label -> target. The label is the published repository's path segment and
 # cannot change without orphaning the repo; the target is what the renderer
@@ -70,11 +68,10 @@ def fail(message: str) -> None:
 
 
 def split(value: str) -> list[str]:
-    return [item.strip() for item in value.split(",") if item.strip()]
+    return publisher_contract.split(value)
 
 
 def plan(packages: list[str], distros: list[str], arches: list[str] | None) -> list[dict]:
-    targets = (yaml.safe_load(FACTORY.read_text(encoding="utf-8")) or {}).get("targets") or {}
     if not packages:
         fail("no packages requested")
 
@@ -85,33 +82,12 @@ def plan(packages: list[str], distros: list[str], arches: list[str] | None) -> l
     include: list[dict] = []
     for distro in distros:
         target_name = DISTRO_TARGETS[distro]
-        target = targets.get(target_name)
-        if not target:
-            fail(f"{distro} maps to target {target_name}, which the contract does not declare")
-        if target.get("format") != "deb":
-            fail(f"target {target_name} is format {target.get('format')!r}, not deb")
+        target = publisher_contract.target(target_name, "deb", fail)
         image = target.get("probe_image")
-        if not image:
-            fail(f"target {target_name} declares no probe_image to build in")
-
-        declared = list(target.get("architectures") or [])
-        if not declared:
-            fail(f"target {target_name} declares no architectures")
-        selected = arches or declared
-        missing = sorted(set(selected) - set(declared))
-        if missing:
-            fail(f"{target_name} does not declare arch(es) {missing}; it declares {declared}")
-        unrunnable = sorted(set(selected) - set(RUNNERS))
-        if unrunnable:
-            fail(f"no runner for arch(es) {unrunnable}")
+        selected = publisher_contract.architectures(target_name, target, arches, RUNNERS, fail)
 
         for package in packages:
-            recipe_path = ROOT / "packages" / package / "package.yaml"
-            if not recipe_path.is_file():
-                fail(f"no recipe at packages/{package}/package.yaml")
-            recipe = yaml.safe_load(recipe_path.read_text(encoding="utf-8")) or {}
-            if target_name not in (recipe.get("targets") or []):
-                fail(f"{package} does not target {target_name}; refusing to publish it there")
+            publisher_contract.recipe(package, target_name, fail)
             for arch in selected:
                 include.append({
                     "package": package,
@@ -132,9 +108,17 @@ def plan(packages: list[str], distros: list[str], arches: list[str] | None) -> l
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--packages", required=True, help="comma-separated recipe names under packages/")
-    parser.add_argument("--distros", default="ubuntu,debian-sid", help="comma-separated distro labels")
-    parser.add_argument("--arches", default="", help="comma-separated arches; default is every arch the target declares")
+    parser.add_argument(
+        "--packages", required=True, help="comma-separated recipe names under packages/"
+    )
+    parser.add_argument(
+        "--distros", default="ubuntu,debian-sid", help="comma-separated distro labels"
+    )
+    parser.add_argument(
+        "--arches",
+        default="",
+        help="comma-separated arches; default is every arch the target declares",
+    )
     parser.add_argument("--github-output", help="append matrix=<json> here")
     args = parser.parse_args()
 
