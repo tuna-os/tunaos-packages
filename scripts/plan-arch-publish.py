@@ -23,13 +23,11 @@ import json
 import pathlib
 import sys
 
-import yaml
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
+import publisher_contract  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FACTORY = ROOT / "manifests" / "package-factory.yaml"
 SERVED_ROOT = "https://repo.tunaos.org/"
 
 # The pacman repository's name. It is also the db filename pacman requests
@@ -44,42 +42,23 @@ def fail(message: str) -> None:
 
 
 def split(value: str) -> list[str]:
-    return [item.strip() for item in value.split(",") if item.strip()]
+    return publisher_contract.split(value)
 
 
 def plan(packages: list[str], arches: list[str] | None) -> dict:
-    targets = (yaml.safe_load(FACTORY.read_text(encoding="utf-8")) or {}).get("targets") or {}
-    target = targets.get("arch")
-    if not target:
-        fail("the contract declares no arch target")
-    if target.get("format") != "pkg.tar.zst":
-        fail(f"arch is format {target.get('format')!r}, not pkg.tar.zst")
+    target = publisher_contract.target("arch", "pkg.tar.zst", fail)
     image = target.get("probe_image")
-    if not image:
-        fail("arch declares no probe_image to build in")
     r2_path = target.get("r2_path")
     if not r2_path:
         fail("arch declares no r2_path to publish into")
     if not packages:
         fail("no packages requested")
 
-    declared = list(target.get("architectures") or [])
-    selected = arches or declared
-    missing = sorted(set(selected) - set(declared))
-    if missing:
-        fail(f"arch does not declare arch(es) {missing}; it declares {declared}")
-    unrunnable = sorted(set(selected) - set(RUNNERS))
-    if unrunnable:
-        fail(f"no runner for arch(es) {unrunnable}")
+    selected = publisher_contract.architectures("arch", target, arches, RUNNERS, fail)
 
     build = []
     for package in packages:
-        recipe = ROOT / "packages" / package / "package.yaml"
-        if not recipe.is_file():
-            fail(f"no recipe at packages/{package}/package.yaml")
-        data = yaml.safe_load(recipe.read_text(encoding="utf-8")) or {}
-        if "arch" not in (data.get("targets") or []):
-            fail(f"{package} does not target arch; refusing to publish it there")
+        publisher_contract.recipe(package, "arch", fail)
         for arch in selected:
             build.append({
                 "package": package,

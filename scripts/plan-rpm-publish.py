@@ -36,13 +36,11 @@ import json
 import pathlib
 import sys
 
-import yaml
-
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
+import publisher_contract  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FACTORY = ROOT / "manifests" / "package-factory.yaml"
 SERVED_ROOT = "https://repo.tunaos.org/"
 
 RUNNERS = {"x86_64": "ubuntu-latest", "aarch64": "ubuntu-24.04-arm"}
@@ -78,32 +76,16 @@ def fail(message: str) -> None:
 
 
 def split(value: str) -> list[str]:
-    return [item.strip() for item in value.split(",") if item.strip()]
+    return publisher_contract.split(value)
 
 
 def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dict:
-    targets = (yaml.safe_load(FACTORY.read_text(encoding="utf-8")) or {}).get("targets") or {}
-    target = targets.get(target_name)
-    if not target:
-        fail(f"unknown target {target_name!r}; the contract declares {sorted(targets)}")
-    if target.get("format") != "rpm":
-        fail(f"target {target_name} is format {target.get('format')!r}, not rpm")
+    target = publisher_contract.target(target_name, "rpm", fail)
     image = target.get("probe_image")
-    if not image:
-        fail(f"target {target_name} declares no probe_image to build in")
     if not packages:
         fail("no packages requested")
 
-    declared = list(target.get("architectures") or [])
-    if not declared:
-        fail(f"target {target_name} declares no architectures")
-    selected = arches or declared
-    missing = sorted(set(selected) - set(declared))
-    if missing:
-        fail(f"{target_name} does not declare arch(es) {missing}; it declares {declared}")
-    unrunnable = sorted(set(selected) - set(RUNNERS))
-    if unrunnable:
-        fail(f"no runner for arch(es) {unrunnable}")
+    selected = publisher_contract.architectures(target_name, target, arches, RUNNERS, fail)
 
     r2_path = target.get("r2_path")
     if not r2_path:
@@ -111,12 +93,7 @@ def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dic
 
     build = []
     for package in packages:
-        recipe = ROOT / "packages" / package / "package.yaml"
-        if not recipe.is_file():
-            fail(f"no recipe at packages/{package}/package.yaml")
-        data = yaml.safe_load(recipe.read_text(encoding="utf-8")) or {}
-        if target_name not in (data.get("targets") or []):
-            fail(f"{package} does not target {target_name}; refusing to publish it there")
+        publisher_contract.recipe(package, target_name, fail)
         for arch in selected:
             build.append({
                 "package": package,
