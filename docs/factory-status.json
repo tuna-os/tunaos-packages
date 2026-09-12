@@ -356,9 +356,58 @@
         }
       },
       "measured_at": "2026-09-02T09:47:13+00:00"
+    },
+    {
+      "counts": {
+        "debian/amd64": {
+          "built": 5,
+          "needed": 40
+        },
+        "debian/arm64": {
+          "built": 5,
+          "needed": 40
+        },
+        "el10/aarch64": {
+          "built": 20,
+          "needed": 112
+        },
+        "el10/x86_64": {
+          "built": 98,
+          "needed": 34
+        },
+        "fedora/x86_64": {
+          "built": 3,
+          "needed": 0
+        },
+        "hummingbird/aarch64": {
+          "built": 624,
+          "needed": 41
+        },
+        "hummingbird/x86_64": {
+          "built": 643,
+          "needed": 22
+        },
+        "opensuse-tumbleweed/aarch64": {
+          "built": 10,
+          "needed": 9
+        },
+        "opensuse-tumbleweed/x86_64": {
+          "built": 10,
+          "needed": 9
+        },
+        "ubuntu/amd64": {
+          "built": 5,
+          "needed": 39
+        },
+        "ubuntu/arm64": {
+          "built": 5,
+          "needed": 39
+        }
+      },
+      "measured_at": "2026-09-05T09:11:39+00:00"
     }
   ],
-  "measured_at": "2026-09-05T09:11:39+00:00",
+  "measured_at": "2026-09-12T09:29:03+00:00",
   "targets": {
     "debian": {
       "amd64": {
@@ -1446,11 +1495,11 @@
           {
             "baseurl": "https://repo.tunaos.org/hummingbird/20251124-aarch64/",
             "package_names": 3905,
-            "primary_bytes": 1638204,
-            "primary_href": "repodata/0f2f48179e9b126851e1738d43c68aa527ad31e20fc925bb901f08a2a48a899e-primary.xml.gz",
-            "primary_sha256": "0f2f48179e9b126851e1738d43c68aa527ad31e20fc925bb901f08a2a48a899e",
-            "primary_sha256_declared": "0f2f48179e9b126851e1738d43c68aa527ad31e20fc925bb901f08a2a48a899e",
-            "revision": "1788564499"
+            "primary_bytes": 1824342,
+            "primary_href": "repodata/d455ea89d98d7c519e4409ce3e5032dda9bbc7bd5dcc4ea5fdd2492fe6451355-primary.xml.gz",
+            "primary_sha256": "d455ea89d98d7c519e4409ce3e5032dda9bbc7bd5dcc4ea5fdd2492fe6451355",
+            "primary_sha256_declared": "d455ea89d98d7c519e4409ce3e5032dda9bbc7bd5dcc4ea5fdd2492fe6451355",
+            "revision": "1789176178"
           }
         ],
         "needed": [
@@ -1845,6 +1894,7 @@
           "libogg",
           "libopenmpt",
           "liboping",
+          "libosinfo",
           "libpcap",
           "libpciaccess",
           "libplacebo",
@@ -2147,12 +2197,12 @@
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/hummingbird/20251124-x86_64/",
-            "package_names": 8811,
-            "primary_bytes": 3457354,
-            "primary_href": "repodata/56ff2b571dd0d302e071a32315e9158bd1ed4ef1f654f4ae81217193eac3a794-primary.xml.gz",
-            "primary_sha256": "56ff2b571dd0d302e071a32315e9158bd1ed4ef1f654f4ae81217193eac3a794",
-            "primary_sha256_declared": "56ff2b571dd0d302e071a32315e9158bd1ed4ef1f654f4ae81217193eac3a794",
-            "revision": "1788563191"
+            "package_names": 8819,
+            "primary_bytes": 3631451,
+            "primary_href": "repodata/7fad60758f372ddfe7d81084071a0f95a808989e6ec406e7daa6d38d989a5b9e-primary.xml.gz",
+            "primary_sha256": "7fad60758f372ddfe7d81084071a0f95a808989e6ec406e7daa6d38d989a5b9e",
+            "primary_sha256_declared": "7fad60758f372ddfe7d81084071a0f95a808989e6ec406e7daa6d38d989a5b9e",
+            "revision": "1789174538"
           }
         ],
         "needed": [
@@ -2166,7 +2216,6 @@
           "grub2",
           "gstreamer1-plugins-bad-free",
           "libcanberra",
-          "libosinfo",
           "libphonenumber",
           "librist",
           "libvorbis",
@@ -2387,7 +2436,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 11
+          "days": 18
         }
       },
       "debian/arm64": {
@@ -2399,7 +2448,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 11
+          "days": 18
         }
       },
       "el10/aarch64": {
@@ -2411,7 +2460,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 11
+          "days": 18
         }
       },
       "el10/x86_64": {
@@ -2423,7 +2472,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 2
+          "days": 9
         }
       },
       "fedora/x86_64": {
@@ -2435,315 +2484,30 @@
         "retired": [],
         "stalled": {
           "at_least": true,
-          "days": 15
+          "days": 22
         }
       },
       "hummingbird/aarch64": {
-        "built_delta": -9,
-        "needed_delta": -104,
+        "built_delta": 0,
+        "needed_delta": 0,
         "new": false,
-        "newly_built": [
-          "SwayNotificationCenter",
-          "Thunar",
-          "appstream",
-          "at-spi2-core",
-          "atkmm",
-          "blueman",
-          "gcr",
-          "gcr3",
-          "gnome-bluetooth",
-          "gnome-color-manager",
-          "gnome-disk-utility",
-          "gnome-keyring",
-          "gnome-online-accounts",
-          "gsound",
-          "gspell",
-          "gssdp",
-          "gstreamer1-plugins-base",
-          "gstreamer1-plugins-good",
-          "gtk-layer-shell",
-          "gtk2",
-          "gtk3",
-          "gtkgreet",
-          "gtkmm3.0",
-          "gtksourceview4",
-          "gupnp",
-          "ibus",
-          "json-glib",
-          "libayatana-indicator",
-          "libcloudproviders",
-          "libdbusmenu",
-          "libepoxy",
-          "libgexiv2",
-          "libgusb",
-          "libgweather",
-          "libgxps",
-          "libhandy",
-          "libnma",
-          "libnotify",
-          "libportal",
-          "libproxy",
-          "librsvg2",
-          "libsecret",
-          "libuser",
-          "libwnck3",
-          "libxfce4ui",
-          "libxfce4windowing",
-          "mousepad",
-          "msgraph",
-          "nautilus-python",
-          "network-manager-applet",
-          "niri",
-          "ptyxis",
-          "pulseaudio",
-          "python-aiohappyeyeballs",
-          "python-aiosignal",
-          "python-bugzilla",
-          "python-dbus-next",
-          "python-pydantic",
-          "python-pydantic-core",
-          "python-pytest-asyncio",
-          "rest",
-          "ristretto",
-          "tumbler",
-          "udisks2",
-          "unity-gtk-module",
-          "vte291",
-          "waybar",
-          "webkitgtk",
-          "xdg-desktop-portal-gtk",
-          "xdg-user-dirs-gtk",
-          "xfce4-panel",
-          "xfce4-session",
-          "xfce4-terminal",
-          "xfce4-whiskermenu-plugin",
-          "xfconf",
-          "zsh",
-          "zxing-cpp"
-        ],
+        "newly_built": [],
         "regressed": [],
-        "retired": [
-          "accountsservice",
-          "adw-gtk3-theme",
-          "adwaita-fonts",
-          "alsa-firmware",
-          "alsa-tools",
-          "augeas",
-          "chrony",
-          "containerd",
-          "ddcutil",
-          "distrobox",
-          "evtest",
-          "fastfetch",
-          "flatpak-xdg-utils",
-          "freeglut",
-          "fzf",
-          "gnome-ponytail-daemon",
-          "gnome-shell-extension-gsconnect",
-          "gnome-tweaks",
-          "google-noto-sans-cjk-vf-fonts",
-          "gsettings-desktop-schemas",
-          "gum",
-          "gvfs",
-          "ibus-unikey",
-          "igt-gpu-tools",
-          "intel-gmmlib",
-          "isomd5sum",
-          "jack-audio-connection-kit",
-          "libatasmart",
-          "libavc1394",
-          "libblockdev",
-          "libburn",
-          "libcaca",
-          "libconfig",
-          "libdaemon",
-          "libdatrie",
-          "libdb",
-          "libdc1394",
-          "libebur128",
-          "libheif",
-          "libiec61883",
-          "libisoburn",
-          "libisofs",
-          "libklvanc",
-          "libldac",
-          "libnvme",
-          "libraw1394",
-          "libteam",
-          "libthai",
-          "libva",
-          "libva-utils",
-          "libxml++30",
-          "livesys-scripts",
-          "lsof",
-          "lttng-ust",
-          "mdadm",
-          "mesa-libGLU",
-          "openal-soft",
-          "openrgb",
-          "parted",
-          "pykickstart",
-          "pyparted",
-          "python-blivet",
-          "python-crypt-r",
-          "python-iso639",
-          "python-pid",
-          "python-requests-file",
-          "python-requests-ftp",
-          "python-simpleline",
-          "python-systemd",
-          "python-xkbregistry",
-          "rust-just",
-          "sbc",
-          "slang",
-          "slitherer",
-          "spandsp",
-          "speexdsp",
-          "squashfs-tools",
-          "switcheroo-control",
-          "volume_key",
-          "waypipe",
-          "webrtc-audio-processing",
-          "webrtc-audio-processing1",
-          "wireguard-tools",
-          "wl-clipboard",
-          "xdg-desktop-portal",
-          "xdg-terminal-exec"
-        ],
-        "stalled": null
+        "retired": [],
+        "stalled": {
+          "at_least": false,
+          "days": 7
+        }
       },
       "hummingbird/x86_64": {
-        "built_delta": -93,
-        "needed_delta": -20,
+        "built_delta": 1,
+        "needed_delta": -1,
         "new": false,
         "newly_built": [
-          "SwayNotificationCenter",
-          "gnome-disk-utility",
-          "gtksourceview4",
-          "libdbusmenu",
-          "libhandy",
-          "python-aiohappyeyeballs",
-          "python-aiosignal",
-          "python-bugzilla",
-          "python-dbus-next",
-          "python-pydantic",
-          "python-pydantic-core",
-          "python-pytest-asyncio",
-          "udisks2",
-          "zsh",
-          "zxing-cpp"
+          "libosinfo"
         ],
         "regressed": [],
-        "retired": [
-          "accountsservice",
-          "adw-gtk3-theme",
-          "adwaita-fonts",
-          "alsa-firmware",
-          "alsa-tools",
-          "augeas",
-          "chrony",
-          "containerd",
-          "ddcutil",
-          "distrobox",
-          "evtest",
-          "fastfetch",
-          "flatpak-xdg-utils",
-          "freeglut",
-          "fzf",
-          "gdm",
-          "gnome-control-center",
-          "gnome-desktop3",
-          "gnome-ponytail-daemon",
-          "gnome-session",
-          "gnome-settings-daemon",
-          "gnome-shell",
-          "gnome-shell-extension-gsconnect",
-          "gnome-tweaks",
-          "google-noto-sans-cjk-vf-fonts",
-          "gsettings-desktop-schemas",
-          "gtk4",
-          "gum",
-          "gvfs",
-          "ibus-unikey",
-          "igt-gpu-tools",
-          "input-remapper",
-          "intel-gmmlib",
-          "intel-mediasdk",
-          "intel-vpl-gpu-rt",
-          "isomd5sum",
-          "jack-audio-connection-kit",
-          "langtable",
-          "libadwaita",
-          "libappindicator",
-          "libatasmart",
-          "libavc1394",
-          "libayatana-appindicator",
-          "libblockdev",
-          "libburn",
-          "libcaca",
-          "libcamera",
-          "libconfig",
-          "libdaemon",
-          "libdatrie",
-          "libdb",
-          "libdc1394",
-          "libebur128",
-          "libheif",
-          "libiec61883",
-          "libisoburn",
-          "libisofs",
-          "libklvanc",
-          "libldac",
-          "libnvme",
-          "libraw1394",
-          "libteam",
-          "libthai",
-          "libva",
-          "libva-utils",
-          "libxml++30",
-          "livesys-scripts",
-          "lsof",
-          "lttng-ust",
-          "malcontent",
-          "mdadm",
-          "mesa-libGLU",
-          "mutter",
-          "openal-soft",
-          "openrgb",
-          "pango",
-          "parted",
-          "pipewire",
-          "pykickstart",
-          "pyparted",
-          "python-blivet",
-          "python-crypt-r",
-          "python-iso639",
-          "python-pid",
-          "python-requests-file",
-          "python-requests-ftp",
-          "python-simpleline",
-          "python-systemd",
-          "python-xkbregistry",
-          "rust-just",
-          "satyr",
-          "sbc",
-          "slang",
-          "slitherer",
-          "spandsp",
-          "speexdsp",
-          "squashfs-tools",
-          "switcheroo-control",
-          "volume_key",
-          "waypipe",
-          "webrtc-audio-processing",
-          "webrtc-audio-processing1",
-          "wireguard-tools",
-          "wl-clipboard",
-          "xdg-desktop-portal",
-          "xdg-desktop-portal-gnome",
-          "xdg-terminal-exec",
-          "zenity"
-        ],
+        "retired": [],
         "stalled": null
       },
       "opensuse-tumbleweed/aarch64": {
@@ -2755,7 +2519,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 2
+          "days": 9
         }
       },
       "opensuse-tumbleweed/x86_64": {
@@ -2767,7 +2531,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 2
+          "days": 9
         }
       },
       "ubuntu/amd64": {
@@ -2779,7 +2543,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 11
+          "days": 18
         }
       },
       "ubuntu/arm64": {
@@ -2791,12 +2555,12 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 11
+          "days": 18
         }
       }
     },
-    "since": "2026-09-02T09:47:13+00:00",
-    "staleness_days": 2
+    "since": "2026-09-05T09:11:39+00:00",
+    "staleness_days": 7
   },
   "unmeasured_targets": {
     "arch": {
