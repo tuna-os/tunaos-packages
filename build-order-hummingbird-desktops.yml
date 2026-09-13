@@ -16,9 +16,9 @@
 # from the buildroot's inherited Rawhide fallback at priority 99
 # (the target's mock config), never from this build order.
 #
-# Measured 2026-09-06T01:06:29.888528+00:00
-# target primary.xml   sha256 5d3c4e0587661da524da957e169529e380a85ad29c77a122c1018cf7676931db
-# reference primary.xml sha256 0621ccc337259ccdfe7840e442d72405fbc91cfaf89fb8e11ab56b297a643a5f
+# Measured 2026-09-13T05:00:11.687169+00:00
+# target primary.xml   sha256 5de4d4f9032a4761b2554f169dc51e577dc85d3054176e34349644daebe5afab
+# reference primary.xml sha256 73cce9d43cccdbda1e8f70c7c2dec40e4ecbb34e69d3abea6e306a2a0dc1870c
 # consumed utah-packages  oci://ghcr.io/projectbluefin/utah-packages@sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c (primary sha256 38da5357b241, 421 binaries counted as had)
 #
 # `distgit:` means the packaging is imported from Fedora Rawhide
@@ -185,6 +185,8 @@ tiers:
         distgit: iniparser
       - path: src/hummingbird/iso-codes
         distgit: iso-codes
+      - path: src/hummingbird/iw
+        distgit: iw
       - path: src/hummingbird/kde-filesystem
         distgit: kde-filesystem
       - path: src/hummingbird/kf5
@@ -298,6 +300,7 @@ tiers:
       - path: src/deps/mod_dnssd
       - path: src/hummingbird/mozilla-filesystem
         distgit: mozilla-filesystem
+      - path: src/deps/mozjs140
       - path: src/hummingbird/mtdev
         distgit: mtdev
       - path: src/hummingbird/noopenh264
@@ -346,6 +349,8 @@ tiers:
         distgit: python-configobj
       - path: src/hummingbird/python-dasbus
         distgit: python-dasbus
+      - path: src/hummingbird/python-dateutil
+        distgit: python-dateutil
       - path: src/hummingbird/python-dbus-next
         distgit: python-dbus-next
       - path: src/hummingbird/python-evdev
@@ -368,8 +373,6 @@ tiers:
         distgit: python-pyinotify
       - path: src/hummingbird/python-pyudev
         distgit: python-pyudev
-      - path: src/hummingbird/python-six
-        distgit: python-six
       - path: src/hummingbird/python-typing-inspection
         distgit: python-typing-inspection
       - path: src/hummingbird/python-tzlocal
@@ -560,11 +563,12 @@ tiers:
         distgit: libtdb
       - path: src/hummingbird/libvorbis
         distgit: libvorbis
-      - path: src/deps/mozjs140
       - path: src/hummingbird/net-snmp
         distgit: net-snmp
       - path: src/hummingbird/ocean-sound-theme
         distgit: ocean-sound-theme
+      - path: src/hummingbird/oo7
+        distgit: oo7
       - path: src/hummingbird/openexr
         distgit: openexr
       - path: src/hummingbird/openjpeg
@@ -579,8 +583,10 @@ tiers:
         distgit: python-click-log
       - path: src/hummingbird/python-click-threading
         distgit: python-click-threading
-      - path: src/hummingbird/python-dateutil
-        distgit: python-dateutil
+      - path: src/hummingbird/python-icalendar
+        distgit: python-icalendar
+      - path: src/hummingbird/python-pydantic-core
+        distgit: python-pydantic-core
       - path: src/hummingbird/python-urwid
         distgit: python-urwid
       - path: src/hummingbird/pyxdg
@@ -667,10 +673,8 @@ tiers:
         distgit: ntfs-3g
       - path: src/hummingbird/python-aiohttp
         distgit: python-aiohttp
-      - path: src/hummingbird/python-icalendar
-        distgit: python-icalendar
-      - path: src/hummingbird/python-pydantic-core
-        distgit: python-pydantic-core
+      - path: src/hummingbird/python-pydantic
+        distgit: python-pydantic
       - path: src/hummingbird/qt6-qtdeclarative
         distgit: qt6-qtdeclarative
       - path: src/hummingbird/sratom
@@ -733,8 +737,6 @@ tiers:
         bootstrap: true
       - path: src/hummingbird/python-aiohttp-oauthlib
         distgit: python-aiohttp-oauthlib
-      - path: src/hummingbird/python-pydantic
-        distgit: python-pydantic
       - path: src/hummingbird/qt6-qt5compat
         distgit: qt6-qt5compat
       - path: src/hummingbird/qt6-qtpositioning
@@ -765,6 +767,7 @@ tiers:
         distgit: cairomm
       - path: src/hummingbird/cairomm1.16
         distgit: cairomm1.16
+      - path: src/deps/gnome-autoar
       - path: src/hummingbird/gnome-menus
         distgit: gnome-menus
       - path: src/hummingbird/graphene
@@ -1068,7 +1071,6 @@ tiers:
       - path: src/hummingbird/geoclue2
         distgit: geoclue2
       - path: src/gnome-51/gjs
-      - path: src/deps/gnome-autoar
       - path: src/hummingbird/gnome-color-manager
         distgit: gnome-color-manager
       - path: src/gnome-51/gnome-online-accounts
