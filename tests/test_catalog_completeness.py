@@ -27,6 +27,12 @@ def catalog() -> list[dict]:
     return (yaml.safe_load(CATALOG.read_text(encoding="utf-8")) or {})["packages"]
 
 
+def test_committed_catalog_is_generator_fixpoint() -> None:
+    assert CATALOG.read_text(encoding="utf-8") == catalog_builder.render_catalog(), (
+        "manifests/catalog.yaml is stale; run scripts/build-catalog.py"
+    )
+
+
 def test_catalog_contains_every_executed_package() -> None:
     catalog_names = {entry["name"] for entry in catalog()}
     planned_names = {

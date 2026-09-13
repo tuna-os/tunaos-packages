@@ -2982,7 +2982,7 @@ packages:
       rpm:
         native: src/deps/gnome50-el10-compat
     upstream:
-      version: 1.2.9
+      version: 1.2.10
       source: systemd-user.pam
       spec: src/deps/gnome50-el10-compat/gnome50-el10-compat.spec
     targets:
@@ -2996,7 +2996,7 @@ packages:
       rpm:
         native: src/deps/gnome50-el10-compat
     upstream:
-      version: 1.2.9
+      version: 1.2.10
       source: systemd-user.pam
       spec: src/deps/gnome50-el10-compat/gnome50-el10-compat.spec
     targets:
