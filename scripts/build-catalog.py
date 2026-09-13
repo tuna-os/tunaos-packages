@@ -302,7 +302,8 @@ def collect() -> dict:
     return entries
 
 
-def main() -> None:
+def render_catalog() -> str:
+    """Return the canonical catalog document without touching the worktree."""
     entries = collect()
     packages = []
     for (_, _), e in sorted(entries.items()):
@@ -321,8 +322,6 @@ def main() -> None:
         ),
         "packages": packages,
     }
-    out = os.path.join(ROOT, "manifests/catalog.yaml")
-
     # The repo's yamllint (extends: default) wants sequence items indented
     # under their key; yaml.safe_dump left-aligns them, which fails CI on
     # every list in an 11k-line file.
@@ -330,10 +329,22 @@ def main() -> None:
         def increase_indent(self, flow=False, indentless=False):
             return super().increase_indent(flow, False)
 
+    return yaml.dump(
+        doc,
+        Dumper=_IndentDumper,
+        sort_keys=False,
+        width=100,
+        default_flow_style=False,
+        allow_unicode=True,
+    )
+
+
+def main() -> None:
+    rendered = render_catalog()
+    out = os.path.join(ROOT, "manifests/catalog.yaml")
     with open(out, "w", encoding="utf-8") as fh:
-        yaml.dump(doc, fh, Dumper=_IndentDumper, sort_keys=False, width=100,
-                  default_flow_style=False, allow_unicode=True)
-    print(f"wrote {out}: {len(packages)} entries")
+        fh.write(rendered)
+    print(f"wrote {out}")
 
 
 if __name__ == "__main__":
