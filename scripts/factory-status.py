@@ -45,7 +45,6 @@ import argparse
 import datetime
 import gzip
 import hashlib
-import importlib.util
 import json
 import pathlib
 import sys
@@ -69,14 +68,9 @@ urllib.request.install_opener(_opener)
 # resolution, primary.xml parsing, srpm name derivation). Import it as a
 # module rather than copying any of it — one implementation of index reading
 # is the point of RFC 011.
-_spec = importlib.util.spec_from_file_location(
-    "mhg", ROOT / "scripts" / "gap_engine.py"
-)
-mhg = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(mhg)
-
 sys.path.insert(0, str(ROOT / "scripts"))
-import published_index as pubidx  # noqa: E402  (needs the path above)
+import gap_engine as mhg  # noqa: E402  (needs the path above)
+import published_index as pubidx  # noqa: E402
 
 
 def load_yaml(path: pathlib.Path):
