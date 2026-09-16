@@ -1,6 +1,6 @@
 # tunaos-packages Roadmap
 
-**Last updated**: 2026-09-02 | **Maintainer**: tuna-os (hanthor) / packaging maintainers
+**Last updated**: 2026-09-16 | **Maintainer**: tuna-os (hanthor) / packaging maintainers
 
 ---
 
@@ -16,7 +16,7 @@ only and is being retired (#439).
 
 ---
 
-## Current Status (2026-09-02)
+## Current Status (2026-09-16)
 
 - **The unified factory landed** (#430, merged 08-19). One planner and one cell
   boundary replaced the per-family build paths; gated artifacts are
@@ -34,7 +34,16 @@ only and is being retired (#439).
   Publishers now restore the gate's ActionResult instead of rebuilding, which
   closes the symptom half of #484. The structural remainder is open: the deb
   publisher is still the only hand-listed matrix (#479) and publishers still
-  rebuild what the gate cached (#481, 14/14 cache hits measured).
+  rebuild what the gate cached (#481, 14/14 cache hits measured). Centralized
+  publisher contracts landed in #706.
+- **GNOME 50 family published from factory** (#676): GNOME 50 family publication
+  shifted off the legacy COPR mirror onto the package factory pipeline.
+- **Mock CI COPR unpinning landed** (#642): Mock CI no longer depends on an
+  unpinned personal COPR repository, resolving #391 and advancing COPR
+  retirement (#439).
+- **Hummingbird GNOME cell decoupled via utah-packages** (#630, #631): Hummingbird
+  builds in Fedora 44 root and consumes utah-packages for GNOME, mitigating
+  the 360-minute cell ceiling (#412, #401).
 - **Served-index correctness is half closed.** The worker now percent-decodes
   request paths (#458, closed 09-02). The stale-metadata half is open: the
   el10 repo still carries a `glib2-2.87.3-1` pair with versioned
@@ -52,16 +61,6 @@ only and is being retired (#439).
   behind it are #560 and #561; the H.264/H.265 sourcing decision is #562.
   Whether this factory commits to ELN this quarter or defers it is undecided —
   see the Q4 table below.
-- **Hummingbird desktops still do not complete a full run.** #406 ("zero
-  packages since 08-09") closed 09-02 as *not planned*: its root cause was
-  already fixed in `f7185db` (#407) before the issue's evidence was gathered,
-  and the workflow it quoted has since been replaced by the selector-driven
-  cells (`package-factory-cell.yml` / `build-chain-fanout.yml`). What remains
-  open is the ceiling itself — every full run is cancelled at the 360-minute
-  job limit (#412) and convergence needs automation (#401). A weekly
-  `engine=build-chain` cron gives the desktops a scheduled run at all (#476);
-  the timeout is unresolved. #629 proposes consuming utah-packages for GNOME
-  and building the other desktops in the Fedora root.
 - **Desktop parity has no valid tracker.** #133 was closed COMPLETED on 08-11
   with its own unexamined list open; the confirmed defect (`marlin:kde` ships
   338 packages against its base's 480, zero KDE packages, no session file) has
@@ -87,10 +86,10 @@ transition; #488 carries the reasoning behind each row.
 | Priority | Item | Tracking | Status |
 |----------|------|----------|--------|
 | P0 | Desktop parity: successor tracker for the confirmed `marlin:kde` defect, and per-edition installed package sets so parity is diffable | #507, tunaos#1294 | 🔴 Open — #133 closed COMPLETED with the ask unmet |
-| P0 | Hummingbird desktops complete a full run — 6-hour cell ceiling | #412, #401, #629 | 🔴 Broken — #406 closed *not planned*, root cause already fixed in #407; the ceiling is the live defect |
+| P0 | Hummingbird desktops complete a full run — 6-hour cell ceiling | #412, #401, #629 | 🟡 In progress — #630/#631 landed utah-packages GNOME consumption in Fedora 44 root |
 | P0 | Finish the #430 transition in #488's order — steps 2, 3, 5, 6 remain | #488, #484, #485, #486 | 🟡 In progress — steps 1 (#483) and 4 (#487) closed 09-02 |
 | P1 | aarch64 parity: resolve the two packaging decisions behind the red gnome cells | #480 | 🟡 In progress |
-| P1 | Retire COPR, including the personal unpinned COPR that Mock CI still depends on | #439, #391 | 🔴 Open |
+| P1 | Retire COPR — complete R2/GitHub transition | #439, COPR-AUDIT.md | 🟡 In progress — #391 (Mock CI COPR dependency) resolved by #642 |
 | P1 | Served-index correctness on repo.tunaos.org | #456, #519 | 🔴 Open — #458 (path decoding) closed 09-02; stale metadata and the ~160 lost package names remain |
 | P2 | RFC 011 conversion ledger rows 3–5 | #426 | ⬜ Not started |
 
@@ -113,8 +112,8 @@ query anyone can run. #646 proposes a `2026-Q3 exit` milestone carrying #479,
 |------|-------|----------|--------|
 | Unified factory with exact reuse + attestations | packaging | #430 | ✅ Done — merged 08-19 |
 | Every build-chain family builds on both arches | packaging | #480, #476 | 🟡 Landed with gnome aarch64 cells deliberately red pending two packaging decisions |
-| Planner-driven publisher for every format | packaging | #476, #479, #481 | 🟡 All three formats have one and promote gated bytes; #479 and #481 are both still open, and the structural boundary is #484 |
-| Retire COPR in favour of GitHub/R2 | packaging | #439, #391, COPR-AUDIT.md | 🔴 Open — Mock CI still consumes a personal unpinned COPR |
+| Planner-driven publisher for every format | packaging | #476, #479, #481 | 🟡 All three formats have one and promote gated bytes; #479 and #481 are open, #706 centralized contracts |
+| Retire COPR in favour of GitHub/R2 | packaging | #439, #391, COPR-AUDIT.md | 🟡 In progress — #391 resolved by #642; Mock CI unpinned; GNOME 50 factory-published (#676) |
 | Desktop-completeness parity floor for every published edition | packaging | #507, tunaos#1294, [docs/desktop-parity-audit.md](./docs/desktop-parity-audit.md) | 🔴 Open — measurement retired without a replacement |
 
 ### Next Quarter (2026 Q4) — "Mature"
@@ -137,7 +136,7 @@ query anyone can run. #646 proposes a `2026-Q3 exit` milestone carrying #479,
 | Desktop parity measured by image size, which demonstrably misleads — needs per-edition package sets | #507 | P1 | M |
 | Dormant pre-factory builders still in tree (`build-distributed.yml`, 1,403 lines) | #487 (closed 09-02 — kept break-glass to 2026-12-31, not deleted; revisit at the RFC 011 Q4 review) | P1 | M |
 | Determinism substrate unverified — `SOURCE_DATE_EPOCH` and cache-key bugs caught by log-reading | #486, #477 | P1 | M |
-| Mock CI depends on a personal unpinned COPR | #391 | P1 | S |
+| Mock CI depends on a personal unpinned COPR | #391 | P1 | S | (Closed 09-02 via #642) |
 | COPR bootstrap infra to retire | #439, COPR-AUDIT.md | P2 | M |
 
 ---
