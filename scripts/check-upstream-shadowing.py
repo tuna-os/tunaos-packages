@@ -55,7 +55,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import pathlib
 import re
@@ -64,21 +63,11 @@ import sys
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
 SERVED_ROOT = "https://repo.tunaos.org/"
 
-
-def _load(name: str):
-    """Import a sibling script as a module.
-
-    gap_engine owns rpm-md reading (fetch with the Cloudflare-safe agent,
-    repomd resolution, primary.xml parsing) and rpm_vercmp owns EVR
-    comparison. Importing them is the point of RFC 011 -- a third copy of
-    either would be a third thing to keep correct.
-    """
-    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+import gap_engine  # noqa: E402
+import rpm_vercmp  # noqa: E402
 
 
 def arch_of(r2_path: str, override: str | None = None) -> str:
@@ -143,8 +132,6 @@ def main(argv=None) -> int:
     ap.add_argument("--cache", default="/tmp/tunaos-index-cache")
     args = ap.parse_args(argv)
 
-    gap_engine = _load("gap_engine")
-    rpm_vercmp = _load("rpm_vercmp")
     cache = pathlib.Path(args.cache)
 
     factory = yaml.safe_load((ROOT / "manifests" / "package-factory.yaml").read_text())
