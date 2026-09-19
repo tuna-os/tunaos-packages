@@ -5,7 +5,7 @@
 
 # github repo with selinux-policy sources
 %global giturl https://github.com/fedora-selinux/selinux-policy
-%global commit 60dbfe52c4c23783cc588532095d5d31ceefeb33
+%global commit ed4568a090438e7d40495da56481d889b8eb9949
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 
 %define distro redhat
