@@ -34,6 +34,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "build-chain.sh"
+MOCK_BACKEND = ROOT / "scripts" / "lib" / "build-chain" / "mock.sh"
 
 
 def code() -> str:
@@ -85,7 +86,7 @@ def test_the_host_mock_backend_keeps_its_exclusive_lock() -> None:
     """The other backend has none of the isolation, so it must not be 'fixed' too."""
     text = "\n".join(
         line
-        for line in SCRIPT.read_text().splitlines()
+        for line in MOCK_BACKEND.read_text().splitlines()
         if not line.strip().startswith("#")
     )
     match = re.search(r"^build_package_mock\(\) \{.*?^\}$", text, re.S | re.M)
