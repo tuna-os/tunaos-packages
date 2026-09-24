@@ -120,7 +120,7 @@ permissions:
 
 jobs:
   plan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       count: ${{ steps.plan.outputs.count }}
       matrix_0: ${{ steps.plan.outputs.matrix_0 }}
@@ -248,7 +248,7 @@ jobs:
     name: Package factory gate
     if: ${{ always() }}
     needs: [plan, build-0, build-1, build-2]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Every occupied shard must pass, with one exception the shard results

@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   plan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       payload_matrix: ${{ steps.plan.outputs.payload_matrix }}
       carrier_matrix: ${{ steps.plan.outputs.carrier_matrix }}
@@ -46,7 +46,7 @@ jobs:
   payload:
     name: Build once / ${{ matrix.package }} / x86_64
     needs: plan
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.payload_matrix) }}
@@ -100,7 +100,7 @@ jobs:
   native-package:
     name: Repackage / ${{ matrix.package }} / ${{ matrix.target }}
     needs: [plan, payload]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.carrier_matrix) }}
@@ -196,7 +196,7 @@ jobs:
   native-baseline:
     name: Existing native / ${{ matrix.package }} / ${{ matrix.target }}
     needs: plan
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.carrier_matrix) }}
@@ -283,7 +283,7 @@ jobs:
     name: Build-time benchmark
     if: always()
     needs: [payload, native-package, native-baseline]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -365,7 +365,7 @@ jobs:
     name: Portable payload experiment
     if: always()
     needs: [plan, payload, native-package, native-baseline, benchmark]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Require every experiment cell
         env:
