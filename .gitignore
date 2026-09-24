@@ -58,6 +58,9 @@ hummingbird-imports.json
 # Cloudflare Wrangler local cache (never commit account auth)
 .wrangler/
 
+# Node dependencies for workers/ (repo-proxy Worker test suite)
+workers/node_modules/
+
 # Cloudflare Worker local build output
 /dist/
 
