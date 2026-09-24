@@ -46,11 +46,14 @@ and dependency workarounds that a generic recipe format does not yet model.
 | --- | --- |
 | `src/gnome-50/`, `src/deps/` | Native EL10 GNOME RPM specs, patches, and source metadata |
 | `src/xfce-wayland/` | Native XFCE/XFWL4 RPM packaging |
+| `packages/` | Package-factory recipes for supported cross-distribution targets |
+| `manifests/` | Unified target definitions (`package-factory.yaml`), build contracts, and catalogs |
 | `build-order.yml` | GNOME 50 bootstrap/build dependency order |
 | `build-order-xfce*.yml` | XFCE/XFWL4 build order for EL10 and Fedora |
 | `scripts/build-chain.sh` | Shared local/CI RPM build engine |
 | `.github/workflows/` | Per-package, distributed, validation, signing, and publication workflows |
-| `manifests/hummingbird-desktops.yaml` | Fedora Hummingbird desktop RPM catalog |
+| `docs/` | Architecture specifications, package-factory contracts, and target guides |
+| `tests/` | Python test suite for contract validation, planning, and engine behavior |
 
 ## Adding or changing a package
 
@@ -67,6 +70,7 @@ Useful local commands:
 
 ```bash
 just --list
+python3 -m pytest tests/ -v
 python3 scripts/parse-build-order.py build-order.yml --validate
 ./scripts/build-chain.sh --help
 ```
