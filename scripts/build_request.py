@@ -272,6 +272,10 @@ TRACK_DECLARATIONS = (
     # drifted silently until #580 caught it by hand". That is this table's
     # failure mode, found the expensive way, on this very file.
     "renovate.json",
+    # README lists current source trees and build order files that name the
+    # track, so it must be updated when tracks move to keep documentation
+    # in sync with the actual repo state.
+    "README.md",
 )
 
 TRACK_DECISIONS = (
