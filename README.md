@@ -65,7 +65,9 @@ and dependency workarounds that a generic recipe format does not yet model.
 5. Add a focused runtime/desktop gate before promoting it to users.
 
 Useful local commands:
+
 ```bash
+just --list
 python3 scripts/parse-build-order.py build-order.yml --validate
 pytest tests/
 ./scripts/build-chain.sh --help
