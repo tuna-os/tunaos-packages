@@ -1,0 +1,38 @@
+Trying to pull quay.io/centos/centos:stream10...
+Getting image source signatures
+Copying blob sha256:a346847c4ca66accbf43a5ec266fa54f789bd075c8d8f79a5eab74feed30a4bc
+Copying blob sha256:bd9ddc54bea929a22b334e73e026d4136e5b73f5cc29942896c72e4ece69b13d
+Copying config sha256:1b0f59b289ab8a97102658e1d29b5052d2c7a78a9cf153da2b23d96a2cbb1e58
+Writing manifest to image destination
+NAME=gnome-shell
+VERSION=50.0-4.el10
+PROVIDES=PolicyKit-authentication-agent 50.0-4.el10;bundled(gvc) ;bundled(libcroco) 0.6.13;desktop-notification-daemon 50.0-4.el10;gnome-shell 50.0-4.el10;gnome-shell(api) 50;gnome-shell(x86-64) 50.0-4.el10;
+REQUIRES=accountsservice-libs(x86-64) ;at-spi2-atk(x86-64) ;gcr(x86-64) ;gdm-libs(x86-64) ;geoclue2-libs(x86-64) ;gettext ;gjs(x86-64) 1.85.90;glib2(x86-64) 2.86.0;gnome-control-center ;gnome-desktop4(x86-64) 44.0-7;gnome-settings-daemon(x86-64) 3.37.1;gnome-shell-common 50.0-4.el10;gsettings-desktop-schemas(x86-64) 50~alpha;gstreamer1(x86-64) 1.4.5;gstreamer1-plugins-good(x86-64) ;gtk4(x86-64) 4.0.0;ibus-libs(x86-64) 1.5.2;libadwaita(x86-64) 1.5.0;libgweather4(x86-64) ;libnma-gtk4(x86-64) ;librsvg2(x86-64) ;mutter(x86-64) 50.0;pipewire-gstreamer(x86-64) ;polkit(x86-64) 0.100;python3(x86-64) ;switcheroo-control ;tecla 47.0;upower(x86-64) ;xdg-desktop-portal-gnome ;xdg-desktop-portal-gtk 1.8.0;xdg-user-dirs-gtk ;
+NAME=gnome-shell-common
+VERSION=50.0-4.el10
+PROVIDES=gnome-shell-common 50.0-4.el10;
+REQUIRES=
+NAME=gnome-shell-debuginfo
+VERSION=50.0-4.el10
+PROVIDES=gnome-shell-debuginfo 50.0-4.el10;gnome-shell-debuginfo(x86-64) 50.0-4.el10;
+REQUIRES=
+NAME=gnome-shell-debugsource
+VERSION=50.0-4.el10
+PROVIDES=gnome-shell-debugsource 50.0-4.el10;gnome-shell-debugsource(x86-64) 50.0-4.el10;
+REQUIRES=
+NAME=gnome-shell
+VERSION=51~beta-2.el10
+PROVIDES=PolicyKit-authentication-agent 51~beta-2.el10;bundled(gvc) ;bundled(libcroco) 0.6.13;desktop-notification-daemon 51~beta-2.el10;gnome-shell 51~beta-2.el10;gnome-shell(api) 51;gnome-shell(x86-64) 51~beta-2.el10;
+REQUIRES=accountsservice-libs(x86-64) ;at-spi2-atk(x86-64) ;gcr(x86-64) ;gdm-libs(x86-64) ;geoclue2-libs(x86-64) ;gettext ;gjs(x86-64) 1.85.90;glib2(x86-64) 2.86.0;gnome-control-center ;gnome-desktop4(x86-64) 44.0-7;gnome-settings-daemon(x86-64) 3.37.1;gnome-shell-common 51~beta-2.el10;gsettings-desktop-schemas(x86-64) 51~beta;gstreamer1(x86-64) 1.4.5;gstreamer1-plugins-good(x86-64) ;gtk4(x86-64) 4.0.0;ibus-libs(x86-64) 1.5.2;libadwaita(x86-64) 1.5.0;libgweather4(x86-64) ;libnma-gtk4(x86-64) ;librsvg2(x86-64) ;mutter(x86-64) 51~beta;pipewire-gstreamer(x86-64) ;polkit(x86-64) 0.100;python3(x86-64) ;switcheroo-control ;tecla 47.0;upower(x86-64) ;xdg-desktop-portal-gnome ;xdg-desktop-portal-gtk 1.8.0;xdg-user-dirs-gtk ;
+NAME=gnome-shell-common
+VERSION=51~beta-2.el10
+PROVIDES=gnome-shell-common 51~beta-2.el10;
+REQUIRES=
+NAME=gnome-shell-debuginfo
+VERSION=51~beta-2.el10
+PROVIDES=gnome-shell-debuginfo 51~beta-2.el10;gnome-shell-debuginfo(x86-64) 51~beta-2.el10;
+REQUIRES=
+NAME=gnome-shell-debugsource
+VERSION=51~beta-2.el10
+PROVIDES=gnome-shell-debugsource 51~beta-2.el10;gnome-shell-debugsource(x86-64) 51~beta-2.el10;
+REQUIRES=
