@@ -276,6 +276,11 @@ TRACK_DECLARATIONS = (
 
 TRACK_DECISIONS = (
     "manifests/dependency-trees/gnome.yaml",
+    # README's layout table lists every GNOME source tree side by side
+    # (src/gnome-49, -50, -51) plus a per-track build order. Rewriting only
+    # the requested track's name would leave it listing 49/50/52 with no 51,
+    # so a move reports it for a human to update and never rewrites it.
+    "README.md",
 )
 
 TRACK_HISTORY = (
