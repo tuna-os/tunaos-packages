@@ -13,6 +13,19 @@ This document tracks all manual modifications made to SRPM specifications and so
 
 ## 2. Modified Rawhide Backports
 
+### `gnome-shell` (GNOME 50 and 51, issue #747)
+
+* **Cause**: the main RPM provided `gnome-shell-common` while `%files common`
+  owned the GSettings XML. DNF satisfied the dependency without the real common
+  RPM. Yellowfin's GDM then crashed with a missing `org.gnome.shell` schema.
+* **Change**: remove the false provider and obsolete rule. Retain the exact
+  dependency on the common RPM. Increase releases to `50.0-4` and `51~beta-2`.
+* **Evidence**: the published `50.0-3` RPM headers and file lists confirm the
+  split. Installing only the matching common RPM restored the schema in a
+  chroot of a separate VM disk; composefs still hid the change on boot.
+  CentOS Stream 10 parsed both new specs with the correct
+  dependency and no self-provider. See [the experiment record](docs/gnome-shell-common-2026-09-26.md).
+
 ### `gi-docgen`
 *   **Origin**: Backport from Rawhide.
 *   **Modifications**:
