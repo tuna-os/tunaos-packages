@@ -9,6 +9,7 @@ import json
 import pathlib
 import re
 import sys
+import time
 from typing import Any, Iterable
 
 import yaml
@@ -18,6 +19,7 @@ import factory_contract  # noqa: E402  (needs the path above)
 
 
 SCHEMA = 1
+DEFAULT_LEASE_TTL = 2400
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 IMAGE_DIGEST = re.compile(r"^.+@sha256:[0-9a-f]{64}$")
 COMMON_RENDERERS = (
@@ -339,9 +341,230 @@ def result_path(key: str) -> str:
     return "actions/sha256/" + require_sha256(key, "action key").removeprefix("sha256:") + ".json"
 
 
+def blob_path(digest: str) -> str:
+    return "blobs/sha256/" + require_sha256(digest, "blob digest").removeprefix("sha256:")
+
+
+def lease_path(key: str) -> str:
+    return "leases/sha256/" + require_sha256(key, "action key").removeprefix("sha256:") + ".json"
+
+
+def acquire_lease(
+    key: str,
+    holder: str,
+    ttl_seconds: int = DEFAULT_LEASE_TTL,
+    lease_dir: pathlib.Path | None = None,
+    now: float | None = None,
+) -> dict[str, Any]:
+    require_sha256(key, "action key")
+    if not holder:
+        raise SystemExit("lease holder must not be empty")
+    if ttl_seconds <= 0:
+        raise SystemExit("lease ttl_seconds must be a positive integer")
+    root = lease_dir if lease_dir is not None else pathlib.Path(".")
+    path = root / lease_path(key)
+    t = int(now if now is not None else time.time())
+    if path.is_file():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(existing, dict) and existing.get("schema") == SCHEMA:
+                expires = existing.get("expires_at", 0)
+                existing_holder = existing.get("holder", "")
+                if expires > t and existing_holder != holder:
+                    raise SystemExit(
+                        f"action key {key} is actively leased to {existing_holder} until {expires}"
+                    )
+        except json.JSONDecodeError:
+            pass
+    lease = {
+        "schema": SCHEMA,
+        "action_key": key,
+        "holder": str(holder),
+        "acquired_at": t,
+        "expires_at": t + ttl_seconds,
+        "ttl_seconds": ttl_seconds,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(lease, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return lease
+
+
+def renew_lease(
+    key: str,
+    holder: str,
+    ttl_seconds: int = DEFAULT_LEASE_TTL,
+    lease_dir: pathlib.Path | None = None,
+    now: float | None = None,
+) -> dict[str, Any]:
+    require_sha256(key, "action key")
+    if not holder:
+        raise SystemExit("lease holder must not be empty")
+    root = lease_dir if lease_dir is not None else pathlib.Path(".")
+    path = root / lease_path(key)
+    t = int(now if now is not None else time.time())
+    if not path.is_file():
+        raise SystemExit(f"no lease found for {key}")
+    existing = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(existing, dict) or existing.get("schema") != SCHEMA:
+        raise SystemExit(f"invalid lease file for {key}")
+    if existing.get("holder") != holder:
+        raise SystemExit(f"lease for {key} is held by {existing.get('holder')}, not {holder}")
+    if existing.get("expires_at", 0) <= t:
+        raise SystemExit(f"lease for {key} has already expired at {existing.get('expires_at')}")
+    existing["expires_at"] = t + ttl_seconds
+    existing["ttl_seconds"] = ttl_seconds
+    path.write_text(json.dumps(existing, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return existing
+
+
+def release_lease(
+    key: str,
+    holder: str,
+    lease_dir: pathlib.Path | None = None,
+) -> None:
+    require_sha256(key, "action key")
+    root = lease_dir if lease_dir is not None else pathlib.Path(".")
+    path = root / lease_path(key)
+    if path.is_file():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(existing, dict) and existing.get("holder") == holder:
+                path.unlink(missing_ok=True)
+        except Exception:
+            path.unlink(missing_ok=True)
+
+
+def check_lease(
+    key: str,
+    holder: str,
+    lease_dir: pathlib.Path | None = None,
+    now: float | None = None,
+) -> bool:
+    require_sha256(key, "action key")
+    root = lease_dir if lease_dir is not None else pathlib.Path(".")
+    path = root / lease_path(key)
+    t = int(now if now is not None else time.time())
+    if not path.is_file():
+        raise SystemExit(f"no lease found for {key}")
+    existing = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(existing, dict) or existing.get("schema") != SCHEMA:
+        raise SystemExit(f"invalid lease file for {key}")
+    if existing.get("holder") != holder:
+        raise SystemExit(f"lease for {key} is held by {existing.get('holder')}, not {holder}")
+    if existing.get("expires_at", 0) <= t:
+        raise SystemExit(f"lease for {key} expired at {existing.get('expires_at')}")
+    return True
+
+
+def promote_to_cas(
+    result: dict[str, Any],
+    artifact_dir: pathlib.Path,
+    cas_dir: pathlib.Path,
+    holder: str | None = None,
+    check_lease_active: bool = False,
+    expected_action_key: str | None = None,
+    now: float | None = None,
+) -> dict[str, Any]:
+    verify_result(result, artifact_dir, expected_action_key)
+    key = require_sha256(result["action_key"], "action key")
+    if check_lease_active and holder:
+        check_lease(key, holder, cas_dir, now=now)
+
+    candidates: dict[str, pathlib.Path] = {}
+    for p in artifact_dir.rglob("*"):
+        if p.is_file() and not p.is_symlink():
+            candidates[p.name] = p
+
+    # 1. Write blobs first (immutable content)
+    blobs_promoted = []
+    for art in result["artifacts"]:
+        name = art["name"]
+        digest = art["digest"]
+        size = art["size"]
+        src = candidates.get(name)
+        if src is None:
+            raise SystemExit(f"missing artifact file for {name}")
+        data = src.read_bytes()
+        if digest_bytes(data) != digest:
+            raise SystemExit(f"digest mismatch for {name}: expected {digest}")
+        if len(data) != size:
+            raise SystemExit(f"size mismatch for {name}: expected {size}")
+        dest = cas_dir / blob_path(digest)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        tmp = dest.parent / f".tmp.{dest.name}"
+        tmp.write_bytes(data)
+        tmp.replace(dest)
+        blobs_promoted.append({"name": name, "digest": digest, "size": size, "path": blob_path(digest)})
+
+    # 2. Write ActionResult last (atomic commit marker)
+    res_dest = cas_dir / result_path(key)
+    res_dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp_res = res_dest.parent / f".tmp.{res_dest.name}"
+    tmp_res.write_bytes(canonical_json(result) + b"\n")
+    tmp_res.replace(res_dest)
+
+    # 3. Release lease upon successful promotion
+    if holder:
+        release_lease(key, holder, cas_dir)
+
+    return {
+        "status": "promoted",
+        "action_key": key,
+        "result_path": result_path(key),
+        "blobs": blobs_promoted,
+    }
+
+
+def restore_from_cas(
+    key: str,
+    cas_dir: pathlib.Path,
+    out_dir: pathlib.Path,
+    expected_action_key: str | None = None,
+) -> dict[str, Any]:
+    key = require_sha256(key, "action key")
+    if expected_action_key:
+        require_sha256(expected_action_key, "expected action key")
+        if key != expected_action_key:
+            raise SystemExit("requested action key does not match expected action key")
+
+    res_path = cas_dir / result_path(key)
+    if not res_path.is_file():
+        raise SystemExit(f"ActionResult not found in CAS: {res_path}")
+
+    result = json.loads(res_path.read_text(encoding="utf-8"))
+    if result.get("schema") != SCHEMA:
+        raise SystemExit("unsupported ActionResult schema")
+    if result.get("action_key") != key:
+        raise SystemExit("ActionResult key does not match the requested action")
+
+    artifact_dest_dir = out_dir / "artifacts"
+    artifact_dest_dir.mkdir(parents=True, exist_ok=True)
+
+    for art in result.get("artifacts", []):
+        name = safe_artifact_name(art.get("name", ""))
+        digest = require_sha256(art.get("digest", ""), "artifact digest")
+        size = art.get("size")
+        blob_src = cas_dir / blob_path(digest)
+        if not blob_src.is_file():
+            raise SystemExit(f"blob not found in CAS: {blob_src}")
+        payload = blob_src.read_bytes()
+        if digest_bytes(payload) != digest:
+            raise SystemExit(f"corrupted blob in CAS for {name}: {digest}")
+        if len(payload) != size:
+            raise SystemExit(f"size mismatch in CAS for {name}: expected {size}, got {len(payload)}")
+        dest_file = artifact_dest_dir / name
+        dest_file.write_bytes(payload)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "action-result.json").write_bytes(canonical_json(result) + b"\n")
+    verify_result(result, artifact_dest_dir, key)
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    commands = parser.add_subparsers(required=True)
+    commands = parser.add_subparsers(dest="command", required=True)
+
     key_parser = commands.add_parser("key")
     key_parser.add_argument("--recipe", required=True)
     key_parser.add_argument("--factory", default="manifests/package-factory.yaml")
@@ -351,6 +574,7 @@ def main() -> int:
     key_parser.add_argument("--image", required=True)
     key_parser.add_argument("--source-date-epoch", required=True, type=int)
     key_parser.add_argument("--dependency-key", action="append", default=[])
+
     native_parser = commands.add_parser("native-key")
     native_parser.add_argument("--identity", required=True)
     native_parser.add_argument("--manifest", required=True)
@@ -365,31 +589,112 @@ def main() -> int:
     native_parser.add_argument("--arch", required=True)
     native_parser.add_argument("--image", required=True)
     native_parser.add_argument("--source-date-epoch", required=True, type=int)
+
     result_parser = commands.add_parser("result")
     result_parser.add_argument("--action-key", required=True)
     result_parser.add_argument("--artifact", action="append", required=True)
+
     verify_parser = commands.add_parser("verify")
     verify_parser.add_argument("--result", required=True)
     verify_parser.add_argument("--artifact-dir", required=True)
     verify_parser.add_argument("--expected-action-key")
+
     path_parser = commands.add_parser("r2-path")
     path_parser.add_argument("--action-key", required=True)
+
+    blob_parser = commands.add_parser("blob-path")
+    blob_parser.add_argument("--digest", required=True)
+
+    lease_path_parser = commands.add_parser("lease-path")
+    lease_path_parser.add_argument("--action-key", required=True)
+
+    acquire_lease_parser = commands.add_parser("acquire-lease")
+    acquire_lease_parser.add_argument("--action-key", required=True)
+    acquire_lease_parser.add_argument("--holder", required=True)
+    acquire_lease_parser.add_argument("--ttl", type=int, default=DEFAULT_LEASE_TTL)
+    acquire_lease_parser.add_argument("--lease-dir", default=".")
+
+    renew_lease_parser = commands.add_parser("renew-lease")
+    renew_lease_parser.add_argument("--action-key", required=True)
+    renew_lease_parser.add_argument("--holder", required=True)
+    renew_lease_parser.add_argument("--ttl", type=int, default=DEFAULT_LEASE_TTL)
+    renew_lease_parser.add_argument("--lease-dir", default=".")
+
+    release_lease_parser = commands.add_parser("release-lease")
+    release_lease_parser.add_argument("--action-key", required=True)
+    release_lease_parser.add_argument("--holder", required=True)
+    release_lease_parser.add_argument("--lease-dir", default=".")
+
+    check_lease_parser = commands.add_parser("check-lease")
+    check_lease_parser.add_argument("--action-key", required=True)
+    check_lease_parser.add_argument("--holder", required=True)
+    check_lease_parser.add_argument("--lease-dir", default=".")
+
+    promote_parser = commands.add_parser("promote")
+    promote_parser.add_argument("--result", required=True)
+    promote_parser.add_argument("--artifact-dir", required=True)
+    promote_parser.add_argument("--cas-dir", required=True)
+    promote_parser.add_argument("--holder")
+    promote_parser.add_argument("--check-lease", action="store_true")
+    promote_parser.add_argument("--expected-action-key")
+
+    restore_cas_parser = commands.add_parser("restore-cas")
+    restore_cas_parser.add_argument("--action-key", required=True)
+    restore_cas_parser.add_argument("--cas-dir", required=True)
+    restore_cas_parser.add_argument("--out-dir", required=True)
+    restore_cas_parser.add_argument("--expected-action-key")
+
     args = parser.parse_args()
 
-    if args.__dict__.get("recipe"):
+    if args.command == "key":
         inputs = action_inputs(args)
         print(json.dumps({"action_key": action_key(inputs), "inputs": inputs}, sort_keys=True))
-    elif args.__dict__.get("identity"):
+    elif args.command == "native-key":
         inputs = native_action_inputs(args)
         print(json.dumps({"action_key": action_key(inputs), "inputs": inputs}, sort_keys=True))
-    elif args.__dict__.get("artifact"):
+    elif args.command == "result":
         print(json.dumps(create_result(args.action_key, map(pathlib.Path, args.artifact)), sort_keys=True))
-    elif args.__dict__.get("result"):
+    elif args.command == "verify":
         result = json.loads(pathlib.Path(args.result).read_text(encoding="utf-8"))
         verify_result(result, pathlib.Path(args.artifact_dir), args.expected_action_key)
         print("verified " + result["action_key"])
-    else:
+    elif args.command == "r2-path":
         print(result_path(args.action_key))
+    elif args.command == "blob-path":
+        print(blob_path(args.digest))
+    elif args.command == "lease-path":
+        print(lease_path(args.action_key))
+    elif args.command == "acquire-lease":
+        lease = acquire_lease(args.action_key, args.holder, args.ttl, pathlib.Path(args.lease_dir))
+        print(json.dumps(lease, indent=2, sort_keys=True))
+    elif args.command == "renew-lease":
+        lease = renew_lease(args.action_key, args.holder, args.ttl, pathlib.Path(args.lease_dir))
+        print(json.dumps(lease, indent=2, sort_keys=True))
+    elif args.command == "release-lease":
+        release_lease(args.action_key, args.holder, pathlib.Path(args.lease_dir))
+        print(f"released lease for {args.action_key}")
+    elif args.command == "check-lease":
+        check_lease(args.action_key, args.holder, pathlib.Path(args.lease_dir))
+        print(f"lease active for {args.action_key} ({args.holder})")
+    elif args.command == "promote":
+        result = json.loads(pathlib.Path(args.result).read_text(encoding="utf-8"))
+        outcome = promote_to_cas(
+            result,
+            pathlib.Path(args.artifact_dir),
+            pathlib.Path(args.cas_dir),
+            holder=args.holder,
+            check_lease_active=args.check_lease,
+            expected_action_key=args.expected_action_key,
+        )
+        print(json.dumps(outcome, indent=2, sort_keys=True))
+    elif args.command == "restore-cas":
+        result = restore_from_cas(
+            args.action_key,
+            pathlib.Path(args.cas_dir),
+            pathlib.Path(args.out_dir),
+            expected_action_key=args.expected_action_key,
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 
 
