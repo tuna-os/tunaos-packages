@@ -3,15 +3,15 @@
 # Build RPMs using mock inside containers
 #
 # Usage:
-#   ./scripts/build-local.sh hello-world fedora-40-x86_64
-#   ./scripts/build-local.sh hello-world alma-9-x86_64
+#   ./scripts/build-local.sh xfconf fedora-43-x86_64
+#   ./scripts/build-local.sh meson centos-stream-10-x86_64
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SPEC_FILE=""
-TARGET="${2:-fedora-40-x86_64}"
+TARGET="${2:-fedora-43-x86_64}"
 # MOCK_CONFIG is defined in target-specific files if needed
 # Use podman if available, fall back to docker
 if command -v podman &>/dev/null; then
@@ -35,9 +35,9 @@ usage() {
     echo "Usage: $0 <package-name> [target]"
     echo ""
     echo "Examples:"
-    echo "  $0 hello-world fedora-43-x86_64"
-    echo "  $0 hello-world almalinux-10-x86_64"
-    echo "  $0 hello-world centos-stream-10-x86_64"
+    echo "  $0 xfconf fedora-43-x86_64"
+    echo "  $0 xfconf almalinux-10-x86_64"
+    echo "  $0 xfconf centos-stream-10-x86_64"
     echo ""
     echo "Available targets:"
     echo "  fedora-43-x86_64"
@@ -51,17 +51,9 @@ usage() {
 
 find_spec() {
     local pkg="$1"
-    local spec="$PROJECT_DIR/src/$pkg.spec"
-    
-    if [ -f "$spec" ]; then
-        SPEC_FILE="$spec"
-        return 0
-    fi
-    
-    # Try to find spec in src/
-    # shellcheck disable=SC2012
-    spec=$(ls "$PROJECT_DIR/src/"*.spec 2>/dev/null | head -n1 || true)
-    if [ -n "$spec" ]; then
+    local spec
+    spec=$(find "$PROJECT_DIR/src" -name "${pkg}.spec" 2>/dev/null | head -n1 || true)
+    if [ -n "$spec" ] && [ -f "$spec" ]; then
         SPEC_FILE="$spec"
         return 0
     fi

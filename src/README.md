@@ -7,13 +7,11 @@ trees that serve different build targets.
 
 ```
 src/
-├── deps/           Shared dependency packages (58 package dirs)
+├── deps/           Shared dependency packages (55 package dirs)
 ├── gnome-49/       GNOME 49 stack (42 package dirs)
 ├── gnome-50/       GNOME 50 stack (21 package dirs)
-├── hello-world-1.0.0/   Test/sample package
-├── hello-world.spec      Test/sample spec
-├── hummingbird/          COSMIC desktop packages
-└── xfce-wayland/         XFCE Wayland packages
+├── hummingbird/    COSMIC desktop packages
+└── xfce-wayland/   XFCE Wayland packages
 ```
 
 ## The Three GNOME Trees
@@ -89,12 +87,11 @@ ptyxis, vte291, xdg-desktop-portal, xdg-desktop-portal-gnome
 
 ### Unwired packages in deps/
 
-The following 9 `deps/` packages are **not referenced** by any build-order
+The following 6 `deps/` packages are **not referenced** by any build-order
 manifest. They may be legacy imports, reference material, or pre-built
 sources:
 
-el10-v2-buildflags, freetype, gnome-online-accounts, icu, lzo,
-mozjs128, pango-fresh, pipewire-el10, pipewire-f43
+el10-v2-buildflags, freetype, gnome-online-accounts, icu, lzo, mozjs128
 
 ## Build Orders
 
