@@ -1,5 +1,5 @@
-import pytest
 from scripts.identify_upstream_sources import parse_spec_source
+
 
 def test_parse_spec_source():
     spec_content = """

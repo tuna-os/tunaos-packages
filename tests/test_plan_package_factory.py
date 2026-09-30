@@ -3,9 +3,6 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 
-import yaml
-
-
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
     "planner", ROOT / "scripts" / "plan-package-factory.py"

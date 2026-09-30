@@ -13,14 +13,15 @@ Bootstrap handling:
     only build-package is triggered (no definition edits).
 """
 
-import yaml
+import argparse
+import os
+import re
 import subprocess
 import sys
-import os
 import time
-import argparse
-import re
 from pathlib import Path
+
+import yaml
 
 
 def log(msg):
@@ -251,7 +252,7 @@ def main():
         if args.tier and tier_name != args.tier:
             continue
 
-        log(f"")
+        log("")
         log(f"===== Tier: {tier_name} =====")
 
         tier_build_ids = []

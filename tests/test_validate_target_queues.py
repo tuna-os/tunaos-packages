@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("validate_target_queues", ROOT / "scripts" / "validate-target-queues.py")
 assert SPEC and SPEC.loader

@@ -1,6 +1,7 @@
 import json
 import sys
 
+
 def parse_copr_json(json_str):
     """
     Parses the JSON output from `copr-cli list-packages` and returns a list of package names.
@@ -16,7 +17,7 @@ def parse_copr_json(json_str):
 def main():
     if len(sys.argv) > 1:
         # If a file path is provided, read from it
-        with open(sys.argv[1], 'r') as f:
+        with open(sys.argv[1]) as f:
             content = f.read()
     else:
         # Otherwise, read from stdin

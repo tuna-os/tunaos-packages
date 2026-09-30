@@ -9,13 +9,13 @@ import json
 import pathlib
 import re
 import sys
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
-
 
 SCHEMA = 1
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")

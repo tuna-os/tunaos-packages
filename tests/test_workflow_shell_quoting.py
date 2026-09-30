@@ -5,7 +5,6 @@ from pathlib import Path
 
 import yaml
 
-
 WORKFLOWS = Path(__file__).resolve().parents[1] / ".github" / "workflows"
 OPENER = "bash -lc '"
 

@@ -125,7 +125,7 @@ def apt_index_names(baseurl: str, cache: pathlib.Path) -> tuple[set, dict]:
 
 def measure(catalog, factory, cache: pathlib.Path) -> dict:
     report = {
-        "measured_at": datetime.datetime.now(datetime.timezone.utc)
+        "measured_at": datetime.datetime.now(datetime.UTC)
         .replace(microsecond=0)
         .isoformat(),
         "targets": {},

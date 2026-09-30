@@ -19,7 +19,6 @@ import importlib.util
 import pathlib
 import sys
 
-
 HERE = pathlib.Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location(
     "gap_engine", HERE / "gap_engine.py"

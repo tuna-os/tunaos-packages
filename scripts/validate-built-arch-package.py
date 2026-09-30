@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 
 import yaml
-
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "manifests" / "package-factory.yaml"

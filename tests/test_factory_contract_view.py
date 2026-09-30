@@ -19,7 +19,6 @@ reuse output built against a different package universe.
 from __future__ import annotations
 
 import importlib.util
-import json
 import pathlib
 import sys
 

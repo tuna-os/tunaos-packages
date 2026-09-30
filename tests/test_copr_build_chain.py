@@ -6,7 +6,6 @@ call COPR CLI or external build infrastructure.
 """
 
 import os
-import sys
 import tempfile
 from pathlib import Path
 
