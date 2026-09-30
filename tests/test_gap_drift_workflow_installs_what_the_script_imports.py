@@ -18,7 +18,10 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "gap_engine.py"
-WORKFLOW = ROOT / ".github" / "workflows" / "gap-drift.yml"
+WORKFLOWS = [
+    ROOT / ".github" / "workflows" / "gap-drift.yml",
+    ROOT / ".github" / "workflows" / "upstream-drift.yml",
+]
 
 # import name -> pip distribution name
 NON_STDLIB = {"yaml": "PyYAML", "zstandard": "zstandard"}
@@ -50,14 +53,15 @@ def test_script_import_surface_is_known() -> None:
 
 
 def test_workflow_installs_every_non_stdlib_import() -> None:
-    body = WORKFLOW.read_text(encoding="utf-8")
     needed = {NON_STDLIB[n] for n in script_imports() if n in NON_STDLIB}
-    install_lines = [line for line in body.splitlines()
-                     if "pip install" in line]
-    assert install_lines, "drift workflow has no pip install step"
-    for dist in sorted(needed):
-        assert any(dist in line for line in install_lines), (
-            f"drift workflow's pip install is missing {dist}; the measure "
-            "script imports it (possibly lazily) and the run will die at that "
-            "import, as run 32017727489 did for zstandard"
-        )
+    for workflow in WORKFLOWS:
+        body = workflow.read_text(encoding="utf-8")
+        install_lines = [line for line in body.splitlines()
+                         if "pip install" in line]
+        assert install_lines, f"{workflow.name} has no pip install step"
+        for dist in sorted(needed):
+            assert any(dist in line for line in install_lines), (
+                f"{workflow.name}'s pip install is missing {dist}; the measure "
+                "script imports it (possibly lazily) and the run will die at that "
+                "import, as run 32017727489 did for zstandard"
+            )
