@@ -108,6 +108,7 @@ def run_import(tmp_path: Path, package: str, *, fail_times: int = 0, fatal: str 
             # The stub server is not throttling anyone; waiting on it would
             # only make the suite slow.
             "--clone-cooldown", "0",
+            "--clone-pace", "0",
             "--retry-pass-delay", "0",
         ],
         capture_output=True, text=True, cwd=tmp_path, env=env,
@@ -246,3 +247,93 @@ def test_a_zero_cooldown_never_sleeps():
     gate.penalise()
     gate.wait()
     assert clock.slept == []
+
+
+def test_calibrate_jobs_scales_with_tier_size():
+    # Small tiers afford higher concurrency.
+    assert importer.calibrate_jobs(0) == 1
+    assert importer.calibrate_jobs(1) == 1
+    assert importer.calibrate_jobs(12) == 4
+    assert importer.calibrate_jobs(24) == 4
+
+    # Moderate/growing tiers scale down to protect src.fedoraproject.org (#614).
+    assert importer.calibrate_jobs(25) == 3
+    assert importer.calibrate_jobs(49) == 3  # kde-00
+    assert importer.calibrate_jobs(66) == 3  # niri-00
+    assert importer.calibrate_jobs(100) == 3
+
+    # Large manifests scale down further to prevent sustained load shedding.
+    assert importer.calibrate_jobs(101) == 2
+    assert importer.calibrate_jobs(309) == 2  # gnome-* tiers
+    assert importer.calibrate_jobs(599) == 2  # full desktop graph
+
+
+def test_calibrate_jobs_honours_explicit_jobs_request():
+    assert importer.calibrate_jobs(66, requested=8) == 8
+    assert importer.calibrate_jobs(309, requested=4) == 4
+    assert importer.calibrate_jobs(10, requested=1) == 1
+    assert importer.calibrate_jobs(10, requested=0) == 1
+
+
+def test_pacer_spaces_consecutive_launches():
+    clock = FakeClock()
+    pacer = importer.Pacer(interval=0.25, clock=clock.time, sleep=clock.sleep)
+
+    pacer.pace()
+    assert clock.slept == [], "first launch should start immediately"
+
+    # Next launch at the same instant must wait interval seconds
+    pacer.pace()
+    assert clock.slept == [0.25]
+
+    # Third launch at the same instant must wait another interval seconds
+    pacer.pace()
+    assert clock.slept == [0.25, 0.25]
+
+
+def test_pacer_after_delay_launches_without_unnecessary_sleep():
+    clock = FakeClock()
+    pacer = importer.Pacer(interval=0.25, clock=clock.time, sleep=clock.sleep)
+
+    pacer.pace()
+    assert clock.slept == []
+
+    # Advance clock past interval
+    clock.now += 1.0
+    pacer.pace()
+    assert clock.slept == [], "launching after interval has passed should not sleep"
+
+
+def test_pacer_zero_interval_never_sleeps():
+    clock = FakeClock()
+    pacer = importer.Pacer(interval=0.0, clock=clock.time, sleep=clock.sleep)
+
+    for _ in range(5):
+        pacer.pace()
+    assert clock.slept == []
+
+
+def test_clone_with_retry_calls_pacer():
+    clock = FakeClock()
+    pacer = importer.Pacer(interval=0.25, clock=clock.time, sleep=clock.sleep)
+    calls = []
+
+    def runner(cmd, **kw):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    importer.clone_with_retry(
+        "cliphist", "rawhide", Path("/nonexistent/co"), 1,
+        runner=runner, sleeper=lambda _: None, pacer=pacer,
+    )
+    assert len(calls) == 1
+    assert clock.slept == []
+
+    # Second clone through the same pacer at the same instant gets paced
+    importer.clone_with_retry(
+        "niri", "rawhide", Path("/nonexistent/co"), 1,
+        runner=runner, sleeper=lambda _: None, pacer=pacer,
+    )
+    assert len(calls) == 2
+    assert clock.slept == [0.25]
+
