@@ -54,6 +54,8 @@ TARGET_MAP = {
     "almalinux-kitten-10-x86_64": "el10",
     "fedora-44-x86_64": "fedora",
     "hummingbird-20251124-x86_64": "hummingbird",
+    "fedora-eln-x86_64": "eln",
+    "fedora-eln-aarch64": "eln",
 }
 
 SPEC_VERSION_RE = re.compile(r"^Version:\s*(\S+)", re.MULTILINE)

@@ -22,4 +22,4 @@ install:
     - {source: uupd.rules, destination: usr/lib/udev/rules.d/uupd.rules}
 verify:
   smoke: uupd --help
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, eln, ubuntu, debian, opensuse-tumbleweed, arch]

@@ -81,19 +81,25 @@ update-metadata target:
     createrepo_c --update ./output/{{target}}/
 
 # Build all x86_64 targets
-build-x86_64: build-fedora-43-x86_64 build-almalinux-10-x86_64 build-centos-stream-10-x86_64
+build-x86_64: build-fedora-44-x86_64 build-fedora-eln-x86_64 build-almalinux-10-x86_64 build-centos-stream-10-x86_64
 
 # Build all ARM64 targets
-build-aarch64: build-fedora-43-aarch64 build-almalinux-10-aarch64 build-centos-stream-10-aarch64
+build-aarch64: build-fedora-44-aarch64 build-fedora-eln-aarch64 build-almalinux-10-aarch64 build-centos-stream-10-aarch64
 
 # Build all targets
-build-all: build-fedora-43-x86_64 build-almalinux-10-x86_64 build-almalinux-10-x86_64_v2 build-centos-stream-10-x86_64
+build-all: build-fedora-44-x86_64 build-fedora-eln-x86_64 build-almalinux-10-x86_64 build-almalinux-10-x86_64_v2 build-centos-stream-10-x86_64
 
-build-fedora-43-x86_64:
-    @just build fedora-43-x86_64
+build-fedora-44-x86_64:
+    @just build fedora-44-x86_64
 
-build-fedora-43-aarch64:
-    @just build fedora-43-aarch64
+build-fedora-44-aarch64:
+    @just build fedora-44-aarch64
+
+build-fedora-eln-x86_64:
+    @just build fedora-eln-x86_64
+
+build-fedora-eln-aarch64:
+    @just build fedora-eln-aarch64
 
 build-almalinux-10-x86_64:
     @just build almalinux-10-x86_64

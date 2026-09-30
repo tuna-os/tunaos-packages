@@ -10460,6 +10460,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -10704,6 +10705,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
