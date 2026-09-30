@@ -17,6 +17,7 @@ import yaml
 def validate_manifest(manifest_path):
     import json
     import os
+
     import jsonschema
 
     schema_path = os.path.join(os.path.dirname(manifest_path), "build-order-schema.json")

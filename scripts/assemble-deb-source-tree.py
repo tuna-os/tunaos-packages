@@ -9,15 +9,18 @@ this script too, so there is exactly one copy of the assembly logic.
 
 Usage: assemble-deb-source-tree.py <recipe> <root>
 """
-import sys
-import tarfile
 import hashlib
 import shutil
+import sys
+import tarfile
 from pathlib import Path
 from urllib.request import urlretrieve
+
 import yaml
+
 sys.path.insert(0, "scripts")
 import tideforge_cache
+
 cache_dir = Path.home() / ".cache" / "tideforge" / "sources"
 def materialise(source, destination, label):
     payload = tideforge_cache.lookup(cache_dir, source["sha256"])

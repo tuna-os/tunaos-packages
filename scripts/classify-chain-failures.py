@@ -164,9 +164,9 @@ def classify(text: str) -> tuple[str, str, str]:
         if match:
             line = next(
                 (
-                    l.strip()
-                    for l in text.splitlines()
-                    if re.search(pattern, l, re.IGNORECASE)
+                    line.strip()
+                    for line in text.splitlines()
+                    if re.search(pattern, line, re.IGNORECASE)
                 ),
                 match.group(0).strip(),
             )

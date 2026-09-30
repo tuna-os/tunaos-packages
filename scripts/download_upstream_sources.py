@@ -1,6 +1,7 @@
-import subprocess
 import os
+import subprocess
 import sys
+
 
 def download_source(url, dest_dir):
     """
@@ -40,7 +41,7 @@ def main():
         print(f"Manifest file {manifest_file} not found")
         sys.exit(1)
         
-    with open(manifest_file, 'r') as f:
+    with open(manifest_file) as f:
         lines = [line.strip() for line in f if line.strip()]
         
     for line in lines:

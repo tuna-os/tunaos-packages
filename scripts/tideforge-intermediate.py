@@ -11,7 +11,6 @@ import hashlib
 import io
 import json
 import os
-from pathlib import Path, PurePosixPath
 import shlex
 import shutil
 import stat
@@ -19,11 +18,10 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-
-import yaml
+from pathlib import Path, PurePosixPath
 
 import tideforge
-
+import yaml
 
 SCHEMA = 0
 

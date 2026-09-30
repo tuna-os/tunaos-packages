@@ -9,13 +9,12 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import re
 import shlex
 import sys
+from pathlib import Path
 
 import yaml
-
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
@@ -762,7 +761,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         f"%files {subpackage['name']}\n" + "\n".join(f"/{path.lstrip('/')}" for path in subpackage["files"]) + "\n"
         for subpackage in rpm_output.get("subpackages", [])
     )
-    source_directory = recipe["source"].get("directory", f"%{{name}}-%{{version}}")
+    source_directory = recipe["source"].get("directory", "%{name}-%{version}")
     # Release assets sometimes contain files directly at archive root rather
     # than a conventional name-version directory.  RPM's %autosetup cannot
     # safely use `-n .` (it attempts `rm -rf .`).  Create an isolated build

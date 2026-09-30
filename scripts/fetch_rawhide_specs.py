@@ -1,7 +1,8 @@
-import subprocess
-import os
-import sys
 import argparse
+import os
+import subprocess
+import sys
+
 
 def clone_package(package_name, dest_dir, branch="rawhide"):
     """
@@ -50,7 +51,7 @@ def main():
     if not os.path.exists(args.dest):
         os.makedirs(args.dest)
         
-    with open(args.manifest, 'r') as f:
+    with open(args.manifest) as f:
         packages = [line.strip() for line in f if line.strip() and not line.startswith('#')]
         
     print(f"Fetching specifications from branch '{args.branch}'...")

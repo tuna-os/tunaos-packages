@@ -16,7 +16,6 @@ import yaml
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
 
-
 RECIPE_CHANGE = re.compile(r"^packages/([^/]+)/")
 COMMON_INPUTS = {
     ".github/workflows/package-factory.yml",
@@ -306,8 +305,7 @@ def yaml_at_revision(root: pathlib.Path, revision: str, path: str) -> dict[str, 
         ["git", "show", f"{revision}:{path}"],
         cwd=root,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     value = yaml.safe_load(completed.stdout)

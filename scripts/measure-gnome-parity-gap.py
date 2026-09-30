@@ -51,7 +51,7 @@ import yaml
 TUNAOS_ORG = "tuna-os"
 TUNAOS_REPO = "tunaOS"
 TUNAOS_REF = "main"
-MANIFEST_DIR = f"manifests/desktops"
+MANIFEST_DIR = "manifests/desktops"
 RAW_BASE = f"https://raw.githubusercontent.com/{TUNAOS_ORG}/{TUNAOS_REPO}/{TUNAOS_REF}"
 API_BASE = f"https://api.github.com/repos/{TUNAOS_ORG}/{TUNAOS_REPO}"
 GHCR_TOKEN = "https://ghcr.io/token"
@@ -620,7 +620,7 @@ def main() -> None:
     audit_section, hard_failed = audit(args.manifests_dir, cache)
 
     report: dict = {
-        "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "measured_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "issue": "https://github.com/tuna-os/tunaos-packages/issues/132",
         "issue_baseline_2026_07_30_gb": {
             variant: {"base": base, "gnome": gnome,

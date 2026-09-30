@@ -711,7 +711,7 @@ def main() -> None:
 
     wanted = args.desktops or list(catalog["desktops"])
     report = {
-        "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "measured_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "target": {**target, "resolved_baseurl": baseurl},
         "target_index": target_provenance,
         "reference_index": reference_provenance,

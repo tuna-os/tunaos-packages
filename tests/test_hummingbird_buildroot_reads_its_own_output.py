@@ -26,12 +26,11 @@ separate failure this repo has already paid for once:
   * Priority sits below the base OS, so this fills gaps rather than shadowing
     Hummingbird's own packages with our rebuilds.
 """
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pytest
 import yaml
-
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIGS = [

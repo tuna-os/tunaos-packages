@@ -48,9 +48,22 @@ warm-forget cell package:
 # Fast, deterministic validation that mirrors the non-build portions of CI.
 # Keep the distributed Hummingbird/package builds in their dedicated workflows:
 # they are intentionally not a developer-machine prerequisite.
-check:
+check: lint-python
     python3 -m pytest tests/ -v --tb=short
     python3 scripts/parse-build-order.py build-order.yml --validate
+
+# Run the lint policy declared in ruff.toml.
+#
+# ruff.toml has selected E, F, I and UP at 100 columns since #626, but nothing
+# executed ruff, so the policy drifted to 378 violations while reading as
+# enforced. This recipe is the developer-side runner; the CI half is a job in
+# .github/workflows/lint.yml, which the filing bot cannot push (see #764).
+#
+# E501 is excluded here and not in ruff.toml on purpose: the line-length
+# backlog is 212 violations in 26 files, tracked in #765, and a config-level
+# exclusion would silently retire the rule instead of leaving it to be paid off.
+lint-python:
+    python3 -m ruff check --extend-ignore E501 .
 
 # Build RPM for a single target
 build target:

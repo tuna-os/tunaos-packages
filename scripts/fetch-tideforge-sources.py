@@ -8,9 +8,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-import yaml
-
 import tideforge_cache
+import yaml
 
 
 def filename(source: dict) -> str:

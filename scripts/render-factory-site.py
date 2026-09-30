@@ -31,8 +31,8 @@ import argparse
 import datetime as dt
 import html
 import json
-import re
 import pathlib
+import re
 import sys
 
 import yaml
@@ -125,7 +125,7 @@ def load(path: pathlib.Path):
 
 def parse_iso(stamp: str) -> dt.datetime:
     value = dt.datetime.fromisoformat(stamp)
-    return value if value.tzinfo else value.replace(tzinfo=dt.timezone.utc)
+    return value if value.tzinfo else value.replace(tzinfo=dt.UTC)
 
 
 def stamp(value: str) -> str:
@@ -617,7 +617,7 @@ def render_missing_indexes(contents: dict, contract: dict) -> str:
     still undeclared -- so the page showed five targets and implied that was
     all of them. A gap is a finding; it gets a row."""
     shown = {row["target"] for row in contents.get("indexes", [])}
-    missing = [t for t in sorted((contract.get("targets") or {}))
+    missing = [t for t in sorted(contract.get("targets") or {})
                if t not in shown]
     if not missing:
         return ""
@@ -734,7 +734,7 @@ def render_repo_index(row: dict, contents: dict, now: dt.datetime) -> str:
         f'<a href="../packages.html">All indexes</a> &middot; '
         f'<a href="../index.html">Factory status</a></p>',
         how,
-        f"<h2>Packages</h2>",
+        "<h2>Packages</h2>",
         '<input id="q" type="search" hidden placeholder="Filter by package '
         'or source name" aria-label="Filter packages">',
         f'<p class="measured" id="shown">{thousands(len(packages))} packages</p>',
@@ -871,7 +871,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     now = (parse_iso(args.now) if args.now
-           else dt.datetime.now(dt.timezone.utc))
+           else dt.datetime.now(dt.UTC))
     # Absent is a legitimate state, not an error: a checkout has no snapshot
     # until something fetches one, and the status page must still render.
     contents = (load(args.repo_contents)

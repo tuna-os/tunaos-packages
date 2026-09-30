@@ -17,9 +17,7 @@ The rules under test:
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
-import textwrap
 from pathlib import Path
 
 import pytest
@@ -659,7 +657,7 @@ def test_the_probe_never_pipes_find_into_head() -> None:
     """Pins the mechanism, not just the symptom: any `find | head` under
     pipefail is the same latent failure waiting for a big enough wave."""
     body = SCRIPT.read_text()
-    code = "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
+    code = "\n".join(line for line in body.splitlines() if not line.lstrip().startswith("#"))
     assert "| head" not in code, "a find|head pipeline is back; use -print -quit"
     assert "-print -quit" in code
 
@@ -696,6 +694,6 @@ def test_the_wave_is_never_copied_with_a_batched_cp() -> None:
     duplicate collision fires at all depends on batch boundaries. Copy one
     file at a time, keyed by basename, so it cannot depend on luck."""
     code = "\n".join(
-        l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith("#")
+        line for line in SCRIPT.read_text().splitlines() if not line.lstrip().startswith("#")
     )
     assert "-exec cp -t" not in code, "a batched cp -t is back; dedupe by basename instead"

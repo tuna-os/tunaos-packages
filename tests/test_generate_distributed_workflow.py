@@ -1,20 +1,19 @@
 """Tests for scripts/generate-distributed-workflow.py"""
 
-import os
-import sys
-import tempfile
-import yaml
-
 # Load module from filepath directly because of hyphen in filename
 import importlib.util
+import os
+import sys
+
+import yaml
+
 scripts_dir = os.path.join(os.path.dirname(__file__), '..', 'scripts')
 module_path = os.path.join(scripts_dir, 'generate-distributed-workflow.py')
 spec = importlib.util.spec_from_file_location("generate_distributed_workflow", module_path)
 generate_distributed_workflow = importlib.util.module_from_spec(spec)
 sys.modules["generate_distributed_workflow"] = generate_distributed_workflow
 spec.loader.exec_module(generate_distributed_workflow)
-from generate_distributed_workflow import generate_workflow
-
+from generate_distributed_workflow import generate_workflow  # noqa: E402 -- needs exec_module above
 
 SAMPLE_MANIFEST = {
     'tiers': [
