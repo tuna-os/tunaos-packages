@@ -1,0 +1,97 @@
+# CAS garbage collection: report-only mark-and-sweep reachability check (#430 step 5 / #485).
+# Measures reachability across R2 CAS storage (ActionResults and blobs), evaluates
+# age grace periods, records tombstones, and emits a structured report without deleting
+# any objects.
+name: CAS Reachability & Garbage Collection (Report-Only)
+
+on:
+  schedule:
+    # 04:00 UTC weekly on Sundays
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      grace_period_days:
+        description: 'Age grace period in days (blobs younger than this are protected)'
+        required: false
+        default: '7'
+      bucket:
+        description: 'R2 bucket name'
+        required: false
+        default: 'bluefin'
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    name: CAS GC Report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: |
+          pip install --quiet pyyaml requests
+
+      - name: Install rclone
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "${R2_ACCESS_KEY_ID:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            mkdir -p ~/.config/rclone
+            umask 077
+            cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
+          EOF
+          else
+            echo "R2 credentials not set; skipping rclone config"
+          fi
+
+      - name: Inventory R2 CAS objects
+        env:
+          BUCKET: ${{ inputs.bucket || 'bluefin' }}
+        run: |
+          mkdir -p .cache/inventory
+          if [ -f ~/.config/rclone/rclone.conf ]; then
+            echo "Listing CAS objects from r2:${BUCKET}/..."
+            rclone lsf --recursive --format "pst" "r2:${BUCKET}/" > .cache/inventory/r2-lsf.txt || true
+          fi
+
+      - name: Run CAS Mark-and-Sweep Reachability Report
+        env:
+          GRACE_DAYS: ${{ inputs.grace_period_days || '7' }}
+        run: |
+          ARGS=(
+            --grace-period-days "${GRACE_DAYS}"
+            --json cas-gc-report.json
+            --markdown cas-gc-report.md
+            --tombstones-dir tombstones/
+            --summary
+          )
+          if [ -f .cache/inventory/r2-lsf.txt ] && [ -s .cache/inventory/r2-lsf.txt ]; then
+            ARGS+=(--inventory-lsf .cache/inventory/r2-lsf.txt)
+          fi
+          python3 scripts/cas_gc.py "${ARGS[@]}"
+
+      - name: Upload CAS GC artifacts
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4
+        with:
+          name: cas-gc-report
+          path: |
+            cas-gc-report.json
+            cas-gc-report.md
+            tombstones/

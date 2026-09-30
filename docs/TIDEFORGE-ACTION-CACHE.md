@@ -43,3 +43,12 @@ the blobs first and the ActionResult last.
 4. **Promotion behind the factory boundary**:
    - Publication reads the ActionResults, verifies the digests and copies the bytes into the repository indexes.
    - Builds on the protected main branch publish ActionResults and blobs to R2.
+
+## CAS garbage collection
+
+CAS reachability and garbage collection operates as a report-only mark-and-sweep
+subsystem (`scripts/cas_gc.py`, #430 step 5). It marks reachable blobs from
+retained ActionResults and active repository metadata, applies an age grace
+period (default 7 days), and records tombstones for sweep candidates without
+deleting any live content. See [CAS-GARBAGE-COLLECTION.md](CAS-GARBAGE-COLLECTION.md)
+for the full specification and tombstone format.
