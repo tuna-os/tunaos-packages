@@ -1,23 +1,26 @@
 # Desktop Parity Audit & Contract Specifications
 
-This document outlines the desktop parity requirements, contract specifications, and verification tools established to address [tuna-os/tunaos-packages#133](https://github.com/tuna-os/tunaos-packages/issues/133).
+This document describes requirements for desktop parity and verification tools for [#133](https://github.com/tuna-os/tunaos-packages/issues/133).
 
 ## Context & Problem Statement
 
-An audit of 37 published edition images identified that **24 editions were undersized or missing expected desktop packages**. Specifically:
-- **`marlin` non-GNOME editions (`marlin:kde`, `marlin:cosmic`, `marlin:niri`, `marlin:xfce`)**: No-op builds resulting in images identical in size (1.51 GB) containing zero desktop session files or desktop packages (`marlin:kde` contains 338 packages vs `marlin:base` 480 packages and `marlin:gnome` 631 packages).
-- **`flounder` cosmic/niri editions (`flounder:cosmic` 0.73 GB, `flounder:niri` 0.71 GB)**: Smaller than `flounder:base` (1.11 GB), missing essential session components.
-- **`sailfin`, `flounder`, and `grouper` across all desktops**: Authoring package lists against RPM/DNF package names resulted in unresolved names failing softly under `apt` and `zypper`, yielding incomplete desktop installations.
+An audit of 37 published images showed that **24 editions lacked packages for the desktop**.
 
-Furthermore, image compressed size alone cannot reliably distinguish between missing packages and legitimate architectural differences (e.g. EL-family XFCE Wayland stack vs Fedora X11 XFCE).
+- **`marlin` non-GNOME editions (`marlin:kde`, `marlin:cosmic`, `marlin:niri`, `marlin:xfce`)**: No-op builds produced images without session files or desktop packages.
+- **`flounder` cosmic/niri editions (`flounder:cosmic`, `flounder:niri`)**: Smaller than `flounder:base` and missing session components.
+- **`sailfin`, `flounder`, and `grouper`**: Names of RPM packages failed without errors under `apt` and `zypper`, which led to incomplete installs.
+
+The size of an image cannot distinguish missing packages from differences in desktop architecture.
 
 ## Desktop Experience Contracts & Validation
 
-To guarantee desktop completeness and prevent regression before publishing images, package-level contracts and verification tools must be enforced for all target desktops across all base distributions (RPM, DEB, openSUSE).
+To ensure desktop completeness, package contracts and verification tools check all target desktops across all base distributions (RPM, DEB, openSUSE).
 
 ### 1. GNOME Desktop Contract
+
 Defined in [`docs/gnome-desktop-contract.md`](./gnome-desktop-contract.md) and checked via [`scripts/verify-gnome-desktop-experience.py`](https://github.com/tuna-os/tunaos-packages/blob/main/scripts/verify-gnome-desktop-experience.py).
 Required package components:
+
 - `gdm`
 - `gnome-keyring`
 - `gnome-session`
@@ -28,11 +31,12 @@ Required package components:
 - `xdg-desktop-portal-gnome`
 
 ### 2. Contract Enforcement Rules for All Desktops
-1. **Hard Failure on Unresolved Package Names**: Package resolution in image builds for Debian/Ubuntu (`apt`), openSUSE (`zypper`), and Enterprise Linux/Fedora (`dnf`) must fail hard on any unresolved desktop package name rather than ignoring missing dependencies.
-2. **Published Installed Package Inventory**: Every edition build must export its effective installed package list (`rpm -qa` / `dpkg-query -W`) alongside image metadata so desktop parity is diffable directly.
-3. **Session & Portal Verification**: Every desktop edition must ship valid session entries in `/usr/share/wayland-sessions/` or `/usr/share/xsessions/`, appropriate greeters/display managers, and required XDG desktop portals.
+
+1. **Hard Failure on Unresolved Names**: Image builds on Debian/Ubuntu (`apt`), openSUSE (`zypper`), and EL/Fedora (`dnf`) must fail on unresolved package names.
+2. **Inventory of Installed Packages**: Every build must export its installed package list (`rpm -qa` / `dpkg-query -W`) to make parity comparable.
+3. **Session Verification**: Every desktop edition must ship session files in `/usr/share/wayland-sessions/` or `/usr/share/xsessions/`, greeters, and portals.
 
 ## Status & Action Plan
 
-1. **`marlin` non-GNOME & `flounder` cosmic/niri**: Fixed by enforcing mandatory package verification and hard-failing builds when desktop session files or required desktop roots are missing.
-2. **Package Name Mapping (zypper/apt)**: Cross-base package list mappings are continuously audited and synchronized across DNF, APT, and ZYPPER definitions in `manifests/`.
+1. **`marlin` non-GNOME and `flounder` cosmic/niri**: Tests enforce verification and fail builds when session files are missing.
+2. **Package Name Mapping**: CI audits mappings across DNF, APT, and ZYPPER definitions in `manifests/`.

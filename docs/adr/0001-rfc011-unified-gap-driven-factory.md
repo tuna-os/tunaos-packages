@@ -3,53 +3,33 @@
 - Status: accepted
 - Date: 2026-08-18
 - RFC: [docs/rfc/rfc011-unified-gap-driven-factory.md](../rfc/rfc011-unified-gap-driven-factory.md)
-- Tracking issue: [#418](https://github.com/tuna-os/tunaos-packages/issues/418)
+- Issue: [#418](https://github.com/tuna-os/tunaos-packages/issues/418)
 - Sign-off: hanthor (maintainer), 2026-08-18
-- Policy: tunaOS RFC lifecycle (tunaOS `docs/RFC-PROCESS.md`, ADR 0004) —
-  this is the ADR the merge gate requires; it is also this repository's
-  first ADR.
+- Policy: tunaOS RFC lifecycle (tunaOS `docs/RFC-PROCESS.md`, ADR 0004) — this ADR satisfies the merge gate.
 
 ## Context
 
-The factory is five workflow families organized by the crisis that created
-each one, each hand-carrying its own build ordering, repo generation,
-publish gating, and drift handling. The measured cost is structural
-copy-paste drift — the `createrepo_c --update` class (#358) was fixed in
-one copy while latent in others (audited in #421) — plus hand-curated build
-orders that rot (hummingbird's said 1248 sources; the measured runtime gap
-was 673) and a sourcing policy ("system repos first") that no family except
-hummingbird's actually executes as a query.
+The factory consists of five workflow families.
+Each family carried its own build order, repo generation, publish gates, and drift detection.
+This caused copy-paste drift (#358 fixed one copy but left others, see #421).
+Curated build orders also rotted (hummingbird listed 1248 sources, but the real runtime gap was 673).
+Most families did not query system repos first.
 
 ## Decision
 
-**Adopt RFC 011, option C:** one catalog (`manifests/catalog.yaml`) owns
-package identity; a generalized, target-parameterized gap engine
-(`scripts/measure-target-gap.py`, the proven hummingbird machinery) computes
-per-target build orders against live repo indexes with revision-gated drift
-PRs; one unified format-agnostic factory (`package-factory.yml` planner +
-`package-factory-cell.yml` boundary, landed in #430) replaces the hand-copied
-families — amending the originally-proposed per-format orchestrators.
-Packaging payloads stay heterogeneous — Tideforge recipes where
-they are proven, native EL10 specs where the TIDEFORGE-READINESS verdict
-says there is nothing to switch.
+**Adopt RFC 011, option C:** one catalog (`manifests/catalog.yaml`) owns package identity.
+A generalized gap engine (`scripts/measure-target-gap.py`) computes build orders against repo indexes with drift PRs.
+One unified factory replaces hand-copied families (`package-factory.yml` planner and `package-factory-cell.yml`).
+Package payloads stay heterogeneous: Tideforge recipes where proven, and native EL10 specs where needed.
 
 **Considered options:**
 
-1. **Status quo plus discipline** — rejected: #358 is the measured proof the
-   discipline does not hold across copies.
-2. **Rewrite everything into Tideforge recipes** — rejected by the
-   TIDEFORGE-READINESS evidence: the EL10 GNOME bootstrap needs scriptlets,
-   file triggers, SELinux policy, and bootstrap variants a simple recipe
-   format is designed to exclude.
-3. **Catalog + gap engine + orchestrator, heterogeneous payloads** — chosen;
-   nothing working is rewritten.
+1. **Status quo with discipline** — rejected: #358 proves discipline does not hold across copies.
+2. **Rewrite everything into Tideforge recipes** — rejected: EL10 GNOME needs scriptlets, file triggers, and SELinux policy.
+3. **Catalog + gap engine + orchestrator, heterogeneous payloads** — chosen: we keep the existing specs.
 
 ## Consequences
 
-- Phases 0–3 land independently, each a safe stopping point; Phase 0
-  (catalog + completeness tests) changes no CI behavior.
-- Success criteria: #358's class cannot recur; a distro catching up produces
-  a PR that removes work automatically; a new (package × target) is a
-  catalog entry, not a workflow; the exceptions table cannot silently grow.
-- Automated R2 promotion stays out of scope and requires its own RFC with
-  the `INCIDENT-repo-wipe-gnome.md` safeguards.
+- Phases 0–3 land independently, each as a safe stage. Phase 0 changes no CI behavior.
+- Success criteria: bug class #358 cannot recur. A distro update creates a PR that removes work. A new package is a catalog entry. The list of exceptions cannot grow in secret.
+- Automated R2 promotion stays out of scope and needs its own RFC with safeguards from `INCIDENT-repo-wipe-gnome.md`.

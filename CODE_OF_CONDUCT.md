@@ -1,3 +1,4 @@
+<!-- ste-disable-file: standard Contributor Covenant v2.1 text quoted verbatim -->
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge

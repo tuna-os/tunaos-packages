@@ -1,24 +1,16 @@
 # RFC 011: One gap-driven factory
 
-**Status:** Accepted — maintainer sign-off by hanthor, 2026-08-18
-**Amended:** 2026-08-19 (#430) — Design §3 and Phase 2 updated to the unified
-format-agnostic factory that #430 actually landed (one `package-factory.yml`
-planner + `package-factory-cell.yml` boundary), replacing the per-format
-reusable workflows originally proposed.
-**ADR:** [0001](../adr/0001-rfc011-unified-gap-driven-factory.md)
-**Tracking issue:** [#418](https://github.com/tuna-os/tunaos-packages/issues/418)
-**Owner:** hanthor
-**Interacts with:** `docs/PACKAGE_FACTORY.md` (promotion contract),
-`docs/TIDEFORGE-READINESS.md` (switch-over verdict),
-`manifests/package-factory.yaml` (target contract),
-tunaOS `PACKAGE-SOURCING.md` (sourcing tiers),
-tunaOS `.github/green-criteria.yml` `upstream_references` (image-side parity consumer)
+**Status:** Accepted by hanthor, 2026-08-18  
+**Amended:** 2026-08-19 (#430) -- Design §3 and Phase 2 updated to the unified factory.  
+**ADR:** [0001](../adr/0001-rfc011-unified-gap-driven-factory.md)  
+**Issue:** [#418](https://github.com/tuna-os/tunaos-packages/issues/418)  
+**Owner:** hanthor  
+**Interacts with:** `docs/PACKAGE_FACTORY.md`, `docs/TIDEFORGE-READINESS.md`, `manifests/package-factory.yaml`
 
 ## Problem
 
-TunaOS ships one desktop experience across many bases. The factory that feeds
-those images is not organized that way — it is organized by the crisis that
-created each piece:
+TunaOS delivers a unified desktop experience across multiple distribution bases.
+Before this RFC, independent projects organized their own build systems:
 
 | Factory family | Workflows | Origin |
 | --- | --- | --- |
@@ -28,82 +20,62 @@ created each piece:
 | Tideforge | `build-tideforge-{supported,arch}`, `publish-tideforge-debs`, `seed-tideforge-source-cache` (4) | The intended generalization |
 | One-offs | `build-fprintd-aarch64` etc. | Individual gaps |
 
-Each family hand-carries its own build ordering (`build-order*.yml`, curated
-manually), repo generation, publish gating, skip logic, and drift handling.
-Three concrete costs, all observed, none hypothetical:
+Each family maintained its own build order files, repository generation, and publish gates.
+This structure led to three issues:
 
-1. **Copy-paste drift.** The `createrepo_c --update` bug (#358) was fixed in
-   `build-xfce-package.yml` and is latent in `build-xfce-distributed.yml`,
-   `build.yml`, and all three GNOME distributed workflows. One bug, five
-   copies, one fix.
-2. **Hand-curated build orders rot.** The hummingbird order was 1248 sources
-   until a measurement against the live upstream index showed the runtime gap
-   is 673. Every other family's order is maintained by memory and diff-reading;
-   nothing re-measures when a target's repos move. When EL10.1 or Fedora 45
-   picks up a package we build, nothing tells us to *stop* building it.
-3. **The sourcing policy is unenforced at build-planning time.**
-   tunaOS `PACKAGE-SOURCING.md` says system repos first, Tideforge second.
-   Whether a package still needs building is a query against the target's
-   repos — but no factory family runs that query except hummingbird's.
+1. **Configuration drift across files:**
+   Bug fixes applied to one workflow did not propagate to other copies (#358).
 
-Meanwhile the same desktop stacks are needed on multiple targets: EL10 needs
-newer GNOME, Wayland XFCE, *and* COSMIC (currently a COPR — the largest
-violation in the sourcing audit); Ubuntu lacks COSMIC and quickshell; the DMS
-stack has no DEB runtime closure. Today each (stack × target) pair is a
-separately hand-built answer.
+2. **Manual maintenance of build orders:**
+   Maintainers edited build orders by hand.
+   They did not recompute them from target repositories.
+   When upstream distributions added new packages, the factory continued to build duplicates.
 
-## What already exists and points the way
+3. **No enforcement of source policy:**
+   The policy gives priority to packages from distributions.
+   No tool checked the repositories of targets for build needs.
 
-This RFC proposes very little new invention. The pieces exist; they have not
-been composed:
+## Existing foundations
 
-- **The gap engine.** `scripts/measure-hummingbird-gap.py` takes a catalog
-  (`manifests/hummingbird-desktops.yaml`), computes the dependency closure
-  against a **live target repo index**, applies a membership rule
-  (`runtime` vs `selfhost`), and emits a tiered build order. A revision-gated
-  drift workflow re-measures only when the target's repo metadata actually
-  changes and opens a review PR with the delta. This is the general mechanism;
-  it is currently wired to one target.
-- **The catalog shape.** `manifests/hummingbird-desktops.yaml` already
-  declares intent separately from execution.
-- **The target contract.** `manifests/package-factory.yaml` is the
-  authoritative list of targets, formats, and R2 paths; `manifests/package-builds.yaml`
-  records the legacy native-spec queues as data so they stay buildable
-  without owning a workflow (added by #430).
-- **The recipe layer.** Tideforge recipes cover 40 packages with proven
-  source and build parity (per `docs/TIDEFORGE-READINESS.md`); native EL10
-  specs cover the hard GNOME bootstrap that a generic recipe format cannot
-  model (scriptlets, file triggers, SELinux policy, bootstrap variants).
-- **The image-side consumer.** tunaOS now measures per-cell package parity
-  against Bluefin/Aurora references daily (`green-criteria.yml`
-  `upstream_references`); the factory side of that loop is what this RFC
-  builds.
+The factory unifies existing components:
+
+- **The gap engine:**
+  `scripts/measure-hummingbird-gap.py` computes dependency closures against live repository indexes.
+  It generates tiered build orders and detects upstream drift.
+
+- **The catalog structure:**
+  `manifests/hummingbird-desktops.yaml` defines packages without execution details.
+
+- **The target contract:**
+  `manifests/package-factory.yaml` defines targets, formats, and R2 paths.
+  `manifests/package-builds.yaml` lists queues of native specs as data.
+
+- **The recipe layer:**
+  Tideforge builds portable packages.
+  Specs handle the bootstrap step.
+
+- **Image validation:**
+  TunaOS measures parity against reference images daily.
 
 ## Options considered
 
-**A. Status quo, plus discipline.** Keep the families; fix drift bugs in all
-copies when found. Rejected: this is the current state, and #358 shows the
-discipline does not hold — the copies drift precisely because nothing
-structural keeps them together.
+**A. Status quo with manual discipline:**
+Rejected because manual synchronization fails across duplicated workflows (#358).
 
-**B. Rewrite everything into Tideforge recipes.** Rejected by evidence:
-`docs/TIDEFORGE-READINESS.md` is explicit that the EL10 GNOME queue is
-`implementation: native-spec` and "there is nothing to switch". Forcing
-scriptlets/SELinux/bootstrap machinery into a simple recipe format would
-recreate the complexity inside a format designed to exclude it.
+**B. Rewrite all packages into Tideforge recipes:**
+Rejected because bootstrap packages need native spec features such as scriptlets and SELinux policies.
 
-**C. One catalog + per-target gap measurement + one orchestrator; packaging
-payloads stay heterogeneous.** Chosen. The catalog owns *identity* (what, at
-which version, patched how, for which targets); the gap engine owns *whether
-and in what order* each target builds it; the orchestrator owns *how a build
-runs mechanically*; the payload (tideforge recipe or native spec) owns *how
-the package itself is produced*. Nothing working is rewritten.
+**C. Unified catalog and gap measurement with a single orchestrator:**
+Selected.
+The catalog defines identity.
+The gap engine computes build needs per target, and the orchestrator executes builds.
+Payload formats remain specialized where needed.
 
 ## Design
 
 ### 1. The catalog (`manifests/catalog.yaml`)
 
-One entry per factory package:
+Each package has a single catalog entry:
 
 ```yaml
 packages:
@@ -120,168 +92,94 @@ packages:
     membership: runtime                        # runtime | selfhost, as today
 ```
 
-Rules, enforced by tests:
+Rules enforced by tests:
 
-- Every package reachable from any workflow matrix or `build-order*.yml`
-  appears in the catalog, and vice versa (this kills the "present under
-  `packages/` but in no matrix → never built" trap documented in
-  `PACKAGE_FACTORY.md`).
-- `targets` may only name targets declared in `manifests/package-factory.yaml`.
-- A package with no `packaging` entry for a target's format cannot list that
-  target.
+- Every package in a workflow matrix must exist in the catalog.
+- `targets` must reference valid entries from `manifests/package-factory.yaml`.
+- Target assignments need matching format handlers in the recipe.
 
 ### 2. The gap engine (`scripts/measure-target-gap.py`)
 
-Generalization of the hummingbird measurer, target-parameterized:
+The gap engine runs with a target parameter:
 
-```
+```bash
 measure-target-gap.py --catalog manifests/catalog.yaml --target el10
-  → build-order-el10.yml        (tiered, only packages the target's live
-                                  repos cannot supply at the required version)
 ```
 
-- **System-repos-first becomes computed, not remembered:** if the target's
-  index satisfies the requirement, the package drops out of that target's
-  order automatically. When a distro catches up, we stop building — with a
-  review PR showing the drop, not a silent change.
-- One **revision-gated drift workflow per target** (the hummingbird pattern:
-  compare the live repomd/Packages index revision against the last measured
-  one; re-measure only on change; open a PR with adds/drops and provenance).
-- Existing curated orders become *generated artifacts with a proof
-  obligation*: Phase 1 is complete for a family only when regeneration
-  reproduces the curated order, with every difference explained in the PR.
+- Target indexes determine build requirements dynamically.
+  When an upstream distribution adds a package, the engine removes it from the build order.
+- Workflows check the revision of target repositories.
+  They open pull requests when upstream indexes change.
+- Automated generation replaces hand-curated build orders.
 
-### 3. The orchestrator — one unified format-agnostic factory *(amended 2026-08-19)*
+### 3. The unified orchestrator
 
-The original design proposed one reusable workflow per package format
-(`build-rpm-distributed.yml`, `build-deb.yml`, `build-arch.yml`). #430
-implemented a *more* unified shape, and this RFC adopts it:
+PR #430 unified the orchestrator design:
 
-- `package-factory.yml` is the single planner and required gate. It computes
-  the affected coordinates `(package | native queue, target, architecture,
-  release track, engine)` and emits only those cells.
-- `package-factory-cell.yml` is the single reusable build boundary. Every
-  coordinate derives an exact content-addressed action key, restores only an
-  exact cached result, verifies every restored byte, and skips compilation
-  only after the restored result passes the same package checks as a fresh
-  build.
-- `manifests/package-factory.yaml` remains the target contract (formats,
-  R2 paths); `manifests/package-builds.yaml` records the legacy native-spec
-  queues as data so they stay buildable without owning a workflow.
+- `package-factory.yml` plans builds and executes required gates.
+  It computes matrix coordinates and dispatches required cells.
+- `package-factory-cell.yml` acts as the execution boundary.
+  It derives cache keys from inputs, restores verified results, and skips redundant compilation.
+- `manifests/package-factory.yaml` defines the target contract, while `manifests/package-builds.yaml` configures native spec builds.
 
-The per-family workflows (`build-gnome*`, `build-xfce*`,
-`build-hummingbird*`, `build-tideforge-*`, `build-fprintd-*`) are removed.
-The shared mechanics this RFC wanted unified — tier scheduling, the
-already-built skip check (#410), `createrepo_c --update` handling (#358's
-class), staged-install gating, publish gates, and R2 paths from
-`manifests/package-factory.yaml` — now live once in the factory, not once
-per format.
+This design removes duplicate workflows.
 
-### 4. What does NOT change
+### 4. Preserved boundaries
 
-- **Native EL10 specs stay authoritative** for the GNOME bootstrap, exactly
-  per the TIDEFORGE-READINESS verdict. They become catalog-referenced
-  payloads; not one spec is rewritten.
-- **No automated promotion to R2** returns in this RFC. The post-incident
-  stance (`INCIDENT-repo-wipe-gnome.md`) stands; promotion remains a separate
-  decision gated on the runtime-gate work (Phase 3 prepares it, a future RFC
-  enables it).
-- **The sourcing tiers** (tunaOS `PACKAGE-SOURCING.md`) are unchanged — this
-  RFC is their enforcement mechanism, not their revision.
-- **No cross-format binary reuse.** A .deb is not an .rpm; the shared wins
-  are source pins, patches, versions, orchestration, and gates — never
-  binaries.
+- **Native EL10 specs remain authoritative** for GNOME bootstrap packages.
+- **Publication to R2 remains manual**, following incident safety policies.
+- **Source tier policies** remain unchanged.
+- **Binary payloads remain distinct per distribution format.**
 
-## Plan of attack
+## Execution phases
 
-Each phase lands independently, is valuable on its own, and is a safe
-stopping point. No phase rewrites a working build.
+**Phase 0 -- Catalog creation:**
+Create `manifests/catalog.yaml` to record all packages.
+Add CI tests to check the catalog coverage.
 
-**Phase 0 — catalog, no behavior change.**
-Write `manifests/catalog.yaml` covering every package any family builds
-today. Add the completeness tests (matrix ⊆ catalog ⊆ matrix). CI change:
-none — the catalog is initially a passive index.
-*Gate: the completeness test is green; every current package has recorded
-upstream source, version, and packaging ref.*
+**Phase 1 -- Gap engine:**
+Generate build orders from queries to target repositories.
+Replace static lists with generated orders for each desktop family.
 
-**Phase 1 — gap engine, shadow mode.**
-Generalize the measurer; wire per-target drift workflows. For each family,
-regenerate its build order from the catalog and diff against the curated one
-until reproduction is exact-or-explained. Hummingbird converts first (it
-already works this way); then `build-order-xfce-fedora.yml` (smallest), then
-`build-order-xfce.yml`, then GNOME 49/50/51, `build-order.yml` last.
-*Gate per family: generated order == curated order, modulo diffs explained in
-the conversion PR. The curated file is then deleted and the generated one
-committed with its provenance header.*
+**Phase 2 -- Orchestrator consolidation:**
+Completed in PR #430.
+Replaced duplicated workflows with `package-factory.yml` and `package-factory-cell.yml`.
 
-**Phase 2 — orchestrator consolidation.** ✅ **Landed via #430 (2026-08-19),
-amending the per-format design above to one format-agnostic factory.** The
-hand-copied families were removed in one merge and replaced by
-`package-factory.yml` + `package-factory-cell.yml` driven by
-`package-factory.yaml` + `package-builds.yaml`, with content-addressed exact
-reuse and SLSA attestation. Required contexts remained as zero-build aliases
-of the factory gate during the ruleset transition.
-*Gate satisfied: the merge queue ran the full package-factory matrix green.*
+**Phase 3 -- Runtime gates and promotion:**
+Build runtime gates defined in `docs/TIDEFORGE-READINESS.md`.
+Add install verification for COSMIC and DMS desktop closures.
 
-**Phase 3 — runtime gates, then (separately) promotion.**
-Implement the 12 declared gate types from `docs/TIDEFORGE-READINESS.md`
-against the unified orchestrator — once, for every family, instead of
-per-family. COSMIC and DMS closures (currently "payload-only, no install
-assertion" — #169) get staged-install coverage as their closures become
-factory-complete.
-*Gate: the `PACKAGE_FACTORY.md` "not covered" table shrinks monotonically;
-each row's removal cites the run that covered it. Automated promotion remains
-out of scope and requires its own RFC with the incident safeguards.*
+**Cleanup:**
+Completed in PR #430.
+Reduced workflow count from ~20 to 2 main factory workflows and shared utility workflows.
 
-**Cleanup.** ✅ Achieved by #430. The factory is one catalog, one gap engine +
-N drift detectors, and one format-agnostic factory (`package-factory.yml` +
-`package-factory-cell.yml`) over heterogeneous payloads. The per-family
-workflow count dropped from ~20 to ~2 factory workflows plus the shared
-auxiliary workflows (`lint.yml`, `validate-package-factory.yml`, the legacy
-`build.yml`/`build-distributed.yml` dispatch, `publish-tideforge-debs.yml`,
-`r2-inventory.yml`, and the non-factory scheduled jobs).
-
-### Post-#487 workflow census (2026-08-31)
-
-The remaining auxiliary workflows are intentional, but they do not all have
-the same status. This table records the dormant-workflow inventory requested
-by [#487](https://github.com/tuna-os/tunaos-packages/issues/487):
+### Workflow census (2026-08-31)
 
 | Workflow | Verdict | Boundary / follow-up |
 |---|---|---|
-| `build.yml` | **Break-glass, expiry 2026-12-31** | Retained only for manually recovering a pre-factory RPM build; normal work must use `package-factory.yml`. Revisit at the RFC 011 Q4 review. |
-| `build-distributed.yml` | **Break-glass, expiry 2026-12-31** | Retained because `scripts/generate-distributed-workflow.py` still generates and audits its topology; it is not a supported publishing path. Delete after the generator and its historical consumers are retired. |
-| `validate-hummingbird-desktops.yml` | **Retained validation** | The hummingbird catalog is still a separate measured input to the factory. Its PR/push check is a validation boundary, not a second build path. |
-| `seed-tideforge-source-cache.yml` | **Retained auxiliary** | Seeds the content-addressed source cache consumed by factory cells; it does not build or publish packages. |
-| `bump-stable-package-sources.yml` | **Retained auxiliary** | Updates source pins, not build output. A future catalog-driven source-update pass may replace its per-stack jobs. |
-| `upstream-drift.yml` | **Folded/parameterized** | One matrix workflow reads `gap_measurement.drift` blocks from `manifests/package-factory.yaml`; adding a target requires data, not a copied workflow. |
+| `build.yml` | **Break-glass, expiry 2026-12-31** | Retained for emergency RPM builds; standard builds use `package-factory.yml`. |
+| `build-distributed.yml` | **Break-glass, expiry 2026-12-31** | Retained for topology tooling audits; not used for publishing. |
+| `validate-hummingbird-desktops.yml` | **Retained validation** | Validates hummingbird catalog input data. |
+| `seed-tideforge-source-cache.yml` | **Retained auxiliary** | Populates content-addressed source caches for factory cells. |
+| `bump-stable-package-sources.yml` | **Retained auxiliary** | Updates upstream source pins. |
+| `upstream-drift.yml` | **Parameterized** | Checks upstream repository drift based on manifest declarations. |
 
-This is deliberately a partial cleanup: deleting the two break-glass files
-before their generator/consumer boundary is removed would make the repository's
-own topology tooling unusable. The expiry makes that debt visible rather than
-letting the legacy path become an unbounded second factory.
+This strategy preserves tools until all consumers migrate.
 
-## Risks
+## Risks and mitigations
 
-- **The catalog becomes a second source of truth that drifts.** Mitigation:
-  Phase 0's completeness tests make drift a CI failure, and Phase 1 makes the
-  build orders *derived*, so the catalog is load-bearing, not decorative.
-- **Regeneration never exactly reproduces a curated order.** Acceptable: the
-  gate is exact-or-explained. A diff the conversion PR can defend (a package
-  the target now ships; a stale pin) is the mechanism working.
-- **The reusable workflow becomes a bottleneck for family-specific quirks.**
-  Mitigation: quirks live in the mock config and the payload, which stay
-  per-family; the orchestrator only owns the mechanics every family already
-  shares. If a quirk cannot be expressed that way, that family converts last
-  or not at all — partial adoption still retires four copies of every shared
-  bug.
+- **Catalog data drift:**
+  Completeness tests in CI prevent divergence between recipes and build configurations.
+
+- **Build order differences:**
+  Pull requests for conversion document and justify differences from historical lists.
+
+- **Distribution-specific build quirks:**
+  Special configurations remain isolated in mock files and spec headers.
 
 ## Success criteria
 
-1. #358's drift class cannot recur (one implementation of repo generation).
-2. A distro catching up to a factory package produces a review PR that
-   *removes* work, automatically.
-3. Adding a package for a new target is a catalog entry + payload, not a new
-   workflow.
-4. The `PACKAGE_FACTORY.md` exceptions table shrinks and cannot silently
-   grow (completeness tests).
+1. Unified repository generation prevents drift bugs (#358).
+2. Updates from upstream open pull requests to delete obsolete packages.
+3. Adding a package for a new target needs catalog entries instead of new workflows.
+4. Test suites prevent undocumented omissions from build matrices.

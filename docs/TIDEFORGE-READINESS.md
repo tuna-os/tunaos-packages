@@ -3,36 +3,29 @@
 Assessed 2026-07-27 against `feat/universal-package-recipes` (#115) with the fixes
 from #125 applied.
 
-The bar, from `README.md`: Tideforge *"must prove source, build, install, and runtime
-parity before it replaces any native EL10 GNOME packaging."* The promotion contract in
-`docs/PACKAGE_FACTORY.md` is stricter still: every candidate must *"build in the target
-buildroot, pass package tests, install from the staged repository, and complete a
-desktop/runtime smoke test where the package affects a session."*
+Per `README.md`, Tideforge *"must prove source, build, install, and runtime
+parity before it replaces native packages on EL10."* The promotion contract in
+`docs/PACKAGE_FACTORY.md` is stricter still. Every candidate must *"build in the target
+buildroot and pass package tests. It must install from the staged repository and pass a
+runtime smoke test when the package affects a session."*
 
 > **Addendum, 2026-09-02.** The strategy question this note kept open is
-> settled in `docs/PACKAGE_FACTORY.md` ("One contract, one build engine per
-> target"): Tideforge stays the recipe renderer for the targets whose
-> coverage is complete (COSMIC and Niri on EL10 and deb; the Niri/DMS stack
-> on Tumbleweed and Arch), each engine builds in its own root, and the
-> contract -- roots, gates, status board, promotion rule -- is what is
-> shared.  A BuildStream-style "build once, package at the end" was
-> measured and rejected for anything compiled
-> (`experiments/tideforge-universal-intermediate.md`).  GNOME on Hummingbird
-> is consumed from utah-packages rather than built (`HUMMINGBIRD-TARGET.md`
-> §7-8); GNOME on DEB is its own measured chain (`gnome51-deb.yaml`), not a
-> Tideforge rollout step.  The runtime-gate table below is still the open
-> work.
+> settled in `docs/PACKAGE_FACTORY.md` ("One contract, one build engine per target").
+
+> Tideforge stays the recipe renderer for targets with complete coverage (COSMIC and Niri on EL10 and DEB; the Niri/DMS stack on Tumbleweed and Arch). Each engine builds in its own root and shares the common contract.
+
+> We measured and rejected a BuildStream-style "build once, package at the end" model for compiled code (`docs/experiments/tideforge-universal-intermediate.md`). TunaOS consumes GNOME on Hummingbird from utah-packages instead of local builds (`docs/HUMMINGBIRD-TARGET.md` §7-8). GNOME on DEB is its own measured chain (`gnome51-deb.yaml`), not a Tideforge rollout step. The runtime-gate table below is still the open work.
 
 ## Verdict
 
-**The switch as usually framed — "move TunaOS packaging to Tideforge" — is not
-available, and not because Tideforge is immature.** For the EL10 GNOME stack that
-TunaOS actually ships, Tideforge is *not a candidate at all*: that queue is declared
+**The switch as usually framed -- "move TunaOS packages to Tideforge" -- is not
+available.** Tideforge is not immature. But for the EL10 GNOME stack that
+TunaOS ships, Tideforge is not a candidate. The manifest declares
 `implementation: native-spec`. There is nothing to switch.
 
-What *is* available today is a partial switch of two specific stacks — **COSMIC and
-niri** — whose recipe coverage is complete. Even those cannot be promoted under the
-current contract, because the runtime gates the contract requires do not exist yet.
+What is available today is a partial switch of two stacks -- **COSMIC and
+niri** -- whose recipe coverage is complete. CI cannot promote these packages under the
+current contract. The runtime gates that the contract needs do not exist yet.
 
 | Parity dimension | State | Evidence |
 | --- | --- | --- |
@@ -65,10 +58,10 @@ current contract, because the runtime gates the contract requires do not exist y
 | xfce | debian | tideforge-debian | 3 | 2 | libxfce4ui |
 | xfce | arch | native-pkgbuild | 3 | 2 | libxfce4ui |
 
-**The GNOME DEB row is the one to read twice.** Both GNOME DEB queues nominate Tideforge
-and declare 9 roots, but only `bazaar` has a recipe. The eight missing ones are the entire
-GNOME platform stack — glib2 through gdm. That is not a gap to close incrementally; it is
-the hard part of the problem, untouched.
+**Read the row for GNOME on DEB twice.** Both queues for GNOME on DEB name Tideforge
+and declare 9 roots, but only `bazaar` has a recipe. The eight missing packages form the entire
+platform stack for GNOME -- glib2 through gdm. That is not a gap to close incrementally; it is
+the hard part of the problem.
 
 ## Declared gates vs. implemented gates
 
@@ -89,63 +82,60 @@ Counted across all five queue manifests:
 | plasma-session-smoke | 2 | **no** |
 | selinux-enforcing | 1 | **no** |
 
-**Every runtime/session gate is declared and none is implemented.** The manifests describe
-a promotion contract that CI cannot currently evaluate. Until that changes, no Tideforge
+**The project declares every runtime and session gate, but builds none.** The manifests describe
+a promotion contract that CI cannot evaluate now. Until that changes, no Tideforge
 recipe is contract-legal for promotion regardless of how green the build matrix is.
 
-For contrast, the native EL10 GNOME path *does* have runtime verification —
+For contrast, the native GNOME path on EL10 has runtime verification.
 `build-gnome50-verify.yml` boots a CentOS Stream 10 VM under Lima, waits for GDM, checks
-that gnome-shell survives without crash-looping, and scans the journal for crash
-signatures. That is the standard Tideforge has to meet, and it already exists as a
-worked example to copy.
+that gnome-shell survives without crashes, and scans the journal for crash
+signatures. That is the standard Tideforge must meet.
 
 ## COSMIC installs and smokes, but the full staged closure is still ahead
 
-cosmic-session's gate cell (unified factory, #430) installs the package into a
-clean container and runs its smoke contract -- `start-cosmic` and the
-wayland-sessions desktop file are present -- but the desktop still cannot be
-staged end-to-end: the remaining runtime closure (greetd-selinux,
-adw-gtk3-theme, and the nine cosmic siblings cosmic-session depends on) is not
+The gate cell for cosmic-session (unified factory, #430) installs the package into a
+clean container and runs its smoke contract. `start-cosmic` and the
+desktop file for wayland sessions are present. But CI cannot stage the desktop end-to-end. The remaining runtime closure (greetd-selinux,
+adw-gtk3-theme, and the nine cosmic siblings that cosmic-session needs) is not
 all factory-built yet.
 
-So COSMIC meets its install/smoke gate per package, but not the
+So COSMIC meets its install and smoke gate per package. But it does not meet the
 full staged-desktop gates (`rpm-md-stage-install`, `greetd-login`, or
 `cosmic-session-smoke` on a complete session) that the desktop edition needs.
 
 ## Other gaps found
 
-* **aarch64 is declared but never built.** `manifests/package-factory.yaml` declares el10
+* **The manifest declares aarch64, but CI never builds it.** `manifests/package-factory.yaml` declares el10
   `architectures: [x86_64, aarch64]` and the same for ubuntu/debian (`amd64, arm64`).
   Tideforge CI builds x86_64/amd64 only. Any promotion would ship a half-architecture repo.
 * **niri on Arch does not build.** `ld.lld: undefined symbol: spa_format_parse_libspa_rs`
-  and six similar — a pipewire-rs/libspa version skew against current Arch pipewire. This
-  is a genuine upstream build problem, not a packaging or renderer bug, and it is
-  unresolved.
-* **`build_repositories` was not honoured.** The manifest declares el10
-  `build_repositories: [crb, epel]`, but the `rpm-payload` job enabled only CRB — which is
-  what caused 13 of the 18 build failures fixed in #125. Worth a validator: nothing
-  currently checks that a workflow's buildroot matches the contract it claims to implement.
+  and other errors appear -- a pipewire-rs/libspa version skew against current Arch pipewire. This
+  is a genuine upstream build problem, not a package or renderer bug.
+* **The build did not honour `build_repositories`.** The manifest declares el10
+  `build_repositories: [crb, epel]`, but the `rpm-payload` job enabled only CRB. This
+  caused 13 of the 18 build failures fixed in #125. Nothing
+  now checks that a buildroot of a workflow matches the contract that it claims to follow.
 
 ## Recommended sequence
 
-1. **Do not** attempt to move GNOME/EL10 to Tideforge. It is native-spec by design and the
-   README's own policy keeps it authoritative. Treat this as settled, not pending.
-2. **Implement the session gates first**, modelling them on `build-gnome50-verify.yml`'s
-   Lima+VNC approach. Start with `greetd-login` — it is the most-declared runtime gate (7×)
+1. **Do not** try to move GNOME/EL10 to Tideforge. It uses native specs by design and the
+   README policy keeps it authoritative. Treat this as settled.
+2. **Build the session gates first**, using the Lima+VNC approach in `build-gnome50-verify.yml`.
+   Start with `greetd-login` -- it is the most-declared runtime gate (7x)
    and gates both COSMIC and niri.
 3. **Then promote niri**, not COSMIC. niri has full recipe coverage across four targets and
-   the smallest runtime closure; COSMIC is blocked on a runtime closure that is not yet
+   the smallest runtime closure. COSMIC waits on a runtime closure that is not yet
    factory-built.
 4. **Add aarch64** to the Tideforge matrix before any promotion, or narrow the declared
    architectures in the manifest to match reality.
-5. **Treat GNOME-on-DEB as a separate project**, not a Tideforge rollout step. Eight
-   platform packages — glib2, gtk4, mutter, gnome-shell, gdm and friends — is a body of
-   work comparable to the existing native EL10 effort.
+5. **Treat GNOME on DEB as a separate project**, not a Tideforge rollout step. Eight
+   platform packages (glib2, gtk4, mutter, gnome-shell, gdm and friends) represent a large
+   effort comparable to the native EL10 work.
 
 ## What #125 does and does not prove
 
 #125 fixes all 18 `Build Tideforge supported targets` failures. That proves the **build**
 dimension across the covered recipes, and it removes the noise that was hiding the real
-readiness picture. It does **not** move source, install, or runtime readiness, because the
-gates that would test those are not implemented. A green matrix on #115 should be read as
+readiness picture. It does **not** advance source, install, or runtime readiness, because the
+gates that would test those are not built. Read a green matrix on #115 as
 "the renderer works", not "Tideforge is ready to take over."

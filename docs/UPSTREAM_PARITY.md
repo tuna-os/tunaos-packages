@@ -1,14 +1,12 @@
 # Upstream parity register
 
-TunaOS ships desktop experiences curated by the Bluefin, Aurora, and Zirconium
-communities.  Parity therefore means their deliberately selected applications,
-defaults, session behavior, hardware integration, and update/store experience
-are carried forward—not merely that similarly named programs are installed.
-This is a compatibility target, not permission to consume another project's
-binary repositories or image filesystem. Every item below must be provided by
-the target distribution, rebuilt by TunaOS, or explicitly marked out of scope.
+TunaOS ships desktop experiences curated by the Bluefin, Aurora, and Zirconium communities.
+Parity means maintainers carry forward selected applications, defaults, session behavior, hardware integration, and update experience.
+It does not mean the installation of similarly named programs.
+This is a compatibility target, not permission to use external binary repositories.
+The target distribution must provide each item below, TunaOS must build it, or maintainers must mark it out of scope.
 
-The audit was taken from the following upstream revisions on 2026-07-25:
+The audit inspected the revisions of upstream repositories on 2026-07-25:
 
 | Upstream | Revision | Scope |
 | --- | --- | --- |
@@ -19,14 +17,9 @@ The audit was taken from the following upstream revisions on 2026-07-25:
 ## Rules
 
 1. A TunaOS image must not enable a COPR, PPA, or upstream binary repository.
-2. Fedora, EPEL, CentOS Stream, Ubuntu, and Debian packages remain preferred
-   when their version meets the experience requirement.
-3. When upstream does not provide a suitable package, TunaOS imports source
-   with a pinned revision/checksum, license review, SBOM/provenance, native
-   RPM/DEB packaging, and target install/runtime gates.
-4. Curated configuration is maintained in TunaOS with upstream provenance and
-   attribution. It is never copied opaquely from an upstream image at build
-   time; reviewed files are imported as source, tested, and maintained here.
+2. Fedora, EPEL, CentOS Stream, Ubuntu, and Debian packages remain preferred when their version meets the experience requirement.
+3. When upstream lacks a package, TunaOS imports source with a pinned checksum, license review, native specs, and target gates.
+4. Maintainers keep curated configuration in TunaOS with upstream attribution. They never copy files opaquely from upstream images; they import reviewed files as source, test them, and maintain them here.
 
 ## Initial parity inventory
 
@@ -44,19 +37,17 @@ The audit was taken from the following upstream revisions on 2026-07-25:
 | Aurora KDE add-ons | `krunner-bazaar`, `oversteer-udev`, `kairpods`, `sunshine`, and Aurora's patched `plasma-setup` | Split into independently licensed source packages; do not import Aurora's COPR binaries. The EL10 probe confirms `sunshine` and `plasma-setup` are absent from stock repositories. Plasma Setup now has a pinned upstream KDE source recipe for the current Arch Plasma stack; EL10 waits for its latest-KDE staging repository. Sunshine needs a separate toolchain/bootstrap review before recipe intake. | EL10/KDE install and feature-specific runtime tests |
 | Aurora SELinux workaround | Aurora's `ublue-os-selinux-workarounds` mitigates a Linux 7.0 composefs/overlay execmem regression | Do not ship on EL10: its source policy explicitly targets Linux 7.0 and grants `kernel_t` execmem; retain an evidence-based re-evaluation if the target kernel acquires that defect | Not applicable unless an EL10 reproducer exists |
 
-The ordinary long Fedora package lists from Bluefin and Aurora are not factory
-inputs.  TunaOS should compare them continuously, then consume the distribution
-packages where available.  Rebuilding a Fedora package just to duplicate it
-would increase maintenance without improving parity.
+The long package lists for Fedora from Bluefin and Aurora are not factory inputs.
+TunaOS compares these lists continuously.
+It uses distribution packages where available.
+If we rebuild a Fedora package to duplicate it, maintenance costs rise without parity gains.
 
 ## Snapshot audit (#226)
 
-`_upstream-snapshots/` holds the package declarations this register tracks —
-one YAML per upstream (`bluefin-lts`, `aurora`, `zirconium`), keyed to the
-upstream revisions in the table above and scoped to the curated parity-relevant
-packages rather than the ordinary Fedora lists.  Each declaration carries the
-disposition TunaOS intends: a source recipe, a desktop-manifest declaration, a
-named distribution package, or an explicit out-of-scope entry with a reason.
+`_upstream-snapshots/` holds the package declarations this register tracks.
+It contains one YAML per upstream (`bluefin-lts`, `aurora`, `zirconium`).
+These files key to the upstream revisions above and focus on curated packages.
+Each declaration carries the intended disposition: a source recipe, a desktop declaration, a named distribution package, or an out-of-scope entry with a reason.
 `scripts/audit-upstream-parity.py` verifies the repository honours it:
 
 ```
@@ -64,30 +55,20 @@ scripts/audit-upstream-parity.py --strict
 scripts/audit-upstream-parity.py --report-json docs/upstream-parity-report.json
 ```
 
-Any snapshot package with no disposition — or a disposition the repository
-does not honour (a declared recipe with no `packages/<name>`/`src/*/<name>`,
-an out-of-scope entry with no reason) — is an uncovered gap and fails
-`--strict`.  `tests/test_upstream_parity_audit.py` asserts the committed
-snapshots stay covered, so a recipe rename or removal without a snapshot
-update is caught in CI.
+Any snapshot package without a disposition fails `--strict`.
+A snapshot package also fails if the repository does not honor the declared recipe or reason.
+`tests/test_upstream_parity_audit.py` asserts that committed snapshots stay covered.
 
-The register's remaining recommendation — extracting the full installed
-package list of every published edition image on every release tag and
-failing any image with fewer packages than its base — needs container-registry
-access and belongs to the image-build pipeline; this repository's contribution
-is the recipe-side half of the contract (rules 1–4 and the inventory table).
+The register also recommends a check of installed package lists in published images.
+That check needs container registry access and belongs in the image pipeline.
+This repository provides the recipe side of the contract (rules 1–4 and the inventory table).
 
 ## Delivery order
 
-1. Replace the Niri/DMS COPR chain and upstream-image payload with source-built
-   packages and TunaOS-owned configuration.
-2. Replace the COSMIC and GNOME release-gated RPM dependencies already in the
-   factory plan.
-3. Close Bluefin's `uupd` and Aurora's KDE add-on gaps one package at a time.
-4. Add a parity CI job which checks the curated selection and behavior in every
-   table entry against Fedora, EL10, Ubuntu, and Debian availability, and fails
-   if a new external repository or opaque upstream image copy is introduced.
+1. Replace the Niri/DMS COPR chain with source packages and TunaOS configuration.
+2. Replace the RPM dependencies for COSMIC and GNOME in the factory plan.
+3. Close gaps for Bluefin `uupd` and Aurora KDE add-ons.
+4. Add a CI job to verify package availability across distributions and prevent unvetted external repositories.
 
-An intake entry is not a release promise: it becomes supported only after the
-source provenance, license, native package build, staged-repository install,
-and relevant desktop smoke tests are all green.
+An intake entry is not a release promise.
+It gains support only after source provenance, license, native builds, staged installs, and desktop tests pass.

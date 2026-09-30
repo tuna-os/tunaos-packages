@@ -6,19 +6,16 @@
 
 ## Short answer
 
-Tideforge can compile a useful subset **once per CPU architecture** and wrap
-the resulting staged filesystem into RPM, DEB, and pacman packages without
-compiling again. Pure data packages can go further and build once for all
-architectures.
+Tideforge can compile a useful subset **once per CPU architecture**.
+It wraps the staged filesystem into RPM, DEB, and Pacman packages without a second compilation step.
+Pure data packages can build once for all architectures.
 
-It cannot safely use one distro-agnostic buildroot for the whole catalog. The
-repository's native desktop libraries and compositors bind to target ABIs,
-headers, filesystem layouts, compiler policy, package-generated dependencies,
-and scriptlets. Reusing those binaries across all targets would exchange build
-time for silent ABI and policy failures.
+Tideforge cannot safely use one distribution-agnostic buildroot for the whole catalog.
+The desktop libraries and compositors bind to target ABIs, headers, filesystem layouts, and compiler policy.
+The reuse of those binaries across targets leads to failures of the ABI.
 
-The useful design is therefore **one expensive portable-payload action plus
-cheap target package/gate actions**, not one action that eliminates targets.
+The useful design uses **one portable action for payloads and fast actions for packages and gates**.
+It does not eliminate target roots.
 
 ```text
 checksum-pinned source + portable SDK + architecture
@@ -35,7 +32,7 @@ checksum-pinned source + portable SDK + architecture
 
 ## What was measured
 
-The current catalog has 45 Tideforge recipes, 37 of them multi-target:
+The catalog contains 45 Tideforge recipes, 37 of them multi-target:
 
 | Build system | Recipes | Multi-target | Initial reuse assessment |
 | --- | ---: | ---: | --- |
@@ -47,31 +44,28 @@ The current catalog has 45 Tideforge recipes, 37 of them multi-target:
 | data | 4 | 4 | Safe first cohort; architecture-independent |
 | autotools | 1 | 1 | `libunwind`; explicitly target ABI-sensitive |
 
-The immediately credible cohort is:
+The immediate candidate cohort includes:
 
-- all four `data` recipes: `dms`, `dms-greeter`, `oversteer-udev`, and
-  `wayland-protocols` — one payload total, not one per architecture;
-- the four multi-target Go recipes (`danksearch`, `dgop`, `dms-cli`, `uupd`)
-  after Tideforge enforces a static/no-CGO contract;
-- selected header/icon/data-like recipes after inspection (for example,
-  `cli11-devel` and `pop-icon-theme`).
+- all four `data` recipes: `dms`, `dms-greeter`, `oversteer-udev`, and `wayland-protocols`;
+- the four multi-target Go recipes (`danksearch`, `dgop`, `dms-cli`, `uupd`) with static binaries and no CGO;
+- selected header or icon recipes after manual review (for example `cli11-devel` and `pop-icon-theme`).
 
-That is 8 high-confidence recipes now, with a few likely additions. It is a
-worthwhile fast path, but not a replacement for the native build chains.
+That gives eight recipes with high confidence today.
+This path is a useful optimization, but not a replacement for native build chains.
 
 ## Prototype result
 
-The prototype seals a staged root into a deterministic TFI tar containing:
+The prototype seals a staged root into a deterministic archive file with:
 
-- normalized ownership and timestamps;
-- package/source/build-contract identity;
-- a path, mode, size, and SHA-256 inventory;
-- the complete payload-tree digest;
-- for each ELF, `DT_NEEDED` libraries and GLIBC/GLIBCXX/CXXABI symbol versions.
+- normalized file ownership and timestamps;
+- package, source, and build-contract identity;
+- an inventory with path, mode, size, and SHA-256;
+- the digest of the complete payload tree;
+- `DT_NEEDED` libraries and GLIBC symbol versions for each ELF binary.
 
-`dms-greeter` was staged once from its checksum-verified upstream source on
-x86_64. The resulting payload contained 868 regular files (957 inventory
-entries), and two independent seals were byte-identical:
+The test staged `dms-greeter` once from its verified upstream source on x86_64.
+The payload contained 868 regular files across 957 inventory entries.
+Both runs produced the exact same output:
 
 ```text
 TFI archive SHA-256: 38b24235600b2560c70ac536d32d53ec372fcd4ca4b823e2b1774ce1388c5d6d
@@ -80,100 +74,82 @@ Targets planned:      el10, ubuntu, debian, opensuse-tumbleweed, arch
 Compile per target:   false for all five
 ```
 
-This proves the byte-reuse boundary for the easiest real package class. It
-does not yet prove production-native packages, signing, or installability; the
-existing factory gates remain authoritative.
+This proves the byte-reuse boundary for data packages.
+It does not prove package creation, signature checks, or installation on production targets.
 
 ## Why the full “one root per CPU” theory breaks
 
-1. **The buildroot is an ABI input.** A linked binary records required shared
-   libraries and versioned symbols. Building against a newer glibc,
-   libstdc++, Qt, systemd, PipeWire, or desktop library can produce bytes that
-   an older target cannot load. The TFI prototype records these requirements
-   so reuse has a mechanical rejection point instead of an assumption.
-2. **Library destinations differ.** Current recipes already encode
-   `/usr/lib64` for RPM and Debian multiarch paths under `/usr/lib/<tuple>`.
-   A single immutable library payload cannot inhabit both layouts without a
-   target transform, at which point it is no longer the same payload.
-3. **Package metadata is intentionally native.** RPM dependency generators,
-   `dpkg-shlibdeps`, pacman dependency declarations, subpackage splits,
-   ldconfig behavior, sysusers/tmpfiles handling, triggers, and maintainer
-   scripts are different. Tideforge has bug history demonstrating that these
-   differences are load-bearing (`xfconf` split dependencies and openSUSE
-   ldconfig scriptlets are examples in `scripts/tideforge.py`).
-4. **Build policy differs.** Distro hardening flags, debug packages, LTO,
-   Python versions/site paths, and Rust/C FFI behavior are part of what the
-   target build proves. A portable SDK replaces those policies with a new
-   TunaOS ABI policy; it does not make them disappear.
-5. **Install/runtime validation remains per target.** Even a perfectly
-   portable executable can have differently named dependencies or fail a
-   target's integration policy. Removing target roots from validation would
-   violate the existing promotion contract.
+1. **The buildroot is an ABI input.**
+   A binary records the shared libraries and versioned symbols it needs.
+   A build against a newer glibc or library produces binaries that fail on an older target.
+   The TFI prototype records these dependencies so that the tool rejects targets that fail.
+
+2. **Library destinations differ.**
+   Existing recipes use `/usr/lib64` for RPM and multiarch paths under `/usr/lib/<tuple>` for Debian.
+   A single immutable payload of libraries cannot fit both layouts without modification.
+
+3. **Package metadata is native.**
+   RPM dependency generators, `dpkg-shlibdeps`, and Pacman lists of dependencies differ.
+   Subpackage splits, ldconfig rules, tmpfiles setup, and maintainer scripts also differ.
+   Tideforge history shows that these differences matter for package health.
+
+4. **Build policies differ across distributions.**
+   Security flags, debug packages, LTO, Python paths, and FFI rules differ per distribution.
+   A portable SDK replaces those policies with a new ABI policy.
+   It does not eliminate distribution differences.
+
+5. **Validation must run per target.**
+   Even a portable executable can fail a target dependency or integration check.
+   To remove target roots from validation violates the promotion contract.
 
 ## Proposed eligibility contract
 
-Tideforge may select its portable-payload handler only when all of these are
-mechanically true:
+Tideforge selects its portable-payload handler only when all conditions are true:
 
-1. one immutable, digest-pinned SDK/sysroot is declared for its architecture;
-2. installation is captured under a normalized `DESTDIR`;
-3. the result contains no undeclared absolute RPATH/RUNPATH, host paths, or
-   build IDs carrying nondeterministic input;
-4. every ELF's interpreter, `DT_NEEDED`, and symbol-version ceiling is within
-   every selected target's declared ABI contract;
-5. target packaging changes metadata and permitted path mappings only; it does
-   not compile or mutate ELF content;
-6. the native package is linted, clean-installed, and smoke-tested on every
-   target exactly as today;
-7. any target failure demotes the recipe to normal target builds rather than
-   weakening the gate.
+1. a workflow declares an immutable SDK root with a digest pin;
+2. the build captures installation under a normalized `DESTDIR`;
+3. the output contains no undeclared absolute RPATH/RUNPATH or host paths;
+4. every ELF interpreter and symbol ceiling matches the ABI of each target;
+5. target tools change metadata and path mappings without changes to ELF bytes;
+6. CI lints, installs, and tests the native package on every target;
+7. any target failure demotes the recipe to normal target builds.
 
-The implementation keeps that decision in the package handler instead of
-duplicating it in manifests. `data` is a noarch candidate. The standardized Go
-handler is a per-architecture candidate when its environment does not request
-CGO; its output is reusable only after inspection proves that every ELF has no
-interpreter and no `DT_NEEDED` entries. Split native outputs and all other build
-systems automatically remain target-native. A candidate build that cannot
-satisfy the proof must fall back to the existing path rather than weakening it.
+The package handler retains this logic.
+The `data` type is a noarch candidate.
+The Go handler qualifies per CPU architecture when the environment disables CGO.
+Tideforge reuses Go output only when the ELF binary has no interpreter or `DT_NEEDED` entries.
+Other build systems remain target-native.
+A candidate build that fails proof falls back to the standard target path.
 
-The action key for this build must intentionally omit the target ID and native
-format. It must include recipe/source/patch digests, architecture, immutable
-SDK digest, toolchain flags, dependency payload keys, and reproducibility
-contract. Separate target packaging keys then include the TFI tree digest,
-target contract, renderer, and target-native dependency mappings.
+The action key for this build omits the target ID and native format.
+It includes source digests, architecture, SDK digest, compiler flags, and dependency keys.
+Separate target keys include the TFI digest, target contract, renderer, and native dependencies.
 
 ## Sensible next experiment
 
-Do not start with GNOME, COSMIC, `libseat`, `xfconf`, or `libunwind`. Start with
-two cohorts:
+Do not start with GNOME, COSMIC, `libseat`, `xfconf`, or `libunwind`.
+Start with two cohorts:
 
-1. ship the four data recipes from one `noarch` TFI through all three native
-   format adapters and run the existing clean-install/smoke gates;
-2. enforce `CGO_ENABLED=0`, static linking, and an empty `DT_NEEDED` set for one
-   Go recipe, then package the exact same per-arch bytes for all five targets.
+1. produce the four data recipes from one `noarch` TFI across native adapters, then run clean-install checks;
+2. set `CGO_ENABLED=0` and empty `DT_NEEDED` dependencies on one Go recipe, then package the bytes for all targets.
 
-Measure wall time and cache storage against today's 5-target cells. Only after
-those are green should the theory be widened to dynamically linked programs
-built against a lowest-common-denominator SDK.
+Measure execution time and cache storage against standard multi-target cells.
+Only after those pass should teams test libraries that link dynamically.
 
 ## Related prior art
 
-- [nFPM](https://nfpm.goreleaser.com/docs/) demonstrates the narrow model:
-  one prebuilt file set can be wrapped into several native package formats.
-  Its own documentation also says it intentionally covers a simpler feature
-  set, which matches the boundary above.
-- [Flatpak](https://docs.flatpak.org/en/latest/introduction.html) achieves
-  broad distro independence by defining and shipping a runtime. That validates
-  the portable-runtime alternative, but it is a different product from native
-  system packages used to assemble a desktop OS.
-- [glibc dynamic-linker guidance](https://www.sourceware.org/glibc/manual/2.44/html_node/Dynamic-Linker-Hardening.html)
-  documents inspecting versioned dynamic symbols with `readelf`; the prototype
-  records those symbol requirements in every TFI manifest.
+- [nFPM](https://nfpm.goreleaser.com/docs/) bundles files into several formats of native packages.
+  Its documentation notes that it covers a simplified feature set.
+- [Flatpak](https://docs.flatpak.org/en/latest/introduction.html) gives distribution independence through a shared runtime.
+  This validates portable runtimes, but differs from native packages for a desktop OS.
+- The [documentation for the dynamic linker](https://www.sourceware.org/glibc/manual/2.44/html_node/Dynamic-Linker-Hardening.html)
+  explains how to inspect symbols with `readelf`.
+  The prototype records these symbol dependencies in each TFI manifest.
 
 ## Non-goals of this branch
 
 - no workflow integration;
-- no production publisher or R2 mutation;
-- no change to `main` or the accepted RFC 011 default;
-- no relaxation of target-native build/install/runtime gates;
-- no claim that a generated RPM, DEB, or Arch package is interchangeable.
+- no production publisher or R2 changes;
+- no change to `main` or RFC 011;
+- no relaxation of target build or runtime gates;
+- no claim that generated RPM, DEB, or Arch packages are interchangeable.

@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Only the `main` branch is actively supported. COPR build specs in this
+Only the `main` branch has active support. COPR build specs in this
 repository target the following RPM delivery channels:
 
 | Project | Base OS | Branch | Status |
@@ -12,13 +12,13 @@ repository target the following RPM delivery channels:
 
 ## Reporting a Vulnerability
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+**Do not report security vulnerabilities through public GitHub issues.**
 
-Instead, report them privately via GitHub Security Advisories:
+Report them privately through GitHub Security Advisories:
 
-1. Go to the [Security tab](https://github.com/tuna-os/tunaos-packages/security)
-2. Click **Report a vulnerability**
-3. Provide a detailed description of the issue, including steps to reproduce
+1. Go to the [Security tab](https://github.com/tuna-os/tunaos-packages/security).
+2. Click **Report a vulnerability**.
+3. Describe the issue in detail, including steps to reproduce.
 
 You can expect:
 - **Acknowledgment** within 48 hours
@@ -27,28 +27,22 @@ You can expect:
 
 ## RPM Supply Chain Security
 
-This repository provides RPM spec files and patches for building GNOME desktop
-packages on Enterprise Linux 10 via COPR. Security considerations include:
+This repository provides RPM spec files and patches to build GNOME desktop
+packages on Enterprise Linux 10 with COPR. Security practices include:
 
-- **Spec provenance**: Specs track Fedora Rawhide / F43 dist-git. Modifications
-  are carried as local patches and documented in `SRPM-CHANGES.md`.
-- **Source integrity**: Source tarballs are downloaded at build time via
-  `spectool` from upstream URLs (`Source:` tags in specs). SHA512 hashes are
-  recorded in per-package `sources` files for verification.
-- **Build isolation**: COPR build chroots are ephemeral. For self-hosted GHA
-  builds, mock runs inside a podman container with no network access during
-  `%build`/`%install`.
-- **No secrets in repo**: Build secrets (GPG key, R2 credentials) are stored in
-  GitHub Actions encrypted secrets, never committed.
-- **Pinned actions**: Third-party GitHub Actions are pinned to commit SHAs.
-- **GPG signing**: Self-hosted pipeline RPMs are GPG-signed before upload.
+- **Spec provenance**: The specs track dist-git for Fedora Rawhide and F43. Maintainers keep modifications as local patches and document them in `SRPM-CHANGES.md`.
+- **Source integrity**: The build tool downloads the source files with `spectool` from upstream URLs (`Source:` tags in specs). Maintainers record the SHA512 checksums in `sources` files for verification.
+- **Build isolation**: COPR build chroots are ephemeral. For self-hosted GHA builds, mock runs inside a container without network access during `%build` and `%install`.
+- **No secrets in repo**: The team stores build secrets in encrypted GitHub secrets and never commits them.
+- **Pinned actions**: Workflows pin all third-party actions to commit SHAs.
+- **GPG signatures**: The pipeline signs RPMs with GPG before upload.
 
 ## Disclosure Policy
 
 We follow coordinated disclosure:
-1. Reporter submits vulnerability privately
-2. We investigate and develop a fix
-3. Fix is deployed to new COPR builds
-4. Advisory is published after deployment
+1. The reporter submits the vulnerability privately.
+2. Maintainers investigate and develop a fix.
+3. Maintainers deploy the fix to new COPR builds.
+4. Maintainers publish the advisory after deployment.
 
 See [AGENTS.md](AGENTS.md) and [COPR-REPORT.md](COPR-REPORT.md) for build architecture details.

@@ -19,13 +19,11 @@ The authoritative target and R2-path contract is
 
 ## One contract, one build engine per target
 
-The contract is shared; the engines are not.  A package counts only when it
-builds in **its target's own root**, installs from the staged repository on
-**that target**, and (where it touches a session) starts one.  Nothing built
-for one target is ever repackaged for another: the build root is an ABI
-input, and reusing binaries across roots trades build time for silent ABI
-failures (measured twice -- `docs/experiments/tideforge-universal-intermediate.md`,
-and the Rawhide-root `GLIBC_2.44` leak in `docs/HUMMINGBIRD-TARGET.md` §2).
+Targets share the contract, but engines differ.
+A package counts only when it builds in **its target root**, installs from the staged repository on **that target**, and starts a session.
+We never repackage binaries built for one target for another target.
+The build root is an ABI input.
+Binary reuse across roots leads to ABI failures (`docs/experiments/tideforge-universal-intermediate.md`, and `docs/HUMMINGBIRD-TARGET.md` §2).
 
 | Target | Engine | Root | Runtime gate |
 |---|---|---|---|
@@ -38,226 +36,124 @@ and the Rawhide-root `GLIBC_2.44` leak in `docs/HUMMINGBIRD-TARGET.md` §2).
 
 What every engine shares -- and what "one contract" means:
 
-- **the roots**: a desktop manifest names what a tunaOS image installs;
-  the gap engine measures the closure against the target's own index;
-- **the gates**: install from the staged repository on the target, then
-  the installability walk and (Hummingbird today, the rest to follow) the
-  consumer transaction inside the target's image;
-- **the status board** (`docs/FACTORY-STATUS.md`): built-vs-needed per
-  target and architecture, from live indexes, so a target that publishes
-  nothing says so;
+- **the roots**: a desktop manifest lists what a tunaOS image installs; the gap engine checks the target index;
+- **the gates**: install from the staged repository on the target, run the installability walk, and test the target image;
+- **the status board** (`docs/FACTORY-STATUS.md`): built-vs-needed per target and architecture, from live indexes, so a target that publishes nothing says so;
 - **the promotion rule** below.
 
-Two things are deliberately *not* built here.  **GNOME on Hummingbird** is
-consumed from `projectbluefin/utah-packages`, pinned by digest on the
-hummingbird target as a `consumed_indexes` entry: whatever it ships is
-counted as already had, never rebuilt (`docs/HUMMINGBIRD-TARGET.md` §7-8).
-**tromso and xfce-linux** (KDE and XFCE on freedesktop-sdk, BuildStream)
-are whole-OS images built in their own repositories; they are products in
-tunaOS's family, not package sources for any target here.
+Two components are not built here.
+The system consumes **GNOME on Hummingbird** from `projectbluefin/utah-packages`, pinned by digest on the hummingbird target as a `consumed_indexes` entry.
+TunaOS counts whatever it ships as already had (`docs/HUMMINGBIRD-TARGET.md` §7-8).
+**tromso and xfce-linux** (KDE and XFCE on freedesktop-sdk, BuildStream) are whole-OS images built in their own repositories.
+They are products in tunaOS, not package sources for targets here.
 
-A target is declared only with a build leg, a served index and a consumer.
-Measured 2026-09-02: every declared architecture but `arch`'s aarch64 meets
-that bar (it has none of the three; narrowing it waits on the Arch engine
-learning to stage sibling recipes at build time, because editing the
-declaration schedules every Arch cell); openSUSE meets the first two and is
-waiting on the third.
+We declare a target only with a build leg, a served index, and a consumer.
+All declared architectures except for `arch` aarch64 meet that standard.
+openSUSE meets the first two and waits on the third.
 
 ## Asking for a desktop on a target
 
-The deliverable is a stack, not a repository. `scripts/request.py` is the front
-door, and it measures distance to a working desktop in ordered stages — the
-packages tunaOS's `desktop` criterion hard-fails without, then what the image
-installs, then the tail:
+The deliverable is a stack, not a repository.
+`scripts/request.py` is the front door.
+It measures distance to a desktop across ordered stages: important packages first, then image packages, then the tail:
 
 ```
 just want "gnome 51 on hummingbird"              # what it would build
 just want-measured "gnome 51 on hummingbird"     # distance to a working stack
 ```
 
-The ordering matters more than the count. Measured 2026-08-28, the hummingbird
-index served 580/673 of the build order and 3/10 of the packages a GNOME
-session requires: a convergence reporting the first number keeps spending waves
-while `gdm` and `gnome-shell` are absent.
+Order matters more than count.
+On 2026-08-28, the hummingbird index served 580/673 of the build order and 3/10 of the packages a GNOME session needs.
+A convergence tool that reports the first number wastes waves while `gdm` and `gnome-shell` are absent.
 
-Whether it BOOTS is tunaOS's question, not this repo's —
-`.github/green-criteria.yml` there defines green as builds + ships the declared
-desktop + boots under QEMU emitting `TUNAOS_DESKTOP_CONTRACT_OK`. What this
-side answers is the negative that costs whole runs: while the contract stage is
-open, an image build cannot boot into a session.
+TunaOS checks whether the image boots.
+While the contract stage remains open, an image build cannot boot into a session.
 
-For the bringup loop on a host that remembers between attempts, see
-[WARM-BUILDER.md](WARM-BUILDER.md). For the design, see
-[RFC 012](rfc/rfc012-request-driven-convergence.md).
+For the bringup loop on a host that remembers between tries, see [WARM-BUILDER.md](WARM-BUILDER.md).
+For the design, see [RFC 012](rfc/rfc012-request-driven-convergence.md).
 
 ## Upstream source policy
 
-Bluefin, Aurora, Fedora dist-git, and other upstream projects are inputs for
-source and packaging metadata only. Before importing a package, record its
-upstream commit/tag, license, patches, and target compatibility. TunaOS rebuilds
-the package itself; it never enables an upstream COPR, PPA, or binary repository
-in a produced image.
+Bluefin, Aurora, and Fedora dist-git are inputs for source and spec metadata only.
+Before you import a package, record its upstream commit, license, patches, and target compatibility.
+TunaOS rebuilds the package itself.
+It never enables an upstream binary repository in a produced image.
 
-The current Bluefin, Aurora, and Zirconium parity inventory and delivery order
-are maintained in [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
+Maintainers track the status of parity and the order of delivery in [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
 
 ## Promotion contract
 
-Every candidate must build in the target buildroot, pass package tests, install
-from the staged repository, and complete a desktop/runtime smoke test where the
-package affects a session. Only then may CI sign and promote it to the stable R2
-path. ORAS is suitable for immutable source/SBOM/provenance bundles, not as the
+Every candidate must build in the target buildroot, pass package tests, install from the staged repository, and pass runtime tests.
+Only then may CI sign and promote it to the stable R2 path.
+ORAS is suitable for immutable source bundles, not as the
 live DNF/APT/Pacman endpoint.
 
-The same promoted index is also published as an OCI image, one tag per
-build-chain cell (`ghcr.io/tuna-os/tunaos-packages:gnome50-el10-x86_64`),
-content `/repository` = the signed RPMs and repodata exactly as R2 serves them,
-cosign-signed by digest. That is the **image build's** input, not the live
-endpoint: tunaOS pins the digest in `image-versions.yaml` and bind-mounts
-`/repository` as a `file://` repo for the desktop install, the way it consumes
-`projectbluefin/utah-packages` for hummingbird:gnome. A digest names exactly
-the index an image was built against; a bucket sync cannot move under it.
-Installed systems keep reading `https://repo.tunaos.org` (maintainer directive
-2026-09-03: no more COPR, build in GitHub like utah-packages; #673).
+The process publishes the promoted index as an OCI image (`ghcr.io/tuna-os/tunaos-packages:gnome50-el10-x86_64`), where `/repository` holds the signed RPMs and repodata.
+This image is the build input: tunaOS pins the digest in `image-versions.yaml` and bind-mounts `/repository` as a `file://` repository for installation.
+The system consumes packages from [repo.tunaos.org](https://repo.tunaos.org) (maintainer directive 2026-09-03: no more COPR; #673).
 
 ### What enforces this today
 
-The unified factory from RFC 011 (`docs/rfc/rfc011-unified-gap-driven-factory.md`)
-is the enforcement, in two workflows:
+The unified factory from RFC 011 (`docs/rfc/rfc011-unified-gap-driven-factory.md`) enforces this contract in two workflows:
 
-- **`package-factory.yml`** is the single planner and the required gate. It
-  computes the affected coordinates `(package | native family, target,
-  architecture, release track, engine)` from the changed paths — or the full
-  ~300-cell matrix on `main` and on schedule — and emits only those cells.
-- **`package-factory-cell.yml`** is the single reusable build boundary every
-  cell runs through. It derives a content-addressed action key from the
-  cell's exact inputs, restores only an exact cached result (and re-verifies
-  every restored byte), and otherwise builds fresh: render or import the
-  native packaging, fetch the checksum-locked sources, build in a clean
-  target buildroot with only the declared dependencies, lint the artifacts,
-  stage them in an ephemeral repository, and clean-install them in a second
-  container before running the recipe's command/file/service smoke check.
+- **`package-factory.yml`** is the single planner and required gate. It computes affected coordinates `(package | native family, target, architecture, release track, engine)` from changed paths.
+- **`package-factory-cell.yml`** is the reusable build boundary for each cell. It derives an action key from exact inputs, restores cached results, and otherwise builds fresh. It builds in clean roots, lints artifacts, stages them in a temporary repository, and runs clean installs before smoke checks.
 
-Two engines produce the payloads inside that one boundary. `tideforge` cells
-build one recipe from `packages/<name>/package.yaml` for one target/arch.
-`build-chain` cells build a whole native-spec family (the EL10 GNOME
-backports, Wayland XFCE, hummingbird's desktop closure) from a tiered
-`build-order*.yml` manifest, on both architectures — see
-`manifests/package-builds.yaml`.
+Two engines create payloads inside this boundary.
+`tideforge` cells build recipes from `packages/<name>/package.yaml`.
+`build-chain` cells build native spec families (`src/gnome-5x`, `src/deps`, `src/xfce-wayland`) from tiered manifests (`build-order*.yml`).
+See `manifests/package-builds.yaml`.
 
-Because a desktop family is too large for one CI job, the factory converges
-across runs rather than in one:
+Because a desktop family is large, the factory converges across runs:
 
-- The nightly schedule (12:00 UTC) runs the hummingbird desktop cells; a
-  weekly schedule (Sunday 03:00 UTC) runs every `build-chain` family, so a
-  family nobody touches is still rebuilt and its defects surface instead of
-  reading as green by absence. Each schedule has its own concurrency group
-  and is never cancelled by a merge (#480).
-- A cell that hits the 6-hour job ceiling uploads what it built as a
-  `<cell>-partial` artifact, and the next run of the same cell restores it
-  (key-matched, `scripts/restore-partial-chain-output.py`) and continues
-  from there — the chain skips any package whose exact NVR already exists.
-- One contract-driven drift workflow (`gap-drift.yml`, replacing the
-  per-target copies) re-measures each declared gap against the live index
-  when it changes and opens a review PR that adds new work and *removes*
-  work the distro has caught up on.
+- The nightly schedule runs hummingbird desktop cells at 12:00 UTC.
+- A weekly schedule runs each `build-chain` family on Sunday at 03:00 UTC.
+- A cell that reaches the 6-hour limit uploads its partial artifacts. The next run restores them and continues.
+- The drift workflow (`gap-drift.yml`) re-measures declared gaps against live indexes and opens review PRs.
 
-`scripts/factory-status.py` measures the result — built vs needed per target
-and per architecture, from the live published indexes — into
-`docs/FACTORY-STATUS.md` on a daily schedule. Since the trend layer it
-also measures IMPROVEMENT itself: every run diffs against the last
-merged measurement, renders per-target deltas and days-without-movement
-from a history the JSON carries forward, flags any name that was served
-and no longer is as **REGRESSED** (the repo-wipe shape, caught at
-measurement time — #519 was found by exactly this check's first run),
-and alarms when the refresh itself stops landing.
+`scripts/factory-status.py` measures built versus needed packages per target into `docs/FACTORY-STATUS.md`.
+It diffs each run against the last merged measurement and renders deltas and days without movement.
+It flags regressed packages and alerts when the refresh fails to run.
 
-That measurement is also published as a browsable page
-(`scripts/render-factory-site.py` -> GitHub Pages, by `pages.yml`), so
-"what has the factory built, for which targets, and what is it still
-missing" is answerable without a checkout. The page is a VIEW and never a
-second source: it renders `docs/factory-status.json`,
-`manifests/package-factory.yaml` and `manifests/package-builds.yaml` and
-nothing else, it lists every declared-but-unmeasurable target with the
-reason so coverage is never mistaken for the whole picture, and it says so
-in its own header when the measurement behind it has gone stale. It
-republishes when the data it renders changes rather than on a schedule,
-because the daily refresh lands through a bot PR at an hour no cron can
-predict.
+The tooling publishes that measurement as a GitHub Pages site (`scripts/render-factory-site.py`).
+The site renders `docs/factory-status.json`, `manifests/package-factory.yaml`, and `manifests/package-builds.yaml`.
+It republishes when source data changes.
 
-The same site carries a **package browser** for `repo.tunaos.org` itself,
-which answers a different question: not "how much of the plan is built"
-but "what is actually IN the repository" — until now answerable only by
-adding the repo to a machine and asking dnf, i.e. by trusting it first in
-order to find out what it holds. `scripts/snapshot-repo-contents.py`
-reads every `published_index` the contract declares, through the same
-format-neutral index layer the hygiene checks use, at the same URLs a
-package manager would use. So the listing cannot show a package the repo
-does not serve, nor hide one it does. An index that cannot be read is
-recorded and named on the page with its reason rather than dropped —
-silently missing names is exactly what #519 looked like from outside — and
-one dead prefix does not fail the deploy. This half DOES run on a timer,
-for the opposite reason to the status page: its source is not a file in
-git, so no commit marks the moment a publish wave changes what is served.
-Around the build loop sit four preventive checks adapted from the
-sandogasa toolset (provenance, incident history, and the
-capability-per-format matrix in `SANDOGASA-ADAPTATIONS.md`), built on
-one format-neutral index layer (`scripts/repo_index.py`) so they treat
-every declared format as an equal — RPM, DEB, and pacman alike, each
-judged with its own version comparator:
-`scripts/preflight-buildrequires.py` answers before dispatch whether a
-build order can build (name-level and version-level) and whether its
-binaries will install; `scripts/check-published-hygiene.py` audits the
-served prefix combination of every target with an index for duplicate
-entries, name fights, and file conflicts; every publish path — rpm
-wave, deb repo, pacman repo — refuses a publish that leaves a served
-package unresolvable (`check-reverse-deps.py`,
-`check-index-regression.py`); and both build chains record per-package
-buildroot manifests so a red run diffs against the last green one
-(`scripts/diff-buildroots.py`). `tests/test_target_tooling_parity.py`
-keeps this per-format equality a CI property rather than an intention.
+The same site provides a package browser for [repo.tunaos.org](https://repo.tunaos.org).
+The script `scripts/snapshot-repo-contents.py` reads every declared `published_index` through `scripts/repo_index.py`.
+If the tool cannot read an index, it lists the index with the reason.
+
+### Preventive checks
+
+The build loop uses four checks adapted from sandogasa (`docs/SANDOGASA-ADAPTATIONS.md`).
+The script `scripts/repo_index.py` provides format-neutral index inspection for RPM, DEB, and Pacman.
+`scripts/preflight-buildrequires.py` checks build and install satisfiability before dispatch.
+`scripts/check-published-hygiene.py` audits served prefixes for duplicate entries and conflicts.
+Publish workflows stop updates that leave dependencies broken (`check-reverse-deps.py`, `check-index-regression.py`).
+Build chains save manifests of buildroots so failed runs diff against successful ones (`scripts/diff-buildroots.py`).
 
 ### What the gate does not cover
 
-Recorded here on purpose. A gate whose exceptions are implicit reads as full
-coverage to the next person, which is the exact failure this section exists to
-prevent.
+Recorded here on purpose. A gate whose exceptions are implicit reads as full coverage to the next person, which is the exact failure this section exists to prevent.
 
 | Not covered | Scope | Why |
 | --- | --- | --- |
 | Runtime/session gates | all recipes | The 12 gate types the target-queue manifests declare (`greetd-login`, `*-session-smoke`, `selinux-enforcing`, …) are not implemented — see `TIDEFORGE-READINESS.md` and RFC 011 Phase 3. The install + smoke check above is the deepest automated gate today. |
 | Staged install against the full desktop closure | `build-chain` families | The clean-install verify resolves from the target's system repositories, the published factory index, and the cell's own artifacts. A root package whose runtime closure is not yet fully published can pass build + lint while its desktop cannot yet be assembled — `docs/FACTORY-STATUS.md` is the honest ledger of that distance. |
 
-The old trap of a package directory existing but being in no matrix is now a
-CI failure rather than a footnote: the full plan enrols every recipe for
-every target its `package.yaml` declares (289 tideforge cells + 12
-build-chain cells at the time of writing), and the catalog completeness
-tests (`tests/test_catalog_completeness.py`) require every package the
-factory executes to have a catalog entry whose payload exists on disk.
+The full plan includes every recipe for every declared target.
+The catalog tests (`tests/test_catalog_completeness.py`) verify that every executed package has a catalog entry and payload.
 
-**Publication to R2 is deliberately manual.** `promote-to-prod.yml` and
-`promote-gnome49-to-prod.yml` were removed from `main` after the GNOME repo
-wipe — see `INCIDENT-repo-wipe-gnome.md`. The publishers that exist today
-(`publish-tideforge-rpms.yml`, `publish-tideforge-debs.yml`,
-`publish-tideforge-arch.yml`, `publish-build-chain-rpms.yml`) are
-`workflow_dispatch`-only curated waves: a human names the wave, the publisher
-rebuilds or promotes only cells the factory gate has covered, and each
-publisher ends with a verify job that installs the wave from the *served*
-index (`scripts/verify-published-wave.py` on the build-chain path) before
-the run may go green. Folding these per-format
-publishers into one promotion step behind the factory boundary is tracked in
-#484; until then, adding a publisher trigger that is not a deliberate human
-dispatch is out of contract.
+**Publication to R2 is a manual step.**
+Maintainers stopped the automated promotion after the repository incident (`INCIDENT-repo-wipe-gnome.md`).
+Publishers (`publish-tideforge-rpms.yml`, `publish-tideforge-debs.yml`, `publish-tideforge-arch.yml`, `publish-build-chain-rpms.yml`) run only via `workflow_dispatch`.
+A maintainer triggers each wave, and a verify job checks the served index before completion.
 
-When automated promotion is reintroduced, it must depend on the factory gate
-rather than re-deriving its own idea of "green". Two failure modes this
-repository has already paid for:
+When we reintroduce automated promotion, it must depend on the factory gate.
+Two rules preserve the stability:
 
-- Do not add `paths`-filtered jobs to branch protection's required checks. A
-  PR that touches none of those paths never reports them and the branch
-  blocks forever. That is #128, and #130 is its sibling.
-- Do not gate on a workflow-level conclusion that includes skipped jobs. A
-  skipped gate is not a passed gate.
+- Do not add path-filtered jobs as required checks in branch protection (#128).
+- Do not gate on conclusions that include skipped jobs.
 
 ## Package layout
 
@@ -272,26 +168,21 @@ packages/<name>/
   opensuse/*.spec          # openSUSE scaffold when supported
 ```
 
-Existing `src/` packages are migrated incrementally; they remain build inputs
-until their package directories are moved without changing the published NVR.
+Maintainers migrate existing `src/` packages incrementally.
+They remain build inputs until moved without changes to published NVRs.
 
 ## Target-native overlays
 
-Source graphs can be shared, but package metadata and compatibility work cannot.
-For example, the GNOME queue in `manifests/target-queues/gnome.yaml` keeps the
-EL10 bootstrap/spec and SELinux compatibility overlay native to RPM while
-Debian Trixie and Ubuntu render and test DEB packages independently.
+Shared source graphs do not imply shared metadata.
+The GNOME queue in `manifests/target-queues/gnome.yaml` keeps EL10 bootstrap and SELinux overlays native to RPM, while Debian and Ubuntu build DEB packages.
 
-## Tideforge: experimental single-recipe workflow
+## Tideforge: single-recipe workflow
 
-Tideforge is developed in parallel with the established native RPM/DEB
-pipelines. Those native pipelines remain the production distribution path until
-Tideforge renders equivalent artifacts and passes the same build, install, and
-runtime gates.
+Developers work on Tideforge in parallel with native pipelines.
+The native pipelines remain the production path until Tideforge matches build, install, and runtime parity.
 
-Use `packages/_template/package.yaml` as the only author-maintained recipe.
-`scripts/tideforge.py` validates the recipe, shows its per-target build plan,
-and renders native RPM or Debian packaging:
+Use `packages/_template/package.yaml` as the author recipe.
+`scripts/tideforge.py` validates recipes, shows build plans, and renders RPM or Debian package files:
 
 ```bash
 python3 scripts/tideforge.py validate packages/my-package/package.yaml
@@ -299,10 +190,8 @@ python3 scripts/tideforge.py plan packages/my-package/package.yaml --target el10
 python3 scripts/tideforge.py render packages/my-package/package.yaml --target ubuntu --output out/ubuntu
 ```
 
-Before adding a native dependency spelling to the catalog or promoting a
-recipe, probe it in the actual target container. This resolves recipe
-capabilities (for example `dbus-dev`) to native package names and checks the
-live repository metadata without installing anything into the host:
+Before you add a native dependency name to the catalog, probe the target container with `scripts/probe-target-dependencies.py`.
+This resolves recipe capabilities (for example `dbus-dev`) to native package names and checks live repository metadata without installs:
 
 ```bash
 python3 scripts/probe-target-dependencies.py packages/my-package/package.yaml --dry-run
@@ -310,20 +199,16 @@ python3 scripts/probe-target-dependencies.py packages/my-package/package.yaml --
 python3 scripts/probe-target-dependencies.py packages/my-package/package.yaml --json
 ```
 
-The tool emits target-native files because the package managers require them,
-but maintainers edit one recipe. A target override is limited to the dependency
-or build difference that cannot be made portable.
+The tool creates the files for native package tools, but authors edit a single recipe.
+A target override applies only to dependency or build differences that cannot be made portable.
 
-When an upstream source archive omits required git submodules, use the optional
-`sources` list rather than an unpinned clone in a build command. Each auxiliary
-archive has an HTTPS URL, SHA-256, filename, destination below the primary
-source tree, and optional `strip_components`. Tideforge renders those archives
-as native RPM/Pacman sources and extracts them before the build. This keeps a
-complex source closure reviewable and reproducible; a recipe is not eligible
-for promotion until its target CI builds the complete closure.
+When an upstream archive has no git submodules, use the optional list of `sources` instead of a git clone in a build command.
+Each auxiliary archive has an HTTPS URL, SHA-256, filename, destination below the primary source tree, and optional `strip_components`.
+Tideforge renders those archives as native RPM/Pacman sources and extracts them before the build.
+This keeps a source closure reviewable and reproducible.
+A recipe is not eligible for promotion until its target CI builds the complete closure.
 
-Cargo recipes build with `--locked` by default.  An upstream release with a
-demonstrably stale *root-package* entry in an otherwise pinned `Cargo.lock` may
-set `build.cargo_locked: false`, but it must include a specific
-`build.cargo_lock_reason` and is accepted only after the resulting lockfile
-diff has been reviewed in the target build.
+Cargo recipes build with `--locked` by default.
+An upstream release with a stale root entry in `Cargo.lock` may set `build.cargo_locked: false`.
+It must include a specific `build.cargo_lock_reason`.
+Maintainers accept it only after review of the lockfile diff in the target build.

@@ -1,26 +1,22 @@
 # TunaOS Packages
 
-`tunaos-packages` is TunaOS's source-controlled package repository. It owns
-the native packaging, patches, build ordering, validation, signing, and
-publication work needed to ship curated desktop stacks independently of
-third-party repositories.
+`tunaos-packages` is TunaOS's source-controlled package repository.
+It manages specs for packages, patches, build order, validation, signatures, and publication.
+This repo ships curated desktop stacks without third-party repositories.
 
 ## Current state
 
-The active production implementation is the native EL10 RPM build chain for
-GNOME and XFWL4. Package specifications and EL10 compatibility fixes live in
-`src/`; build order is declared in `build-order*.yml`; GitHub Actions invokes
-`scripts/build-chain.sh` in isolated Mock environments.
+The active production implementation is the native EL10 RPM build chain for GNOME and XFWL4.
+Package specifications and EL10 compatibility fixes live in `src/`.
+Manifests in `build-order*.yml` declare the build order.
+GitHub Actions runs `scripts/build-chain.sh` in isolated Mock environments.
 
-The project is migrating publication to GitHub Actions and Cloudflare R2. Any
-remaining COPR projects are compatibility/bootstrap infrastructure, not a
-desired end state. They will remain available until their GitHub/R2 replacement
-has passed build, staged-install, and desktop runtime gates. Do not remove or
-rewrite the native GNOME EL10 specs while that migration is incomplete.
+The project now moves publication to GitHub Actions and Cloudflare R2.
+Any remaining COPR projects are compatibility infrastructure.
+They remain available until their GitHub and R2 replacements pass build, staged-install, and runtime gates.
+Do not remove or rewrite the native GNOME specs for EL10 while that work is incomplete.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the currently deployed RPM/R2
-pipeline and [COPR-AUDIT.md](COPR-AUDIT.md) for the historical package-source
-inventory.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the now deployed RPM/R2 pipeline and [COPR-AUDIT.md](COPR-AUDIT.md) for the historical package inventory.
 
 ## How a package moves through the repository
 
@@ -36,9 +32,9 @@ repository install and desktop/runtime validation
 sign and publish to the TunaOS repository
 ```
 
-The build chain is deliberately native for the difficult EL10 GNOME bootstrap:
-it supports RPM scriptlets, file triggers, SELinux policy, bootstrap variants,
-and dependency workarounds that a generic recipe format does not yet model.
+The build chain stays native for the EL10 GNOME bootstrap.
+It supports RPM scriptlets, file triggers, SELinux policy, and bootstrap variants.
+It also handles dependency workarounds that a generic format does not yet model.
 
 ## Repository layout
 
@@ -54,14 +50,11 @@ and dependency workarounds that a generic recipe format does not yet model.
 
 ## Adding or changing a package
 
-1. Prefer the target distribution's package when it already meets TunaOS's
-   version and integration requirements.
+1. Prefer the target distribution package when it meets version and integration requirements.
 2. Add or update the native spec, patches, and source metadata under `src/`.
-3. Place the package in the correct build-order manifest, after its build-time
-   dependencies.
-4. Build it in the declared Mock target and install it from the staged
-   repository.
-5. Add a focused runtime/desktop gate before promoting it to users.
+3. Place the package in the correct build-order manifest, after its build-time dependencies.
+4. Build it in the declared Mock target and install it from the staged repository.
+5. Add a focused runtime test before promotion to users.
 
 Useful local commands:
 
@@ -73,18 +66,14 @@ python3 scripts/parse-build-order.py build-order.yml --validate
 
 ## Tideforge and cross-distro packaging
 
-Tideforge is a single-recipe abstraction for straightforward packages across
-RPM, DEB, and Pacman targets. Supported targets, the upstream-source policy,
-and the migration away from COPRs and PPAs are defined in
-[the package-factory contract](docs/PACKAGE_FACTORY.md).
+Tideforge is a single-recipe abstraction for packages across RPM, DEB, and Pacman targets.
+The contract in [docs/PACKAGE_FACTORY.md](docs/PACKAGE_FACTORY.md) sets the supported targets, the policy for upstream sources, and migration plans.
 
-It must prove source, build, install, and runtime parity before it replaces any
-native EL10 GNOME packaging. Native specs remain the authoritative production
-path for EL10-specific compatibility work until then.
+It must prove parity in source, build, install, and runtime before it replaces native GNOME specs for EL10.
+Native specs remain the authoritative production path for EL10 compatibility work until then.
 
 ## Release policy
 
-Packages are promoted only after their source and packaging are reviewed, the
-target build succeeds, the staged repository installs cleanly, and the relevant
-desktop/session validation passes. Automated source updates should open review
-PRs; they must never publish directly.
+Maintainers promote packages only after review of source code and specs.
+Promotion also needs successful target builds, clean repository installs, and successful desktop tests.
+Automated source updates open review PRs and never publish directly.
