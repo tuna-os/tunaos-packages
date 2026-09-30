@@ -1,50 +1,30 @@
 name: Gap Drift
 
-# ONE drift detector for every target whose contract declares a
-# gap_measurement — the per-target copies this replaces
-# (hummingbird-gap-drift.yml, fedora-gap-drift.yml) were the workflow
-# census creeping back (#487), and the hummingbird copy carried a latent
-# defect: a step that regenerated build-hummingbird-distributed.yml, a
-# per-family workflow #430 deleted, so its next drift PR would have
-# resurrected a retired builder.
+# Driver for target contract `gap_measurement.drift` blocks with
+# `mode: exhibit` (currently fedora).
 #
-# What runs for each target comes from its `gap_measurement.drift` block
-# in manifests/package-factory.yaml, never from this file:
+# Dispatch-only: regenerates NEXT TO the curated order, shows the diff,
+# uploads the measurement artifact, and never opens a PR: the conversion
+# row for that family (docs/rfc011-conversions.md) has not passed
+# exact-or-explained yet, so a PR would be noise nobody can act on.
 #
-#   mode: propose  — scheduled + dispatch. Revision-gated (skip when the
-#                    live target repomd revision matches the committed
-#                    measurement); regenerates the build order in place
-#                    and opens a review PR with the adds and drops. A
-#                    distro catching up to the factory produces a PR
-#                    that REMOVES work — RFC 011 success criterion 2.
-#   mode: exhibit  — dispatch-only. Regenerates NEXT TO the curated
-#                    order, shows the diff, uploads the measurement, and
-#                    never opens a PR: the conversion row for that
-#                    family (docs/rfc011-conversions.md) has not passed
-#                    exact-or-explained yet, so a PR would be noise
-#                    nobody can act on.
-#
-# Adding a drift detector for a new target is a contract block, not a
-# workflow copy.
+# `mode: propose` targets (hummingbird) are owned by upstream-drift.yml,
+# which is hourly and revision-gated and opens review PRs with adds,
+# drops, and moves (#688).
 
 on:
-  schedule:
-    # Ahead of the 12:00 UTC desktops build, so a regenerated build
-    # order can land before the factory's next scheduled run.
-    - cron: '15 9 * * *'
   workflow_dispatch:
     inputs:
       target:
         description: >-
           Target id to re-measure (default: every target whose drift
-          mode is `propose`). Dispatch always re-measures, revision
+          mode is `exhibit`). Dispatch always re-measures, revision
           gate or not.
         required: false
         default: ''
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: gap-drift
@@ -62,11 +42,10 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install --disable-pip-version-check --quiet PyYAML
-      - name: Plan targets from the contract
+      - name: Plan exhibit targets from the contract
         id: plan
         env:
           REQUESTED: ${{ inputs.target }}
-          EVENT: ${{ github.event_name }}
         run: |
           python3 - << 'EOF' >> "$GITHUB_OUTPUT"
           import json, os, yaml
@@ -79,10 +58,7 @@ jobs:
                   continue
               if requested and target_id != requested:
                   continue
-              # The schedule runs only proposers; exhibit targets are
-              # dispatch-only by contract.
-              if (not requested and os.environ["EVENT"] == "schedule"
-                      and drift["mode"] != "propose"):
+              if drift.get("mode") != "exhibit":
                   continue
               rows.append({
                   "target": target_id,
@@ -94,7 +70,7 @@ jobs:
                       .replace("$arch", "x86_64").replace("$basearch", "x86_64"),
               })
           if requested and not rows:
-              raise SystemExit(f"{requested}: no gap_measurement.drift in the contract")
+              raise SystemExit(f"{requested}: no gap_measurement.drift with mode: exhibit in the contract")
           print(f"matrix={json.dumps({'include': rows})}")
           print(f"any={'true' if rows else 'false'}")
           EOF
@@ -158,7 +134,7 @@ jobs:
             --build-order '${{ matrix.build_order }}'
 
       - name: Exhibit the diff against the curated order
-        if: steps.drift.outputs.drifted == 'true' && matrix.mode == 'exhibit'
+        if: steps.drift.outputs.drifted == 'true'
         run: |
           set -euo pipefail
           echo "::group::generated vs curated"
@@ -169,7 +145,7 @@ jobs:
           # so this job never fails on a difference; it exhibits it.
 
       - name: Upload the exhibit measurement
-        if: steps.drift.outputs.drifted == 'true' && matrix.mode == 'exhibit'
+        if: steps.drift.outputs.drifted == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target }}-gap-measurement
@@ -177,32 +153,3 @@ jobs:
             ${{ matrix.report_json }}
             ${{ matrix.build_order }}
           retention-days: 30
-
-      - name: Summarize adds and drops
-        if: steps.drift.outputs.drifted == 'true' && matrix.mode == 'propose'
-        env:
-          BUILD_ORDER: ${{ matrix.build_order }}
-          TARGET: ${{ matrix.target }}
-        run: |
-          set -euo pipefail
-          # The comparison used to be over FULL PATHS, so a package that
-          # merely moved spec directories could never cancel: it appeared as
-          # a drop AND an add, under headings claiming the target had adopted
-          # it and stopped shipping it. #542 moved all 19 GNOME packages from
-          # src/gnome-51 to src/gnome-50 -- a desktop-wide downgrade -- and
-          # read as routine upstream churn. Moves are now their own category,
-          # reported first.
-          git diff -U0 "$BUILD_ORDER" \
-            | python3 scripts/summarize-gap-drift.py --target "$TARGET" \
-            > /tmp/pr-body.md
-          cat /tmp/pr-body.md
-
-      - uses: peter-evans/create-pull-request@v8
-        if: steps.drift.outputs.drifted == 'true' && matrix.mode == 'propose'
-        with:
-          branch: automation/${{ matrix.target }}-gap-remeasure
-          delete-branch: true
-          title: 'chore(${{ matrix.target }}): re-measure the gap against the live target'
-          commit-message: 'chore(${{ matrix.target }}): re-measure the gap against the live target'
-          body-path: /tmp/pr-body.md
-          labels: package-factory
