@@ -1,4 +1,4 @@
-%bcond glycin 1
+%bcond glycin 0
 
 %global glib2_version 2.56.0
 %global glycin_version 2.0.1
@@ -9,8 +9,8 @@
 
 Name:           gdk-pixbuf2
 Version:        2.44.5
-Release:        5%{?dist}
-Summary:        An image loading library
+Release:        1%{?dist}
+Summary:        An image loading library (Bootstrap build)
 
 License:        LGPL-2.1-or-later
 URL:            https://gitlab.gnome.org/GNOME/gdk-pixbuf
@@ -56,8 +56,7 @@ Provides:  webp-pixbuf-loader
 %description
 gdk-pixbuf is an image loading library that can be extended by loadable
 modules for new image formats. It is used by toolkits such as GTK+ or
-clutter, and now uses Glycin for modern format support (JXL, HEIF, AVIF,
-WebP, SVG).
+clutter. This is a bootstrap build without Glycin.
 
 %package devel
 Summary: Development files for gdk-pixbuf2
@@ -144,6 +143,4 @@ gdk-pixbuf-query-loaders-%{__isa_bits} --update-cache
 
 %changelog
 * Sat Mar 21 2026 James Reilly <james@tunaos.org> - 2.44.5-1
-- Build with glycin for JXL/HEIF/AVIF/WebP/SVG support
-- Disable documentation build (no gi-docgen on EL10)
-- Replace %%meson macros with explicit meson calls for EL10 compat
+- Bootstrap build without glycin
