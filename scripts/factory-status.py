@@ -123,7 +123,77 @@ def apt_index_names(baseurl: str, cache: pathlib.Path) -> tuple[set, dict]:
     return names, provenance
 
 
-def measure(catalog, factory, cache: pathlib.Path) -> dict:
+def load_reproducibility(path: pathlib.Path) -> dict | None:
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def render_reproducibility(repro: dict) -> list[str]:
+    lines = [
+        "## Reproducibility verification",
+        "",
+        "Sampled rebuilds against recorded ActionResults to monitor determinism",
+        "and cache-reuse guarantees (#486):",
+        "",
+    ]
+    summary = repro.get("summary", {})
+    rate = summary.get("reproducibility_rate", 100.0)
+    sampled = summary.get("sampled", 0)
+    repro_count = summary.get("reproducible", 0)
+    quar = summary.get("quarantined", 0)
+    lines.append(
+        f"Overall: **{rate}%** reproducible ({repro_count}/{sampled} sampled rebuilds verified; "
+        f"{quar} quarantined)."
+    )
+    lines.append("")
+    lines.append("| Engine | Format | Sampled | Reproducible | Divergent | Rate |")
+    lines.append("|---|---|---|---|---|---|")
+    by_coord = repro.get("by_coordinate", {})
+    if by_coord:
+        for coord in sorted(by_coord.keys()):
+            data = by_coord[coord]
+            parts = coord.split("/")
+            eng = parts[0] if len(parts) > 0 else "—"
+            fmt = parts[1] if len(parts) > 1 else "—"
+            arch = parts[2] if len(parts) > 2 else ""
+            label = f"{eng} ({arch})" if arch else eng
+            lines.append(
+                f"| {label} | {fmt} | {data['sampled']} | {data['reproducible']} | "
+                f"{data['divergent']} | {data['rate']}% |"
+            )
+    else:
+        by_engine = repro.get("by_engine", {})
+        for eng, data in sorted(by_engine.items()):
+            lines.append(
+                f"| {eng} | all | {data['sampled']} | {data['reproducible']} | "
+                f"{data['divergent']} | {data['rate']}% |"
+            )
+    lines.append("")
+    quarantined = repro.get("quarantined", [])
+    if quarantined:
+        lines.append("**Quarantined recipes (divergent artifact digests detected upon rebuild):**")
+        lines.append("")
+        for q in quarantined:
+            pkg = q.get("package", "unknown")
+            tgt = q.get("target", "unknown")
+            arch = q.get("architecture", "unknown")
+            reason = q.get("reason", "divergent digests")
+            lines.append(f"- `{pkg}` ({tgt}/{arch}) — {reason}")
+        lines.append("")
+    return lines
+
+
+def measure(
+    catalog,
+    factory,
+    cache: pathlib.Path,
+    reproducibility_path: pathlib.Path | None = None,
+) -> dict:
     report = {
         "measured_at": datetime.datetime.now(datetime.timezone.utc)
         .replace(microsecond=0)
@@ -131,6 +201,10 @@ def measure(catalog, factory, cache: pathlib.Path) -> dict:
         "targets": {},
         "unmeasured_targets": {},
     }
+    if reproducibility_path and reproducibility_path.is_file():
+        repro = load_reproducibility(reproducibility_path)
+        if repro:
+            report["reproducibility"] = repro
     entries = catalog["packages"]
     for target_id, target in factory["targets"].items():
         # set(): the same package can be catalogued by several families for
@@ -439,6 +513,8 @@ def render(report: dict) -> str:
         "",
     ]
     lines.extend(render_trend(report))
+    if report.get("reproducibility"):
+        lines.extend(render_reproducibility(report["reproducibility"]))
     for target_id, arches in sorted(report["targets"].items()):
         lines.append(f"## {target_id}")
         lines.append("")
@@ -515,6 +591,8 @@ def main() -> None:
                         default=ROOT / "docs" / "FACTORY-STATUS.md")
     parser.add_argument("--out-json", type=pathlib.Path,
                         default=ROOT / "docs" / "factory-status.json")
+    parser.add_argument("--reproducibility-json", type=pathlib.Path,
+                        default=ROOT / "docs" / "reproducibility-status.json")
     parser.add_argument("--cache", type=pathlib.Path,
                         default=pathlib.Path("/tmp/factory-status-cache"))
     parser.add_argument("--check-structure", action="store_true",
@@ -553,7 +631,7 @@ def main() -> None:
         print(f"structure ok: {len(measured)} measurable target(s)")
         return
 
-    report = measure(catalog, factory, args.cache)
+    report = measure(catalog, factory, args.cache, args.reproducibility_json)
     measure_desktop_coverage(report, factory, args.cache)
 
     # The file this run is about to overwrite IS the last merged

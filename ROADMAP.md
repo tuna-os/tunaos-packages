@@ -80,7 +80,7 @@ transition; #488 carries the reasoning behind each row.
 | 3 | Native queue packages → first-class per-package recipe actions | 🟡 In progress — ledger row 1 done, row 2 blocked on engine version-awareness, rows 3–5 unstarted | #418, #426 |
 | 4 | Workflow consolidation — fold publishers, parameterize gap-drift, retire dormant builders | ✅ Done — closed 09-02; `upstream-drift.yml` is the parameterized matrix, and `build.yml`/`build-distributed.yml` stay break-glass until 2026-12-31 (census in RFC 011) | #487 |
 | 5 | Report-only CAS reachability / GC | 🔴 Not started | #485 |
-| 6 | Sampled reproducibility rebuilds + policy reporting | 🔴 Not started | #486 |
+| 6 | Sampled reproducibility rebuilds + policy reporting | ✅ Done — verifier workflow, rebuild verification, quarantine, and policy reporting in FACTORY-STATUS.md | #486 |
 
 ### Priorities
 
@@ -136,7 +136,7 @@ query anyone can run. #646 proposes a `2026-Q3 exit` milestone carrying #479,
 | Hummingbird cell exceeds the 6-hour job ceiling | #412, #401 | P0 | L |
 | Desktop parity measured by image size, which demonstrably misleads — needs per-edition package sets | #507 | P1 | M |
 | Dormant pre-factory builders still in tree (`build-distributed.yml`, 1,403 lines) | #487 (closed 09-02 — kept break-glass to 2026-12-31, not deleted; revisit at the RFC 011 Q4 review) | P1 | M |
-| Determinism substrate unverified — `SOURCE_DATE_EPOCH` and cache-key bugs caught by log-reading | #486, #477 | P1 | M |
+| Determinism substrate unverified — `SOURCE_DATE_EPOCH` and cache-key bugs caught by log-reading | #486, #477 (reproducibility verifier landed in #486) | P1 | M |
 | Mock CI depends on a personal unpinned COPR | #391 | P1 | S |
 | COPR bootstrap infra to retire | #439, COPR-AUDIT.md | P2 | M |
 

@@ -37,6 +37,23 @@ refresh is not landing, which is its own defect:
 - hummingbird/aarch64: accountsservice, adw-gtk3-theme, adwaita-fonts, alsa-firmware, alsa-tools, augeas, chrony, containerd, ddcutil, distrobox, evtest, fastfetch, … (86 total)
 - hummingbird/x86_64: accountsservice, adw-gtk3-theme, adwaita-fonts, alsa-firmware, alsa-tools, augeas, chrony, containerd, ddcutil, distrobox, evtest, fastfetch, … (108 total)
 
+## Reproducibility verification
+
+Sampled rebuilds against recorded ActionResults to monitor determinism
+and cache-reuse guarantees (#486):
+
+Overall: **100.0%** reproducible (7/7 sampled rebuilds verified; 0 quarantined).
+
+| Engine | Format | Sampled | Reproducible | Divergent | Rate |
+|---|---|---|---|---|---|
+| build-chain (aarch64) | rpm | 1 | 1 | 0 | 100.0% |
+| build-chain (x86_64) | rpm | 1 | 1 | 0 | 100.0% |
+| tideforge (amd64) | deb | 1 | 1 | 0 | 100.0% |
+| tideforge (arm64) | deb | 1 | 1 | 0 | 100.0% |
+| tideforge (x86_64) | pkg.tar.zst | 1 | 1 | 0 | 100.0% |
+| tideforge (aarch64) | rpm | 1 | 1 | 0 | 100.0% |
+| tideforge (x86_64) | rpm | 1 | 1 | 0 | 100.0% |
+
 ## debian
 
 | arch | catalog entries | built | needed | index packages |
