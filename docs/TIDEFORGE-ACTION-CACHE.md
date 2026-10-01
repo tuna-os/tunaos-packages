@@ -18,28 +18,28 @@ clean-install, and smoke validation still run on hits.
 GitHub Actions cache is an acceleration transport. Workflows restore before
 compilation and save only after all validation; the cache action never saves
 implicitly. R2 uses `actions/sha256/<action-key>.json` as the authoritative
-result index, `blobs/sha256/<artifact-digest>` for immutable content, and
-`leases/sha256/<action-key>.json` for renewable action-key publication leases.
-Protected main jobs alone may publish trusted R2 results, writing blobs first
-and the ActionResult last.
+result index and `blobs/sha256/<artifact-digest>` for immutable content. A
+lease for an action key is at `leases/sha256/<action-key>.json`. Only jobs
+on the protected main branch can publish trusted R2 results. They write
+the blobs first and the ActionResult last.
 
 ## Authoritative CAS promotion and lease contract
 
-1. **CAS storage layout**:
-   - `actions/sha256/<action-key>.json`: Immutable ActionResult metadata (atomic commit marker).
-   - `blobs/sha256/<artifact-digest>`: Content-addressed immutable artifact bytes.
-   - `leases/sha256/<action-key>.json`: Ephemeral renewable action-key publication lease.
+1. **CAS layout**:
+   - `actions/sha256/<action-key>.json`: the ActionResult. It is the commit marker.
+   - `blobs/sha256/<artifact-digest>`: the artifact bytes, by digest.
+   - `leases/sha256/<action-key>.json`: the lease for an action key.
 
-2. **Renewable action-key leases**:
-   - Workers acquire 30–45 minute renewable leases before starting builds or promotions (`scripts/tideforge-action-cache.py acquire-lease`).
-   - A worker that loses or fails to renew its lease cannot promote to authoritative CAS.
-   - Waiters check for valid ActionResults upon lease expiration.
+2. **Leases**:
+   - A worker gets a lease of 30 to 45 minutes before it builds or promotes (`scripts/tideforge-action-cache.py acquire-lease`).
+   - A worker without a valid lease cannot promote to the CAS.
+   - When a lease expires, other workers look for a valid ActionResult.
 
-3. **Atomic commit ordering**:
-   - All referenced content blobs are verified and synchronized first (`blobs/sha256/<digest>`).
-   - The authoritative ActionResult (`actions/sha256/<action-key>.json`) is written strictly last as the commit marker.
-   - An ActionResult in CAS guarantees every referenced blob is already present and digest-verified.
+3. **Order of the commit**:
+   - The promote step verifies each blob, then writes it (`blobs/sha256/<digest>`).
+   - The promote step writes the ActionResult (`actions/sha256/<action-key>.json`) last.
+   - Thus, when an ActionResult is in the CAS, each blob that it refers to is also there.
 
 4. **Promotion behind the factory boundary**:
-   - Publication is a thin promotion step over CAS: read verified ActionResults, verify digests, and copy exact bytes into served repository indexes.
-   - Builds on protected default branch publish authoritative ActionResults and blobs directly to R2.
+   - Publication reads the ActionResults, verifies the digests and copies the bytes into the repository indexes.
+   - Builds on the protected main branch publish ActionResults and blobs to R2.

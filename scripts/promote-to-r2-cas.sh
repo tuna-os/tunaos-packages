@@ -47,12 +47,20 @@ fi
 
 mkdir -p "$STAGE_DIR"
 
-# Stage blobs and action result locally into CAS structure
+# Take the action-key lease, then stage blobs and the ActionResult into the
+# CAS layout. promote refuses to run without a live lease for HOLDER and
+# releases it once the ActionResult is written.
+python3 scripts/tideforge-action-cache.py acquire-lease \
+  --action-key "$ACTION_KEY" \
+  --holder "$HOLDER" \
+  --ttl "$TTL" \
+  --lease-dir "$STAGE_DIR"
 python3 scripts/tideforge-action-cache.py promote \
   --result "$RESULT_FILE" \
   --artifact-dir "$ARTIFACT_DIR" \
   --cas-dir "$STAGE_DIR" \
   --holder "$HOLDER" \
+  --check-lease \
   --expected-action-key "$ACTION_KEY"
 
 # If rclone is available and configured for R2, upload blobs first, ActionResult last
