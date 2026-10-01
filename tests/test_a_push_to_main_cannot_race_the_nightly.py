@@ -82,7 +82,7 @@ def test_the_two_triggers_cannot_share_a_concurrency_group() -> None:
     )
 
 
-def test_the_flag_actually_removes_the_full_chain() -> None:
+def test_the_flag_actually_removes_the_full_chain(tmp_path) -> None:
     """Pin the BEHAVIOUR, because the text assertions above are too weak.
 
     `canary_common` only takes effect on the infra path -- changed files
@@ -113,21 +113,18 @@ def test_the_flag_actually_removes_the_full_chain() -> None:
     )
 
     def plan(canary: bool) -> set[str]:
-        changed = ROOT / ".git" / "canary-guard-changed.txt"
+        changed = tmp_path / "canary-guard-changed.txt"
         changed.write_text("\n".join(infra) + "\n", encoding="utf-8")
-        try:
-            argv = [sys.executable, str(ROOT / "scripts" / "plan-package-factory.py"),
-                    "--changed-files", str(changed)]
-            if canary:
-                argv.append("--canary-common")
-            out = subprocess.run(argv, capture_output=True, text=True,
-                                 check=True, cwd=ROOT).stdout
-            ids = set()
-            for matrix in json.loads(out)["matrices"]:
-                ids |= {c["id"] for c in json.loads(matrix)["include"]}
-            return ids
-        finally:
-            changed.unlink(missing_ok=True)
+        argv = [sys.executable, str(ROOT / "scripts" / "plan-package-factory.py"),
+                "--changed-files", str(changed)]
+        if canary:
+            argv.append("--canary-common")
+        out = subprocess.run(argv, capture_output=True, text=True,
+                             check=True, cwd=ROOT).stdout
+        ids = set()
+        for matrix in json.loads(out)["matrices"]:
+            ids |= {c["id"] for c in json.loads(matrix)["include"]}
+        return ids
 
     full = {"hummingbird-x86_64", "hummingbird-aarch64"}
     assert full & plan(canary=False), (
