@@ -1,19 +1,14 @@
 # Tooling adapted from sandogasa
 
-[slopfest/sandogasa](https://github.com/slopfest/sandogasa) is a Rust
-workspace of Fedora/CentOS/Debian packaging tools (Apache-2.0 OR MIT).
-Several of its tools solve, in mature form, problems this factory had
-been hitting reactively — each of the adaptations below is pinned to a
-factory incident that predates it. The ideas and algorithms were
-reimplemented in this repository's Python, not linked as binaries: the
-algorithms are small, the factory already parses its own repo metadata,
-and a Rust toolchain dependency for CI-side checks would cost more than
-it saves.
+[slopfest/sandogasa](https://github.com/slopfest/sandogasa) is a Rust workspace of package tools for Fedora, CentOS, and Debian (Apache-2.0 OR MIT).
+Several of its tools solve problems this factory faced.
+Each adaptation below links to a previous incident.
+We wrote the algorithms in Python without binary links.
+The algorithms are small, and the factory already parses its repo metadata.
 
-Licensing: sandogasa is dual-licensed Apache-2.0 OR MIT, which permits
-reimplementation and adaptation here; the per-file docstrings record the
-origin. Test vectors for the version comparator are carried over
-verbatim.
+License: sandogasa uses Apache-2.0 OR MIT, which lets us adapt code here.
+Per-file docstrings record the origin.
+We brought over test vectors for the version comparator verbatim.
 
 ## What was adapted, and from where
 
@@ -29,18 +24,12 @@ verbatim.
 
 ## One level of support across targets
 
-sandogasa itself is Fedora/CentOS-centric; adapting it naively would
-have produced an EL-focused toolset bolted onto a multi-target factory.
-The adaptations are therefore built on a format-neutral layer,
-`scripts/repo_index.py`: one index shape for every reader (rpm-md
-primary.xml, flat-APT Packages, pacman .db) and one version comparator
-per format — `rpm_vercmp`, `deb_version` (validated against real
-`dpkg --compare-versions`, 900/900 pairs), and libalpm's variant in
-`pacman_db`. The comparators provably disagree on real versions, so no
-format is ever judged with another's ruler.
-`tests/test_target_tooling_parity.py` is the enforcement: a format
-declared in `manifests/package-factory.yaml` without a reader, a
-comparator, a publish gate, and a buildroot record is a red test.
+sandogasa focuses on Fedora and CentOS.
+A direct port would create EL-centric tooling on a multi-target factory.
+The adaptations build on a format-neutral layer in `scripts/repo_index.py`.
+This layer provides one index format and one version comparator per package format.
+Comparators disagree on real version strings, so each format uses its native rules.
+`tests/test_target_tooling_parity.py` enforces this parity.
 
 | Capability | rpm (el10/fedora/hummingbird/tumbleweed) | deb (ubuntu/debian) | pkg.tar.zst (arch) |
 | --- | --- | --- | --- |
@@ -53,46 +42,17 @@ comparator, a publish gate, and a buildroot record is a red test.
 
 ## Where each runs
 
-- **Preflight** (`preflight-buildrequires.py`): manual gate before
-  dispatching a chain; now answers build-time satisfiability, version
-  constraints, and runtime installability in one run.
-- **Hygiene** (`check-published-hygiene.py`): ad hoc or scheduled;
-  reads the same `published_index` contract every buildroot reads —
-  every format, through `repo_index` — so a clean report covers the
-  *combination* of prefixes a buildroot sees. First live run: 8
-  findings on el10 (gtk-layer-shell and xfconf families served
-  identically from both prefixes), hummingbird and both deb targets
-  clean.
-- **Reverse-dep gates**: every publish path refuses a publish that
-  breaks what is already served, entirely locally. rpm gates inside
-  `publish-rpm-wave.sh` (staged repodata vs the synced-down tree); deb
-  and arch regenerate their whole index in place, so they gate
-  old-vs-new (`check-index-regression.py`) in their publishers, with
-  native semantics — apt's highest-version candidate and `|`
-  alternatives on deb, libalpm ordering on arch. All are differential
-  by design: only what a publish *newly* breaks counts, so
-  distro-archive dependencies outside the view are never noise, and
-  the blind spots all lean lenient (documented in each script).
-- **Buildroot manifests**: the rpm chains record mock's resolved
-  buildroot (opt-in via `BUILDROOT_MANIFESTS`, switched on by the cell
-  runner, into `artifacts/buildroots/`); the deb chain records a
-  dpkg-query snapshot after every `build-dep` into its uploaded
-  `buildroots/`. One differ reads both conventions.
-- **Throughput**: run by hand against a downloaded cell job log when
-  the 6-hour-ceiling work needs numbers.
+- **Preflight** (`preflight-buildrequires.py`): manual check before dispatch of a chain.
+- **Hygiene** (`check-published-hygiene.py`): checks the `published_index` contract across formats through `repo_index`.
+- **Reverse-dep gates**: publishers refuse updates that break served packages.
+- **Buildroot manifests**: chains for RPM and DEB record snapshots of buildroot packages.
+- **Throughput**: run by hand against cell job logs for performance analysis.
 
 ## What was considered and NOT adapted
 
 Recorded so the next reader does not re-survey the same ground:
 
-- The forge/bureaucracy tooling (Bodhi, Bugzilla, FESCo, Pagure ACLs,
-  meetbot, activity reporting) has no counterpart in this factory's
-  problem space.
-- `dbranch` assumes Debian's dist-git/PPA workflow; the deb side here
-  is the backport chain (`backport-deb-chain.yml`), a different shape.
-- ebranch's `fedrq` shell-outs were not carried over: the factory
-  already parses primary.xml itself, and a run-time dependency on a
-  Fedora-packaged query tool would not work in the deb and arch legs.
-- koji-lag's SQLite store is the right shape if throughput collection
-  ever becomes scheduled; for on-demand use, stateless parsing of one
-  log is enough and simpler.
+- Forge tooling (Bodhi, Bugzilla, FESCo, Pagure ACLs, meetbot) has no role here.
+- `dbranch` assumes Debian workflows with dist-git; the deb side uses `backport-deb-chain.yml`.
+- We did not port ebranch shell-outs to `fedrq`: the factory parses `primary.xml` directly.
+- koji-lag uses SQLite; stateless analysis of one log is enough for on-demand use.

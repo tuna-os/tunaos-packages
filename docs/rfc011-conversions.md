@@ -1,15 +1,14 @@
 # RFC 011 Phase 1 — build-order conversion ledger
 
-Phase 1's gate, per [the RFC](rfc/rfc011-unified-gap-driven-factory.md):
-for each family, the generated order must equal the curated one
-**exact-or-explained** in that family's conversion PR; only then is the
-curated file deleted and the generated one committed with its provenance
-header. This ledger tracks that, family by family, in the RFC's order —
-so "converted" is a recorded verdict with evidence, not a memory.
+Phase 1 sets a strict gate in [the RFC](rfc/rfc011-unified-gap-driven-factory.md).
+For each family, the generated order must match the curated order **exact-or-explained** in the conversion PR.
+The author then deletes the curated file and commits the generated file with its provenance header.
+This ledger tracks the progress of each family in RFC order.
+A converted status is a recorded verdict with evidence.
 
-A family is DONE only when all four columns are yes. Rows may only move
-forward; a regression (a generated order hand-edited, a drift detector
-disabled) reopens the row.
+A family is DONE only when all four columns are yes.
+Rows move only forward.
+A regression (such as a hand-edited order or a disabled detector) reopens the row.
 
 | # | family (curated file) | target contract | drift detector | regeneration exact-or-explained | curated file deleted |
 |---|---|---|---|---|---|
@@ -22,27 +21,10 @@ disabled) reopens the row.
 
 ## What each row needs
 
-- **Target contract**: a `gap_measurement:` block on the target in
-  `manifests/package-factory.yaml` (roots_manifest, target_index,
-  reference_index, source_reference_index). The engine
-  (`scripts/measure-target-gap.py --target <id>`) refuses to run without
-  it, loudly, which is the point.
-- **Drift detector**: the `gap-drift.yml` pattern — compare
-  the live index revision against the last committed measurement,
-  re-measure only on change, open a review PR with adds/drops and
-  provenance. Dispatch-only until the family's regeneration gate passes;
-  a cron re-measuring an unconverted family would open PRs nobody can
-  act on.
-- **Regeneration exact-or-explained**: run the engine, diff against the
-  curated file, and either they match or every difference is defended in
-  the conversion PR (a package the target now ships; a stale pin; an
-  engine capability gap like row 2's version-awareness).
+- **Target contract**: a `gap_measurement:` block on the target in `manifests/package-factory.yaml` (roots_manifest, target_index, reference_index, source_reference_index). The engine (`scripts/measure-target-gap.py --target <id>`) refuses to run without it.
+- **Drift detector**: follows the `gap-drift.yml` pattern. It compares the live index revision against the last committed measurement. It re-measures only on change and opens a review PR. The job runs by manual dispatch until the regeneration gate passes. Scheduled runs for unconverted families would create unneeded PRs.
+- **Regeneration exact-or-explained**: run the engine and diff against the curated file. They must match, or the author must defend every difference in the conversion PR. Valid differences include packages the target now ships, stale pins, or engine gaps.
 
 ## Known engine gaps this ledger has already surfaced
 
-1. **Version-aware satisfaction** (row 2, blocking): `closure()` stops at
-   any requirement the target index provides *by name*. xfce-fedora's
-   whole reason to exist is `>= 4.21` pins against Fedora's 4.20 — name
-   presence is exactly the wrong test there. The fix belongs in the
-   engine (compare the requirement's version constraint against the
-   provider's EVR), not in per-family workarounds.
+1. **Version-aware satisfaction** (row 2 blocker): `closure()` stops at any requirement the target index provides *by name*. The purpose of xfce-fedora is `>= 4.21` pins against Fedora 4.20, so name presence fails there. The fix belongs in the engine (compare version constraints against provider EVR), not in workarounds.

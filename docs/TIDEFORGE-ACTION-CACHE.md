@@ -1,23 +1,19 @@
 # Tideforge action cache
 
-Tideforge identifies a package build by canonical declared inputs rather than a
-workflow run. The key covers the complete recipe directory, selected target and
-architecture, the selected target's contract and dependency-capability slice,
-the immutable OCI build-image digest, the package-format renderer set, dependency
-action keys, and the reproducibility contract including SOURCE_DATE_EPOCH.
+Tideforge identifies a package build by canonical inputs and not by workflow runs.
+The key covers the recipe directory, target, and architecture.
+It also includes the target contract, the build image digest, format renderers, dependency keys, and the reproducibility contract.
 
-Only renderer inputs used by a target are hashed: a Debian assembler change does
-not invalidate RPM, Arch, or openSUSE actions. Every build image is resolved to
-an image@sha256 digest before key generation.
+The key generator hashes only renderer inputs used by the target.
+A Debian assembler change does not invalidate RPM, Arch, or openSUSE actions.
+The engine resolves every build image to an `image@sha256` digest before key generation.
 
-An ActionResult records the exact action key plus every artifact's safe basename,
-byte size, and SHA-256. Restore verifies the requested key, schema, unique safe
-filenames, sizes, and hashes before a result may skip compilation. Lint,
-clean-install, and smoke validation still run on hits.
+An `ActionResult` records the action key, safe basename, byte size, and SHA-256 for each artifact.
+Restore verifies the requested key, schema, filenames, sizes, and hashes before a build skips compilation.
+Lint, clean-install, and smoke validation still run on hits.
 
-GitHub Actions cache is an acceleration transport. Workflows restore before
-compilation and save only after all validation; the cache action never saves
-implicitly. R2 uses `actions/sha256/<action-key>.json` as the authoritative
-result index and `blobs/sha256/<artifact-digest>` for immutable content. Protected
-main jobs alone may publish trusted R2 results, writing blobs first and the
-ActionResult last.
+The cache in GitHub Actions accelerates runs.
+Workflows restore before compilation and save after full validation.
+R2 uses `actions/sha256/<action-key>.json` as the index and `blobs/sha256/<artifact-digest>` for immutable blobs.
+Only protected jobs on `main` may publish R2 results.
+These jobs write blobs first and `ActionResult` last.

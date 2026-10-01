@@ -1,15 +1,12 @@
-# Where Hummingbird desktop build time actually goes
+# Where Hummingbird desktop build time goes
 
-Measured from the GitHub Actions logs of five real `Build Hummingbird desktops`
-runs, 2026-07-25 to 2026-08-08.  Per-package numbers come from mock's own
-`INFO: Done(...) Config(hummingbird-ci) N minutes M seconds` / `ERROR:
-Exception(...)` lines; wall clock comes from the log timestamps of `==> Build
-chain starting` to `==> ===== Summary`.
+Data comes from GitHub Actions logs of five `Build Hummingbird desktops` runs between 2026-07-25 and 2026-08-08.
+Per-package durations come from mock log lines.
+Wall clock measurements come from the start and end timestamps of the build chain.
 
-Method note: `build-chain.sh` runs each package in a background subshell whose
-stdout is a pipe, so a worker's whole block of output carries the timestamp of
-when the worker *exited*.  Per-package durations therefore have to be read off
-mock's own timers, not off the surrounding log timestamps.
+Method note: `build-chain.sh` runs each package in a background subshell.
+The stdout stream is a pipe, so a worker output block carries the exit timestamp of that worker.
+Per-package durations must come from mock timers instead of overall log timestamps.
 
 ## The runs
 
@@ -21,43 +18,35 @@ mock's own timers, not off the surrounding log timestamps.
 | [31215339645](https://github.com/tuna-os/tunaos-packages/actions/runs/31215339645) | kde-00 | 47 | 87.6 m | 90.3 m | **97.0%** |
 | [31242725235](https://github.com/tuna-os/tunaos-packages/actions/runs/31242725235) | niri-00 | 12 | 15.7 m | 16.4 m | **95.6%** |
 
-194 distinct packages, 6.80 hours of mock time.
-min 42 s, p10 52 s, median 77.5 s, mean 126 s, p90 186 s, max 2686 s.
+The corpus contains 194 distinct packages and 6.80 hours of mock time.
+Values are: min 42 s, p10 52 s, median 77.5 s, mean 126 s, p90 186 s, max 2686 s.
 
-## Finding 1 — the job runs at concurrency 1.0, not 2
+## Item 1 -- the job runs at concurrency 1.0, not 2
 
-Σ mock is 95.6%–97.8% of the build step's entire wall clock, in every run, with
-`--jobs 2`.  Two workers cannot both be inside mock 97% of the time; one can.
-The `flock /local-repo/repo.lock` around `mock --rebuild` in
-`build_package_podman` is **exclusive**, so `--jobs` selects how many workers
-wait.  This is exactly what #266 diagnosed from the source; these are the
-numbers that confirm it from the outside.
+Total mock time is 95.6% to 97.8% of the wall clock time across all runs with `--jobs 2`.
+Two workers cannot both run mock 97% of the time simultaneously.
+The lock on `repo.lock` around `mock --rebuild` in `build_package_podman` is exclusive.
+Therefore `--jobs` sets how many workers wait in the queue.
+PR #266 diagnosed this behavior from code, and these numbers confirm it.
 
-Nothing else in the build step is worth optimising until that lock is a
-reader/writer split: at concurrency 1, every scheduling improvement upstream of
-it is invisible.
+Other optimizations in the build step yield no benefit until the lock splits readers and writers.
+At concurrency 1, improvements in job schedules remain ineffective.
 
-## Finding 2 — 34% of mock time is rebuilding the same buildroot, 194 times
+## Item 2 -- 34% of mock time rebuilds the root cache 194 times
 
-`Start: creating root cache` appears once per package across all five runs.
-`unpacking root cache` appears **zero** times.  `/var/cache/mock` is not
-mounted (`MOCK_CACHE_DIR` was unset for this workflow), so it lives inside the
-per-package `podman run --rm` container and is discarded with it.  Every
-package therefore pays `installing minimal buildroot with dnf5` in full, and
-then pays again to tar a root cache nothing will ever read.
+The line `Start: creating root cache` appears once per package across all five runs.
+The string `unpacking root cache` does not appear in logs.
+The workflow does not mount `/var/cache/mock` because `MOCK_CACHE_DIR` was unset.
+Podman runs with `--rm`, so the system deletes the cache directory at container exit.
+Every package installed the minimal buildroot through dnf5, then compressed a root cache that no subsequent run used.
 
-The shortest mock invocation observed anywhere in the corpus is **42 s**
-(`python-aiohappyeyeballs`, which did chroot init and then failed at
-`%pyproject_buildrequires`); the shortest *successful* one is **46 s**
-(`vpnc-script`, whose `%install` copies a single shell script).  The eight
-`niri-00` packages that failed at `%pyproject_buildrequires` — i.e. that did
-chroot init, then stopped — ran 42–52 s.
+The shortest mock run observed is 42 s (`python-aiohappyeyeballs`, which stopped at `%pyproject_buildrequires`).
+The shortest successful build is 46 s (`vpnc-script`, which installs one shell script).
+The eight `niri-00` packages that stopped at `%pyproject_buildrequires` ran in 42 to 52 s.
 
-Taking 43 s as the floor: it is paid 194 times, **2.32 h of the 6.80 h,
-34.1%.**  It is a floor, not an average, so this is the conservative end.
+A baseline of 43 s repeated 194 times wastes **2.32 hours out of 6.80 hours (34.1%)**.
 
-Mock is built to avoid this and `--uniqueext` does not defeat it.  From
-`mockbuild/buildroot.py`:
+Mock avoids this overhead by design, and `--uniqueext` does not disable the cache:
 
 ```python
 self.shared_root_name = config['root']
@@ -67,143 +56,107 @@ if 'unique-ext' in config:
 self.cachedir = os.path.join(self.cache_topdir, self.shared_root_name)
 ```
 
-The cache is keyed on the name from *before* uniqueext is appended, so
-per-package chroots share one cache by design, with an fcntl lock (shared to
-unpack, exclusive to rebuild) in `plugins/root_cache.py`.  On a hit,
-`_init()` recomputes `chroot_was_initialized` after the preinit hooks, finds
-the chroot populated, and skips `_init_pkg_management()` — and
-`_rebuild_root_cache()` then declines to re-tar it.
+The cache uses the base name before it appends `unique-ext`.
+Each package chroot shares a single cache through an `fcntl` lock in `plugins/root_cache.py`.
+On a cache hit, `_init()` finds the chroot populated and skips initialization.
+`_rebuild_root_cache()` then declines to create a new archive.
 
-It is safe against the local repo changing mid-run, which it does after every
-tier: the root cache holds only the *minimal* buildroot, `BuildRequires` are
-resolved after the unpack against the live repos, and mock's
-`templates/fedora-rawhide.tpl` — which `mock/hummingbird-ci.cfg` includes —
-sets `metadata_expire=0` in `[main]`, so cached metadata is revalidated on
-every transaction.
+This mechanism is safe when the local repository changes between tiers.
+The root cache holds only the minimal buildroot.
+`BuildRequires` resolve against live repositories after the unpack of the root.
+The template sets `metadata_expire=0` so mock revalidates metadata on every transaction.
 
-## Finding 3 — there is a long pole, but it is 11%, not 93%
+## Item 3 -- the longest package takes 11% of time, not 93%
 
-The largest single package in the corpus is `highway` at **44.8 m**, then
-`abseil-cpp` at 30.0 m.  `highway` is 16% of gnome-00's mock time in the run it
-appeared in, 11% of the tier's wall clock.
+The largest package in the corpus is `highway` at 44.8 minutes, followed by `abseil-cpp` at 30.0 minutes.
+`highway` accounts for 16% of mock time in `gnome-00` and 11% of wall clock time for the tier.
 
-That matters for how much parallelism is worth buying, not for whether to buy
-any.  For gnome-00 (Σ 16921 s, max 2707 s) the wall clock with W workers is
-`max(Σ/W, max_pkg)`:
+This distribution determines how much parallelism helps.
+For `gnome-00` (sum 16921 s, max 2707 s), wall clock time with W workers equals `max(sum/W, max_pkg)`:
 
 | W | 1 | 2 | 4 | 6 | 8 | 16 |
 |---|---|---|---|---|---|---|
 | gnome-00 wall | 282 m | 141 m | 70 m | 47 m | 45 m | 45 m |
 
-The long pole binds from W≈7. Below that the packing is essentially perfect —
-**at W=4 the tier barrier wastes no measurable time at all** (4 × 4230 s =
-16920 s against Σ 16921 s).
+The long build binds when W >= 7.
+Below that, work distribution is efficient.
+At W=4, the tier boundary causes no measurable loss.
 
-## What that means for issue #267's three items
+## Consequences for issue #267
 
-1. **Tier barriers.**  Real, but worth nothing yet.  At the 4 vCPU the job runs
-   on, a tier's idle tail is ~0; a DAG wavefront only starts paying above ~6
-   concurrent builds per tier, which requires both #266 and more cores.
-2. **One runner per dispatch.**  This is the live ceiling.  680 packages at the
-   measured 126 s mean is **~23.8 h of serialised mock**, and it is being asked
-   of one runner out of the org's 60.  `desktop: all` cannot ever complete:
-   gnome-00 alone was 288 m against a 360 m job cap.
-3. **Runner size.**  Not actionable.  Blacksmith runners were removed org-wide
-   on 2026-08-08 and every `runs-on:` in this repository is now `ubuntu-latest`
-   or `ubuntu-24.04-arm`; no larger GitHub-hosted label is in use anywhere here
-   and there is nothing to verify an entitlement against.  Note also that four
-   concurrent mock builds on 4 vCPU share those 4 cores with `%{_smp_mflags}`,
-   so for the compile-bound tail (`highway`, `abseil-cpp`) in-job concurrency
-   repacks the cores rather than multiplying them — only more machines do that.
+1. **Tier barriers:**
+   On 4 vCPU runners, the idle tail of a tier is near zero.
+   A DAG wavefront helps only above six concurrent builds per tier, which needs both #266 and additional CPU cores.
+
+2. **One runner per dispatch:**
+   680 packages at 126 s average needs **~23.8 hours of serial mock execution**.
+   No single runner can finish this work within the 360-minute limit for jobs.
+
+3. **Runner size:**
+   The repository uses standard `ubuntu-latest` and `ubuntu-24.04-arm` runners.
+   Four concurrent mock builds share four cores with `%{_smp_mflags}`.
+   For compilation-heavy packages (`highway`, `abseil-cpp`), adding runners provides more speed than adding concurrency inside one runner.
 
 ## Runner budget
 
-One job per desktop is **5 concurrent runners** for the `desktop: all` path,
-plus one short-lived `plan` job.  That is 8% of the org's 60, and it displaces
-nothing that runs on a cron: this workflow is `workflow_dispatch` only.
+Each desktop job needs **5 concurrent runners** for `desktop: all`, plus a short initial step.
+This uses 8% of the organization pool of 60 runners.
+The dispatch workflow does not block scheduled cron runs.
 
-The bootstrap tiers (10 packages, ~10 m) are rebuilt by each desktop job rather
-than being built once and handed over.  That is 40 runner-minutes of duplicate
-work, entirely off the critical path, against the alternative of a cross-job
-dependency plus an artifact round-trip.  Sharding *within* a tier was rejected
-for the same reason at a larger scale: each additional job pays the fixed
-per-job cost measured at **184 s** (setup + checkout + apt + podman pull + R2
-seed, run 31242725235, 05:54:29→05:57:33), so one job per package for all 680
-would spend ~35 runner-hours on setup to parallelise ~24 runner-hours of work.
+Each desktop job rebuilds the bootstrap tiers (10 packages, ~10 minutes).
+This duplicates 40 runner-minutes of work without delay to the main path.
+The project did not shard tiers because each job adds 184 seconds of setup overhead (checkout, packages, podman, R2).
+To split all 680 packages across jobs would spend ~35 runner-hours on setup to parallelize ~24 runner-hours of builds.
 
-## Canary A/B, and the flag that made the first attempt worthless
+## Canary comparison and the root cache fix
 
-Tier `niri-00`, 24 packages, `force: true`, `publish: false`, same runner
-class, both after #266 landed (so `--jobs $(nproc)` = 4):
+Tier `niri-00`, 24 packages, `force: true`, `publish: false`, with #266 applied (`--jobs $(nproc)` = 4):
 
 | run | branch | build-chain wall | Σ mock | `creating root cache` | `unpacking root cache` |
 |---|---|---|---|---|---|
 | [31265993115](https://github.com/tuna-os/tunaos-packages/actions/runs/31265993115) | `main` | **39.02 m** | 74.2 m | 24 | 0 |
 | [31268488082](https://github.com/tuna-os/tunaos-packages/actions/runs/31268488082) | + `MOCK_CACHE_DIR` | **39.49 m** | — | 24 | 0 |
 
-**No improvement.**  The mount was correct — the log shows mock writing
-`/var/cache/mock/hummingbird-ci/root_cache/cache.tar.gz` with return code 0,
-on the shared path with no uniqueext in it, exactly as
-`buildroot.py`'s `shared_root_name` predicts.  What it also shows, 18 times:
+The mount succeeded, but mock rebuilt the cache 18 times:
 
-```
+```text
 INFO: /tmp/mock-configdir/hummingbird-ci.cfg newer than root cache; cache will be rebuilt
 ```
 
-`_unpack_root_cache` unlinks the tarball when any file in `config_paths` is
-newer than it.  `build-chain.sh` assembles the configdir inside every
-package's container with
+`_unpack_root_cache` deletes the archive when configuration files have newer timestamps.
+`build-chain.sh` copied configurations without file timestamps:
 
 ```sh
 cp -a /etc/mock/. /tmp/mock-configdir/
 cp    /repo-mock/*.cfg /tmp/mock-configdir/
 ```
 
-and the second `cp` has no `-p`, so `hummingbird-ci.cfg` is stamped with the
-current time microseconds before mock starts — always newer than a cache any
-earlier package wrote.  Every package deleted the cache, rebuilt the
-buildroot, re-tarred it, and threw it away.
+The second `cp` command lacked `-p`, so `hummingbird-ci.cfg` received a current timestamp.
+Mock detected the configuration as modified, deleted the cache, and rebuilt the buildroot for every package.
 
-With `-p` the profile keeps its checkout mtime, which precedes every cache
-the run writes.  That is the whole fix, and nothing in the run reports its
-absence: an invalidated root cache is merely slow.
+The `-p` option keeps the modification time of files.
+The configuration timestamp then precedes the cache archive, which allows cache hits.
 
-Concurrency, for the record, is now 74.2 m of mock over 39.02 m of wall =
-**1.90**, not the 4 that `--jobs $(nproc)` asks for, and per-package mock
-time roughly doubled (median 77.5 s at jobs=2-but-serialised, 138.5 s at
-jobs=4) because four builds share four cores with `%{_smp_mflags}`.  That is
-the ceiling more machines address and in-job concurrency does not.
+Concurrency reached 74.2 m of mock over 39.02 m wall time (1.90x), below the target of 4.
+The duration of each mock build doubled because four builds shared four cores.
 
-## Postscript, 2026-08-25 — Finding 2 came back
+## Postscript (2026-08-25) -- cache restoration
 
-The `-p` fix and the shared-cache mount both landed in PR #277, and the
-measurement above is what justified them.  They were wired up in
-`.github/workflows/build-hummingbird-desktops.yml`, which `6d4b77a` removed
-along with the rest of the hummingbird-specific pipeline (#517).
-`package-factory-cell.yml`, which replaced it, never set `MOCK_CACHE_DIR` —
-so from that commit until 2026-08-25 every nightly paid Finding 2 in full
-again, and nothing said so, because an unshared root cache is only slow.
+PR #277 added the `-p` fix and shared cache mount.
+Commit `6d4b77a` removed those settings with the hummingbird pipeline (#517).
+`package-factory-cell.yml` omitted `MOCK_CACHE_DIR`, which returned the cache rebuild penalty.
 
-Restored on the branch for #512, with two changes to what #277 did:
+PR #512 restored the cache with two updates:
 
-* the mount is `<config>/root_cache`, not all of `/var/cache/mock`.  The
-  sibling `yum_cache` accumulates every `BuildRequires` RPM a desktop closure
-  downloads.  That was an acceptable risk when a run was one tier; it is not
-  now that a run is 4.5 h and its partial output is what the continuation
-  shards resume from, so an `ENOSPC` in hour three costs the night rather
-  than a package;
-* it is `runner.temp`, not `actions/cache`.  The win is between the hundreds
-  of packages inside one job; the first package of each job rebuilding the
-  tarball once is cheaper than moving a gigabyte through the cache service.
+- The mount uses `<config>/root_cache` instead of all of `/var/cache/mock`.
+  This prevents disk exhaustion from `yum_cache` during multi-hour runs.
+- The workflow uses `runner.temp` instead of `actions/cache` to reduce network traffic.
 
-`tests/test_the_mock_root_cache_is_actually_shared.py` pins all three
-silent failure modes, including the one that made #277's first attempt
-worthless — a cache path mock never looks at.
+`tests/test_the_mock_root_cache_is_actually_shared.py` tests against these silent failures.
 
 ## Summary Status (#267)
 
-* **One runner per dispatch**: Matrixed plan/build jobs implemented in PR #277.
-* **Mock chroot root cache**: Shared cache directory with `-p` flag implemented in PR #277; the wiring was lost with #517 and restored on #512 (see postscript).
-* **Runner size**: GitHub-hosted 4-vCPU standard runners in use across org.
-* **DAG wavefront**: Documented; evaluated for higher worker concurrency tiers.
-
+- **One runner per dispatch**: Matrix jobs implemented in PR #277.
+- **Mock cache**: Shared cache directory with `-p` flag restored in PR #512.
+- **Runner size**: Standard 4-vCPU runners across the organization.
+- **DAG wavefront**: Documented for future concurrency improvements.
