@@ -1,0 +1,92 @@
+{
+  "by_coordinate": {
+    "build-chain/rpm/aarch64": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    },
+    "build-chain/rpm/x86_64": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    },
+    "tideforge/deb/amd64": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    },
+    "tideforge/deb/arm64": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    },
+    "tideforge/pkg.tar.zst/x86_64": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    },
+    "tideforge/rpm/aarch64": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    },
+    "tideforge/rpm/x86_64": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    }
+  },
+  "by_engine": {
+    "build-chain": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 2,
+      "sampled": 2
+    },
+    "tideforge": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 5,
+      "sampled": 5
+    }
+  },
+  "by_format": {
+    "deb": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 2,
+      "sampled": 2
+    },
+    "pkg.tar.zst": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    },
+    "rpm": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 4,
+      "sampled": 4
+    }
+  },
+  "history": [],
+  "measured_at": "2026-09-30T11:00:00+00:00",
+  "quarantined": [],
+  "results": [],
+  "schema": 1,
+  "summary": {
+    "divergent": 0,
+    "quarantined": 0,
+    "reproducibility_rate": 100.0,
+    "reproducible": 7,
+    "sampled": 7
+  }
+}

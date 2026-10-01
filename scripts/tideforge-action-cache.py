@@ -302,12 +302,51 @@ def create_result(key: str, paths: Iterable[pathlib.Path]) -> dict[str, Any]:
     return {"schema": SCHEMA, "action_key": key, "artifacts": artifacts}
 
 
-def verify_result(result: dict[str, Any], artifact_dir: pathlib.Path, expected_key: str | None = None) -> None:
+def load_quarantine(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
+    manifest = path or (pathlib.Path("manifests/reproducibility-quarantine.yaml"))
+    if not manifest.is_file():
+        return []
+    try:
+        data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+        entries = data.get("quarantined_packages")
+        return entries if isinstance(entries, list) else []
+    except (yaml.YAMLError, OSError):
+        return []
+
+
+def is_quarantined(
+    package: str,
+    target: str | None = None,
+    arch: str | None = None,
+    path: pathlib.Path | None = None,
+) -> bool:
+    for entry in load_quarantine(path):
+        if not isinstance(entry, dict) or entry.get("package") != package:
+            continue
+        if target and entry.get("target") and entry.get("target") != target:
+            continue
+        if arch and entry.get("architecture") and entry.get("architecture") != arch:
+            continue
+        return True
+    return False
+
+
+def verify_result(
+    result: dict[str, Any],
+    artifact_dir: pathlib.Path,
+    expected_key: str | None = None,
+    quarantine_manifest: pathlib.Path | None = None,
+    package: str | None = None,
+    target: str | None = None,
+    arch: str | None = None,
+) -> None:
     if result.get("schema") != SCHEMA:
         raise SystemExit("unsupported ActionResult schema")
     key = require_sha256(str(result.get("action_key", "")), "action key")
     if expected_key and key != require_sha256(expected_key, "expected action key"):
         raise SystemExit("ActionResult key does not match the requested action")
+    if package and is_quarantined(package, target, arch, quarantine_manifest):
+        raise SystemExit(f"recipe is quarantined due to reproducibility divergence: {package}")
     entries = result.get("artifacts")
     if not isinstance(entries, list) or not entries:
         raise SystemExit("ActionResult must contain a non-empty artifacts list")
@@ -372,6 +411,15 @@ def main() -> int:
     verify_parser.add_argument("--result", required=True)
     verify_parser.add_argument("--artifact-dir", required=True)
     verify_parser.add_argument("--expected-action-key")
+    verify_parser.add_argument("--package")
+    verify_parser.add_argument("--target")
+    verify_parser.add_argument("--arch")
+    verify_parser.add_argument("--quarantine", type=pathlib.Path)
+    quar_parser = commands.add_parser("quarantine-check")
+    quar_parser.add_argument("--package", required=True)
+    quar_parser.add_argument("--target")
+    quar_parser.add_argument("--arch")
+    quar_parser.add_argument("--quarantine", type=pathlib.Path)
     path_parser = commands.add_parser("r2-path")
     path_parser.add_argument("--action-key", required=True)
     args = parser.parse_args()
@@ -386,8 +434,20 @@ def main() -> int:
         print(json.dumps(create_result(args.action_key, map(pathlib.Path, args.artifact)), sort_keys=True))
     elif args.__dict__.get("result"):
         result = json.loads(pathlib.Path(args.result).read_text(encoding="utf-8"))
-        verify_result(result, pathlib.Path(args.artifact_dir), args.expected_action_key)
+        verify_result(
+            result,
+            pathlib.Path(args.artifact_dir),
+            args.expected_action_key,
+            quarantine_manifest=args.quarantine,
+            package=args.package,
+            target=args.target,
+            arch=args.arch,
+        )
         print("verified " + result["action_key"])
+    elif args.__dict__.get("command") == "quarantine-check" or "package" in args.__dict__ and not args.__dict__.get("result"):
+        quarantined = is_quarantined(args.package, args.target, args.arch, args.quarantine)
+        print("quarantined" if quarantined else "not quarantined")
+        return 0 if quarantined else 1
     else:
         print(result_path(args.action_key))
     return 0

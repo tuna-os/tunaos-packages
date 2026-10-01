@@ -21,3 +21,18 @@ implicitly. R2 uses `actions/sha256/<action-key>.json` as the authoritative
 result index and `blobs/sha256/<artifact-digest>` for immutable content. Protected
 main jobs alone may publish trusted R2 results, writing blobs first and the
 ActionResult last.
+
+## Reproducibility verification and quarantine
+
+The cache-reuse contract ("identical semantic inputs restore an exact verified result
+and skip compilation") is monitored by the reproducibility verifier
+(`scripts/verify-reproducibility.py` and `.github/workflows/reproducibility-verifier.yml`).
+Sampled coordinates across engines (`tideforge`, `build-chain`), formats (`rpm`, `deb`, `pkg.tar.zst`),
+and architectures are rebuilt independently from their canonical inputs, comparing artifact digests
+against the stored ActionResult.
+
+Recipes that produce divergent outputs are flagged in `manifests/reproducibility-quarantine.yaml`
+and quarantined. Quarantined recipes are treated as non-cacheable so non-reproducible artifacts are
+not silently promoted. Aggregate policy metrics (% reproducible per format/engine) are tracked over
+time in `docs/reproducibility-status.json` and reported on `docs/FACTORY-STATUS.md`.
+
