@@ -21,3 +21,13 @@ implicitly. R2 uses `actions/sha256/<action-key>.json` as the authoritative
 result index and `blobs/sha256/<artifact-digest>` for immutable content. Protected
 main jobs alone may publish trusted R2 results, writing blobs first and the
 ActionResult last.
+
+## CAS garbage collection
+
+CAS reachability and garbage collection operates as a report-only mark-and-sweep
+subsystem (`scripts/cas_gc.py`, #430 step 5). It marks reachable blobs from
+retained ActionResults and active repository metadata, applies an age grace
+period (default 7 days), and records tombstones for sweep candidates without
+deleting any live content. See [CAS-GARBAGE-COLLECTION.md](CAS-GARBAGE-COLLECTION.md)
+for the full specification and tombstone format.
+
