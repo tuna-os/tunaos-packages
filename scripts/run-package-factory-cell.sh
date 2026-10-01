@@ -134,7 +134,13 @@ case ${FORMAT:?} in
         --env TARGET="$target" --env PUBLISHED_INDEX="$published_index" \
         --volume "$root:/work" "$image" bash -lc '
           set -euo pipefail
-          dnf -y install dnf-plugins-core rpm-build
+          dnf -y install rpm-build
+          # dnf4 (el10) gets builddep and config-manager from
+          # dnf-plugins-core. dnf5 (Fedora, ELN) has builddep built in,
+          # and ELN does not ship dnf-plugins-core at all.
+          if ! dnf builddep --help >/dev/null 2>&1; then
+            dnf -y install dnf-plugins-core
+          fi
           if [[ "${TARGET:-}" == el10 ]]; then
             dnf -y install epel-release
             dnf config-manager --set-enabled crb
