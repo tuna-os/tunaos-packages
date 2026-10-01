@@ -1,5 +1,8 @@
 name: Build and Publish RPMs
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:

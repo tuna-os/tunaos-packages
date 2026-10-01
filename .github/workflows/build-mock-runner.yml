@@ -1,4 +1,8 @@
 name: Build Mock Runner Image
+
+permissions:
+  contents: read
+
 # Builds and pushes ghcr.io/tuna-os/mock-runner:centos-stream-10
 # Image is just Fedora + mock toolchain. The CentOS Stream 10 environment
 # is pulled at build time via mock's use_bootstrap_image.

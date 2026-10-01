@@ -61,6 +61,9 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
 
     workflow = {
         'name': workflow_name,
+        # Least privilege: no job here uses GITHUB_TOKEN beyond checkout
+        # (artifacts and cache use the runtime token, R2 uses its own secrets).
+        'permissions': {'contents': 'read'},
         'on': {
             'workflow_dispatch': {
                 'inputs': {
