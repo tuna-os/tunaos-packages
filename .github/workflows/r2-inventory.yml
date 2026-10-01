@@ -8,6 +8,9 @@
 # rebuild or only a createrepo_c re-index of surviving RPMs.
 name: R2 Inventory (read-only)
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
     inputs:

@@ -1,4 +1,8 @@
 name: Validate Hummingbird desktop catalog
+
+permissions:
+  contents: read
+
 on:
   pull_request:
     paths: [manifests/hummingbird-desktops.yaml, scripts/validate-hummingbird-catalog.py]
