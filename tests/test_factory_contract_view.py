@@ -19,7 +19,6 @@ reuse output built against a different package universe.
 from __future__ import annotations
 
 import importlib.util
-import json
 import pathlib
 import sys
 
@@ -108,6 +107,37 @@ def test_a_malformed_contract_passes_through_untouched():
     something nobody declared."""
     assert fc.build_view("not-a-mapping") == "not-a-mapping"
     assert fc.build_view(None) is None
+
+
+@pytest.mark.parametrize(
+    "document, message",
+    [
+        ("- not\n- a\n- mapping\n", "expected a YAML mapping"),
+        ("schema: 1\n", "targets must be a non-empty mapping"),
+        ("targets:\n  el10: malformed\n", "target entries must be mappings"),
+    ],
+)
+def test_shared_loader_rejects_malformed_target_contracts(tmp_path, document, message):
+    manifest = tmp_path / "package-factory.yaml"
+    manifest.write_text(document, encoding="utf-8")
+    with pytest.raises(fc.ContractError, match=message):
+        fc.load_targets(manifest)
+
+
+def test_publisher_uses_the_shared_target_loader(tmp_path):
+    publisher = _load("publisher_contract", "publisher_contract.py")
+    manifest = tmp_path / "package-factory.yaml"
+    manifest.write_text("targets:\n  el10: malformed\n", encoding="utf-8")
+
+    failures = []
+
+    def fail(message):
+        failures.append(message)
+        raise RuntimeError(message)
+
+    with pytest.raises(RuntimeError, match="target entries must be mappings"):
+        publisher.target("el10", "rpm", fail, manifest)
+    assert failures
 
 
 def test_an_unknown_format_still_drops_the_universal_keys():
