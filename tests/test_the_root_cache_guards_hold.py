@@ -34,8 +34,8 @@ CHAIN = ROOT / "scripts" / "build-chain.sh"
 def guard_source() -> str:
     """The corrupt-tarball guard, lifted verbatim out of build-chain.sh."""
     lines = CHAIN.read_text(encoding="utf-8").splitlines()
-    start = next(i for i, l in enumerate(lines) if "_root_cache_tarball=" in l)
-    end = next(i for i, l in enumerate(lines[start:], start) if l.strip() == "fi")
+    start = next(i for i, line in enumerate(lines) if "_root_cache_tarball=" in line)
+    end = next(i for i, line in enumerate(lines[start:], start) if line.strip() == "fi")
     return textwrap.dedent("\n".join(lines[start:end + 1]))
 
 
@@ -85,8 +85,8 @@ def test_a_good_tarball_is_kept(tmp_path: Path) -> None:
 
 def test_the_mount_point_and_its_parent_are_made_writable() -> None:
     body = CHAIN.read_text(encoding="utf-8")
-    chmods = [l for l in body.splitlines()
-              if "chmod" in l and "/var/cache/mock/" in l]
+    chmods = [line for line in body.splitlines()
+              if "chmod" in line and "/var/cache/mock/" in line]
     assert chmods, (
         "nothing makes /var/cache/mock/<config> writable inside the container. "
         "podman creates that parent root-owned when it creates the mount "

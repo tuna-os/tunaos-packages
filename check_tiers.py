@@ -1,8 +1,9 @@
-import yaml
-import subprocess
 import json
 import os
+import subprocess
 from pathlib import Path
+
+import yaml
 
 ARM_CHROOT = "epel-10-aarch64"
 V2_CHROOT = "alma-kitten+epel-10-x86_64_v2"
@@ -84,7 +85,6 @@ def main():
                     pkg_map[name]['chroots'].append(chroot)
             
             for name, info in pkg_map.items():
-                chroots_str = " ".join([f"--chroot {c}" for c in info['chroots']])
                 # Special case: icu needs spec_override sometimes, but for now let's just trigger build-package if it exists in copr
                 # If it doesn't exist or needs special setup, we might need justfile commands
                 print(f"Triggering build for {name} in {info['chroots']}...")

@@ -6,7 +6,6 @@ from pathlib import Path
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "manifests" / "catalog.yaml"
 FACTORY = ROOT / "manifests" / "package-factory.yaml"

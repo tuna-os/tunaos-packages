@@ -23,10 +23,8 @@ import importlib.util
 import json
 import pathlib
 import re
-import subprocess
 import sys
 
-import pytest
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -45,7 +43,7 @@ def module(name: str, filename: str):
 snap = module("snapshot_repo_contents", "snapshot-repo-contents.py")
 site = module("render_factory_site", "render-factory-site.py")
 
-NOW = dt.datetime(2026, 8, 26, tzinfo=dt.timezone.utc)
+NOW = dt.datetime(2026, 8, 26, tzinfo=dt.UTC)
 
 
 def contents(**over) -> dict:

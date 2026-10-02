@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Validate Hummingbird's project-owned desktop RPM source catalog."""
 from __future__ import annotations
+
 import argparse
 import pathlib
 import sys
+
 import yaml
+
 
 def fail(message: str) -> None:
     print(f"ERROR: {message}", file=sys.stderr)

@@ -164,7 +164,8 @@ def test_only_the_newest_build_of_each_source_is_installed():
     This runs the script's own code with a stubbed rpm, so it tests the
     shipped algorithm rather than a copy of it.
     """
-    import subprocess, textwrap
+    import subprocess
+    import textwrap
 
     fixture = textwrap.dedent("""\
         glib2-2.88.0-1.el10.src.rpm|glib2

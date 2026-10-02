@@ -37,9 +37,7 @@ require it to succeed and produce valid metadata. It fails on the old code.
 from __future__ import annotations
 
 import subprocess
-import textwrap
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 CHAIN = ROOT / "scripts" / "build-chain.sh"

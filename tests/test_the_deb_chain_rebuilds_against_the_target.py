@@ -35,8 +35,8 @@ fail the RFC 011 catalog builder rather than be ignored.
 """
 from __future__ import annotations
 
-import json
 import importlib.util
+import json
 import pathlib
 import re
 
@@ -65,10 +65,10 @@ def test_the_donor_is_added_as_sources_only():
     at the donor".
     """
     text = chain_text()
-    printf_lines = [l.strip() for l in text.splitlines() if 'printf "deb' in l]
+    printf_lines = [line.strip() for line in text.splitlines() if 'printf "deb' in line]
     assert printf_lines, "expected the script to write apt source lines"
 
-    donor_lines = [l for l in printf_lines if "DONOR_SUITE" in l or "donor_url" in l]
+    donor_lines = [line for line in printf_lines if "DONOR_SUITE" in line or "donor_url" in line]
     assert donor_lines, "expected the donor suite to be added as a source"
     for line in donor_lines:
         assert 'printf "deb-src' in line, (
@@ -78,7 +78,7 @@ def test_the_donor_is_added_as_sources_only():
         )
 
     # The local repo is the only binary source the chain adds, and it is local.
-    binary_lines = [l for l in printf_lines if 'printf "deb ' in l or 'printf "deb [' in l]
+    binary_lines = [line for line in printf_lines if 'printf "deb ' in line or 'printf "deb [' in line]
     for line in binary_lines:
         assert "file:///work/repo" in line, line
 

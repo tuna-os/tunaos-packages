@@ -5,7 +5,6 @@ import sys
 import types
 from urllib.error import HTTPError
 
-
 sys.modules.setdefault("tideforge_cache", types.SimpleNamespace())
 SPEC = importlib.util.spec_from_file_location(
     "verify_tideforge_source",

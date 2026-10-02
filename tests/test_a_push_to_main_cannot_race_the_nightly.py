@@ -40,8 +40,8 @@ def plan_step() -> str:
 
 def test_a_push_to_main_plans_in_canary_form() -> None:
     run = plan_step()
-    case_lines = [l for l in run.splitlines()
-                  if "--canary-common" in l and "args+=" in l]
+    case_lines = [line for line in run.splitlines()
+                  if "--canary-common" in line and "args+=" in line]
     assert case_lines, "nothing passes --canary-common any more"
     guard = case_lines[0]
     assert "push" in guard.split(")")[0], (
@@ -59,8 +59,8 @@ def test_the_schedule_still_plans_full_chains() -> None:
     hummingbird chain would never converge again.
     """
     run = plan_step()
-    guard = next(l for l in run.splitlines()
-                 if "--canary-common" in l and "args+=" in l)
+    guard = next(line for line in run.splitlines()
+                 if "--canary-common" in line and "args+=" in line)
     selector = guard.split(")")[0]
     assert "schedule" not in selector, (
         "the nightly would plan canary tiers instead of the full chain, and "
@@ -95,9 +95,9 @@ def test_the_flag_actually_removes_the_full_chain() -> None:
     #512's own changed set is the fixture, since it is what produced the race.
     """
     import importlib.util
+    import json
     import subprocess
     import sys
-    import json
 
     spec = importlib.util.spec_from_file_location(
         "plan_package_factory", ROOT / "scripts" / "plan-package-factory.py")

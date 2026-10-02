@@ -24,8 +24,6 @@ import re
 import subprocess
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts" / "build-chain.sh"
 

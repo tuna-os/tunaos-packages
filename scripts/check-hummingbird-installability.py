@@ -175,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
     desktops = args.desktops or [d for d in catalog["desktops"] if d != "bluefin"]
     report = check(catalog, target_index, published_index, desktops, consumed)
     out = {
-        "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "measured_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "arch": args.arch,
         "target_index": target_prov,
         "published_index": published_prov,
