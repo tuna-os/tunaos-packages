@@ -75,7 +75,7 @@ def test_build_catalog_target_map_has_eln():
     assert catalog_builder.TARGET_MAP.get("fedora-eln-aarch64") == "eln"
 
 
-def test_build_chain_derives_eln11_dist_tag(tmp_path):
+def test_build_chain_derives_eln_dist_tag(tmp_path):
     manifest = tmp_path / "test-manifest.yml"
     manifest.write_text("target: fedora-eln-x86_64\n")
 
@@ -85,7 +85,9 @@ def test_build_chain_derives_eln11_dist_tag(tmp_path):
     )
     result = subprocess.run(["bash", "-c", cmd], cwd=ROOT, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == ".eln11"
+    # Must match Fedora ELN's own %{dist} (rpm --eval %dist in an ELN image),
+    # not the EL major: .eln11 sorted below ELN's .eln159 builds.
+    assert result.stdout.strip() == ".eln159"
 
 
 def test_dependency_catalog_covers_eln():
