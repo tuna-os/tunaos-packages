@@ -27,7 +27,7 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "summarize-gap-drift.py"
-WORKFLOW = ROOT / ".github" / "workflows" / "gap-drift.yml"
+WORKFLOW = ROOT / ".github" / "workflows" / "upstream-drift.yml"
 
 
 def summarize(diff: str, target: str = "hummingbird") -> str:
