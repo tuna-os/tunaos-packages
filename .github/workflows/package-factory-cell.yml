@@ -308,6 +308,31 @@ jobs:
         with:
           subject-path: .factory/${{ matrix.id }}/artifacts/*
           sbom-path: .factory/${{ matrix.id }}/metadata/sbom.spdx.json
+      - name: Promote validated ActionResult and blobs to authoritative R2 CAS
+        # Authoritative CAS promotion runs strictly on protected default branch (#430 step 4 / #484).
+        # Writes blobs first and ActionResult last. PRs validate but do not promote.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.verdict.outputs.hit != 'true' && steps.build.outputs.chain_deferred != 'true'
+        env:
+          R2_BUCKET: bluefin
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          CELL_ID: ${{ matrix.id }}
+          ACTION_KEY: ${{ steps.identity.outputs.key }}
+        run: |
+          set -euo pipefail
+          if [ -n "${R2_ACCESS_KEY_ID:-}" ] && [ -n "${R2_ENDPOINT:-}" ]; then
+            bash scripts/promote-to-r2-cas.sh \
+              --cell-id "$CELL_ID" \
+              --action-key "$ACTION_KEY" \
+              --bucket "$R2_BUCKET"
+          else
+            python3 scripts/tideforge-action-cache.py promote \
+              --result ".factory/${CELL_ID}/action-result.json" \
+              --artifact-dir ".factory/${CELL_ID}/artifacts" \
+              --cas-dir ".factory/${CELL_ID}/cas" \
+              --expected-action-key "$ACTION_KEY"
+          fi
       - name: Save validated output
         # Same deferred-partial guard as Record above; the cache must only
         # ever hold COMPLETE outputs for a key.
