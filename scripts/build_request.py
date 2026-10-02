@@ -291,6 +291,9 @@ TRACK_HISTORY = (
     # from.
     "scripts/build_request.py",
     "scripts/classify-chain-failures.py",
+    # Prose recording the src/ layout for a reader browsing the tree, not a
+    # path `--adopt` rewrites and not a decision record.
+    "README.md",
 )
 
 

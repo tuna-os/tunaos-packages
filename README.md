@@ -44,9 +44,11 @@ and dependency workarounds that a generic recipe format does not yet model.
 
 | Path | Purpose |
 | --- | --- |
-| `src/gnome-50/`, `src/deps/` | Native EL10 GNOME RPM specs, patches, and source metadata |
+| `src/gnome-49/`, `src/gnome-50/`, `src/gnome-51/`, `src/deps/` | Native EL10 GNOME RPM specs, patches, and source metadata, by GNOME release track |
 | `src/xfce-wayland/` | Native XFCE/XFWL4 RPM packaging |
 | `build-order.yml` | GNOME 50 bootstrap/build dependency order |
+| `build-order-gnome51.yml` | GNOME 51 bootstrap/build dependency order |
+| `.copr/build-order-gnome49.yml` | GNOME 49 bootstrap/build dependency order (COPR-era layout) |
 | `build-order-xfce*.yml` | XFCE/XFWL4 build order for EL10 and Fedora |
 | `scripts/build-chain.sh` | Shared local/CI RPM build engine |
 | `.github/workflows/` | Per-package, distributed, validation, signing, and publication workflows |
