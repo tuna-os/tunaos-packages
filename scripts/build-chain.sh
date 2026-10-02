@@ -377,7 +377,16 @@ derive_dist() {
         # and perl -- the ABI -- are Fedora 44's, and three served packages
         # carried Rawhide's GLIBC_2.44 as a result. docs/HUMMINGBIRD-TARGET.md.)
         hummingbird-20251124*)   echo ".bfin1" ;;
-        fedora-eln*|eln*)        echo ".eln11" ;;
+        # Fedora ELN does not put the EL major (11) in %{dist}: its
+        # fedora-eln-release macros.dist sets %eln to a counter and
+        # %distcore to .eln%{eln}. Verified 2026-10-02 against
+        # quay.io/fedora/eln:latest and registry.fedoraproject.org/eln-bootc
+        # (fedora-eln-release-11.0-0.20.eln159): `rpm --eval %dist` = .eln159.
+        # The old .eln11 sorted below ELN's own build of the same version
+        # ("eln11" < "eln159"), so ELN's package always won. %eln moves
+        # forward over time; re-check with the command above and bump this
+        # when ELN does.
+        fedora-eln*|eln*)        echo ".eln159" ;;
         fedora-*)                 echo ".fc${target#fedora-}" | sed 's/-.*//' ;;
         centos-stream-10*|epel-10*|almalinux*-10*) echo ".el10" ;;
         centos-stream-9*|epel-9*) echo ".el9" ;;
