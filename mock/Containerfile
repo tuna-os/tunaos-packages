@@ -79,6 +79,8 @@ COPY centos-stream-10-ci-gnome50.cfg /etc/mock/centos-stream-10-ci-gnome50.cfg
 # mock -r reads /etc/mock, so a config that exists only in the repo is
 # invisible to the build; it has to be baked in like the others.
 COPY fedora-44-ci.cfg /etc/mock/fedora-44-ci.cfg
+COPY fedora-eln-ci.cfg /etc/mock/fedora-eln-ci.cfg
+COPY fedora-eln-ci-aarch64.cfg /etc/mock/fedora-eln-ci-aarch64.cfg
 COPY hummingbird-ci.cfg /etc/mock/hummingbird-ci.cfg
 COPY hummingbird-ci-aarch64.cfg /etc/mock/hummingbird-ci-aarch64.cfg
 
