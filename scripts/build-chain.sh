@@ -611,19 +611,67 @@ prepare_sources() {
         spectool_dest_host="$sources_cache"
         spectool_dest_container="/sources-cache"
     fi
-    if command -v spectool &>/dev/null; then
-        spectool -g -C "${spectool_dest_host}" "$spec"
-    else
-        podman run --rm \
-            --pull=always \
-            -v "${builddir}:/builddir:Z" \
-            ${sources_cache:+-v "${sources_cache}:/sources-cache:Z"} \
-            "${BUILD_IMAGE}" \
-            spectool -g -C "${spectool_dest_container}" "/builddir/SPECS/$(basename "$spec")"
-    fi || {
-        echo "ERROR: spectool failed for ${pkg_name}" >&2
-        return 1
+    # Retry with backoff on transient connection failures (#683). A network
+    # unreachable blip or connection reset must not sink the chain leg, while
+    # a 404 or unresolvable hostname indicates a spec URL that needs updating
+    # and fails immediately without wasteful retries.
+    _run_spectool() {
+        if command -v spectool &>/dev/null; then
+            spectool -g -C "${spectool_dest_host}" "$spec"
+        else
+            podman run --rm \
+                --pull=always \
+                -v "${builddir}:/builddir:Z" \
+                ${sources_cache:+-v "${sources_cache}:/sources-cache:Z"} \
+                "${BUILD_IMAGE}" \
+                spectool -g -C "${spectool_dest_container}" "/builddir/SPECS/$(basename "$spec")"
+        fi
     }
+
+    local spectool_attempts="${SPECTOOL_ATTEMPTS:-4}"
+    local spectool_delay="${SPECTOOL_DELAY:-5}"
+    local spectool_log="${builddir}/spectool.log"
+    local spectool_rc=0
+    local attempt
+
+    for ((attempt = 1; attempt <= spectool_attempts; attempt++)); do
+        set +e
+        _run_spectool > "$spectool_log" 2>&1
+        spectool_rc=$?
+        set -e
+
+        if [[ $spectool_rc -eq 0 ]]; then
+            if [[ -s "$spectool_log" ]]; then
+                cat "$spectool_log"
+            fi
+            if [[ $attempt -gt 1 ]]; then
+                echo "==> [${pkg_name}] spectool download succeeded on attempt ${attempt}"
+            fi
+            break
+        fi
+
+        if [[ -s "$spectool_log" ]]; then
+            cat "$spectool_log" >&2
+        fi
+
+        # Check for permanent errors (404 or name resolution failure) vs retryable connection errors.
+        if grep -Eqi "(404 (Client Error|Not Found)|HTTP.*404|404:\ Not Found|status.*404|error:? 404|[Nn]ot [Ff]ound for url)" "$spectool_log"; then
+            echo "ERROR: spectool failed for ${pkg_name}: source not found (HTTP 404); spec URL needs updating" >&2
+            return 1
+        elif grep -Eqi "(name or service not known|could not resolve host|nodename nor servname|nameresolutionerror|getaddrinfo failed|cannot resolve host|unknown host|failed to resolve)" "$spectool_log"; then
+            echo "ERROR: spectool failed for ${pkg_name}: host name does not resolve; spec URL needs updating" >&2
+            return 1
+        fi
+
+        if [[ $attempt -lt $spectool_attempts ]]; then
+            echo "==> [${pkg_name}] spectool download failed with connection error (attempt ${attempt}/${spectool_attempts}); retrying in ${spectool_delay}s..." >&2
+            sleep "$spectool_delay"
+            spectool_delay=$((spectool_delay * 2))
+        else
+            echo "ERROR: spectool failed for ${pkg_name} after ${spectool_attempts} attempts (connection error)" >&2
+            return 1
+        fi
+    done
     if [[ -n "$sources_cache" ]]; then
         # Never let a cached download land on top of a file that came out of
         # the package directory. Those files are what Fedora committed to
