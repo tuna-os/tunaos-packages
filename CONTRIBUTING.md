@@ -123,3 +123,10 @@ publication commands or commit secrets from a contributor workstation.
 All contributions must follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Report
 vulnerabilities through the private process in [SECURITY.md](SECURITY.md), not
 through a public issue.
+
+<!-- hive-contribute-plea: donated-compute appeal, keep in sync across repos -->
+## Contribute compute — no code needed
+
+No time to write code? You can still push this project's backlog forward. A TunaOS AI-agent hive works on this repository. Lend the hive your AI subscription or API tokens, and your machine runs tasks from this project's backlog.
+
+- 🏫 [Contribute compute to the school hive](https://school.tunaos.org/contribute)

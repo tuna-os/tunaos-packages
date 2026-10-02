@@ -377,6 +377,7 @@ derive_dist() {
         # and perl -- the ABI -- are Fedora 44's, and three served packages
         # carried Rawhide's GLIBC_2.44 as a result. docs/HUMMINGBIRD-TARGET.md.)
         hummingbird-20251124*)   echo ".bfin1" ;;
+        fedora-eln*|eln*)        echo ".eln11" ;;
         fedora-*)                 echo ".fc${target#fedora-}" | sed 's/-.*//' ;;
         centos-stream-10*|epel-10*|almalinux*-10*) echo ".el10" ;;
         centos-stream-9*|epel-9*) echo ".el9" ;;
