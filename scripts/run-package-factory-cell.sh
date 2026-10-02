@@ -135,11 +135,16 @@ case ${FORMAT:?} in
         --volume "$root:/work" "$image" bash -lc '
           set -euo pipefail
           dnf -y install rpm-build
-          # dnf4 (el10) gets builddep and config-manager from
-          # dnf-plugins-core. dnf5 (Fedora, ELN) has builddep built in,
-          # and ELN does not ship dnf-plugins-core at all.
+          # builddep (and config-manager for el10) is a plugin. dnf4 (el10)
+          # gets it from dnf-plugins-core; dnf5 gets it from dnf5-plugins.
+          # ELN ships dnf5 only and has no dnf-plugins-core, and the
+          # eln-bootc image does not preinstall dnf5-plugins.
           if ! dnf builddep --help >/dev/null 2>&1; then
-            dnf -y install dnf-plugins-core
+            if command -v dnf5 >/dev/null 2>&1; then
+              dnf -y install dnf5-plugins
+            else
+              dnf -y install dnf-plugins-core
+            fi
           fi
           if [[ "${TARGET:-}" == el10 ]]; then
             dnf -y install epel-release
