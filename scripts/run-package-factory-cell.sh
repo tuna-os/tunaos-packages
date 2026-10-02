@@ -24,7 +24,7 @@ if [[ $engine == build-chain ]]; then
       python3 scripts/import-fedora-distgit.py \
         --build-order "$MANIFEST" "${tier_args[@]}" \
         --branch rawhide --state "$out/import-state.json" \
-        --release-bump --jobs 4
+        --release-bump
     fi
     # Buildroot manifests ride inside artifacts/ so the action cache and
     # the success artifact both carry them: diffing a red run against the

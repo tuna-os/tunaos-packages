@@ -50,6 +50,12 @@ RELEASE = re.compile(r"^(Release:\s*)(\d+)(%\{\?dist\}.*)$", re.MULTILINE)
 COOLDOWN_BASE = 5.0
 COOLDOWN_CAP = 60.0
 
+# Launch pacing flattens the initial and inter-task burst of clone requests (#614).
+# Even with retries in place, starting N workers simultaneously slams
+# src.fedoraproject.org with N concurrent git handshakes, provoking 503s and
+# connection drops. Staggering clone launches ensures arrival peaks are smoothed.
+DEFAULT_PACE = 0.25
+
 
 class Throttle:
     """A cooldown shared by every clone worker.
@@ -93,6 +99,63 @@ class Throttle:
             self._delay = min(self._delay * 2, self._cap)
 
 
+class Pacer:
+    """Ensures at least `interval` seconds elapse between consecutive clone starts.
+
+    Without pacing, N workers launch N simultaneous git clones against
+    src.fedoraproject.org at t=0, producing an instant burst that triggers HTTP 503
+    or TCP connection resets ('fatal: the remote end hung up unexpectedly').
+    Staggering launches by `interval` flattens the arrival peak while adding
+    only a fraction of a second per clone to total run time (#614).
+    """
+
+    def __init__(
+        self,
+        interval: float = DEFAULT_PACE,
+        clock=time.monotonic,
+        sleep=time.sleep,
+    ) -> None:
+        self._lock = threading.Lock()
+        self._interval = max(0.0, float(interval))
+        self._clock = clock
+        self._sleep = sleep
+        self._last_launch = -self._interval
+
+    def pace(self) -> None:
+        if self._interval <= 0:
+            return
+        with self._lock:
+            now = self._clock()
+            target = max(now, self._last_launch + self._interval)
+            self._last_launch = target
+            wait_time = target - now
+        if wait_time > 0:
+            self._sleep(wait_time)
+
+
+def calibrate_jobs(count: int, requested: int | None = None) -> int:
+    """Scale clone concurrency to the batch size.
+
+    A small batch (<= 24 packages, like original niri-00) can afford 4 parallel
+    workers. A growing tier (25-100 packages, e.g. kde-00 at 49 or niri-00 at 66)
+    sheds load under high concurrency; scaling down to 3 workers flattens peak
+    demand against src.fedoraproject.org (#614). A large tier (> 100 packages,
+    e.g. gnome-* at 309 or a full manifest) drops to 2 workers to keep peak load
+    sustainable.
+
+    If an explicit --jobs is requested, it is respected.
+    """
+    if requested is not None:
+        return max(1, requested)
+    if count <= 0:
+        return 1
+    if count <= 24:
+        return min(count, 4)
+    if count <= 100:
+        return 3
+    return 2
+
+
 # A dist-git clone that fails is usually src.fedoraproject.org refusing or
 # dropping the connection, not a package that does not exist:
 #
@@ -104,8 +167,8 @@ class Throttle:
 # skipped, so two dropped connections cost the whole run. Three consecutive
 # dispatches were lost this way before anything was built.
 #
-# The host also returns 503 under load, and we are part of that load -- the
-# workflow clones with --jobs 8, all against one server. Run 31268302766 with
+# The host also returns 503 under load, and we are part of that load -- earlier
+# calibrations ran --jobs 8, all against one server. Run 31268302766 with
 # retries on:
 #
 #   Retrying python-wheel (1/2): ... The requested URL returned error: 503
@@ -114,8 +177,9 @@ class Throttle:
 #
 # Eight of eleven clones needed a retry and six of them recovered, so retrying
 # is right; three attempts over six seconds is just too impatient for a server
-# that is asking us to slow down. Hence five attempts, and a batch that waits
-# out each refusal together (see Throttle) rather than one clone at a time.
+# that is asking us to slow down. Hence five attempts, a batch that waits out
+# each refusal together (Throttle), and launch pacing + concurrency scaling
+# (Pacer, calibrate_jobs) rather than unconstrained bursts.
 PERMANENT_CLONE_ERRORS = ("not found", "does not exist", "could not read username")
 
 
@@ -161,6 +225,7 @@ def clone_with_retry(
     runner=None,
     sleeper=None,
     throttle=None,
+    pacer=None,
     timeout=180,
     jitter=None,
 ):
@@ -169,8 +234,10 @@ def clone_with_retry(
     With a `throttle` the waiting is shared: the worker parks on the batch's
     cooldown before every attempt and reports each refusal to it, instead of
     keeping a private backoff schedule that would land back inside the window
-    that refused it.  Without one -- a single clone, or a unit test -- the
-    worker backs off on its own, on the spread ladder in `backoff_delay`.
+    that refused it. With a `pacer`, clone launches are staggered across workers
+    to prevent burst arrival peaks. Without them -- a single clone, or a unit
+    test -- the worker backs off on its own, on the spread ladder in
+    `backoff_delay`.
     """
     runner = runner or subprocess.run
     sleeper = sleeper or time.sleep
@@ -182,6 +249,8 @@ def clone_with_retry(
         # prolongs it.
         if throttle is not None:
             throttle.wait()
+        if pacer is not None:
+            pacer.pace()
         # git refuses to clone into an existing non-empty directory, so a
         # partial checkout left by a failed attempt would turn one transient
         # error into a permanent one.
@@ -312,12 +381,17 @@ def main() -> None:
         help="Apply Hummingbird's +0.1 Release convention to the imported spec.",
     )
     parser.add_argument(
-        "--jobs", type=int, default=4,
-        help="Parallel dist-git clones. The clones are network-bound and "
-             "independent; the copy and the state file stay serial so the "
-             "result does not depend on completion order. They all hit one "
-             "host, though, so this is also how hard src.fedoraproject.org "
-             "is being pushed -- see --clone-attempts.",
+        "--jobs", type=int, default=None,
+        help="Parallel dist-git clones. Defaults to auto-calibrating based on "
+             "tier size (4 for <=24 pkgs, 3 for <=100 pkgs, 2 for >100 pkgs). "
+             "Clones all hit one host (src.fedoraproject.org), so concurrency is "
+             "scaled to avoid triggering server-side load shedding.",
+    )
+    parser.add_argument(
+        "--clone-pace", "--clone-interval", type=float, default=DEFAULT_PACE,
+        dest="clone_pace", metavar="SECONDS",
+        help="Minimum seconds between consecutive clone launches (default: 0.25). "
+             "Flattens the burst of simultaneous requests across workers.",
     )
     parser.add_argument(
         "--retry-pass-delay", type=int, default=60,
@@ -363,15 +437,18 @@ def main() -> None:
             pending.append((package, relative, target))
 
         throttle = Throttle(base=args.clone_cooldown)
+        pacer = Pacer(interval=args.clone_pace)
+        jobs = calibrate_jobs(len(pending), args.jobs)
 
         def clone_one(item):
             package, _, _ = item
             return item, clone_with_retry(
                 package, args.branch, tempdir / package, args.clone_attempts,
                 throttle=throttle,
+                pacer=pacer,
             )
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
             outcomes = list(pool.map(clone_one, pending))
 
         # Second pass, serial, after a cooldown.
