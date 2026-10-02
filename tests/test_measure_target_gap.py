@@ -66,3 +66,32 @@ def test_generic_entrypoint_is_checked_in() -> None:
     assert "gap_engine.py" in body
     assert "_engine.main()" in body
     assert "requires --target" in body
+
+
+def test_fedora_gap_contract_is_complete() -> None:
+    measurement = gap.target_measurement(factory(), "fedora")
+    assert measurement["roots_manifest"] == "manifests/xfce-fedora.yaml"
+    assert measurement["target_index"].startswith("https://")
+    assert measurement["reference_index"].startswith("https://")
+    assert measurement["drift"]["mode"] == "exhibit"
+    assert measurement["drift"]["build_order"] == "build-order-xfce-fedora.generated.yml"
+    assert measurement["drift"]["compare_to"] == "build-order-xfce-fedora.yml"
+
+
+def test_fedora_shadow_measurement_artifacts_exist() -> None:
+    import json
+
+    report_file = ROOT / "fedora-gap.json"
+    order_file = ROOT / "build-order-xfce-fedora.generated.yml"
+    assert report_file.is_file(), "fedora-gap.json must be committed beside the executed order"
+    assert order_file.is_file(), "build-order-xfce-fedora.generated.yml must be committed"
+
+    report = json.loads(report_file.read_text(encoding="utf-8"))
+    assert report["target"]["id"] == "fedora-44-x86_64"
+    assert "xfce" in report["desktops"]
+    assert report["desktops"]["xfce"]["roots"] == ["xfwl4"]
+
+    order = yaml.safe_load(order_file.read_text(encoding="utf-8"))
+    assert order["target"] == "fedora-44-x86_64"
+    assert "tiers" in order
+
