@@ -25,6 +25,10 @@ from __future__ import annotations
 
 import gzip
 import importlib.util
+import io
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -147,3 +151,110 @@ def test_an_empty_stage_is_an_error_not_a_pass(tmp_path) -> None:
     d = stage(tmp_path)
     assert verify.main(["--served-url", "https://example.test/repo/",
                         "--staged", str(d)]) == 2
+
+
+# --- retry and informative error reporting -----------------------------------
+
+
+def test_fetch_retries_transient_failure_and_succeeds(monkeypatch) -> None:
+    calls = []
+    delays = []
+
+    def fake_urlopen(url, timeout=60):
+        calls.append(url)
+        if len(calls) < 3:
+            raise urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+        return io.BytesIO(b"success")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    res = verify.fetch(
+        "https://example.test/repo/repodata/repomd.xml",
+        attempts=4,
+        sleeper=delays.append,
+    )
+    assert res == b"success"
+    assert len(calls) == 3
+    assert delays == [2, 4]
+
+
+def test_fetch_exhausts_retries_and_names_exact_url(monkeypatch) -> None:
+    delays = []
+
+    def fake_urlopen(url, timeout=60):
+        raise urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    target_url = "https://repo.tunaos.org/gnome50/10-stream-x86_64/repodata/repomd.xml"
+    with pytest.raises(RuntimeError) as exc_info:
+        verify.fetch(target_url, attempts=3, sleeper=delays.append)
+
+    assert f"could not read the served index at {target_url}: HTTP Error 403: Forbidden" in str(exc_info.value)
+    assert delays == [2, 4]
+
+
+def test_main_reports_failed_repomd_url_not_bare_directory(tmp_path, monkeypatch, capsys) -> None:
+    d = stage(tmp_path, "a-1.el10.x86_64.rpm")
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+
+    def fake_urlopen(url, timeout=60):
+        raise urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    rc = verify.main([
+        "--served-url", "https://repo.tunaos.org/gnome50/10-stream-x86_64/",
+        "--staged", str(d),
+    ])
+    assert rc == 1
+    err = capsys.readouterr().err
+    expected_msg = (
+        "ERROR: could not read the served index at "
+        "https://repo.tunaos.org/gnome50/10-stream-x86_64/repodata/repomd.xml: "
+        "HTTP Error 403: Forbidden\n"
+    )
+    assert err == expected_msg
+
+
+def test_main_reports_failed_primary_url(tmp_path, monkeypatch, capsys) -> None:
+    d = stage(tmp_path, "a-1.el10.x86_64.rpm")
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+
+    def fake_urlopen(url, timeout=60):
+        if url.endswith("repodata/repomd.xml"):
+            return io.BytesIO(REPOMD)
+        if url.endswith("repodata/bbb-primary.xml.gz"):
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+        raise AssertionError(f"unexpected fetch: {url}")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    rc = verify.main([
+        "--served-url", "https://example.test/repo/",
+        "--staged", str(d),
+    ])
+    assert rc == 1
+    err = capsys.readouterr().err
+    expected_msg = (
+        "ERROR: could not read the served index at "
+        "https://example.test/repo/repodata/bbb-primary.xml.gz: "
+        "HTTP Error 404: Not Found\n"
+    )
+    assert err == expected_msg
+
+
+def test_main_reports_missing_primary_index_in_repomd(tmp_path, monkeypatch, capsys) -> None:
+    d = stage(tmp_path, "a-1.el10.x86_64.rpm")
+
+    def fake_urlopen(url, timeout=60):
+        if url.endswith("repodata/repomd.xml"):
+            return io.BytesIO(b"<repomd></repomd>")
+        raise AssertionError(f"unexpected fetch: {url}")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    rc = verify.main([
+        "--served-url", "https://example.test/repo/",
+        "--staged", str(d),
+    ])
+    assert rc == 1
+    err = capsys.readouterr().err
+    expected_msg = "ERROR: no primary index in https://example.test/repo/repodata/repomd.xml\n"
+    assert err == expected_msg
+
