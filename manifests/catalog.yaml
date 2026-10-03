@@ -2348,7 +2348,7 @@ packages:
       rpm:
         native: src/gnome-51/gdm
     upstream:
-      version: 51~beta
+      version: '51.0'
       source: https://download.gnome.org/sources/gdm/%{major_version}/gdm-%{tarball_version}.tar.xz
       spec: src/gnome-51/gdm/gdm.spec
     targets:
@@ -2504,8 +2504,8 @@ packages:
       rpm:
         native: src/gnome-51/glib2
     upstream:
-      version: 2.89.4
-      source: https://download.gnome.org/sources/glib/2.89/glib-%{version}.tar.xz
+      version: 2.90.0
+      source: https://download.gnome.org/sources/glib/2.90/glib-%{version}.tar.xz
       spec: src/gnome-51/glib2/glib2-bootstrap.spec
     targets:
       - el10
@@ -2670,7 +2670,7 @@ packages:
       rpm:
         native: src/gnome-51/gnome-control-center
     upstream:
-      version: 51~beta
+      version: '51.0'
       source: https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/gnome-control-center/gnome-control-center.spec
     targets:
@@ -2698,7 +2698,7 @@ packages:
       rpm:
         native: src/gnome-51/gnome-desktop3
     upstream:
-      version: 51~alpha
+      version: '51.0'
       source: https://download.gnome.org/sources/gnome-desktop/51/gnome-desktop-%{tarball_version}.tar.xz
       spec: src/gnome-51/gnome-desktop3/gnome-desktop3.spec
     targets:
@@ -2750,7 +2750,7 @@ packages:
       rpm:
         native: src/gnome-51/gnome-initial-setup
     upstream:
-      version: 51~beta
+      version: '51.0'
       source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/gnome-initial-setup/gnome-initial-setup.spec
     targets:
@@ -2764,7 +2764,7 @@ packages:
       rpm:
         native: src/gnome-51/gnome-initial-setup
     upstream:
-      version: 51~beta
+      version: '51.0'
       source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/gnome-initial-setup/gnome-initial-setup.spec
     targets:
@@ -2842,7 +2842,7 @@ packages:
       rpm:
         native: src/gnome-51/gnome-session
     upstream:
-      version: 51~beta
+      version: '51.0'
       source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/gnome-session/gnome-session.spec
     targets:
@@ -2880,7 +2880,7 @@ packages:
       rpm:
         native: src/gnome-51/gnome-settings-daemon
     upstream:
-      version: 51~beta
+      version: '51.0'
       source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/gnome-settings-daemon/gnome-settings-daemon.spec
     targets:
@@ -2908,7 +2908,7 @@ packages:
       rpm:
         native: src/gnome-51/gnome-shell
     upstream:
-      version: 51~beta
+      version: '51.0'
       source: https://download.gnome.org/sources/gnome-shell/%{major_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/gnome-shell/gnome-shell.spec
     targets:
@@ -3203,7 +3203,7 @@ packages:
       rpm:
         native: src/gnome-51/gsettings-desktop-schemas
     upstream:
-      version: 51~beta
+      version: '51.0'
       source: https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/gsettings-desktop-schemas/gsettings-desktop-schemas.spec
     targets:
@@ -3417,7 +3417,7 @@ packages:
       rpm:
         native: src/gnome-51/gtk4
     upstream:
-      version: 4.23.3
+      version: 4.24.0
       source: https://download.gnome.org/sources/gtk/%{gnome_major_minor_version}/gtk-%{version}.tar.xz
       spec: src/gnome-51/gtk4/gtk4.spec
     targets:
@@ -5428,7 +5428,7 @@ packages:
       rpm:
         native: src/gnome-51/libadwaita
     upstream:
-      version: 1.10~beta.1
+      version: 1.10.0
       source: https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/libadwaita/libadwaita.spec
     targets:
@@ -7620,7 +7620,7 @@ packages:
       rpm:
         native: src/gnome-51/nautilus
     upstream:
-      version: 51~beta
+      version: 51.0.1
       source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/nautilus/nautilus.spec
     targets:
@@ -7634,7 +7634,7 @@ packages:
       rpm:
         native: src/gnome-51/nautilus
     upstream:
-      version: 51~beta
+      version: 51.0.1
       source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/nautilus/nautilus.spec
     targets:
@@ -10967,7 +10967,7 @@ packages:
       rpm:
         native: src/gnome-51/xdg-desktop-portal-gnome
     upstream:
-      version: 51~alpha
+      version: '51.0'
       source: https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/xdg-desktop-portal-gnome/xdg-desktop-portal-gnome.spec
     targets:

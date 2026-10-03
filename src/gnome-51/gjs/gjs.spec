@@ -18,7 +18,7 @@
 %bcond_with tests
 
 Name:           gjs
-Version:        1.89.2
+Version:        1.90.0
 Release:        %autorelease
 Summary:        Javascript Bindings for GNOME
 
