@@ -13,7 +13,7 @@
 
 Name:           gdm
 Epoch:          1
-Version:        51~beta
+Version:        51.0
 Release:        1%{?dist}
 Summary:        The GNOME Display Manager
 
@@ -65,8 +65,8 @@ Requires: dbus-common
 Requires: dconf
 # since we use it, and pam spams the log if the module is missing
 Requires: gnome-keyring-pam
-Requires: gnome-session >= 51~beta
-Requires: gnome-session-wayland-session >= 51~beta
+Requires: gnome-session >= 51.0
+Requires: gnome-session-wayland-session >= 51.0
 Requires: gnome-settings-daemon >= 3.27.90
 Requires: gnome-shell
 # el10-only: it exists only in build-order-gnome51.yml's src/deps/, not in

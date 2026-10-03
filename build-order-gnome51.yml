@@ -108,9 +108,9 @@ tiers:
       - path: src/gnome-51/gsettings-desktop-schemas
       - path: src/gnome-51/gnome-desktop3
       # The track's OWN gtk4, not src/deps/. src/deps/gtk4 is 4.21.6 and is
-      # shared with build-order.yml; the GNOME 51 modules need 4.23.3, and
+      # shared with build-order.yml; the GNOME 51 modules need 4.24.0, and
       # libadwaita/nautilus/xdg-desktop-portal-gnome all died on
-      # "Run-time dependency gtk4 found: NO" while a bumped 4.23.3 sat
+      # "Run-time dependency gtk4 found: NO" while a bumped GTK sat
       # unreferenced in src/gnome-51/gtk4. Per-track copies are the
       # convention the hummingbird order already follows (src/gnome-50/gtk4).
       - path: src/gnome-51/gtk4
