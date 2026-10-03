@@ -3,7 +3,7 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:           gsettings-desktop-schemas
-Version:        51~beta
+Version:        51.0
 # Rawhide fork: adopt %%autorelease like our other src/gnome-51 packages
 # (xdg-desktop-portal, gnome-desktop3, ptyxis, vte291, gobject-introspection)
 # instead of the stale hand-bumped Release: 1%%{?dist}.

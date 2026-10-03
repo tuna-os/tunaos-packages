@@ -2,8 +2,8 @@
 %global with_broadway 1
 %endif
 
-%global glib2_version 2.84.0
-# Load-bearing, not cosmetic: GTK 4.23.3's own meson.build declares
+%global glib2_version 2.89.3
+# Load-bearing, not cosmetic: GTK 4.24.0's own meson.build declares
 # pango_major_req=1, pango_minor_req=58. A floor below 1.58 is satisfiable
 # by an older pango, which used to make gtk4 silently vendor its own copy
 # of pango as a meson subproject instead of failing the BuildRequires
@@ -32,8 +32,8 @@
 %endif
 
 Name:           gtk4
-Version:        4.23.3
-Release:        3%{?dist}
+Version:        4.24.0
+Release:        1%{?dist}
 Summary:        GTK graphical user interface library
 
 # Rawhide's current spec sources the download.gnome.org path segment from a
@@ -337,6 +337,9 @@ desktop-file-validate $RPM_BUILD_ROOT%{_datadir}/applications/*.desktop
 %{_mandir}/man1/gtk4-widget-factory.1*
 
 %changelog
+* Sat Oct 03 2026 unknown <unknown@users.noreply.github.com> - 4.24.0-1
+- Update to the GNOME 51 stable release
+
 * Fri Aug 28 2026 James Reilly <jreilly1821@gmail.com> - 4.23.3-3
 - Re-fork from Fedora Rawhide's current gtk4.spec. #580's two fixes
   (pango_version floor, removed gtk4-encode-symbolic-svg/gtk4-icon-editor

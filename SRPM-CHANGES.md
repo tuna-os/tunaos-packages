@@ -1,6 +1,20 @@
 # Local SRPM Modification Changelog
 
-This document tracks all manual modifications made to SRPM specifications and sources to enable GNOME 50 on CentOS Stream 10.
+This document tracks all manual modifications made to SRPM specifications and sources to enable GNOME 50 and GNOME 51 on CentOS Stream 10.
+
+## GNOME 51.0 release set
+
+The GNOME 51 tier moved from development snapshots to the coordinated
+GNOME 51 stable release for issue #673. The core GNOME modules are at 51.0
+(Nautilus starts the stable series at 51.0.1), with the matching GLib 2.90.0,
+GTK 4.24.0, libadwaita 1.10.0, and GJS 1.90.0 releases. Both GLib bootstrap
+and full specs move together; the full build retains a higher release so it
+supersedes the bootstrap RPM.
+
+The libadwaita 1.10.0 tarball includes the stylesheet/sassc fix previously
+carried as `fix-sassc-requirement-for-tarball-builds.patch`, so that downstream
+patch was removed. All other downstream patches were checked against the final
+release tarballs and still apply.
 
 ## 1. Custom GNOME 50 Compatibility Packages
 
