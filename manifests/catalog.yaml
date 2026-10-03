@@ -9597,6 +9597,20 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
+  - name: roost
+    family: tideforge
+    packaging:
+      pkg.tar.zst:
+        tideforge: packages/roost
+    upstream:
+      version: 0.1.0
+      source: https://github.com/hanthor/roost-desktop/archive/5eee55cd95ce2240f516ec775b794f548be80980.tar.gz
+      sha256: bb5439d8e9bc312ee3c7f7e982e54cf3dc89fd4746d1ac843699e9134fea7aff
+    targets:
+      - arch
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: rtkit
     family: hummingbird-desktops
     packaging:
