@@ -1,0 +1,112 @@
+schema: 1
+name: roost
+version: "0.1.0"
+release: 1
+summary: GNOME-style Wayland desktop session in Rust (nested developer preview)
+description: >-
+  Roost is a Smithay-based Wayland desktop that aims at GNOME 51 parity: a
+  supervised compositor with a GNOME-style GTK shell, optional scrollable
+  tiling, an IBus bridge, and a greetd greeter. This package ships the six
+  session binaries, the wayland-sessions entry, and the lock-screen PAM
+  service, mirroring upstream's own packaging/arch/PKGBUILD. Built for TunaOS
+  Marlin (hanthor/roost-desktop#69).
+license: GPL-3.0-or-later
+# Pinned upstream commit (no release tag yet). Bump source, the vendor
+# asset below, and `release` together.
+source:
+  url: https://github.com/hanthor/roost-desktop/archive/5eee55cd95ce2240f516ec775b794f548be80980.tar.gz
+  sha256: bb5439d8e9bc312ee3c7f7e982e54cf3dc89fd4746d1ac843699e9134fea7aff
+  directory: roost-desktop-5eee55cd95ce2240f516ec775b794f548be80980
+# Vendored crates.io closure (`cargo vendor --locked` from the exact commit
+# above), shipped as a release asset like xfwl4 so the build never fetches
+# crates. Roost's Cargo.lock has no git dependencies, so the config needs only
+# the crates-io replacement.
+sources:
+  - url: https://github.com/tuna-os/tunaos-packages/releases/download/roost-vendor-5eee55c/roost-vendor.tar.gz
+    sha256: 7e71d970d0a21631a791adba5d7e97896f936a240b86c9d53d54d9ac1ea11e37
+    filename: roost-vendor.tar.gz
+    destination: .
+    strip_components: 0
+# custom, not cargo: the cargo renderer builds and installs one binary, and
+# Roost's session is six binaries from four workspace crates
+# (roost-session ships in roost-compositor, roost-ibus-bridge in
+# roost-shell-host).
+build_system: custom
+build:
+  environment:
+    # Every binary reports this (minus the leading v) from --version; it must
+    # equal `version` above, exactly as upstream's PKGBUILD stamps v${pkgver}.
+    ROOST_VERSION: v0.1.0
+  cargo_config: |
+    [source.crates-io]
+    replace-with = "vendored-sources"
+
+    [source.vendored-sources]
+    directory = "vendor"
+
+    [net]
+    offline = true
+  commands:
+    # makepkg builds with LTO on; the pipewire crate compiles C through cc
+    # (libspa-sys), whose thin-LTO bitcode loses its symbols at the Rust link.
+    # Fat LTO objects keep real code beside the bitcode -- the same flag the
+    # cargo renderer applies for niri. Upstream's PKGBUILD sets !lto instead,
+    # which the recipe schema cannot express.
+    - export CFLAGS="${CFLAGS:-} -ffat-lto-objects"
+    - cargo build --release --locked --offline -p roost-compositor -p roost-shell-host -p roost-shell-gtk -p roost-greeter
+dependencies:
+  build:
+    capabilities: [rust, c-compiler, pkg-config]
+    targets:
+      # Arch ships headers in the library packages; every one consumed at
+      # build time is listed here, not only in depends (#118). clang is for
+      # bindgen (pipewire/libspa, xkbcommon-adjacent sys crates).
+      arch: [clang, dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+  runtime:
+    targets:
+      # Upstream packaging/arch/PKGBUILD depends=(). Optional integrations
+      # (xorg-xwayland, ibus, greetd, xdg-desktop-portal-gnome) are optdepends
+      # upstream; the recipe schema has no optdepends, so the Marlin image
+      # installs them itself.
+      arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+install:
+  commands:
+    - install -Dm0755 target/release/roost-compositor {destdir}/usr/bin/roost-compositor
+    - install -Dm0755 target/release/roost-session {destdir}/usr/bin/roost-session
+    - install -Dm0755 target/release/roost-shell-host {destdir}/usr/bin/roost-shell-host
+    - install -Dm0755 target/release/roost-shell-gtk {destdir}/usr/bin/roost-shell-gtk
+    - install -Dm0755 target/release/roost-ibus-bridge {destdir}/usr/bin/roost-ibus-bridge
+    - install -Dm0755 target/release/roost-greeter {destdir}/usr/bin/roost-greeter
+  files:
+    - {source: share/wayland-sessions/roost.desktop, destination: usr/share/wayland-sessions/roost.desktop}
+    # Lock-screen PAM service (roost-desktop#62): unlock under GDM, where no
+    # greetd runs.
+    - {source: share/pam.d/roost-lock, destination: etc/pam.d/roost-lock}
+    - {source: LICENSE, destination: usr/share/licenses/roost/LICENSE}
+files:
+  common:
+    - usr/bin/roost-compositor
+    - usr/bin/roost-session
+    - usr/bin/roost-shell-host
+    - usr/bin/roost-shell-gtk
+    - usr/bin/roost-ibus-bridge
+    - usr/bin/roost-greeter
+    - usr/share/wayland-sessions/roost.desktop
+    - etc/pam.d/roost-lock
+    - usr/share/licenses/roost/LICENSE
+verify:
+  # The real session contract, not just "a binary exists": every one of the
+  # six binaries runs and reports the package version, the wayland-sessions
+  # entry exists and launches the session supervisor (not the compositor
+  # directly), and the lock-screen PAM service is installed. A binary-only
+  # package would repeat flounder:niri (a compositor no display manager can
+  # discover) and a missing PAM file leaves the lock screen unable to unlock.
+  smoke: >-
+    for b in roost-compositor roost-session roost-shell-host roost-shell-gtk roost-ibus-bridge roost-greeter;
+    do v="$($b --version | awk '{print $NF}')";
+    if [ "$v" != 0.1.0 ]; then echo "$b --version reports '$v', expected 0.1.0" >&2; exit 1; fi;
+    done
+    && test -f /usr/share/wayland-sessions/roost.desktop
+    && grep -qx 'Exec=roost-session' /usr/share/wayland-sessions/roost.desktop
+    && test -f /etc/pam.d/roost-lock
+targets: [arch]
