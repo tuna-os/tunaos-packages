@@ -200,3 +200,13 @@ def test_the_signing_key_is_imported_where_it_is_used():
     text = WAVE.read_text(encoding="utf-8")
     assert "GPG_PRIVATE_KEY" in text and "gpg --batch --import" in text
     assert "$HOME/.gnupg" not in WORKFLOW.read_text(encoding="utf-8")
+
+
+def test_served_install_requires_the_committed_signing_key():
+    text = VERIFY.read_text(encoding="utf-8")
+    assert "SigLevel = Optional TrustAll" not in text
+    assert "SigLevel = Required DatabaseOptional" in text
+    assert 'pacman-key --add "$PUBLIC_KEY"' in text
+    assert "4E5CC9F8B3B521793D95266E629BE6EA45188366" in text
+    workflow = (ROOT / ".github/workflows/publish-tideforge-arch.yml").read_text(encoding="utf-8")
+    assert '--volume "$PWD/public.gpg:/keys/tunaos-public.gpg:ro"' in workflow

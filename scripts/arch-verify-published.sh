@@ -13,6 +13,15 @@ set -euo pipefail
 : "${URL:?URL is required}"
 : "${PACKAGES:?PACKAGES is required}"
 : "${REPO_NAME:?REPO_NAME is required}"
+: "${PUBLIC_KEY:=/keys/tunaos-public.gpg}"
+# Trust the repository's committed public key, including its signing subkey.
+# Optional signatures still reject unknown keys when a signature is present.
+expected_fingerprint=4E5CC9F8B3B521793D95266E629BE6EA45188366
+fingerprint=$(gpg --batch --show-keys --with-colons "$PUBLIC_KEY" | awk -F: '/^fpr:/{print $10; exit}')
+[ "$fingerprint" = "$expected_fingerprint" ] || { echo "ERROR: unexpected repository signing key" >&2; exit 1; }
+pacman-key --init
+pacman-key --add "$PUBLIC_KEY"
+pacman-key --lsign-key "$expected_fingerprint"
 
 # Same mirror pin as the build container and the gate's clean-install: on
 # 2026-08-18 fastly served a core.db naming a package every pool 404'd, so any
@@ -34,10 +43,10 @@ echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' > /etc/pacman.d/m
 {
     echo '[options]'
     echo 'Architecture = auto'
-    echo 'SigLevel = Optional TrustAll'
+    echo 'SigLevel = Required DatabaseOptional'
     echo
     echo "[${REPO_NAME}]"
-    echo 'SigLevel = Optional TrustAll'
+    echo 'SigLevel = Required DatabaseOptional'
     echo "Server = ${URL%/}"
     echo
     echo '[core]'
