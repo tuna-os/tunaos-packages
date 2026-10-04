@@ -64,6 +64,14 @@ def test_a_dep_outside_the_view_is_never_noise():
     assert report["broken"] == {}
 
 
+def test_new_distro_dependency_is_not_a_deb_index_regression():
+    new = OLD_PACKAGES.replace(
+        "Depends: quickshell (>= 0.1.0), libc6 (>= 2.34)",
+        "Depends: quickshell (>= 0.1.0), libc6 (>= 2.34), libsecret-1-0")
+    assert gate.regressions(
+        deb_index(OLD_PACKAGES), deb_index(new), "deb")["broken"] == {}
+
+
 def test_apt_candidate_is_the_highest_version_not_the_last_stanza():
     """pool/ accumulates every version; apt installs the highest.
 
@@ -131,6 +139,27 @@ def test_the_pacman_leg_judges_with_alpm_ordering():
     ]))
     report = gate.regressions(old, new, "pacman")
     assert report["broken"] == {"niri": ["quickshell >= 0.2"]}
+
+
+def test_new_distro_dependency_is_not_a_pacman_index_regression():
+    old = pacman.parse_db(_db([
+        ("roost-0.1.0-1", _desc("roost", "0.1.0-1", ["gtk4"])),
+    ]))
+    new = pacman.parse_db(_db([
+        ("roost-0.1.0-2", _desc("roost", "0.1.0-2", ["gtk4", "libsecret"])),
+    ]))
+    assert gate.regressions(old, new, "pacman")["broken"] == {}
+
+
+def test_new_dependency_on_a_removed_provider_still_fails():
+    old = pacman.parse_db(_db([
+        ("helper-1-1", _desc("helper", "1-1")),
+        ("roost-0.1.0-1", _desc("roost", "0.1.0-1")),
+    ]))
+    new = pacman.parse_db(_db([
+        ("roost-0.1.0-2", _desc("roost", "0.1.0-2", ["helper"])),
+    ]))
+    assert gate.regressions(old, new, "pacman")["broken"] == {"roost": ["helper"]}
 
 
 def test_a_removed_package_is_reported_but_not_fatal():
