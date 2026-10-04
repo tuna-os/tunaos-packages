@@ -1,7 +1,7 @@
 schema: 1
 name: roost
 version: "0.1.0"
-release: 1
+release: 2
 summary: GNOME-style Wayland desktop session in Rust (nested developer preview)
 description: >-
   Roost is a Smithay-based Wayland desktop that aims at GNOME 51 parity: a
@@ -14,16 +14,16 @@ license: GPL-3.0-or-later
 # Pinned upstream commit (no release tag yet). Bump source, the vendor
 # asset below, and `release` together.
 source:
-  url: https://github.com/hanthor/roost-desktop/archive/5eee55cd95ce2240f516ec775b794f548be80980.tar.gz
-  sha256: bb5439d8e9bc312ee3c7f7e982e54cf3dc89fd4746d1ac843699e9134fea7aff
-  directory: roost-desktop-5eee55cd95ce2240f516ec775b794f548be80980
+  url: https://github.com/hanthor/roost-desktop/archive/c28f96ebaa1fdf016308904bb4af4ec7922aacac.tar.gz
+  sha256: f687ef49bb3bb6311d1d37f5240b397efe827a8d00ee2ac391ae7c4c6ae186f9
+  directory: roost-desktop-c28f96ebaa1fdf016308904bb4af4ec7922aacac
 # Vendored crates.io closure (`cargo vendor --locked` from the exact commit
 # above), shipped as a release asset like xfwl4 so the build never fetches
 # crates. Roost's Cargo.lock has no git dependencies, so the config needs only
 # the crates-io replacement.
 sources:
-  - url: https://github.com/tuna-os/tunaos-packages/releases/download/roost-vendor-5eee55c/roost-vendor.tar.gz
-    sha256: 7e71d970d0a21631a791adba5d7e97896f936a240b86c9d53d54d9ac1ea11e37
+  - url: https://github.com/tuna-os/tunaos-packages/releases/download/roost-vendor-c28f96e/roost-vendor.tar.gz
+    sha256: e022546af94b1f7a3b9067b92bc1c37039e66a57e5c21d81a1f2687c2dc81569
     filename: roost-vendor.tar.gz
     destination: .
     strip_components: 0
@@ -61,14 +61,14 @@ dependencies:
       # Arch ships headers in the library packages; every one consumed at
       # build time is listed here, not only in depends (#118). clang is for
       # bindgen (pipewire/libspa, xkbcommon-adjacent sys crates).
-      arch: [clang, dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+      arch: [clang, dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
   runtime:
     targets:
       # Upstream packaging/arch/PKGBUILD depends=(). Optional integrations
       # (xorg-xwayland, ibus, greetd, xdg-desktop-portal-gnome) are optdepends
       # upstream; the recipe schema has no optdepends, so the Marlin image
       # installs them itself.
-      arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+      arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
 install:
   commands:
     - install -Dm0755 target/release/roost-compositor {destdir}/usr/bin/roost-compositor
@@ -82,6 +82,7 @@ install:
     # Lock-screen PAM service (roost-desktop#62): unlock under GDM, where no
     # greetd runs.
     - {source: share/pam.d/roost-lock, destination: etc/pam.d/roost-lock}
+    - {source: share/systemd/user/roost-session.target, destination: usr/lib/systemd/user/roost-session.target}
     - {source: LICENSE, destination: usr/share/licenses/roost/LICENSE}
 files:
   common:
@@ -93,6 +94,7 @@ files:
     - usr/bin/roost-greeter
     - usr/share/wayland-sessions/roost.desktop
     - etc/pam.d/roost-lock
+    - usr/lib/systemd/user/roost-session.target
     - usr/share/licenses/roost/LICENSE
 verify:
   # The real session contract, not just "a binary exists": every one of the
@@ -109,4 +111,5 @@ verify:
     && test -f /usr/share/wayland-sessions/roost.desktop
     && grep -qx 'Exec=roost-session' /usr/share/wayland-sessions/roost.desktop
     && test -f /etc/pam.d/roost-lock
+    && test -f /usr/lib/systemd/user/roost-session.target
 targets: [arch]
