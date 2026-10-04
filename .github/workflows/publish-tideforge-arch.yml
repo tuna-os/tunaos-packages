@@ -237,4 +237,5 @@ jobs:
           set -euo pipefail
           docker run --rm --env PACKAGES --env URL --env REPO_NAME \
             --volume "$PWD/scripts:/scripts:ro" \
+            --volume "$PWD/public.gpg:/keys/tunaos-public.gpg:ro" \
             '${{ needs.plan.outputs.image }}' bash /scripts/arch-verify-published.sh
