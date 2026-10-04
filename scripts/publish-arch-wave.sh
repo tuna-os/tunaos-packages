@@ -82,13 +82,14 @@ repo-add "${sign_args[@]+"${sign_args[@]}"}" "$repo/$name.db.tar.gz" "$repo"/*.p
 # repo-add writes <name>.db.tar.gz, but pacman requests <name>.db. On a local
 # filesystem that is a symlink repo-add creates; over HTTP from an object
 # store there are no symlinks, so the db must exist under the requested name
-# as a real object. arch-clean-install.sh hit exactly this and copies the file
+# as a real object. Remove the destination first: cp otherwise follows the
+# repo-add symlink and refuses to copy a file onto itself. arch-clean-install.sh hit exactly this and copies the file
 # for the same reason. Same for .files, which pacman -F requests.
-cp -f "$repo/$name.db.tar.gz" "$repo/$name.db"
-[ -f "$repo/$name.files.tar.gz" ] && cp -f "$repo/$name.files.tar.gz" "$repo/$name.files"
+cp -f --remove-destination "$repo/$name.db.tar.gz" "$repo/$name.db"
+[ -f "$repo/$name.files.tar.gz" ] && cp -f --remove-destination "$repo/$name.files.tar.gz" "$repo/$name.files"
 if [ -n "$key" ]; then
-  [ -f "$repo/$name.db.tar.gz.sig" ] && cp -f "$repo/$name.db.tar.gz.sig" "$repo/$name.db.sig"
-  [ -f "$repo/$name.files.tar.gz.sig" ] && cp -f "$repo/$name.files.tar.gz.sig" "$repo/$name.files.sig"
+  [ -f "$repo/$name.db.tar.gz.sig" ] && cp -f --remove-destination "$repo/$name.db.tar.gz.sig" "$repo/$name.db.sig"
+  [ -f "$repo/$name.files.tar.gz.sig" ] && cp -f --remove-destination "$repo/$name.files.tar.gz.sig" "$repo/$name.files.sig"
 fi
 
 echo "published ${#after[@]} package(s) into $name"
