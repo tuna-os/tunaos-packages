@@ -131,10 +131,11 @@ def regressions(old: dict, new: dict, fmt: str) -> dict:
         after = judge(new["packages"][name], new_caps, new_evr, version)
         if not after:
             continue
-        # Judge the SAME package's deps against the old view; for a
-        # package the old index also carried, use its old declaration
-        # so a changed dependency list is compared like-for-like.
-        reference = old["packages"].get(name, new["packages"][name])
+        # Judge the same dependency declaration against both views.
+        # Newly declared distro dependencies were never resolved by our
+        # index, so adding one cannot be an index regression. The clean
+        # installation gate verifies their availability from the distro.
+        reference = new["packages"][name]
         before = set(judge(reference, old_caps, old_evr, version))
         regressed = [dep for dep in after if dep not in before]
         if regressed:
