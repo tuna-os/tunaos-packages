@@ -79,7 +79,7 @@ def test_the_db_is_written_under_the_name_pacman_requests():
     """repo-add produces <name>.db.tar.gz; pacman asks for <name>.db. Over
     HTTP there is no symlink to bridge them."""
     text = WAVE.read_text(encoding="utf-8")
-    assert 'cp -f "$repo/$name.db.tar.gz" "$repo/$name.db"' in text
+    assert 'cp -f --remove-destination "$repo/$name.db.tar.gz" "$repo/$name.db"' in text
 
 
 def test_our_repository_is_configured_before_core_and_extra():
