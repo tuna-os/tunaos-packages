@@ -388,7 +388,7 @@ jobs:
       #
       # NOTE: comments belong HERE, not inside `path:` below -- that is a
       # YAML block scalar, where a `#` line is a literal path, not a comment.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: success()
         with:
           name: ${{ matrix.id }}
@@ -398,7 +398,7 @@ jobs:
             .factory/${{ matrix.id }}/action-result.json
             .factory/${{ matrix.id }}/action-key.txt
           if-no-files-found: error
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: ${{ matrix.id }}
@@ -454,7 +454,7 @@ jobs:
       # So name the two outcomes that mean "the build ran and did not
       # finish". A denylist silently admits every future outcome value GitHub
       # adds, which is how `skipped` got in.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         # A DEFERRED chain also belongs on this allowlist: the soft deadline
         # exits 0, so its outcome is `success` -- but "ran and did not
         # finish" is exactly its state, and it is the upload the next
