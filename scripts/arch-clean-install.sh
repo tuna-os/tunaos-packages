@@ -99,8 +99,15 @@ cp /tmp/tideforge.db.tar.gz /var/lib/tideforge/tideforge.db
     echo 'Include = /etc/pacman.d/mirrorlist'
 } > /tmp/tideforge-pacman.conf
 
-pacman --config /tmp/tideforge-pacman.conf -Sy --noconfirm
-pacman --config /tmp/tideforge-pacman.conf -S --noconfirm "$package"
+# Install with a full upgrade, never -Sy followed by -S. The base image's
+# packages lag the mirror, and syncing the databases without upgrading is an
+# Arch partial upgrade: the solver pulls today's dependencies of $package
+# against yesterday's libraries. Run 37821959508 (roost 0.1.0-3) installed
+# gtk4 4.24.1 next to the image's glib2 2.88.3, and the smoke test died with
+# "libgtk-4.so.1: undefined symbol: g_timeout_source_new_ns", a failure in
+# the harness, not the package. The build container already runs -Syu
+# (run-package-factory-cell.sh); the install must match it.
+pacman --config /tmp/tideforge-pacman.conf -Syu --noconfirm "$package"
 
 # Prove the install really happened before anything downstream trusts it. The
 # defect above is exactly the kind this line exists to catch.
