@@ -9604,8 +9604,8 @@ packages:
         tideforge: packages/roost
     upstream:
       version: 0.1.0
-      source: https://github.com/hanthor/roost-desktop/archive/c28f96ebaa1fdf016308904bb4af4ec7922aacac.tar.gz
-      sha256: f687ef49bb3bb6311d1d37f5240b397efe827a8d00ee2ac391ae7c4c6ae186f9
+      source: https://github.com/tuna-os/tuna-desktop/archive/9e3de927f6730191ff93ddfa96c0fcdb9a08c8f6.tar.gz
+      sha256: 1338910da4d7301d6b26b092dcf49675f6879b2aa6e71f0e8905ecfb07def0d8
     targets:
       - arch
     membership: runtime
