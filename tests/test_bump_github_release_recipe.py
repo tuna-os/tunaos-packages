@@ -81,17 +81,54 @@ class TestBump:
         assert "already tracks latest stable release" not in path.read_text() \
             or "version: 1.2.4" in path.read_text()
 
-    def test_prerelease_rejected(self, tmp_path, monkeypatch):
+    def test_prerelease_skipped(self, tmp_path, monkeypatch, capsys):
         release = {"tag_name": "v1.3.0-beta1", "prerelease": True, "draft": False}
-        with pytest.raises(SystemExit) as exc:
-            _run_main(monkeypatch, BASE_RECIPE, release=release, tmp_path=tmp_path)
-        assert "not stable" in str(exc.value)
+        path = _run_main(monkeypatch, BASE_RECIPE, release=release, tmp_path=tmp_path)
+        assert "SKIP" in capsys.readouterr().out
+        assert "1.2.3" in path.read_text()  # untouched
 
-    def test_draft_rejected(self, tmp_path, monkeypatch):
+    def test_draft_skipped(self, tmp_path, monkeypatch, capsys):
         release = {"tag_name": "v1.2.4", "prerelease": False, "draft": True}
-        with pytest.raises(SystemExit) as exc:
-            _run_main(monkeypatch, BASE_RECIPE, release=release, tmp_path=tmp_path)
-        assert "not stable" in str(exc.value)
+        path = _run_main(monkeypatch, BASE_RECIPE, release=release, tmp_path=tmp_path)
+        assert "SKIP" in capsys.readouterr().out
+        assert "1.2.3" in path.read_text()  # untouched
+
+    def test_version_change_resets_release(self, tmp_path, monkeypatch):
+        recipe = BASE_RECIPE.replace("summary:", "release: 7\nsummary:")
+        path = _run_main(monkeypatch, recipe, tmp_path=tmp_path)
+        assert "\nrelease: 1\n" in path.read_text()
+
+    def test_same_version_preserves_release(self, tmp_path, monkeypatch):
+        recipe = BASE_RECIPE.replace("1.2.3", "1.2.4").replace(
+            "a" * 64, "b" * 64).replace("summary:", "release: 7\nsummary:")
+        path = _run_main(monkeypatch, recipe, tmp_path=tmp_path)
+        assert "\nrelease: 7\n" in path.read_text()
+
+    def test_custom_layout_refused(self, tmp_path, monkeypatch, capsys):
+        recipe = BASE_RECIPE.replace(
+            "archive/refs/tags/v1.2.3.tar.gz", "archive/epoch-1.2.3.tar.gz")
+        path = _run_main(monkeypatch, recipe, tmp_path=tmp_path)
+        assert "SKIP" in capsys.readouterr().out
+        assert "epoch-1.2.3" in path.read_text()  # untouched
+
+    def test_unreachable_feed_skipped(self, tmp_path, monkeypatch, capsys):
+        import urllib.error
+        path = tmp_path / "recipe.yaml"
+        path.write_text(BASE_RECIPE)
+        monkeypatch.setattr(sys, "argv", ["bump-github-release-recipe",
+                                          str(path), "--repo", "tuna-os/hello"])
+        with patch.object(mod, "get",
+                          side_effect=urllib.error.URLError("down")):
+            assert mod.main() == 0
+        assert "SKIP" in capsys.readouterr().out
+        assert "1.2.3" in path.read_text()  # untouched
+
+    def test_comments_survive_bump(self, tmp_path, monkeypatch):
+        recipe = "# leading comment\n" + BASE_RECIPE + "# trailing comment\n"
+        path = _run_main(monkeypatch, recipe, tmp_path=tmp_path)
+        updated = path.read_text()
+        assert updated.startswith("# leading comment\n")
+        assert updated.endswith("# trailing comment\n")
 
     def test_keeps_other_recipe_fields(self, tmp_path, monkeypatch):
         path = _run_main(monkeypatch, BASE_RECIPE, tmp_path=tmp_path)
