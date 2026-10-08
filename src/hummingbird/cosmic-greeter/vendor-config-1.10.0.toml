@@ -1,10 +1,6 @@
 [source.crates-io]
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/AerynOS/locales-rs"]
-git = "https://github.com/AerynOS/locales-rs"
-replace-with = "vendored-sources"
-
 [source."git+https://github.com/iced-rs/cryoglyph.git?rev=e429a025df36ab8145708acb309080ae3deec17a"]
 git = "https://github.com/iced-rs/cryoglyph.git"
 rev = "e429a025df36ab8145708acb309080ae3deec17a"
@@ -12,6 +8,10 @@ replace-with = "vendored-sources"
 
 [source."git+https://github.com/jackpot51/rust-atomicwrites"]
 git = "https://github.com/jackpot51/rust-atomicwrites"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/pop-os/cosmic-applets"]
+git = "https://github.com/pop-os/cosmic-applets"
 replace-with = "vendored-sources"
 
 [source."git+https://github.com/pop-os/cosmic-bg"]
@@ -22,25 +22,21 @@ replace-with = "vendored-sources"
 git = "https://github.com/pop-os/cosmic-comp"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/pop-os/cosmic-idle"]
-git = "https://github.com/pop-os/cosmic-idle"
+[source."git+https://github.com/pop-os/cosmic-osk"]
+git = "https://github.com/pop-os/cosmic-osk"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/pop-os/cosmic-mime-apps"]
-git = "https://github.com/pop-os/cosmic-mime-apps"
-replace-with = "vendored-sources"
-
-[source."git+https://github.com/pop-os/cosmic-panel"]
-git = "https://github.com/pop-os/cosmic-panel"
-replace-with = "vendored-sources"
-
-[source."git+https://github.com/pop-os/cosmic-protocols//?rev=e95d895"]
+[source."git+https://github.com/pop-os/cosmic-protocols//?rev=c0cff4d"]
 git = "https://github.com/pop-os/cosmic-protocols//"
-rev = "e95d895"
+rev = "c0cff4d"
 replace-with = "vendored-sources"
 
 [source."git+https://github.com/pop-os/cosmic-randr"]
 git = "https://github.com/pop-os/cosmic-randr"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/pop-os/cosmic-settings"]
+git = "https://github.com/pop-os/cosmic-settings"
 replace-with = "vendored-sources"
 
 [source."git+https://github.com/pop-os/cosmic-settings-daemon"]
@@ -74,18 +70,14 @@ git = "https://github.com/pop-os/window_clipboard.git"
 tag = "sctk-0.20"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/pop-os/winit.git?tag=cosmic-0.14"]
+[source."git+https://github.com/pop-os/winit.git?rev=9567503"]
 git = "https://github.com/pop-os/winit.git"
-tag = "cosmic-0.14"
+rev = "9567503"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/wash2/accesskit?tag=cosmic-0.14"]
+[source."git+https://github.com/wash2/accesskit?rev=6c20249"]
 git = "https://github.com/wash2/accesskit"
-tag = "cosmic-0.14"
-replace-with = "vendored-sources"
-
-[source."git+https://github.com/wash2/atspi"]
-git = "https://github.com/wash2/atspi"
+rev = "6c20249"
 replace-with = "vendored-sources"
 
 [source.vendored-sources]

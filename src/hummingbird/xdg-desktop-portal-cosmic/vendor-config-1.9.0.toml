@@ -1,9 +1,8 @@
 [source.crates-io]
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/Drakulix/id-tree.git?branch=feature/copy_clone"]
-git = "https://github.com/Drakulix/id-tree.git"
-branch = "feature/copy_clone"
+[source."git+https://github.com/ebassi/xdg-mime-rs"]
+git = "https://github.com/ebassi/xdg-mime-rs"
 replace-with = "vendored-sources"
 
 [source."git+https://github.com/iced-rs/cryoglyph.git?rev=e429a025df36ab8145708acb309080ae3deec17a"]
@@ -15,13 +14,17 @@ replace-with = "vendored-sources"
 git = "https://github.com/jackpot51/rust-atomicwrites"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/pop-os//cosmic-protocols?branch=main"]
-git = "https://github.com/pop-os//cosmic-protocols"
-branch = "main"
+[source."git+https://github.com/pop-os/cosmic-bg"]
+git = "https://github.com/pop-os/cosmic-bg"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/pop-os/cosmic-randr/"]
-git = "https://github.com/pop-os/cosmic-randr/"
+[source."git+https://github.com/pop-os/cosmic-files"]
+git = "https://github.com/pop-os/cosmic-files"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/pop-os/cosmic-protocols?rev=c0cff4d"]
+git = "https://github.com/pop-os/cosmic-protocols"
+rev = "c0cff4d"
 replace-with = "vendored-sources"
 
 [source."git+https://github.com/pop-os/cosmic-settings-daemon"]
@@ -55,9 +58,18 @@ git = "https://github.com/pop-os/window_clipboard.git"
 tag = "sctk-0.20"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/smithay/smithay.git?rev=1ed69cb"]
-git = "https://github.com/smithay/smithay.git"
-rev = "1ed69cb"
+[source."git+https://github.com/pop-os/winit.git?tag=cosmic-0.14"]
+git = "https://github.com/pop-os/winit.git"
+tag = "cosmic-0.14"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/wash2/accesskit?tag=cosmic-0.14"]
+git = "https://github.com/wash2/accesskit"
+tag = "cosmic-0.14"
+replace-with = "vendored-sources"
+
+[source."git+https://gitlab.freedesktop.org/pipewire/pipewire-rs"]
+git = "https://gitlab.freedesktop.org/pipewire/pipewire-rs"
 replace-with = "vendored-sources"
 
 [source.vendored-sources]
