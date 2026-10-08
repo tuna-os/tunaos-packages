@@ -1,31 +1,31 @@
 schema: 1
 name: cosmic-comp
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: Compositor for the COSMIC desktop environment
 description: COSMIC Wayland compositor for the TunaOS Hummingbird desktop.
 license: Apache-2.0 AND GPL-3.0-only AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-comp/archive/epoch-1.4.0.tar.gz
-  sha256: 713f2dfdfa0e1b6899a45fd7dec172fb0f299a60daff4a624b8432de43fa229b
-  directory: cosmic-comp-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-comp/archive/epoch-1.9.0.tar.gz
+  sha256: f0f3a2362861fe8976d7d45436aaa0a10de975522b6e8a53d77058a74ffc81e8
+  directory: cosmic-comp-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-comp/vendor-1.4.0.tar.gz/sha512/c49695f78fd82bfaf836a5c6a7259fce51d9ba8914232f8ef6402b6858f1c8420c54e90bbead4c9d807d96faf1dbb3f9281ec3fff4077f3de29d418da6916003/vendor-1.4.0.tar.gz
-    sha256: 7979842db0a553b9c1f1e95521f320ce191c6e9ed212d4660c81e920e748d7b6
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-comp/vendor-1.9.0.tar.gz/sha512/bd232262949fd4c9514b3def640510f2a3480787761277e890a8b41b849f1a5bc4b44429cbcefa7706c15b53064c1158e6b1439b432c3f137ee0246ed7542f12/vendor-1.9.0.tar.gz
+    sha256: 0b2c4f5a14f9c79d4333d619d39e9d3c328f51df76425125c0010145d2397a6f
     filename: cosmic-comp-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-comp/raw/1b11c8603055cd5f2a7a3edcfcd0631a6b4962d8/f/vendor-config-1.4.0.toml
-    sha256: b0999a83483c6e0b0d8d3884b09bd7d968220a725996524d9d514f8f56bdb5c3
+  - url: https://src.fedoraproject.org/rpms/cosmic-comp/raw/569d3f0ec8caf6b4aca8ba5c96f8af133a7cfb97/f/vendor-config-1.9.0.toml
+    sha256: 1755c0473f6120016a84974233053765962f59c7931ca6fa0729f877f28b0030
     filename: cosmic-comp-vendor-config.toml
     destination: .cargo/config.toml
     extract: false
 build_system: custom
 build:
   environment:
-    VERGEN_GIT_SHA: 4d370cdf92b5d96d78032593947f4ad9eae793bf
-    VERGEN_GIT_COMMIT_DATE: "2026-07-21 22:22:07 +0200"
-    GIT_HASH: 4d370cdf92b5d96d78032593947f4ad9eae793bf
+    VERGEN_GIT_SHA: 0fbd4574ef4caf74769a617d205fd1fc909ac9b1
+    VERGEN_GIT_COMMIT_DATE: "2026-09-22 17:12:28 -0600"
+    GIT_HASH: 0fbd4574ef4caf74769a617d205fd1fc909ac9b1
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:
@@ -41,7 +41,7 @@ dependencies:
       debian: [lld, make, libegl1-mesa-dev, libseat-dev]
   runtime:
     targets:
-      el10: [libseat, libwayland-server, xorg-x11-server-Xwayland, cosmic-icon-theme >= 1.4.0]
+      el10: [libseat, libwayland-server, xorg-x11-server-Xwayland, cosmic-icon-theme >= 1.9.0]
       # Deb dependency syntax needs parentheses for versions; the unversioned
       # name suffices here because the gate stages the matching artifact.
       ubuntu: [libseat1, libwayland-server0, xwayland, cosmic-icon-theme]

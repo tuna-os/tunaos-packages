@@ -1,0 +1,94 @@
+schema: 1
+name: cosmic-initial-setup
+version: 1.9.0
+release: 1
+summary: Initial setup application for the COSMIC desktop environment
+description: Initial setup application for the COSMIC desktop environment for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-initial-setup/archive/epoch-1.9.0.tar.gz
+  sha256: 6327cce425d6590b8479bdd459f34e9522663fa47b86c9af020f055e746c61eb
+  directory: cosmic-initial-setup-epoch-1.9.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-initial-setup/vendor-1.9.0.tar.gz/sha512/4d322c178eb535e2ab260cbe0cea6b84e567d61794cc553eb67cf66bf57905adb39d48ae0c5c9b601756bec88eb21d90bed15ae7c9d851db0143eca0f6c65310/vendor-1.9.0.tar.gz
+    sha256: e8f51b07f530bb43753ea6cb27ac46fc48d92df25f4138b7a8e80a7505032733
+    filename: cosmic-initial-setup-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-initial-setup/raw/557435fc7855fd75eb2448a043ecc16f3802c4ff/f/vendor-config-1.9.0.toml
+    sha256: 0090c62671eb1aad1898ef88877ad30fcbb417ad87dc3681b34b3bda6eec700e
+    filename: cosmic-initial-setup-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+  - url: https://src.fedoraproject.org/rpms/cosmic-initial-setup/raw/557435fc7855fd75eb2448a043ecc16f3802c4ff/f/0001-Downgrade-aws-lc-rs-sys-to-fix-rpm-build.patch
+    sha256: 8a3b4e69b00126c9a2263cb87621b145284fdfbecacb7e42e4ada29e48062aa4
+    filename: cosmic-initial-setup-aws-lc-downgrade.patch
+    destination: patches/cosmic-initial-setup-aws-lc-downgrade.patch
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 9b5a9490e60966ebf0565267ce0e9fca368dfbd1
+    VERGEN_GIT_COMMIT_DATE: 2026-09-15 21:53:38 +0200
+  commands:
+    - cargo build --release --offline --frozen
+  prepare:
+    - patch -p1 < patches/cosmic-initial-setup-aws-lc-downgrade.patch
+dependencies:
+  build:
+    capabilities:
+      - rust
+      - cmake
+      - libinput-dev
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+        - libxkbcommon-devel
+        - openssl-devel
+        - flatpak-devel
+        - systemd-devel
+      ubuntu:
+        - cargo
+        - lld
+        - just
+        - libxkbcommon-dev
+        - libssl-dev
+        - libflatpak-dev
+        - libsystemd-dev
+      debian:
+        - cargo
+        - lld
+        - just
+        - libxkbcommon-dev
+        - libssl-dev
+        - libflatpak-dev
+        - libsystemd-dev
+  runtime:
+    targets:
+      el10:
+        - flatpak-libs
+        - polkit
+        - hicolor-icon-theme
+        - cosmic-icon-theme >= 1.9.0
+      ubuntu: []
+      debian: []
+files:
+  common:
+    - usr/bin/cosmic-initial-setup
+    - usr/share/applications/com.system76.CosmicInitialSetup.desktop
+    - usr/share/cosmic-layouts
+    - usr/share/cosmic-themes
+    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicInitialSetup.svg
+    - usr/share/polkit-1/rules.d/20-cosmic-initial-setup.rules
+    - etc/xdg/autostart/com.system76.CosmicInitialSetup.desktop
+install:
+  commands:
+    - just rootdir={destdir} prefix=/usr install
+verify:
+  smoke: test -x /usr/bin/cosmic-initial-setup
+targets:
+  - el10
+  - ubuntu
+  - debian

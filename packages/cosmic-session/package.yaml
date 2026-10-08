@@ -1,22 +1,22 @@
 schema: 1
 name: cosmic-session
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: Session manager for the COSMIC desktop environment
 description: >-
   COSMIC session manager and session target for the TunaOS Hummingbird desktop.
 license: Apache-2.0 AND GPL-3.0-only AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-session/archive/epoch-1.4.0.tar.gz
-  sha256: 34d92d4113b08d8129d2bf5d16d3641fcc64e5c8cbb20df2c03700d06ec5fc2b
-  directory: cosmic-session-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-session/archive/epoch-1.9.0.tar.gz
+  sha256: e6d093938ab59baafdccac576cb0bc1a1966c825a5fedf9cb498061d8099ed57
+  directory: cosmic-session-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-session/vendor-1.4.0.tar.gz/sha512/d4424916d3d12fdae8260f80d5e9b9a1d725ec70e1600f7d9104efaa7f445c1cadebb21b5fa4e6ebc65ba29c2c5107ace65b995c06c4c62219bbd7f7910b7563/vendor-1.4.0.tar.gz
-    sha256: dc00ed5951dfbbcdd13dc07f2165a05bf8c21a687cb5bfdf1f8187f2aa0f6df3
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-session/vendor-1.9.0.tar.gz/sha512/a00784bb78f18976d80b9da51cb0510629892bb77039c6989eef836981aad254af66ff5455c035f578e73023a6ca21ea5516de9581e9619cc19fae9502a4dc41/vendor-1.9.0.tar.gz
+    sha256: 5a786a97ddf0c32183c431ddb78cb8310da72ee0b58baa1ef6508e31d0d99b57
     filename: cosmic-session-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-session/raw/aa0fdb21083b93e71641d4e3dc7250dd37bfd6e5/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-session/raw/011904fd07cc5fc4e58d000ce6867f6a2648274e/f/vendor-config-1.9.0.toml
     sha256: 559de0e88875d8b7d383467edb7bb381247f52701c801ee680995499e258a808
     filename: cosmic-session-vendor-config.toml
     destination: .cargo/config.toml
@@ -24,8 +24,8 @@ sources:
 build_system: custom
 build:
   environment:
-    VERGEN_GIT_SHA: b5ef6c0c0d68762b2991e4f5906cc70599e2f1fc
-    VERGEN_GIT_COMMIT_DATE: "2026-07-02 12:45:52 -0700"
+    VERGEN_GIT_SHA: 1e4f10b5821982688e4a8a39f819be0bc2ad3e74
+    VERGEN_GIT_COMMIT_DATE: "2026-09-23 13:41:35 -0400"
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:
@@ -40,7 +40,7 @@ dependencies:
     # the gate's clean-install repo only holds the deb built by that cell, so
     # naming cosmic-comp there renders an unsatisfiable Depends.
     targets:
-      el10: [cosmic-app-library >= 1.4.0, cosmic-applets >= 1.4.0, cosmic-bg >= 1.4.0, cosmic-comp >= 1.4.0, cosmic-files >= 1.4.0, cosmic-greeter >= 1.4.0, cosmic-icon-theme >= 1.4.0, cosmic-idle >= 1.4.0, cosmic-initial-setup >= 1.4.0, cosmic-launcher >= 1.4.0, cosmic-notifications >= 1.4.0, cosmic-osd >= 1.4.0, cosmic-panel >= 1.4.0, cosmic-randr >= 1.4.0, cosmic-screenshot >= 1.4.0, cosmic-settings >= 1.4.0, cosmic-settings-daemon >= 1.4.0, cosmic-term >= 1.4.0, cosmic-workspaces >= 1.4.0, xdg-desktop-portal-cosmic >= 1.4.0, open-sans-fonts, 'font(notosansmono)', xdg-user-dirs, system-cosmic-config]
+      el10: [cosmic-app-library >= 1.9.0, cosmic-applets >= 1.9.0, cosmic-bg >= 1.9.0, cosmic-comp >= 1.9.0, cosmic-files >= 1.9.0, cosmic-greeter >= 1.9.0, cosmic-icon-theme >= 1.9.0, cosmic-idle >= 1.9.0, cosmic-initial-setup >= 1.9.0, cosmic-launcher >= 1.9.0, cosmic-notifications >= 1.9.0, cosmic-osd >= 1.9.0, cosmic-osk >= 1.9.0, cosmic-panel >= 1.9.0, cosmic-randr >= 1.9.0, cosmic-screenshot >= 1.9.0, cosmic-settings >= 1.9.0, cosmic-settings-daemon >= 1.9.0, cosmic-term >= 1.9.0, cosmic-workspaces >= 1.9.0, xdg-desktop-portal-cosmic >= 1.9.0, open-sans-fonts, 'font(notosansmono)', xdg-user-dirs, system-cosmic-config]
       ubuntu: []
       debian: []
 files:

@@ -1,23 +1,23 @@
 schema: 1
 name: cosmic-greeter
-version: "1.4.0"
+version: "1.10.0"
 release: 1
 summary: Greeter for the COSMIC desktop environment
 description: COSMIC graphical greeter and daemon integrated with greetd.
 license: Apache-2.0 AND GPL-3.0-only AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-greeter/archive/epoch-1.4.0.tar.gz
-  sha256: 121ea127cb26efa0c414d8d5c191bb7d2e890b1543edd17065004e2d9bf7baab
-  directory: cosmic-greeter-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-greeter/archive/epoch-1.10.0.tar.gz
+  sha256: b4dcf23c2bc9719de4aa2c4c315ed30d1d142477b213fcca3d61856ef46dd9b8
+  directory: cosmic-greeter-epoch-1.10.0
 sources:
-  - {url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-greeter/vendor-1.4.0.tar.gz/sha512/6a4f4a8b2f9542d9d5b037f1ff355e506aef1c920d6fd076c76cf62322efe6daa181b8ac26a8f045bf3ea06b9030f1f43c8b0c4b1f082c3b4f7bf7acaa29de37/vendor-1.4.0.tar.gz, sha256: 34b7b4a169e9a33aebaaf77bf04dde1c792ea1c83bcb9f42f5f11d5103451b21, filename: cosmic-greeter-vendor.tar.gz, destination: ., strip_components: 0}
-  - {url: https://src.fedoraproject.org/rpms/cosmic-greeter/raw/4ac033c19be9f14626cbb7ce70de536fbfe8f577/f/vendor-config-1.4.0.toml, sha256: 01b0a9206d866d7010380c20d1004d97b8e69e9948cbe3b52237fabef777efae, filename: cosmic-greeter-vendor-config.toml, destination: .cargo/config.toml, extract: false}
+  - {url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-greeter/vendor-1.10.0.tar.gz/sha512/eb90013aeb0abb418abd73dfd444ac046f66d4c3e0ca7fe94138afe1fa44c8b943e948fc40fbb7485da06a0c7acee341771116a45340a2a41c843f27a3de506b/vendor-1.10.0.tar.gz, sha256: 79c4c7a8b272e36b5610c947d9c28a9ddb9e02439a84529256b73e2fd2d2320e, filename: cosmic-greeter-vendor.tar.gz, destination: ., strip_components: 0}
+  - {url: https://src.fedoraproject.org/rpms/cosmic-greeter/raw/cc8fb47213e9831b8366bf71e549adb59f03d883/f/vendor-config-1.10.0.toml, sha256: df5f4b1247cd51b6085fff8b3e7097b2cbeacc18e309fb1020c0478b1759f4de, filename: cosmic-greeter-vendor-config.toml, destination: .cargo/config.toml, extract: false}
   - {url: https://raw.githubusercontent.com/tuna-os/tunaos-packages/0578e2643a88c0bb569dd8de44747161a1d9f816/src/hummingbird/cosmic-greeter/0001-Make-service-a-display-manager.patch, sha256: 83621ca315c46d8ca29a206425e0704d9dd77efa7cadd380faaffa6ba2432fdc, filename: cosmic-greeter-display-manager.patch, destination: patches/cosmic-greeter-display-manager.patch, extract: false}
   - {url: https://raw.githubusercontent.com/tuna-os/tunaos-packages/0578e2643a88c0bb569dd8de44747161a1d9f816/src/hummingbird/cosmic-greeter/include-greetd.patch, sha256: 6941d90a13c1b2408eaa692a5eff8fc2b1d0d43fa288cc5eff0b8aea477a0e1a, filename: cosmic-greeter-include-greetd.patch, destination: patches/cosmic-greeter-include-greetd.patch, extract: false}
 build_system: custom
 build:
   prepare: [patch -p1 < patches/cosmic-greeter-display-manager.patch, patch -p1 < patches/cosmic-greeter-include-greetd.patch]
-  environment: {VERGEN_GIT_SHA: 2290aae5e2e078a1d79c6ec1a27cdf3ccc366a45, VERGEN_GIT_COMMIT_DATE: "2026-07-19 08:12:23 -0700"}
+  environment: {VERGEN_GIT_SHA: 98df07df93df1cb091c95451f7162dca1a2ae2dd, VERGEN_GIT_COMMIT_DATE: "2026-10-07 21:19:02 +0200"}
   commands: [cargo build --release --all --offline --frozen]
 dependencies:
   build:
@@ -33,7 +33,7 @@ dependencies:
       # siblings (cosmic-comp, cosmic-icon-theme). The deb targets map the
       # archive-present half of that set onto Debian/Ubuntu package names and
       # drop the rest, matching the cosmic-settings deb precedent (#225).
-      el10: [dbus, greetd, greetd-selinux, fprintd-pam, pam, cosmic-comp >= 1.4.0, cosmic-icon-theme >= 1.4.0]
+      el10: [dbus, greetd, greetd-selinux, fprintd-pam, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
       ubuntu: [dbus, greetd, libpam-fprintd]
       debian: [dbus, greetd, libpam-fprintd]
 files:

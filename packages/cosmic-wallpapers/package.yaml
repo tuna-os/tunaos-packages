@@ -1,0 +1,39 @@
+schema: 1
+name: cosmic-wallpapers
+version: 1.9.0
+release: 1
+summary: Default wallpapers for the COSMIC Desktop Environment
+description: Default wallpapers for the COSMIC Desktop Environment for TunaOS.
+license: CC-BY-SA-4.0
+source:
+  url: https://github.com/pop-os/cosmic-wallpapers/archive/epoch-1.9.0.tar.gz
+  sha256: d898a1a7f84c8138e9b16e6a0cc1ed806ce9a87a94ab75561895b8e1d7a465f5
+  directory: cosmic-wallpapers-epoch-1.9.0
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: d6c60281508ef6b20db712612dad256d0b44b4fb
+    VERGEN_GIT_COMMIT_DATE: 2026-08-21 11:49:16 -0600
+  commands:
+    - make install DESTDIR={destdir} prefix=/usr
+dependencies:
+  build:
+    targets:
+      el10:
+        - make
+      ubuntu:
+        - make
+      debian:
+        - make
+files:
+  common:
+    - usr/share/backgrounds/cosmic
+install:
+  commands:
+    - cd cosmic-wallpapers && make install DESTDIR={destdir} prefix=/usr
+verify:
+  smoke: test -d /usr/share/backgrounds/cosmic
+targets:
+  - el10
+  - ubuntu
+  - debian

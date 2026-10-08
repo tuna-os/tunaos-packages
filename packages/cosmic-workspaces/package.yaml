@@ -1,0 +1,83 @@
+schema: 1
+name: cosmic-workspaces
+version: 1.9.0
+release: 1
+summary: Workspaces overview for the COSMIC Desktop Environment
+description: Workspaces overview for the COSMIC Desktop Environment for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-workspaces-epoch/archive/epoch-1.9.0.tar.gz
+  sha256: cf9afff9ba023abe3bd996b82ceda7a295f63bcdbbd9ad784a9643a86c647f04
+  directory: cosmic-workspaces-epoch-epoch-1.9.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-workspaces/vendor-1.9.0.tar.gz/sha512/0a0ff3803019ad40cfda332f3060275b5798fa0f0c04c70703ae209c233978f9dbdc9b5bca6c1040b9e8be29b2acdfaef828d6700f9d273044388e9fc32ef813/vendor-1.9.0.tar.gz
+    sha256: d3424c351a36ed84b68df0c2cf5fce4ff4c7ab3bb5aa85473dba877dca10c9d8
+    filename: cosmic-workspaces-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-workspaces/raw/31e3338f0e0d83267a8898941881425502f4a9d6/f/vendor-config-1.9.0.toml
+    sha256: 8249fe206a16ce3dd20602b509e4d3d3bff7579a60061436399e281db3eb3b3e
+    filename: cosmic-workspaces-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 28e257daa86643aee4166f192fb3e000ac3f7605
+    VERGEN_GIT_COMMIT_DATE: 2026-09-15 21:51:15 +0200
+  commands:
+    - cargo build --release --offline --frozen
+dependencies:
+  build:
+    capabilities:
+      - rust
+      - wayland-dev
+      - libxkbcommon-dev
+      - libinput-dev
+      - gbm-dev
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+        - systemd-devel
+        - libglvnd-devel
+        - libseat-devel
+        - make
+      ubuntu:
+        - cargo
+        - lld
+        - just
+        - libsystemd-dev
+        - libegl1-mesa-dev
+        - libseat-dev
+        - make
+      debian:
+        - cargo
+        - lld
+        - just
+        - libsystemd-dev
+        - libegl1-mesa-dev
+        - libseat-dev
+        - make
+  runtime:
+    targets:
+      el10:
+        - cosmic-comp >= 1.9.0
+        - cosmic-icon-theme >= 1.9.0
+      ubuntu: []
+      debian: []
+files:
+  common:
+    - usr/bin/cosmic-workspaces
+    - usr/share/applications/com.system76.CosmicWorkspaces.desktop
+    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicWorkspaces.svg
+install:
+  commands:
+    - make install DESTDIR={destdir} prefix=/usr
+verify:
+  smoke: test -x /usr/bin/cosmic-workspaces
+targets:
+  - el10
+  - ubuntu
+  - debian

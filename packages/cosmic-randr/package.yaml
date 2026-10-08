@@ -1,21 +1,21 @@
 schema: 1
 name: cosmic-randr
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: Display configuration command line tool for COSMIC
 description: COSMIC display configuration command line tool for TunaOS.
 license: Apache-2.0 AND GPL-3.0-only AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-randr/archive/epoch-1.4.0.tar.gz
-  sha256: 37745fa8229e30ce1a3f38e724ccab3f4805af0acaaeb26ce1ffe80ad8d73852
-  directory: cosmic-randr-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-randr/archive/epoch-1.9.0.tar.gz
+  sha256: 6c082cba6b80c5d89b02aec7ed315c9de8452cd413f5181ece43d7fdb3011481
+  directory: cosmic-randr-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-randr/vendor-1.4.0.tar.gz/sha512/023d532a6352fa173a74f0d2c0803db4392dc73f9b25c76108ba647a0a23d4a2ab4f187644bce74bd3947bf6d164ad104f094df08d2fac994a91ebc7f664a817/vendor-1.4.0.tar.gz
-    sha256: 20cf935144e55682c7d1e93e2b68e82df32aed90c49380db0a2c196f6a2b01d3
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-randr/vendor-1.9.0.tar.gz/sha512/5cd219e6b898fda465b0af6367be575d289d6b574e8ed12172f506176baea36192fcf054e03cbf9693be5df525ff61a3115b62360bdc7a9e94c36d26d034c6f0/vendor-1.9.0.tar.gz
+    sha256: 0633054065bcc0c841a3949bea552bbe5e719537c9c931b311c75e36eaba325e
     filename: cosmic-randr-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-randr/raw/663b34c4b73b396df8562071b674ccfc7d8c6adf/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-randr/raw/f61c017f4ee1ee465d3c8b6292f9e2c609126e68/f/vendor-config-1.9.0.toml
     sha256: b99c1e67392c1239d6fc64c46cd6adfbda2ea49bf9376fb1b8dfc2dbfbb09383
     filename: cosmic-randr-vendor-config.toml
     destination: .cargo/config.toml

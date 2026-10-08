@@ -1,6 +1,6 @@
 schema: 1
 name: cosmic-bg
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: Background manager for the COSMIC desktop environment
 description: >-
@@ -8,25 +8,25 @@ description: >-
   background rather than embedding another distribution's artwork here.
 license: Apache-2.0 AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-bg/archive/epoch-1.4.0.tar.gz
-  sha256: 401b1753d5dfa2c45b00eac34dd5a675dcd02d5e9c7ee7cd3676cf37c2242d30
-  directory: cosmic-bg-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-bg/archive/epoch-1.9.0.tar.gz
+  sha256: 848594cabc13d78fef20a907bc79aa2b132986e40bb042b9423779bfc081dcca
+  directory: cosmic-bg-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-bg/vendor-1.4.0.tar.gz/sha512/a0345fa5183eb62a151722325c5270c082884f006aafd5105040952d18cc86e47ab94dfdeeec22c95ea335c522bc7fd41790830ba5c6ebc78341ae5d1e104d53/vendor-1.4.0.tar.gz
-    sha256: faf10b349b6cd3ddb00a1a929495650feda971ebbc159fb0e479b6d42d75103b
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-bg/vendor-1.9.0.tar.gz/sha512/1bae4a8c34ccb47b8045d983f6a0a8a5d88f55c0665e728e5343223ae3ae8a5e4cfefe2ab3374c425327312153dd3a1fc3cf68e6a5bf3257d270f2ab01572002/vendor-1.9.0.tar.gz
+    sha256: ea07bf5ceb10acdb2a06dd3cf9819a65dbcdb148dad97bfc6df619571305b8dc
     filename: cosmic-bg-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-bg/raw/8bb279e501a1f309945e37ccbd58bdafa355b3e6/f/vendor-config-1.4.0.toml
-    sha256: 870439c52213fb327efc82db883dfca36c6dd0acb0668001285085d41dd9e1b2
+  - url: https://src.fedoraproject.org/rpms/cosmic-bg/raw/19b0f6a23fb45a064a6acc6b2f8309cc32747d71/f/vendor-config-1.9.0.toml
+    sha256: f61ed575aa4cd7594f9b989af333971f40d2f7e6d6b6b75cc2ca92bfbc2b1601
     filename: cosmic-bg-vendor-config.toml
     destination: .cargo/config.toml
     extract: false
 build_system: custom
 build:
   environment:
-    VERGEN_GIT_SHA: ed65f7d3dc9e3d4af3cd65244a966e01bff0f730
-    VERGEN_GIT_COMMIT_DATE: "2026-07-07 17:03:22 -0400"
+    VERGEN_GIT_SHA: 9d82a34dab4e73d90ba66c9f72d18d0f9b8be208
+    VERGEN_GIT_COMMIT_DATE: "2026-09-11 14:38:13 -0600"
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:
@@ -44,7 +44,7 @@ dependencies:
       # cosmic-icon-theme and desktop-backgrounds-compat are TunaOS-built and
       # ship in neither deb archive; the gate's clean-install repo only holds
       # the cell's own artifact (same call as cosmic-settings, #225).
-      el10: [cosmic-icon-theme >= 1.4.0, desktop-backgrounds-compat]
+      el10: [cosmic-icon-theme >= 1.9.0, desktop-backgrounds-compat]
       ubuntu: []
       debian: []
 files:

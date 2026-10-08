@@ -1,0 +1,71 @@
+schema: 1
+name: cosmic-launcher
+version: 1.9.0
+release: 1
+summary: Pop launcher frontend for the COSMIC Desktop Environment
+description: Pop launcher frontend for the COSMIC Desktop Environment for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-launcher/archive/epoch-1.9.0.tar.gz
+  sha256: 9ded0bbe14a08f4b83da8124d1243c965cf71751dc7d94539dd71ad5a4eff54a
+  directory: cosmic-launcher-epoch-1.9.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-launcher/vendor-1.9.0.tar.gz/sha512/19f88e58389d52f6957019830948d189a2c06d7d229f7607f2f63e77b8a548be791dbffc3b1919927e47ea0a0c0a03f7135895405fd87b582a0b727d1037261a/vendor-1.9.0.tar.gz
+    sha256: 0c5a9b2b97179bde71be94cc3037cd898535f11c633e4eb5584c693a695119fd
+    filename: cosmic-launcher-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-launcher/raw/78d117c9d3deea90bef02d2aec0323bbf2b16482/f/vendor-config-1.9.0.toml
+    sha256: 5adb092f552af2ffbc71756c7681af03ebbd62fb097cdf9d6eeebaa69867ed71
+    filename: cosmic-launcher-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: cc3d42bcc8fbcb67e6312f2766394e18b4d937d5
+    VERGEN_GIT_COMMIT_DATE: 2026-09-17 23:52:54 +0200
+  commands:
+    - cargo build --release --offline --frozen
+dependencies:
+  build:
+    capabilities:
+      - rust
+      - wayland-dev
+      - libxkbcommon-dev
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+      ubuntu:
+        - cargo
+        - lld
+        - just
+      debian:
+        - cargo
+        - lld
+        - just
+  runtime:
+    targets:
+      el10:
+        - pop-launcher
+        - cosmic-icon-theme >= 1.9.0
+      ubuntu: []
+      debian: []
+files:
+  common:
+    - usr/bin/cosmic-launcher
+    - usr/share/applications/com.system76.CosmicLauncher.desktop
+    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicLauncher.svg
+    - usr/share/metainfo/com.system76.CosmicLauncher.metainfo.xml
+install:
+  commands:
+    - just rootdir={destdir} prefix=/usr install
+    - mkdir -p {destdir}/usr/share/metainfo && mv {destdir}/usr/share/appdata/com.system76.CosmicLauncher.metainfo.xml {destdir}/usr/share/metainfo/com.system76.CosmicLauncher.metainfo.xml
+verify:
+  smoke: test -x /usr/bin/cosmic-launcher
+targets:
+  - el10
+  - ubuntu
+  - debian

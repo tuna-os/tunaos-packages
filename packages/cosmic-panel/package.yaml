@@ -1,30 +1,30 @@
 schema: 1
 name: cosmic-panel
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: Panel for COSMIC
 description: COSMIC desktop panel and dock for TunaOS.
 license: Apache-2.0 AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-panel/archive/epoch-1.4.0.tar.gz
-  sha256: c41d843f5e57b530ed74078f665fea6452e343a3c1bfe9cf637bcb029e4f5709
-  directory: cosmic-panel-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-panel/archive/epoch-1.9.0.tar.gz
+  sha256: 6b036076e162568b6d0230ab82916b30d06b4942cb5be6a39960e42b499cab9b
+  directory: cosmic-panel-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-panel/vendor-1.4.0.tar.gz/sha512/3a611c899853bd5418309cc423123689be5a661f7131ac96bac563ce3efeb45aecf5c50e733d02692038c068a6051638e439e13962b06c5f9ace26ba53ab6288/vendor-1.4.0.tar.gz
-    sha256: a11a4c7b7438b3e27ccf64bb38018c9b0c1a54d27c5ca90c0ef073bd757a22db
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-panel/vendor-1.9.0.tar.gz/sha512/d2755baeb58afa8246d5d9d262411093333250f15243d82f0fdcb607e69e21abaa28d24a9ca8e6abbcfd8ff19f50e7eb20c206c5df4c15052af4a6479fda7da8/vendor-1.9.0.tar.gz
+    sha256: 00275f7721c8ce4566d60e525488e8cd5f2f7ccd22484127a147de41a9ccfee9
     filename: cosmic-panel-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-panel/raw/e9fc46ec025c555bf212a9bd80711d797a5680e5/f/vendor-config-1.4.0.toml
-    sha256: 6557821baa162f489680d4321fb850c09b53a0a7748c181c85c76c8b5d175291
+  - url: https://src.fedoraproject.org/rpms/cosmic-panel/raw/b70e02edec348c4ab2a80e328ca92cbe28e2aa15/f/vendor-config-1.9.0.toml
+    sha256: 864ff5121729eb9270c13c2aaa826407bf53c8c6410dd7e1ee9539b4d84eead0
     filename: cosmic-panel-vendor-config.toml
     destination: .cargo/config.toml
     extract: false
 build_system: custom
 build:
   environment:
-    VERGEN_GIT_SHA: f416dbbe72d8600d395d24bf9f96f6ba1299d13b
-    VERGEN_GIT_COMMIT_DATE: "2026-07-21 16:30:48 -0600"
+    VERGEN_GIT_SHA: b5cc19e351b82eed999097ced1ff267d27bf8e7a
+    VERGEN_GIT_COMMIT_DATE: "2026-09-23 15:07:40 -0400"
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:

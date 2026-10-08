@@ -1,0 +1,70 @@
+schema: 1
+name: cosmic-app-library
+version: 1.9.0
+release: 1
+summary: App Library program for the COSMIC Desktop Environment
+description: App Library program for the COSMIC Desktop Environment for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-app-library/archive/epoch-1.9.0.tar.gz
+  sha256: d85fb7648429bb3319dc1f1dd69f510019d4f5815be93c42a3f57f2211abe740
+  directory: cosmic-app-library-epoch-1.9.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-app-library/vendor-1.9.0.tar.gz/sha512/fb310d79e478ba310bc627493162df4cc2e935ee2668c141943ff65d522c5cea195df06f996519e1d2d8f91b19e854a1e952c38903d824f51cf24f029f2c9829/vendor-1.9.0.tar.gz
+    sha256: 49f5fe13cdbef9e666b25ccd5cbe3f782f5a246ad2a20a07b61867107aab0801
+    filename: cosmic-app-library-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-app-library/raw/8b729d1195f41de6ddd68fcc374b03ef549dd51e/f/vendor-config-1.9.0.toml
+    sha256: b4db0e0dba5c98aa2d982f4a51ebc6bffc7b4fd8ca60f92e064654c5ae067525
+    filename: cosmic-app-library-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 0a3996de82c264095ade047661f7a3088f99013e
+    VERGEN_GIT_COMMIT_DATE: 2026-09-16 10:50:59 -0600
+  commands:
+    - cargo build --release --offline --frozen
+dependencies:
+  build:
+    capabilities:
+      - rust
+      - wayland-dev
+      - libxkbcommon-dev
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+      ubuntu:
+        - cargo
+        - lld
+        - just
+      debian:
+        - cargo
+        - lld
+        - just
+  runtime:
+    targets:
+      el10:
+        - cosmic-icon-theme >= 1.9.0
+      ubuntu: []
+      debian: []
+files:
+  common:
+    - usr/bin/cosmic-app-library
+    - usr/share/applications/com.system76.CosmicAppLibrary.desktop
+    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicAppLibrary.svg
+    - usr/share/metainfo/com.system76.CosmicAppLibrary.metainfo.xml
+install:
+  commands:
+    - just rootdir={destdir} prefix=/usr install
+    - mkdir -p {destdir}/usr/share/metainfo && mv {destdir}/usr/share/appdata/com.system76.CosmicAppLibrary.metainfo.xml {destdir}/usr/share/metainfo/com.system76.CosmicAppLibrary.metainfo.xml
+verify:
+  smoke: test -x /usr/bin/cosmic-app-library && test -f /usr/share/applications/com.system76.CosmicAppLibrary.desktop
+targets:
+  - el10
+  - ubuntu
+  - debian

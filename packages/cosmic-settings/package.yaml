@@ -1,30 +1,30 @@
 schema: 1
 name: cosmic-settings
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: Settings app for the COSMIC desktop environment
 description: COSMIC settings application and desktop preferences integration.
 license: Apache-2.0 AND GPL-3.0-only AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-settings/archive/epoch-1.4.0.tar.gz
-  sha256: 2b31755a67834f029389504cd92b495bdf7e8f55cbfaf7a67cc7d55a9831f671
-  directory: cosmic-settings-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-settings/archive/epoch-1.9.0.tar.gz
+  sha256: 1e33fec9dc70408a85eca4055dca16afa82baadc2edb957e1400294b09f2ff27
+  directory: cosmic-settings-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-settings/vendor-1.4.0.tar.gz/sha512/b4b47e3fe2c7337fc60fa1141011f78813038f31dfa5eae40a16f669618c1db5c99c5e63ebe30a05a127e76da23a853f549b164ce81b9ca923ab667be44561c7/vendor-1.4.0.tar.gz
-    sha256: 2e31b7eedc4f1225622d1de0190a59dbf08c92eed5e3c5f26f1003c75f4efe43
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-settings/vendor-1.9.0.tar.gz/sha512/e076aa443d2e172552325f4a99c9164d14975b1dfd72ceaecb8abf5479b6f6c2b2bbf0cee0fd34683ae8169ab1ee05adeac3007a9ff07f61622e4f2d346e888e/vendor-1.9.0.tar.gz
+    sha256: 63612a7f15470c9d5eb1e457af8818b6db6f510ab971115081ce494ab0c660bc
     filename: cosmic-settings-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-settings/raw/19bd5c422e634556851ef40a52335f3e5d8bf576/f/vendor-config-1.4.0.toml
-    sha256: 98a7fb81a7b36e88725d4502eeb8254e9eff41176581297be2f3dd246d76a9bd
+  - url: https://src.fedoraproject.org/rpms/cosmic-settings/raw/4d83340a6dc9f486dff31b020630ffce132c4cf7/f/vendor-config-1.9.0.toml
+    sha256: 83b6a7f9f0b5e6ab29f8bc630da2f09b8c8c02398cf53be4c847dfb3cda93f90
     filename: cosmic-settings-vendor-config.toml
     destination: .cargo/config.toml
     extract: false
 build_system: custom
 build:
   environment:
-    VERGEN_GIT_SHA: c2624965bc06eb9d39bbd2d549543fad99754c07
-    VERGEN_GIT_COMMIT_DATE: "2026-07-21 11:15:52 -0600"
+    VERGEN_GIT_SHA: 7421ff0ab482c942eef23fbe9280edacfbeb35cc
+    VERGEN_GIT_COMMIT_DATE: "2026-09-22 14:38:57 -0600"
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:
@@ -35,7 +35,7 @@ dependencies:
       debian: [cargo, lld, just, libinput-dev, libwayland-dev, libxkbcommon-dev, libsystemd-dev, desktop-file-utils, libpipewire-0.3-dev, clang, libdav1d-dev]
   runtime:
     targets:
-      el10: [cosmic-icon-theme >= 1.4.0, nm-connection-editor, accountsservice, cosmic-settings-daemon >= 1.4.0, cosmic-randr >= 1.4.0, gettext, iso-codes, NetworkManager, ppd-service]
+      el10: [cosmic-icon-theme >= 1.9.0, nm-connection-editor, accountsservice, cosmic-settings-daemon >= 1.9.0, cosmic-randr >= 1.9.0, gettext, iso-codes, NetworkManager, ppd-service]
       # cosmic-icon-theme is dropped on the deb targets on purpose: it ships in
       # neither the Debian nor the Ubuntu archive, and the gate's clean-install
       # repo only holds the deb built by that cell, so naming it renders an

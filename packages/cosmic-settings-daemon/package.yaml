@@ -1,6 +1,6 @@
 schema: 1
 name: cosmic-settings-daemon
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: Settings daemon for the COSMIC desktop environment
 description: >-
@@ -8,16 +8,16 @@ description: >-
   TunaOS Hummingbird desktop.
 license: Apache-2.0 AND GPL-3.0-only AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-settings-daemon/archive/epoch-1.4.0.tar.gz
-  sha256: 83057e054570d26e8106b2069f9bbef9c20cb0f6ead18e259a66465f13c3b2df
-  directory: cosmic-settings-daemon-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-settings-daemon/archive/epoch-1.9.0.tar.gz
+  sha256: 69e34f67c1ae727a75b9a75e7901738adf2779ca1024f53d280d474d1af9ff6c
+  directory: cosmic-settings-daemon-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-settings-daemon/vendor-1.4.0.tar.gz/sha512/1f78b9ae57a50e2c950f60b15b33786c7180df1b729c6fe9c93c54643bc7a404bea496b045f70d02cc9057ef2ee640ac974de9c7b1b3c70c2e5b205a809de5d8/vendor-1.4.0.tar.gz
-    sha256: 85c875c47174424f3cf65dcf3a0e0024da76891452ae11243d2d000981f52f91
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-settings-daemon/vendor-1.9.0.tar.gz/sha512/46d69a18c4abf64ed78f1c6d840f120e0a9fb2a28deda7238133bfcf1106c61209ee5ec9c21098fe2a23cf39ff1428d71296f1ff74b22f9405c1c43aeb61c4ba/vendor-1.9.0.tar.gz
+    sha256: 78f9d0b36807e55f42ada8cf1a118b32390255abd2821ecb52e1f3b027b37000
     filename: cosmic-settings-daemon-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-settings-daemon/raw/eef9712fd9b50ae27df1b1a3f8dfd0dbffc5b1b7/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-settings-daemon/raw/9b8eca1c919a0d14f51203ff7d8e2f795e4b1376/f/vendor-config-1.9.0.toml
     sha256: 8e2c27d504d55e03a6942b0b5a01421d2d141a249295b7c3465f5c943e334a1d
     filename: cosmic-settings-daemon-vendor-config.toml
     destination: .cargo/config.toml
@@ -31,8 +31,8 @@ build_system: custom
 build:
   prepare: [patch -p1 < patches/sound-theme-freedesktop.patch]
   environment:
-    VERGEN_GIT_SHA: e6ca13522a64227371bbd39bcfdffab3bb34d9b3
-    VERGEN_GIT_COMMIT_DATE: "2026-07-21 14:44:57 +0200"
+    VERGEN_GIT_SHA: f97bee648c579b5fe2f2000bf3d129f1a7b08f17
+    VERGEN_GIT_COMMIT_DATE: "2026-09-23 21:33:28 +0200"
   commands: [cargo build --release --offline --frozen --bin cosmic-settings-daemon]
 dependencies:
   build:

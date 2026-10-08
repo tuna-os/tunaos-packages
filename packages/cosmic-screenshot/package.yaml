@@ -1,0 +1,60 @@
+schema: 1
+name: cosmic-screenshot
+version: 1.9.0
+release: 1
+summary: Screenshot utility for the COSMIC Desktop Environment
+description: Screenshot utility for the COSMIC Desktop Environment for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-screenshot/archive/epoch-1.9.0.tar.gz
+  sha256: 2f809f4e1ed8ca218b9d39975cee290d168f231b48204a4d91d75ee63f30abcb
+  directory: cosmic-screenshot-epoch-1.9.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-screenshot/vendor-1.9.0.tar.gz/sha512/578503f3ce92ec60017687f21a89283299fcb5c5e044c29aa314c9c7c9b69d3b5dbe243ece7580d01bdfc144a96394ca335b3ea1cccc088a7b88661d766ea6b8/vendor-1.9.0.tar.gz
+    sha256: 63bf5901833d47141b0998e83b6cb7846ad410e52607c034d5e80be77debce4a
+    filename: cosmic-screenshot-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-screenshot/raw/5ccfa3464745d30931939bcfba2381517d3180a5/f/vendor-config-1.9.0.toml
+    sha256: 6eecdb513f92e130bb05679b32eb54d67aaefbf6a2086e275c3048ebcc972128
+    filename: cosmic-screenshot-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 5ddcf1804192ff98823bd37a778286db5a00f3dd
+    VERGEN_GIT_COMMIT_DATE: 2026-08-24 20:52:09 +0200
+  commands:
+    - cargo build --release --offline --frozen
+dependencies:
+  build:
+    capabilities:
+      - rust
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+      ubuntu:
+        - cargo
+        - lld
+        - just
+      debian:
+        - cargo
+        - lld
+        - just
+files:
+  common:
+    - usr/bin/cosmic-screenshot
+    - usr/share/applications/com.system76.CosmicScreenshot.desktop
+    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicScreenshot.svg
+install:
+  commands:
+    - just rootdir={destdir} prefix=/usr install
+verify:
+  smoke: test -x /usr/bin/cosmic-screenshot
+targets:
+  - el10
+  - ubuntu
+  - debian

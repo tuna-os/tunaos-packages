@@ -1,30 +1,30 @@
 schema: 1
 name: xdg-desktop-portal-cosmic
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: XDG desktop portals for the COSMIC desktop environment
 description: COSMIC portal backend for screenshots, screen sharing, and desktop integration.
 license: Apache-2.0 AND GPL-3.0-only AND MIT
 source:
-  url: https://github.com/pop-os/xdg-desktop-portal-cosmic/archive/epoch-1.4.0.tar.gz
-  sha256: 87abf4fdfce157ae7e36b9055f79ba1584fb1fa20e8946821d7e32f1d1f0cae1
-  directory: xdg-desktop-portal-cosmic-epoch-1.4.0
+  url: https://github.com/pop-os/xdg-desktop-portal-cosmic/archive/epoch-1.9.0.tar.gz
+  sha256: 4fcd4631348e98decfd991489a5e9a941792741f5cf127f8ca9e874056c144d6
+  directory: xdg-desktop-portal-cosmic-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/xdg-desktop-portal-cosmic/vendor-1.4.0.tar.gz/sha512/cd47cce014678da9b20f309459b071cbee34dd2ca5ffc110921cba15c88ee9573132530cee645fc85d85abd3130d3f269bd0169d1e594d43ef447500e3e09615/vendor-1.4.0.tar.gz
-    sha256: ba06bc0c95e2ba3abb889b3a7d798a8d9d57867ae0e0d4412c412fa8d2be4d6a
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/xdg-desktop-portal-cosmic/vendor-1.9.0.tar.gz/sha512/35a2430a19959411e311dfb4f1139498636ed2ff0339b1197fe54d4bde05aa6ea8c5bc343fa4d8adb31ceb5c96eaff53b07775af45b4e862b7ad91aa7555a45a/vendor-1.9.0.tar.gz
+    sha256: d322d16dafaf7d7ed25d9a63d81d8853fd770cc89588a499843c833e9fd32f44
     filename: xdg-desktop-portal-cosmic-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/xdg-desktop-portal-cosmic/raw/1d8a5c126e9050c73319f42e23987aa8daa7edbc/f/vendor-config-1.4.0.toml
-    sha256: 7c9ed08dec216901623520adcfcef98cda7a6edefaa4b8de968aae38d6e6fcc7
+  - url: https://src.fedoraproject.org/rpms/xdg-desktop-portal-cosmic/raw/8b6622e9807769a25e7cf7053a70488a5d4a9571/f/vendor-config-1.9.0.toml
+    sha256: e30bc5d73b1c989867b8691b94abd0e69e54b0e09432ea84a6ab31235a909093
     filename: xdg-desktop-portal-cosmic-vendor-config.toml
     destination: .cargo/config.toml
     extract: false
 build_system: custom
 build:
   environment:
-    VERGEN_GIT_SHA: 969f3ca5995d157f78da60231af9e59641dae44d
-    VERGEN_GIT_COMMIT_DATE: "2026-07-20 14:43:08 -0700"
+    VERGEN_GIT_SHA: 2f41161176368840c67e2de9b8a24786accb100c
+    VERGEN_GIT_COMMIT_DATE: "2026-09-15 21:52:46 +0200"
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:
@@ -45,7 +45,7 @@ dependencies:
       # cosmic-icon-theme is TunaOS-built and ships in neither deb archive;
       # the gate's clean-install repo only holds the cell's own artifact
       # (same call as cosmic-settings, #225).
-      el10: [cosmic-icon-theme >= 1.4.0]
+      el10: [cosmic-icon-theme >= 1.9.0]
       ubuntu: []
       debian: []
 files:

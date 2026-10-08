@@ -1,21 +1,21 @@
 schema: 1
 name: cosmic-idle
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: Idle notification manager for COSMIC
 description: COSMIC idle notification and session state manager for TunaOS.
 license: Apache-2.0 AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-idle/archive/epoch-1.4.0.tar.gz
-  sha256: f399774b598b278f9f2a49bc0dc15b5e44cfdfe519762076e08ff73efa3d8186
-  directory: cosmic-idle-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-idle/archive/epoch-1.9.0.tar.gz
+  sha256: acdd250cc845879352b1707c25636145dbdc3f0b4d17724d9a031e789a0592f1
+  directory: cosmic-idle-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-idle/vendor-1.4.0.tar.gz/sha512/c5ae6770d5e0ebf84b35c51e91ff63318c61c35a083619c0a89c4c86c6b8d2bc158853671897555e5a3cacf5476964a1967f324eebed3c7b7658c2f2b831e31d/vendor-1.4.0.tar.gz
-    sha256: d5964934b68cc03a09449c1b2fece97d1e8632ee5fd6f4d0f9aee0e0543d59b7
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-idle/vendor-1.9.0.tar.gz/sha512/0ff0d9e4cc586f4592738eb55d009c9a04b55e85b0e6060458baf79ec2d531f421220ac1026129bcba1a777ee176120367bfc118036d9b6eef70daddc01609b1/vendor-1.9.0.tar.gz
+    sha256: a76a65132994603a9eb5ca74e00c6cd6f808d45e5a2f570e4dae91e4de5bbd4c
     filename: cosmic-idle-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-idle/raw/51b1fed9e0eb7d577065504a97b60171d1128690/f/vendor-config-1.4.0.toml
+  - url: https://src.fedoraproject.org/rpms/cosmic-idle/raw/28f5a0d9ce1ce786ed703a42b81a1a96d7ae50c6/f/vendor-config-1.9.0.toml
     sha256: 7fd8dbfcbcc395fa7793317fbda8c151fa3e794fdce691cf2ed58ee9a69e71cb
     filename: cosmic-idle-vendor-config.toml
     destination: .cargo/config.toml
@@ -38,7 +38,7 @@ dependencies:
       # cosmic-icon-theme is TunaOS-built and ships in neither deb archive;
       # the gate's clean-install repo only holds the cell's own artifact
       # (same call as cosmic-settings, #225).
-      el10: [cosmic-icon-theme >= 1.4.0]
+      el10: [cosmic-icon-theme >= 1.9.0]
       ubuntu: []
       debian: []
 files:

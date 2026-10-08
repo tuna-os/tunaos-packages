@@ -5,7 +5,7 @@ queues:
   el10:
     format: rpm
     implementation: native-spec
-    roots: [pop-icon-theme, cosmic-icon-theme, cosmic-bg, cosmic-comp, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-panel, cosmic-randr, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
+    roots: [pop-icon-theme, cosmic-icon-theme, cosmic-bg, cosmic-comp, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-panel, cosmic-randr, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic, cosmic-app-library, cosmic-applets, cosmic-files, cosmic-launcher, cosmic-screenshot, cosmic-term, cosmic-wallpapers, cosmic-workspaces, cosmic-initial-setup, cosmic-osk]
     gates: [mock-build, rpm-md-stage-install, greetd-login, cosmic-session-smoke]
   ubuntu:
     format: deb
