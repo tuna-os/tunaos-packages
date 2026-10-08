@@ -1,7 +1,7 @@
 schema: 1
 name: roost
 version: "0.1.0"
-release: 2
+release: 3
 summary: GNOME-style Wayland desktop session in Rust (nested developer preview)
 description: >-
   Roost is a Smithay-based Wayland desktop that aims at GNOME 51 parity: a
@@ -9,21 +9,21 @@ description: >-
   tiling, an IBus bridge, and a greetd greeter. This package ships the six
   session binaries, the wayland-sessions entry, and the lock-screen PAM
   service, mirroring upstream's own packaging/arch/PKGBUILD. Built for TunaOS
-  Marlin (hanthor/roost-desktop#69).
+  Marlin (tuna-os/tuna-desktop#69; the project is now named Tuna Desktop).
 license: GPL-3.0-or-later
 # Pinned upstream commit (no release tag yet). Bump source, the vendor
 # asset below, and `release` together.
 source:
-  url: https://github.com/hanthor/roost-desktop/archive/c28f96ebaa1fdf016308904bb4af4ec7922aacac.tar.gz
-  sha256: f687ef49bb3bb6311d1d37f5240b397efe827a8d00ee2ac391ae7c4c6ae186f9
-  directory: roost-desktop-c28f96ebaa1fdf016308904bb4af4ec7922aacac
+  url: https://github.com/tuna-os/tuna-desktop/archive/9e3de927f6730191ff93ddfa96c0fcdb9a08c8f6.tar.gz
+  sha256: 1338910da4d7301d6b26b092dcf49675f6879b2aa6e71f0e8905ecfb07def0d8
+  directory: tuna-desktop-9e3de927f6730191ff93ddfa96c0fcdb9a08c8f6
 # Vendored crates.io closure (`cargo vendor --locked` from the exact commit
 # above), shipped as a release asset like xfwl4 so the build never fetches
-# crates. Roost's Cargo.lock has no git dependencies, so the config needs only
+# crates. Roost's Cargo.lock has no git dependencies (third-party/ crates are in-tree path dependencies), so the config needs only
 # the crates-io replacement.
 sources:
-  - url: https://github.com/tuna-os/tunaos-packages/releases/download/roost-vendor-c28f96e/roost-vendor.tar.gz
-    sha256: e022546af94b1f7a3b9067b92bc1c37039e66a57e5c21d81a1f2687c2dc81569
+  - url: https://github.com/tuna-os/tunaos-packages/releases/download/roost-vendor-9e3de92/roost-vendor.tar.gz
+    sha256: cfe304e8c74918b18e86fdbb4e7657d83f738ce6a25be3cc41b214b7fa46a504
     filename: roost-vendor.tar.gz
     destination: .
     strip_components: 0
