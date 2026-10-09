@@ -47,9 +47,11 @@ dependencies:
       debian: [cargo, lld, just, make, patch, libsystemd-dev, libudev-dev, libinput-dev, libwayland-dev, clang, libxkbcommon-dev, pulseaudio-utils, libpipewire-0.3-dev, libssl-dev]
   runtime:
     targets:
-      # adw-gtk3-theme has no provider on any target (#169); the deb targets
-      # keep the two archive-present halves and drop the orphan.
-      el10: [acpid, adw-gtk3-theme, sound-theme-freedesktop]
+      # adw-gtk3-theme has no provider on any target (#169): EPEL 10 does
+      # not ship it and the phase-0 wave proved it unresolvable in the
+      # clean-install verify, so el10 drops it like the deb targets do.
+      # Re-add if the theme is ever packaged (it is cosmetic only).
+      el10: [acpid, sound-theme-freedesktop]
       ubuntu: [acpid, sound-theme-freedesktop]
       debian: [acpid, sound-theme-freedesktop]
 files:
