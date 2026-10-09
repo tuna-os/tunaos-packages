@@ -1,0 +1,155 @@
+schema: 1
+name: tuna-desktop
+version: "0.1.0"
+release: 1
+summary: "Tuna Desktop: GNOME-style Wayland desktop session in Rust (nested developer preview)"
+description: >-
+  Tuna Desktop (formerly Roost) is a Smithay-based Wayland desktop that aims
+  at GNOME 51 parity: a supervised compositor with a GNOME-style GTK shell,
+  optional scrollable tiling, an IBus bridge, and a greetd greeter. This
+  package ships the six session binaries, the wayland-sessions entry, the
+  lock-screen PAM service and the session target, plus one release of
+  compatibility with the former `roost` name, mirroring upstream's own
+  packaging/arch/PKGBUILD. Built for TunaOS Marlin (tuna-os/tuna-desktop#69,
+  renamed in tuna-os/tuna-desktop#536).
+license: GPL-3.0-or-later
+# The package's former name (tuna-os/tuna-desktop#505). Upstream's PKGBUILD
+# also declares replaces=('roost') and conflicts=('roost'); the recipe schema
+# models only `provides`, so those two are not rendered yet (see the PR that
+# added this recipe for the proposed schema change).
+provides: [roost]
+# Pinned upstream commit (no release tag yet): the rename merge,
+# tuna-os/tuna-desktop#536. Bump source, the vendor asset below, and
+# `release` together.
+source:
+  url: https://github.com/tuna-os/tuna-desktop/archive/d4438581a24d2acd7fed21b949d78ed15fb25917.tar.gz
+  sha256: d7b6355f9ec0c421cee05edf6197ede6f27da054c1f59a940cca22c89671e5b9
+  directory: tuna-desktop-d4438581a24d2acd7fed21b949d78ed15fb25917
+# Vendored crates.io closure (`cargo vendor --locked --versioned-dirs` from the
+# exact commit above, deterministic tar, verified with `cargo metadata
+# --locked --offline`), shipped as an immutable release asset like xfwl4 so
+# the build never fetches crates. Cargo.lock has no git dependencies
+# (third-party/ crates are in-tree path dependencies), so the config needs
+# only the crates-io replacement.
+sources:
+  - url: https://github.com/tuna-os/tunaos-packages/releases/download/tuna-desktop-vendor-d443858/tuna-desktop-vendor.tar.gz
+    sha256: 27e130432fede3957ae334908b763d84a78359ee8730411866710f6f26c967dc
+    filename: tuna-desktop-vendor.tar.gz
+    destination: .
+    strip_components: 0
+# custom, not cargo: the cargo renderer builds and installs one binary, and
+# the session is six binaries from four workspace crates (tuna-session ships
+# in tuna-compositor, tuna-ibus-bridge in tuna-shell-host).
+build_system: custom
+build:
+  environment:
+    # Every binary reports this (minus the leading v) from --version; it must
+    # equal `version` above, exactly as upstream's PKGBUILD stamps v${pkgver}.
+    # Read at compile time; the old ROOST_VERSION is no longer consulted.
+    TUNA_VERSION: v0.1.0
+  cargo_config: |
+    [source.crates-io]
+    replace-with = "vendored-sources"
+
+    [source.vendored-sources]
+    directory = "vendor"
+
+    [net]
+    offline = true
+  commands:
+    # makepkg builds with LTO on; the pipewire crate compiles C through cc
+    # (libspa-sys), whose thin-LTO bitcode loses its symbols at the Rust link.
+    # Fat LTO objects keep real code beside the bitcode -- the same flag the
+    # cargo renderer applies for niri. Upstream's PKGBUILD sets !lto instead,
+    # which the recipe schema cannot express.
+    - export CFLAGS="${CFLAGS:-} -ffat-lto-objects"
+    - cargo build --release --locked --offline -p tuna-compositor -p tuna-shell-host -p tuna-shell-gtk -p tuna-greeter
+dependencies:
+  build:
+    capabilities: [rust, c-compiler, pkg-config]
+    targets:
+      # Arch ships headers in the library packages; every one consumed at
+      # build time is listed here, not only in depends (#118). clang is for
+      # bindgen (pipewire/libspa, xkbcommon-adjacent sys crates).
+      arch: [clang, dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+  runtime:
+    targets:
+      # Upstream packaging/arch/PKGBUILD depends=(). Optional integrations
+      # (xorg-xwayland, ibus, greetd, xdg-desktop-portal-gnome, orca, ...) are
+      # optdepends upstream; the recipe schema has no optdepends, so the
+      # Marlin image installs them itself.
+      arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+install:
+  commands:
+    - install -Dm0755 target/release/tuna-compositor {destdir}/usr/bin/tuna-compositor
+    - install -Dm0755 target/release/tuna-session {destdir}/usr/bin/tuna-session
+    - install -Dm0755 target/release/tuna-shell-host {destdir}/usr/bin/tuna-shell-host
+    - install -Dm0755 target/release/tuna-shell-gtk {destdir}/usr/bin/tuna-shell-gtk
+    - install -Dm0755 target/release/tuna-ibus-bridge {destdir}/usr/bin/tuna-ibus-bridge
+    - install -Dm0755 target/release/tuna-greeter {destdir}/usr/bin/tuna-greeter
+    # One release of compatibility with the former name (#505), as upstream's
+    # PKGBUILD does: the old binary names, as relative symlinks.
+    - ln -s tuna-compositor {destdir}/usr/bin/roost-compositor
+    - ln -s tuna-session {destdir}/usr/bin/roost-session
+    - ln -s tuna-shell-host {destdir}/usr/bin/roost-shell-host
+    - ln -s tuna-shell-gtk {destdir}/usr/bin/roost-shell-gtk
+    - ln -s tuna-ibus-bridge {destdir}/usr/bin/roost-ibus-bridge
+    - ln -s tuna-greeter {destdir}/usr/bin/roost-greeter
+  files:
+    - {source: share/wayland-sessions/tuna.desktop, destination: usr/share/wayland-sessions/tuna.desktop}
+    - {source: share/systemd/user/tuna-session.target, destination: usr/lib/systemd/user/tuna-session.target}
+    # Lock-screen PAM service (tuna-desktop#62): unlock under GDM, where no
+    # greetd runs.
+    - {source: share/pam.d/tuna-lock, destination: etc/pam.d/tuna-lock}
+    # Compat (#505): the hidden roost.desktop keeps a session GDM remembers
+    # as "roost" starting Tuna Desktop, and roost-lock serves a session
+    # started before the upgrade, whose old lock screen still asks PAM for
+    # that service (without it PAM falls back to `other` and never unlocks).
+    - {source: share/compat/wayland-sessions/roost.desktop, destination: usr/share/wayland-sessions/roost.desktop}
+    - {source: share/compat/pam.d/roost-lock, destination: etc/pam.d/roost-lock}
+    - {source: LICENSE, destination: usr/share/licenses/tuna-desktop/LICENSE}
+    - {source: docs/nested-session.md, destination: usr/share/doc/tuna-desktop/nested-session.md}
+files:
+  common:
+    - usr/bin/tuna-compositor
+    - usr/bin/tuna-session
+    - usr/bin/tuna-shell-host
+    - usr/bin/tuna-shell-gtk
+    - usr/bin/tuna-ibus-bridge
+    - usr/bin/tuna-greeter
+    - usr/bin/roost-compositor
+    - usr/bin/roost-session
+    - usr/bin/roost-shell-host
+    - usr/bin/roost-shell-gtk
+    - usr/bin/roost-ibus-bridge
+    - usr/bin/roost-greeter
+    - usr/share/wayland-sessions/tuna.desktop
+    - usr/share/wayland-sessions/roost.desktop
+    - usr/lib/systemd/user/tuna-session.target
+    - etc/pam.d/tuna-lock
+    - etc/pam.d/roost-lock
+    - usr/share/licenses/tuna-desktop/LICENSE
+    - usr/share/doc/tuna-desktop/nested-session.md
+verify:
+  # The real session contract, not just "a binary exists": every one of the
+  # six binaries runs and reports the package version, under both its name
+  # and its roost-* compat link; the visible session entry launches the
+  # session supervisor (not the compositor directly) as desktop Tuna; the
+  # hidden compat entry launches the same supervisor; both lock-screen PAM
+  # services and the session target are installed.
+  smoke: >-
+    for b in compositor session shell-host shell-gtk ibus-bridge greeter;
+    do v="$(tuna-$b --version | awk '{print $NF}')";
+    if [ "$v" != 0.1.0 ]; then echo "tuna-$b --version reports '$v', expected 0.1.0" >&2; exit 1; fi;
+    if [ "$(readlink /usr/bin/roost-$b)" != "tuna-$b" ]; then echo "/usr/bin/roost-$b is not a link to tuna-$b" >&2; exit 1; fi;
+    v="$(roost-$b --version | awk '{print $NF}')";
+    if [ "$v" != 0.1.0 ]; then echo "roost-$b --version reports '$v', expected 0.1.0" >&2; exit 1; fi;
+    done
+    && grep -qx 'Exec=tuna-session' /usr/share/wayland-sessions/tuna.desktop
+    && grep -qx 'DesktopNames=Tuna;GNOME;' /usr/share/wayland-sessions/tuna.desktop
+    && grep -qx 'Exec=tuna-session' /usr/share/wayland-sessions/roost.desktop
+    && grep -qx 'NoDisplay=true' /usr/share/wayland-sessions/roost.desktop
+    && test -f /etc/pam.d/tuna-lock
+    && test -f /etc/pam.d/roost-lock
+    && test -f /usr/lib/systemd/user/tuna-session.target
+targets: [arch]
