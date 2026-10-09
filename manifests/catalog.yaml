@@ -10333,6 +10333,20 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
+  - name: tuna-desktop
+    family: tideforge
+    packaging:
+      pkg.tar.zst:
+        tideforge: packages/tuna-desktop
+    upstream:
+      version: 0.1.0
+      source: https://github.com/tuna-os/tuna-desktop/archive/d4438581a24d2acd7fed21b949d78ed15fb25917.tar.gz
+      sha256: d7b6355f9ec0c421cee05edf6197ede6f27da054c1f59a940cca22c89671e5b9
+    targets:
+      - arch
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: tuned
     family: hummingbird-desktops
     packaging:
