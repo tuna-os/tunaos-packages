@@ -48,6 +48,7 @@ dependencies:
         - lld
         - just
         - libudev-devel
+        - libxkbcommon-devel
         - pulseaudio-libs-devel
         - libglvnd-devel
         - clang-devel

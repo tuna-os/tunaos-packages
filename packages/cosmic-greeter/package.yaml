@@ -23,7 +23,7 @@ dependencies:
   build:
     capabilities: [rust, pam-dev]
     targets:
-      el10: [cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel]
+      el10: [cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel, libdav1d-devel]
       ubuntu: [cargo, lld, libwayland-dev, clang, libxkbcommon-dev, just, libudev-dev, libinput-dev]
       debian: [cargo, lld, libwayland-dev, clang, libxkbcommon-dev, just, libudev-dev, libinput-dev]
   runtime:
@@ -49,7 +49,7 @@ install:
     - install -Dm0644 cosmic-greeter.toml {destdir}/etc/greetd/cosmic-greeter.toml
     - install -Dm0644 debian/cosmic-greeter.service {destdir}/usr/lib/systemd/system/cosmic-greeter.service
     - install -Dm0644 debian/cosmic-greeter-daemon.service {destdir}/usr/lib/systemd/system/cosmic-greeter-daemon.service
-    - install -Dm0644 debian/greetd.pam {destdir}/etc/pam.d/cosmic-greeter
+    - install -Dm0644 debian/cosmic-greeter.pam {destdir}/etc/pam.d/cosmic-greeter
 verify:
   smoke: "test -x /usr/bin/cosmic-greeter && test -x /usr/bin/cosmic-greeter-daemon && test -x /usr/bin/cosmic-greeter-start"
 targets: [el10, ubuntu, debian]

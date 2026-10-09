@@ -26,6 +26,13 @@ build:
     VERGEN_GIT_SHA: cc3d42bcc8fbcb67e6312f2766394e18b4d937d5
     VERGEN_GIT_COMMIT_DATE: 2026-09-17 23:52:54 +0200
   commands:
+    # The zbus-lockstep #[validate] macro resolves the AT-SPI XML directory
+    # to the vendored `xml` crate instead of atspi-common's own `xml`
+    # directory and panics on its extensionless files; point it at the
+    # right directory (Fedora cosmic-launcher.spec does the same). This
+    # must expand $PWD in the build shell, so it lives here and not in
+    # build.environment (whose values the renderer single-quotes).
+    - export LOCKSTEP_XML_PATH=$PWD/vendor/atspi-common/xml
     - cargo build --release --offline --frozen
 dependencies:
   build:

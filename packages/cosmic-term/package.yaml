@@ -56,7 +56,7 @@ files:
     - usr/bin/cosmic-term
     - usr/share/applications/com.system76.CosmicTerm.desktop
     - usr/share/metainfo/com.system76.CosmicTerm.metainfo.xml
-    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicTerm.svg
+    - usr/share/icons/hicolor/*/apps/com.system76.CosmicTerm.svg
 install:
   commands:
     - just rootdir={destdir} prefix=/usr install
