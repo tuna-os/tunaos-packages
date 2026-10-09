@@ -314,19 +314,20 @@ pins both fixes to the files the chain reads.
 
 ## 9. Buildroot consumes utah-packages (2026-10-08)
 
-§8 put utah in the gap engine and the installability walk; the mock
-buildroot still resolved utah-shipped BuildRequires from Fedora 44. The
-build order already excludes what utah ships (measure-target-gap counts
-421 utah binaries as had), so the remaining rebuild-everything behaviour
-was all in the root, not the plan.
+§8 put utah in the gap engine and the installability walk. The mock
+buildroot still resolved utah-shipped BuildRequires from Fedora 44.
+The build order already excludes what utah ships. Measure-target-gap
+counts 421 utah binaries as had. The rest of the rebuild was all in
+the root, not in the plan.
 
-`mock/hummingbird-ci*.cfg` now carry `[utah]` at priority 11, between the
-base (10) and our prefix (12, demoted from 11): utah wins ties so a stale
-factory RPM can never shadow the build utah did. The repo is
-`file:///run/utah-repo/repository` because utah publishes no HTTP baseurl
--- `scripts/materialize-consumed-repo.py` streams the pinned OCI digest's
-`/repository` tree (fail-closed; `--allow-empty` writes a valid empty
-repodata for arches utah does not publish, aarch64 today), the chain-band
-workflow caches it by pin and bind-mounts it, and `build-chain.sh` refuses
-a hummingbird config without it. `tests/test_materialize_consumed_repo.py`
-pins the extractor, the fail-closed paths, and the empty-repo shape.
+`mock/hummingbird-ci*.cfg` now has `[utah]` at priority 11. It sits
+between the base (10) and our prefix (12, was 11). Utah wins ties, so
+a stale factory RPM can never hide the build utah did. The repo is
+`file:///run/utah-repo/repository`. Utah has no HTTP baseurl.
+`scripts/materialize-consumed-repo.py` streams the pinned OCI digest.
+It fails closed. With `--allow-empty` it writes valid empty repodata
+for arches utah does not publish (aarch64 today). The chain-band
+workflow caches the tree by pin and mounts it for the build.
+`build-chain.sh` stops a hummingbird config without it.
+`tests/test_materialize_consumed_repo.py` covers the extractor, the
+fail-closed paths, and the empty-repo shape.
