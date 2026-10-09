@@ -219,6 +219,25 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q createrepo-c podman rpm
+      # Hummingbird build-chain cells resolve utah-shipped BuildRequires
+      # from the mock config's [utah] repo, which is a file:// bind-mount
+      # with no HTTP baseurl: materialise the pinned OCI digest first
+      # (same pin chain-band.yml reads). aarch64 gets a valid EMPTY repo;
+      # the cache key moves with the pin. Tideforge cells never match:
+      # only the build-chain engine reads mock configs.
+      - name: Materialise the consumed utah-packages repo
+        if: matrix.engine == 'build-chain' && startsWith(matrix.mock_config, 'hummingbird') && steps.verdict.outputs.hit != 'true'
+        env:
+          UTAH_ARCH: ${{ matrix.architecture == 'aarch64' && 'aarch64' || 'x86_64' }}
+          ALLOW_EMPTY: ${{ matrix.architecture == 'aarch64' }}
+        run: |
+          set -euo pipefail
+          pip install -q pyyaml
+          pin=$(python3 -c 'import yaml; print(yaml.safe_load(open("manifests/package-factory.yaml"))["targets"]["hummingbird"]["gap_measurement"]["consumed_indexes"][0]["index"])')
+          echo "utah pin: $pin arch: $UTAH_ARCH"
+          args=(--ref "$pin" --arch "$UTAH_ARCH" --out /tmp/utah-root --cache-dir /tmp/oci-cache)
+          [ "$ALLOW_EMPTY" = "true" ] && args+=(--allow-empty)
+          python3 scripts/materialize-consumed-repo.py "${args[@]}"
       - name: Build on an exact miss
         id: build
         if: steps.verdict.outputs.hit != 'true'
@@ -234,6 +253,10 @@ jobs:
           MANIFEST: ${{ matrix.manifest }}
           MOCK_CONFIG: ${{ matrix.mock_config }}
           TIERS: ${{ matrix.tiers }}
+          # Set by the materialise step above for hummingbird build-chain
+          # cells only; empty everywhere else, which build-chain.sh treats
+          # as unset.
+          UTAH_REPO_DIR: ${{ matrix.engine == 'build-chain' && startsWith(matrix.mock_config, 'hummingbird') && '/tmp/utah-root' || '' }}
           # One mock root cache for the whole chain instead of one per
           # package. build-chain.sh has supported this since #277 and nothing
           # has set it since the hummingbird-specific workflow that did was

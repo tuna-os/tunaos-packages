@@ -158,6 +158,14 @@ MOCK_CONFIG="centos-stream-10-ci"
 # this repo could only ever build for EL10.
 DIST=""
 LOCAL_REPO="${REPO_ROOT}/local-repo"
+# UTAH_REPO_DIR: host directory holding the materialised utah-packages repo
+# (scripts/materialize-consumed-repo.py --out), bind-mounted at
+# /run/utah-repo for the [utah] repo in mock/hummingbird-ci*.cfg. Required
+# whenever MOCK_CONFIG is a hummingbird config -- a hummingbird build
+# without utah in the root silently resolves utah-shipped BuildRequires
+# from Fedora instead, which is the rebuild-everything behaviour this
+# exists to end. The chain-band workflow sets it from its materialise
+# step; local runs must materialise first (see the error below).
 JOBS=$(( $(nproc) / 2 ))
 [[ $JOBS -lt 1 ]] && JOBS=1
 FILTER_TIER=""
@@ -290,6 +298,27 @@ if [[ -n "$SERVED_NVRS_FILE" ]]; then
         [[ -n "$_line" ]] && SERVED_NVRS_SET["$_line"]=1
     done < "$SERVED_NVRS_FILE"
     # An empty list is legal: a first publish has nothing served yet.
+fi
+
+# The hummingbird mock configs carry a [utah] file:// repo; without the
+# bind-mounted tree dnf fails the whole builddep on a missing baseurl.
+# Fail here, naming the missing step, rather than inside mock's root.log.
+UTAH_MOUNT_ARGS=()
+if [[ "$MOCK_CONFIG" == hummingbird-* ]]; then
+    if [[ -z "${UTAH_REPO_DIR:-}" ]]; then
+        echo "ERROR: MOCK_CONFIG=$MOCK_CONFIG needs UTAH_REPO_DIR: run" >&2
+        echo "  python3 scripts/materialize-consumed-repo.py --ref <consumed_indexes pin>" >&2
+        echo "    --arch <x86_64|aarch64> --out <dir> [--allow-empty]" >&2
+        echo "and export UTAH_REPO_DIR=<dir> first." >&2
+        exit 1
+    fi
+    if [[ ! -f "${UTAH_REPO_DIR}/repository/repodata/repomd.xml" ]]; then
+        echo "ERROR: UTAH_REPO_DIR=$UTAH_REPO_DIR has no repository/repodata/repomd.xml" >&2
+        exit 1
+    fi
+    UTAH_MOUNT_ARGS=(-v "${UTAH_REPO_DIR}:/run/utah-repo:Z")
+elif [[ -n "${UTAH_REPO_DIR:-}" ]]; then
+    UTAH_MOUNT_ARGS=(-v "${UTAH_REPO_DIR}:/run/utah-repo:Z")
 fi
 
 # True when filters say this package is NOT ours to build. Deferral/skip
@@ -983,6 +1012,7 @@ build_package_podman() {
             -v "${builddir}:/builddir:Z" \
             -v "${LOCAL_REPO}:/local-repo:Z" \
             -v "${REPO_ROOT}/mock:/repo-mock:ro,Z" \
+            "${UTAH_MOUNT_ARGS[@]}" \
             "${MOCK_CACHE_ARGS[@]}" \
             "${BUILD_IMAGE}" \
             bash -exc "

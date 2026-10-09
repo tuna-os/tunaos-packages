@@ -77,6 +77,36 @@ jobs:
           python3 scripts/list-served-nvrs.py '${{ inputs.served_index_url }}' \
             > /tmp/served-nvrs.txt
           echo "served NVRs: $(wc -l < /tmp/served-nvrs.txt)"
+      # Hummingbird only: materialise the consumed utah-packages OCI image
+      # into a file:// repo for the mock config's [utah] section. The pin
+      # comes from the target's own consumed_indexes (single source of
+      # truth); the cache key includes the factory manifest, so a pin move
+      # re-extracts. aarch64 gets a valid EMPTY repo (utah publishes x86_64
+      # only), which dnf falls through exactly as it does today.
+      - name: Restore cached utah repo
+        if: inputs.target == 'hummingbird'
+        uses: actions/cache@v8
+        with:
+          path: /tmp/utah-root
+          key: ${{ runner.os }}-utah-repo-${{ hashFiles('manifests/package-factory.yaml') }}-${{ inputs.architecture }}
+      - name: Extract utah repo on cache miss
+        if: inputs.target == 'hummingbird'
+        env:
+          UTAH_ARCH: ${{ inputs.architecture == 'aarch64' && 'aarch64' || 'x86_64' }}
+          ALLOW_EMPTY: ${{ inputs.architecture == 'aarch64' }}
+        run: |
+          set -euo pipefail
+          pip install -q pyyaml
+          if [ -f /tmp/utah-root/.provenance.json ]; then
+            echo "utah repo cache hit"
+            exit 0
+          fi
+          pin=$(python3 -c 'import yaml; print(yaml.safe_load(open("manifests/package-factory.yaml"))["targets"]["hummingbird"]["gap_measurement"]["consumed_indexes"][0]["index"])')
+          echo "utah pin: $pin arch: $UTAH_ARCH"
+          args=(--ref "$pin" --arch "$UTAH_ARCH" --out /tmp/utah-root --cache-dir /tmp/oci-cache)
+          [ "$ALLOW_EMPTY" = "true" ] && args+=(--allow-empty)
+          python3 scripts/materialize-consumed-repo.py "${args[@]}"
+          find /tmp/utah-root -maxdepth 3 | head -8
       - name: Write this shard's package list
         env:
           SHARD_JSON: ${{ toJSON(matrix.shard) }}
@@ -98,6 +128,9 @@ jobs:
           TIERS: ${{ inputs.band_tiers }}
           CHAIN_PACKAGES_FILE: /tmp/shard-packages.txt
           CHAIN_SERVED_NVRS: /tmp/served-nvrs.txt
+          # Set only for hummingbird (the materialise steps above run only
+          # there); build-chain.sh ignores it for every other target.
+          UTAH_REPO_DIR: ${{ inputs.target == 'hummingbird' && '/tmp/utah-root' || '' }}
           # A shard holds a fraction of a band; 4.5h of budget inside the
           # 350-minute ceiling is generous, and the drain semantics match
           # the single-runner chain.

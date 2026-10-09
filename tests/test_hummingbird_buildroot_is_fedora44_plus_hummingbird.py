@@ -125,14 +125,37 @@ def test_fedora_is_rewritten_in_place_with_a_priority_below_hummingbird(evaluate
         assert repos.get(section, "metalink"), dict(repos[section])
 
 
-def test_priorities_order_local_hummingbird_ours_fedora(evaluated):
+def test_priorities_order_local_hummingbird_utah_ours_fedora(evaluated):
     repos = evaluated["repos"]
     local = repos.getint("local-build", "priority")
     base = repos.getint("hummingbird", "priority")
+    utah = repos.getint("utah", "priority")
     ours = repos.getint("tunaos-hummingbird", "priority")
     fedora = repos.getint("fedora", "priority")
-    assert local < base < ours < fedora, (local, base, ours, fedora)
-    assert base == 10 and ours == 11, "the golang and factory-output tests pin these"
+    assert local < base < utah < ours < fedora, (local, base, utah, ours, fedora)
+    assert base == 10 and utah == 11 and ours == 12, (
+        "utah wins ties so a stale factory RPM can never shadow the build "
+        "utah actually did; the golang and factory-output tests pin base/ours"
+    )
+
+
+def test_utah_repo_is_a_pinned_file_repo(evaluated):
+    repos = evaluated["repos"]
+    assert repos.get("utah", "baseurl") == "file:///run/utah-repo/repository", (
+        "utah publishes no HTTP baseurl -- the chain materialises the OCI "
+        "image and bind-mounts it here (see the config comment)"
+    )
+    assert repos.get("utah", "gpgcheck") == "0"
+    assert repos.get("utah", "enabled") == "1"
+    assert repos.get("utah", "metadata_expire", fallback=None) is None, (
+        "file:// repos must not cache metadata "
+        "(test_static_repos_are_not_refetched_per_package pins this)"
+    )
+
+
+def test_utah_repo_is_bind_mounted(evaluated):
+    dirs = evaluated["opts"]["plugin_conf"]["bind_mount_opts"]["dirs"]
+    assert ("/run/utah-repo", "/run/utah-repo") in dirs
 
 
 def test_the_rewrite_fails_closed_when_the_template_changes_shape(tmp_path):

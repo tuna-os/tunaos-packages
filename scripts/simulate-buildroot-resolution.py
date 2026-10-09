@@ -169,7 +169,9 @@ def parse_mock_repos(cfg_path: pathlib.Path) -> list[dict]:
             match = re.search(r"repo=([A-Za-z0-9-]+)", repo["metalink"])
             baseurl = METALINK_BASEURL.get(match.group(1), "") if match else ""
         if not baseurl or baseurl.startswith("file://"):
-            continue  # local-build holds this run's own output; modeled via the build set
+            continue  # local-build holds this run's own output (modeled via
+            # the build set); utah is materialised from OCI at chain time and
+            # unreadable to a static simulation (the gap engine covers it)
         out.append({
             "id": repo["id"],
             "baseurl": baseurl,
