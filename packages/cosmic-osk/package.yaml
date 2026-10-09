@@ -1,0 +1,68 @@
+schema: 1
+name: cosmic-osk
+version: 1.9.0
+release: 1
+summary: COSMIC On-Screen Keyboard
+description: COSMIC On-Screen Keyboard for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-osk/archive/epoch-1.9.0.tar.gz
+  sha256: 6a4095f0474d55ecefe0e1f4bb24f5a7bffdf0450e87de40c668da1d628bd1f6
+  directory: cosmic-osk-epoch-1.9.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-osk/vendor-1.9.0.tar.gz/sha512/214fe9e64245aff80631e1665c5cb0ab9991c38ffd2e9157133178e08cbce967aef7eae940089a477889b864aa0e1fb965028247ae3d2686b551234246d42ca3/vendor-1.9.0.tar.gz
+    sha256: 5c6d12d84723da8867810feca24107233215fa005969c390eb3d1b7556eb31f7
+    filename: cosmic-osk-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-osk/raw/9ef8e37fdd17910cfe544f01322a14d272b8027f/f/vendor-config-1.9.0.toml
+    sha256: 7943f6d97ea790abdcfacfa074435b8587076daa55216fed3f633defd074fde1
+    filename: cosmic-osk-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 38e962576f1893e6452d4c273c41149c432191b2
+    VERGEN_GIT_COMMIT_DATE: 2026-09-22 17:11:29 -0600
+  commands:
+    - cargo build --release --offline --frozen
+dependencies:
+  build:
+    capabilities:
+      - rust
+      - libxkbcommon-dev
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+        - libudev-devel
+      ubuntu:
+        - cargo
+        - lld
+        - just
+        - libudev-dev
+      debian:
+        - cargo
+        - lld
+        - just
+        - libudev-dev
+  runtime:
+    targets:
+      el10:
+        - cosmic-icon-theme >= 1.9.0
+      ubuntu: []
+      debian: []
+files:
+  common:
+    - usr/bin/cosmic-osk
+install:
+  commands:
+    - just rootdir={destdir} prefix=/usr install
+verify:
+  smoke: test -x /usr/bin/cosmic-osk
+targets:
+  - el10
+  - ubuntu
+  - debian

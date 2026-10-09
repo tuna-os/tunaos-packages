@@ -3,7 +3,17 @@ tree: cosmic
 targets: [el10, ubuntu, debian]
 roots: [cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
 nodes:
-  cosmic-session: {source: pop-os/cosmic-epoch, needs: [cosmic-bg, cosmic-comp, cosmic-greeter, cosmic-icon-theme, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-panel, cosmic-randr, cosmic-settings, cosmic-settings-daemon, xdg-desktop-portal-cosmic, greetd]}
+  cosmic-session: {source: pop-os/cosmic-session, needs: [cosmic-app-library, cosmic-applets, cosmic-bg, cosmic-comp, cosmic-files, cosmic-greeter, cosmic-icon-theme, cosmic-idle, cosmic-initial-setup, cosmic-launcher, cosmic-notifications, cosmic-osd, cosmic-osk, cosmic-panel, cosmic-randr, cosmic-screenshot, cosmic-settings, cosmic-settings-daemon, cosmic-term, cosmic-workspaces, xdg-desktop-portal-cosmic, greetd]}
+  cosmic-app-library: {source: pop-os/cosmic-app-library, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
+  cosmic-applets: {source: pop-os/cosmic-applets, needs: [cosmic-icon-theme, cosmic-panel, cargo-toolchain, wayland-stack, pipewire-stack]}
+  cosmic-files: {source: pop-os/cosmic-files, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
+  cosmic-launcher: {source: pop-os/cosmic-launcher, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
+  cosmic-screenshot: {source: pop-os/cosmic-screenshot, needs: [cargo-toolchain]}
+  cosmic-term: {source: pop-os/cosmic-term, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
+  cosmic-wallpapers: {source: pop-os/cosmic-wallpapers, needs: []}
+  cosmic-workspaces: {source: pop-os/cosmic-workspaces-epoch, needs: [cosmic-comp, cosmic-icon-theme, cargo-toolchain, wayland-stack]}
+  cosmic-initial-setup: {source: pop-os/cosmic-initial-setup, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
+  cosmic-osk: {source: pop-os/cosmic-osk, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
   cosmic-bg: {source: pop-os/cosmic-bg, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
   cosmic-icon-theme: {source: pop-os/cosmic-icons, needs: [pop-icon-theme]}
   cosmic-idle: {source: pop-os/cosmic-idle, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}

@@ -1,0 +1,112 @@
+schema: 1
+name: cosmic-applets
+version: 1.9.0
+release: 1
+summary: Applets for the COSMIC Desktop Environment
+description: Applets for the COSMIC Desktop Environment for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-applets/archive/epoch-1.9.0.tar.gz
+  sha256: f113f74cd05b179ab0478dd5876b671880914600d5df56d518f8f80c08543037
+  directory: cosmic-applets-epoch-1.9.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-applets/vendor-1.9.0.tar.gz/sha512/5b1abcfcf9c639c3a6906531ef16e9875a2127de334196a81303cd42423f72cc236148c1dc69d8515544acc6d196538b1b99eff39a8375404d56a0a104f6f866/vendor-1.9.0.tar.gz
+    sha256: f36468dabc508435710dbc33c3946d29fc5ef467315580d2c7b9c662982cc2ea
+    filename: cosmic-applets-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-applets/raw/e4072f9d52e6e719714c630a78dbccc8022647ca/f/vendor-config-1.9.0.toml
+    sha256: a0dc4eb7427d18cae5b8ae933e5655401ff1c778dc7f04e83255a8d4611f5fbb
+    filename: cosmic-applets-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+  - url: https://src.fedoraproject.org/rpms/cosmic-applets/raw/e4072f9d52e6e719714c630a78dbccc8022647ca/f/0001-Symlink-relative-in-justfile.patch
+    sha256: 1898dabe3e7300b3509f4efcfe2f00873b96229f8d5a8d3ea721e3d8bbad5186
+    filename: cosmic-applets-relative-symlink.patch
+    destination: patches/cosmic-applets-relative-symlink.patch
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 82e7cd814addb0641959b634227fe550374e195b
+    VERGEN_GIT_COMMIT_DATE: 2026-09-23 12:48:55 -0600
+  commands:
+    - cargo build --release --offline --frozen
+  prepare:
+    - patch -p1 < patches/cosmic-applets-relative-symlink.patch
+dependencies:
+  build:
+    capabilities:
+      - rust
+      - dbus-dev
+      - wayland-dev
+      - libinput-dev
+      - pipewire-dev
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+        - libudev-devel
+        - pulseaudio-libs-devel
+        - libglvnd-devel
+        - clang-devel
+      ubuntu:
+        - cargo
+        - lld
+        - just
+        - libudev-dev
+        - libpulse-dev
+        - libegl1-mesa-dev
+        - clang
+      debian:
+        - cargo
+        - lld
+        - just
+        - libudev-dev
+        - libpulse-dev
+        - libegl1-mesa-dev
+        - clang
+  runtime:
+    targets:
+      el10:
+        - cosmic-icon-theme >= 1.9.0
+        - cosmic-panel >= 1.9.0
+      ubuntu: []
+      debian: []
+files:
+  common:
+    - usr/bin/cosmic-applets
+    - usr/bin/cosmic-panel-button
+    - usr/bin/cosmic-app-list
+    - usr/bin/cosmic-applet-a11y
+    - usr/bin/cosmic-applet-audio
+    - usr/bin/cosmic-applet-battery
+    - usr/bin/cosmic-applet-bluetooth
+    - usr/bin/cosmic-applet-input-sources
+    - usr/bin/cosmic-applet-minimize
+    - usr/bin/cosmic-applet-network
+    - usr/bin/cosmic-applet-notifications
+    - usr/bin/cosmic-applet-osk
+    - usr/bin/cosmic-applet-power
+    - usr/bin/cosmic-applet-status-area
+    - usr/bin/cosmic-applet-tiling
+    - usr/bin/cosmic-applet-time
+    - usr/bin/cosmic-applet-workspaces
+    - usr/share/dbus-1/services/com.system76.CosmicStatusNotifierWatcher.service
+    - usr/share/dbus-1/system.d/com.system76.CosmicSettings.Applet.NetworkManager.SecretAgent.conf
+    - usr/share/applications/com.system76.Cosmic*.desktop
+    - usr/share/cosmic/com.system76.CosmicAppList/v1/favorites
+    - usr/share/cosmic/com.system76.CosmicAppList/v1/filter_top_levels
+    - usr/share/icons/hicolor/scalable/status/cosmic-applet-*.svg
+    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicPanelLauncherButton.svg
+install:
+  commands:
+    - just rootdir={destdir} prefix=/usr install
+    - sed -e 's/"firefox"/"org.mozilla.firefox"/' -i {destdir}/usr/share/cosmic/com.system76.CosmicAppList/v1/favorites
+verify:
+  smoke: test -x /usr/bin/cosmic-applets && test -x /usr/bin/cosmic-app-list
+targets:
+  - el10
+  - ubuntu
+  - debian

@@ -1,30 +1,30 @@
 schema: 1
 name: cosmic-osd
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: On-screen displays for COSMIC
 description: COSMIC on-screen display service for TunaOS.
 license: Apache-2.0 AND GPL-3.0-or-later AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-osd/archive/epoch-1.4.0.tar.gz
-  sha256: 5ea21a076bc177fba888b2a5eb4e70d7524b4db0351a6e99d6d9bee4222267b2
-  directory: cosmic-osd-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-osd/archive/epoch-1.9.0.tar.gz
+  sha256: 7f4e7e991f9201bacb0d0c3c47d160419de849710f16c9deb29a3aaeb82b0de3
+  directory: cosmic-osd-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-osd/vendor-1.4.0.tar.gz/sha512/785ff1ee334ff0f18428f8f8f701b561eeeedddff64f83ffb2825a803f59365849f2b5492ae7e97b0a72cfe474128e30ad8c9d24f5254b927752368bf4feb77e/vendor-1.4.0.tar.gz
-    sha256: 15179b87dabe0fb738c6559d30271d68765e4ec9745b363fd5a4235553ddff7c
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-osd/vendor-1.9.0.tar.gz/sha512/22c927399d23b53298904907987edf9c2bbd0843e71780817ccd2aaf102b3ccc030d081b43e05a7f37f62f61ec0ec4f30ed14f6800c1eee300549425b5a4a1ee/vendor-1.9.0.tar.gz
+    sha256: e4e7056964fe0b3b881ba1f0324c8124ab2671fef027fac69ff0a99fca400161
     filename: cosmic-osd-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-osd/raw/4d2362138df8a8592172601043f2bc3750bfa777/f/vendor-config-1.4.0.toml
-    sha256: 4e555acd8c2c9b90a55800e2f7c90603031b1c642f7188397ec26795c1407086
+  - url: https://src.fedoraproject.org/rpms/cosmic-osd/raw/6f2136abf49e9dbd6f5129c3c4a1d5dd8b4f0b27/f/vendor-config-1.9.0.toml
+    sha256: 5cd08440673d70db3531bdffb49b6d0be728aab01bd7d497c3e6c1080ced4680
     filename: cosmic-osd-vendor-config.toml
     destination: .cargo/config.toml
     extract: false
 build_system: custom
 build:
   environment:
-    VERGEN_GIT_SHA: ce431b4d710a198b13298c96d22fe5ccaadb1943
-    VERGEN_GIT_COMMIT_DATE: "2026-07-09 17:32:50 -0600"
+    VERGEN_GIT_SHA: 3faadf56bdaea4b088ea8dc5e808b167cec86de3
+    VERGEN_GIT_COMMIT_DATE: "2026-09-15 21:57:05 +0200"
   commands: ["just polkit-agent-helper-1=/usr/lib/polkit-1/polkit-agent-helper-1 build-release --offline --frozen"]
 dependencies:
   build:
@@ -38,7 +38,7 @@ dependencies:
       # cosmic-icon-theme is TunaOS-built and ships in neither deb archive;
       # the gate's clean-install repo only holds the cell's own artifact
       # (same call as cosmic-settings, #225). pulseaudio-utils is stock.
-      el10: [cosmic-icon-theme >= 1.4.0, pulseaudio-utils]
+      el10: [cosmic-icon-theme >= 1.9.0, pulseaudio-utils]
       ubuntu: [pulseaudio-utils]
       debian: [pulseaudio-utils]
 files:

@@ -1,30 +1,30 @@
 schema: 1
 name: cosmic-notifications
-version: "1.4.0"
+version: "1.9.0"
 release: 1
 summary: Notifications daemon for COSMIC
 description: COSMIC desktop notification daemon for TunaOS.
 license: Apache-2.0 AND MIT
 source:
-  url: https://github.com/pop-os/cosmic-notifications/archive/epoch-1.4.0.tar.gz
-  sha256: 8431557ec6efe06507c10a214f99352d1a702bd438e53d79193ea288d7152b3a
-  directory: cosmic-notifications-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-notifications/archive/epoch-1.9.0.tar.gz
+  sha256: 36fb0a639461432f77df30e8d065ecc536a64a8504e2eebe4b0dcd054cffad08
+  directory: cosmic-notifications-epoch-1.9.0
 sources:
-  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-notifications/vendor-1.4.0.tar.gz/sha512/73c573a70940ba8076d0054fd0287b652a3a16c672b6d61516e44733ca5706e06a27141127b9285b188e3cc92879fa4db7895ada382df351f21757762d1802fd/vendor-1.4.0.tar.gz
-    sha256: 81f43e9aeeb62bf47d88c39044bffa0dd3252514c7b0114c0ff79d5a6770ccbd
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-notifications/vendor-1.9.0.tar.gz/sha512/ce45324ef91dbd51ac98c7d8436e57a313cbe3ae77cc2be3d17efd8f43c24758406cf5938a16135968b30c45e5e616229b88b88ecc884e78aa83607063281bfc/vendor-1.9.0.tar.gz
+    sha256: e955448916250c8d583c6c0dd1db6820812f2975c98af3054732372e4cb5e172
     filename: cosmic-notifications-vendor.tar.gz
     destination: .
     strip_components: 0
-  - url: https://src.fedoraproject.org/rpms/cosmic-notifications/raw/be8ac69cb9d32cde0d851118f588853f29c9f90d/f/vendor-config-1.4.0.toml
-    sha256: a92b898c93317f2c2191956a3be410d952f0afba42a084e430db37f1833bca9b
+  - url: https://src.fedoraproject.org/rpms/cosmic-notifications/raw/bd5bc1e2ff957f49f467c38ed5a4b87a6f095131/f/vendor-config-1.9.0.toml
+    sha256: 873490cf9b9445cfa565f654d737765345e4ae7d9f4a7cb9fb147ac6d12400fc
     filename: cosmic-notifications-vendor-config.toml
     destination: .cargo/config.toml
     extract: false
 build_system: custom
 build:
   environment:
-    VERGEN_GIT_SHA: 7c723b7705ec77b1ad5396a1baa9ae1c0cb5a0da
-    VERGEN_GIT_COMMIT_DATE: "2026-07-09 18:17:21 -0600"
+    VERGEN_GIT_SHA: aa4dac2702506395ab76da1f6755e03b2ccb0db8
+    VERGEN_GIT_COMMIT_DATE: "2026-09-16 16:30:13 -0400"
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:
@@ -38,7 +38,7 @@ dependencies:
       # cosmic-icon-theme is TunaOS-built and ships in neither deb archive;
       # the gate's clean-install repo only holds the cell's own artifact
       # (same call as cosmic-settings, #225).
-      el10: [cosmic-icon-theme >= 1.4.0]
+      el10: [cosmic-icon-theme >= 1.9.0]
       ubuntu: []
       debian: []
 files:

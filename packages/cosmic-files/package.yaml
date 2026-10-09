@@ -1,0 +1,77 @@
+schema: 1
+name: cosmic-files
+version: 1.9.0
+release: 1
+summary: Libcosmic file manager
+description: Libcosmic file manager for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-files/archive/epoch-1.9.0.tar.gz
+  sha256: c30cb40b8177112c821753a95134ba82e64dfd8230f5c371a1c89a4b0d066309
+  directory: cosmic-files-epoch-1.9.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-files/vendor-1.9.0.tar.gz/sha512/6c40aa92a75b58bc022f7150fc8b2ecec0263a834fba9fcfc6fdb4ac981384d8ba823da613c31453e6a59a8123cf98b5965ca31e6ceaa505137b9fc1acb28161/vendor-1.9.0.tar.gz
+    sha256: 5b46815b2ac2a741695b192bd6112197eb53aaa4f2980f60be3b925c67014309
+    filename: cosmic-files-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-files/raw/d6436bdc86c912a0d1788398c3e3c79ddea1f09d/f/vendor-config-1.9.0.toml
+    sha256: 01bd2cd181003b68d0cc243fa74b6b8a7cc4a2e6ca789c5ccf24381a015b7084
+    filename: cosmic-files-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: d1f0af78e64f9e8ddb52c486913d53a234ce3cf2
+    VERGEN_GIT_COMMIT_DATE: 2026-09-23 10:44:56 -0600
+  commands:
+    - cargo build --release --offline --frozen
+dependencies:
+  build:
+    capabilities:
+      - rust
+      - libxkbcommon-dev
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+        - glib2-devel
+      ubuntu:
+        - cargo
+        - lld
+        - just
+        - libglib2.0-dev
+      debian:
+        - cargo
+        - lld
+        - just
+        - libglib2.0-dev
+  runtime:
+    targets:
+      el10:
+        - gvfs
+        - gvfs-fuse
+        - xdg-utils
+        - cosmic-icon-theme >= 1.9.0
+      ubuntu: []
+      debian: []
+files:
+  common:
+    - usr/bin/cosmic-files
+    - usr/bin/cosmic-files-applet
+    - usr/bin/cosmic-files-thumbnailer
+    - usr/share/applications/com.system76.CosmicFiles.desktop
+    - usr/share/thumbnailers/com.system76.CosmicFiles.thumbnailer
+    - usr/share/metainfo/com.system76.CosmicFiles.metainfo.xml
+    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicFiles.svg
+install:
+  commands:
+    - just rootdir={destdir} prefix=/usr install
+verify:
+  smoke: test -x /usr/bin/cosmic-files && test -x /usr/bin/cosmic-files-applet
+targets:
+  - el10
+  - ubuntu
+  - debian

@@ -1,6 +1,6 @@
 schema: 1
 name: cosmic-icon-theme
-version: "1.4.0"
+version: "1.10.0"
 release: 1
 summary: Icon theme for the COSMIC desktop environment
 description: COSMIC icon theme and freedesktop icon metadata for TunaOS.
@@ -10,9 +10,9 @@ provides: [cosmic-icons]
 # upstream name, cosmic-icons; the recipe builds it as cosmic-icon-theme,
 # so the built artifact aliases the name it is required under (#169).
 source:
-  url: https://github.com/pop-os/cosmic-icons/archive/epoch-1.4.0.tar.gz
-  sha256: cdcad65105822f5df86492ae4c55c31880dc0aad5f901b1e0cb9a38a0cc5b9d2
-  directory: cosmic-icons-epoch-1.4.0
+  url: https://github.com/pop-os/cosmic-icons/archive/epoch-1.10.0.tar.gz
+  sha256: 52625bef1b83ba2b08afe58197573738d72fb4d316de9d99eac34806a4cae80c
+  directory: cosmic-icons-epoch-1.10.0
 build_system: custom
 build:
   commands: [":"]

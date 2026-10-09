@@ -1,0 +1,68 @@
+schema: 1
+name: cosmic-term
+version: 1.9.0
+release: 1
+summary: Terminal emulator built with alacritty and Libcosmic
+description: Terminal emulator built with alacritty and Libcosmic for TunaOS.
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/cosmic-term/archive/epoch-1.9.0.tar.gz
+  sha256: 2e5ef9ff8428503024f84e9d0c9d8b0007dec0be42b398e5925d209ec91e2e19
+  directory: cosmic-term-epoch-1.9.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/cosmic-term/vendor-1.9.0.tar.gz/sha512/b569bdde33d2f0642450243eb375693ff779fd2739d16b97bc43436b2f69a91f558bee56ebe4f6b2c1f4eb75a821d524fe465133922b931497cd5734dca54299/vendor-1.9.0.tar.gz
+    sha256: 861208bf2e52c149905fb655298926b8e15bcbe101fa86259b2ad8435af5fe2d
+    filename: cosmic-term-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/cosmic-term/raw/80ce0f3cc9040c22589cf9ed90287c837adf85b7/f/vendor-config-1.9.0.toml
+    sha256: f51db18d8b52a6f78924baa64fcc0874e9132c64b63232c17a3f1bc62485dac6
+    filename: cosmic-term-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+build_system: custom
+build:
+  environment:
+    VERGEN_GIT_SHA: 9129277bed1e810418a3138d683c1bc15656234f
+    VERGEN_GIT_COMMIT_DATE: 2026-09-23 11:55:55 -0600
+  commands:
+    - cargo build --release --offline --frozen
+dependencies:
+  build:
+    capabilities:
+      - rust
+      - libxkbcommon-dev
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+      ubuntu:
+        - cargo
+        - lld
+        - just
+      debian:
+        - cargo
+        - lld
+        - just
+  runtime:
+    targets:
+      el10:
+        - cosmic-icon-theme >= 1.9.0
+      ubuntu: []
+      debian: []
+files:
+  common:
+    - usr/bin/cosmic-term
+    - usr/share/applications/com.system76.CosmicTerm.desktop
+    - usr/share/metainfo/com.system76.CosmicTerm.metainfo.xml
+    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicTerm.svg
+install:
+  commands:
+    - just rootdir={destdir} prefix=/usr install
+verify:
+  smoke: test -x /usr/bin/cosmic-term
+targets:
+  - el10
+  - ubuntu
+  - debian

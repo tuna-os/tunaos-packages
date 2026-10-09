@@ -675,6 +675,34 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cosmic-app-library
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-app-library
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-app-library
+      deb:
+        tideforge: packages/cosmic-app-library
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-app-library/archive/epoch-1.9.0.tar.gz
+      sha256: d85fb7648429bb3319dc1f1dd69f510019d4f5815be93c42a3f57f2211abe740
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cosmic-applets
     family: hummingbird-desktops
     packaging:
@@ -687,6 +715,34 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cosmic-applets
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-applets
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-applets
+      deb:
+        tideforge: packages/cosmic-applets
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-applets/archive/epoch-1.9.0.tar.gz
+      sha256: f113f74cd05b179ab0478dd5876b671880914600d5df56d518f8f80c08543037
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cosmic-bg
     family: hummingbird-desktops
     packaging:
@@ -707,9 +763,9 @@ packages:
       deb:
         tideforge: packages/cosmic-bg
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-bg/archive/epoch-1.4.0.tar.gz
-      sha256: 401b1753d5dfa2c45b00eac34dd5a675dcd02d5e9c7ee7cd3676cf37c2242d30
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-bg/archive/epoch-1.9.0.tar.gz
+      sha256: 848594cabc13d78fef20a907bc79aa2b132986e40bb042b9423779bfc081dcca
     targets:
       - debian
       - el10
@@ -725,9 +781,9 @@ packages:
       deb:
         tideforge: packages/cosmic-bg
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-bg/archive/epoch-1.4.0.tar.gz
-      sha256: 401b1753d5dfa2c45b00eac34dd5a675dcd02d5e9c7ee7cd3676cf37c2242d30
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-bg/archive/epoch-1.9.0.tar.gz
+      sha256: 848594cabc13d78fef20a907bc79aa2b132986e40bb042b9423779bfc081dcca
     targets:
       - debian
       - el10
@@ -741,7 +797,7 @@ packages:
       rpm:
         native: src/hummingbird/cosmic-comp
     upstream:
-      version: 1.4.0
+      version: 1.9.0
       source: https://github.com/pop-os/cosmic-comp/archive/epoch-%{version_no_tilde}/cosmic-comp-%{version_no_tilde}.tar.gz
       spec: src/hummingbird/cosmic-comp/cosmic-comp.spec
     targets:
@@ -757,9 +813,9 @@ packages:
       deb:
         tideforge: packages/cosmic-comp
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-comp/archive/epoch-1.4.0.tar.gz
-      sha256: 713f2dfdfa0e1b6899a45fd7dec172fb0f299a60daff4a624b8432de43fa229b
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-comp/archive/epoch-1.9.0.tar.gz
+      sha256: f0f3a2362861fe8976d7d45436aaa0a10de975522b6e8a53d77058a74ffc81e8
     targets:
       - debian
       - el10
@@ -775,9 +831,9 @@ packages:
       deb:
         tideforge: packages/cosmic-comp
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-comp/archive/epoch-1.4.0.tar.gz
-      sha256: 713f2dfdfa0e1b6899a45fd7dec172fb0f299a60daff4a624b8432de43fa229b
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-comp/archive/epoch-1.9.0.tar.gz
+      sha256: f0f3a2362861fe8976d7d45436aaa0a10de975522b6e8a53d77058a74ffc81e8
     targets:
       - debian
       - el10
@@ -809,13 +865,41 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cosmic-files
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-files
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-files
+      deb:
+        tideforge: packages/cosmic-files
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-files/archive/epoch-1.9.0.tar.gz
+      sha256: c30cb40b8177112c821753a95134ba82e64dfd8230f5c371a1c89a4b0d066309
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cosmic-greeter
     family: hummingbird-desktops
     packaging:
       rpm:
         native: src/hummingbird/cosmic-greeter
     upstream:
-      version: 1.4.0
+      version: 1.10.0
       source: https://github.com/pop-os/cosmic-greeter/archive/epoch-%{version_no_tilde}/cosmic-greeter-%{version_no_tilde}.tar.gz
       spec: src/hummingbird/cosmic-greeter/cosmic-greeter.spec
     targets:
@@ -831,9 +915,9 @@ packages:
       deb:
         tideforge: packages/cosmic-greeter
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-greeter/archive/epoch-1.4.0.tar.gz
-      sha256: 121ea127cb26efa0c414d8d5c191bb7d2e890b1543edd17065004e2d9bf7baab
+      version: 1.10.0
+      source: https://github.com/pop-os/cosmic-greeter/archive/epoch-1.10.0.tar.gz
+      sha256: b4dcf23c2bc9719de4aa2c4c315ed30d1d142477b213fcca3d61856ef46dd9b8
     targets:
       - debian
       - el10
@@ -849,9 +933,9 @@ packages:
       deb:
         tideforge: packages/cosmic-greeter
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-greeter/archive/epoch-1.4.0.tar.gz
-      sha256: 121ea127cb26efa0c414d8d5c191bb7d2e890b1543edd17065004e2d9bf7baab
+      version: 1.10.0
+      source: https://github.com/pop-os/cosmic-greeter/archive/epoch-1.10.0.tar.gz
+      sha256: b4dcf23c2bc9719de4aa2c4c315ed30d1d142477b213fcca3d61856ef46dd9b8
     targets:
       - debian
       - el10
@@ -879,9 +963,9 @@ packages:
       deb:
         tideforge: packages/cosmic-icon-theme
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-icons/archive/epoch-1.4.0.tar.gz
-      sha256: cdcad65105822f5df86492ae4c55c31880dc0aad5f901b1e0cb9a38a0cc5b9d2
+      version: 1.10.0
+      source: https://github.com/pop-os/cosmic-icons/archive/epoch-1.10.0.tar.gz
+      sha256: 52625bef1b83ba2b08afe58197573738d72fb4d316de9d99eac34806a4cae80c
     targets:
       - debian
       - el10
@@ -897,9 +981,9 @@ packages:
       deb:
         tideforge: packages/cosmic-icon-theme
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-icons/archive/epoch-1.4.0.tar.gz
-      sha256: cdcad65105822f5df86492ae4c55c31880dc0aad5f901b1e0cb9a38a0cc5b9d2
+      version: 1.10.0
+      source: https://github.com/pop-os/cosmic-icons/archive/epoch-1.10.0.tar.gz
+      sha256: 52625bef1b83ba2b08afe58197573738d72fb4d316de9d99eac34806a4cae80c
     targets:
       - debian
       - el10
@@ -913,9 +997,9 @@ packages:
       deb:
         tideforge: packages/cosmic-icon-theme
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-icons/archive/epoch-1.4.0.tar.gz
-      sha256: cdcad65105822f5df86492ae4c55c31880dc0aad5f901b1e0cb9a38a0cc5b9d2
+      version: 1.10.0
+      source: https://github.com/pop-os/cosmic-icons/archive/epoch-1.10.0.tar.gz
+      sha256: 52625bef1b83ba2b08afe58197573738d72fb4d316de9d99eac34806a4cae80c
     targets:
       - ubuntu
     membership: runtime
@@ -941,9 +1025,9 @@ packages:
       deb:
         tideforge: packages/cosmic-idle
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-idle/archive/epoch-1.4.0.tar.gz
-      sha256: f399774b598b278f9f2a49bc0dc15b5e44cfdfe519762076e08ff73efa3d8186
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-idle/archive/epoch-1.9.0.tar.gz
+      sha256: acdd250cc845879352b1707c25636145dbdc3f0b4d17724d9a031e789a0592f1
     targets:
       - debian
       - el10
@@ -959,9 +1043,9 @@ packages:
       deb:
         tideforge: packages/cosmic-idle
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-idle/archive/epoch-1.4.0.tar.gz
-      sha256: f399774b598b278f9f2a49bc0dc15b5e44cfdfe519762076e08ff73efa3d8186
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-idle/archive/epoch-1.9.0.tar.gz
+      sha256: acdd250cc845879352b1707c25636145dbdc3f0b4d17724d9a031e789a0592f1
     targets:
       - debian
       - el10
@@ -981,6 +1065,34 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cosmic-initial-setup
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-initial-setup
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-initial-setup
+      deb:
+        tideforge: packages/cosmic-initial-setup
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-initial-setup/archive/epoch-1.9.0.tar.gz
+      sha256: 6327cce425d6590b8479bdd459f34e9522663fa47b86c9af020f055e746c61eb
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cosmic-launcher
     family: hummingbird-desktops
     packaging:
@@ -993,6 +1105,34 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cosmic-launcher
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-launcher
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-launcher
+      deb:
+        tideforge: packages/cosmic-launcher
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-launcher/archive/epoch-1.9.0.tar.gz
+      sha256: 9ded0bbe14a08f4b83da8124d1243c965cf71751dc7d94539dd71ad5a4eff54a
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cosmic-notifications
     family: hummingbird-desktops
     packaging:
@@ -1013,9 +1153,9 @@ packages:
       deb:
         tideforge: packages/cosmic-notifications
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-notifications/archive/epoch-1.4.0.tar.gz
-      sha256: 8431557ec6efe06507c10a214f99352d1a702bd438e53d79193ea288d7152b3a
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-notifications/archive/epoch-1.9.0.tar.gz
+      sha256: 36fb0a639461432f77df30e8d065ecc536a64a8504e2eebe4b0dcd054cffad08
     targets:
       - debian
       - el10
@@ -1031,9 +1171,9 @@ packages:
       deb:
         tideforge: packages/cosmic-notifications
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-notifications/archive/epoch-1.4.0.tar.gz
-      sha256: 8431557ec6efe06507c10a214f99352d1a702bd438e53d79193ea288d7152b3a
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-notifications/archive/epoch-1.9.0.tar.gz
+      sha256: 36fb0a639461432f77df30e8d065ecc536a64a8504e2eebe4b0dcd054cffad08
     targets:
       - debian
       - el10
@@ -1061,9 +1201,9 @@ packages:
       deb:
         tideforge: packages/cosmic-osd
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-osd/archive/epoch-1.4.0.tar.gz
-      sha256: 5ea21a076bc177fba888b2a5eb4e70d7524b4db0351a6e99d6d9bee4222267b2
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-osd/archive/epoch-1.9.0.tar.gz
+      sha256: 7f4e7e991f9201bacb0d0c3c47d160419de849710f16c9deb29a3aaeb82b0de3
     targets:
       - debian
       - el10
@@ -1079,9 +1219,37 @@ packages:
       deb:
         tideforge: packages/cosmic-osd
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-osd/archive/epoch-1.4.0.tar.gz
-      sha256: 5ea21a076bc177fba888b2a5eb4e70d7524b4db0351a6e99d6d9bee4222267b2
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-osd/archive/epoch-1.9.0.tar.gz
+      sha256: 7f4e7e991f9201bacb0d0c3c47d160419de849710f16c9deb29a3aaeb82b0de3
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
+  - name: cosmic-osk
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-osk
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-osk
+      deb:
+        tideforge: packages/cosmic-osk
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-osk/archive/epoch-1.9.0.tar.gz
+      sha256: 6a4095f0474d55ecefe0e1f4bb24f5a7bffdf0450e87de40c668da1d628bd1f6
     targets:
       - debian
       - el10
@@ -1109,9 +1277,9 @@ packages:
       deb:
         tideforge: packages/cosmic-panel
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-panel/archive/epoch-1.4.0.tar.gz
-      sha256: c41d843f5e57b530ed74078f665fea6452e343a3c1bfe9cf637bcb029e4f5709
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-panel/archive/epoch-1.9.0.tar.gz
+      sha256: 6b036076e162568b6d0230ab82916b30d06b4942cb5be6a39960e42b499cab9b
     targets:
       - debian
       - el10
@@ -1127,9 +1295,9 @@ packages:
       deb:
         tideforge: packages/cosmic-panel
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-panel/archive/epoch-1.4.0.tar.gz
-      sha256: c41d843f5e57b530ed74078f665fea6452e343a3c1bfe9cf637bcb029e4f5709
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-panel/archive/epoch-1.9.0.tar.gz
+      sha256: 6b036076e162568b6d0230ab82916b30d06b4942cb5be6a39960e42b499cab9b
     targets:
       - debian
       - el10
@@ -1143,9 +1311,9 @@ packages:
       deb:
         tideforge: packages/cosmic-panel
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-panel/archive/epoch-1.4.0.tar.gz
-      sha256: c41d843f5e57b530ed74078f665fea6452e343a3c1bfe9cf637bcb029e4f5709
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-panel/archive/epoch-1.9.0.tar.gz
+      sha256: 6b036076e162568b6d0230ab82916b30d06b4942cb5be6a39960e42b499cab9b
     targets:
       - ubuntu
     membership: runtime
@@ -1171,9 +1339,9 @@ packages:
       deb:
         tideforge: packages/cosmic-randr
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-randr/archive/epoch-1.4.0.tar.gz
-      sha256: 37745fa8229e30ce1a3f38e724ccab3f4805af0acaaeb26ce1ffe80ad8d73852
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-randr/archive/epoch-1.9.0.tar.gz
+      sha256: 6c082cba6b80c5d89b02aec7ed315c9de8452cd413f5181ece43d7fdb3011481
     targets:
       - debian
       - el10
@@ -1189,9 +1357,9 @@ packages:
       deb:
         tideforge: packages/cosmic-randr
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-randr/archive/epoch-1.4.0.tar.gz
-      sha256: 37745fa8229e30ce1a3f38e724ccab3f4805af0acaaeb26ce1ffe80ad8d73852
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-randr/archive/epoch-1.9.0.tar.gz
+      sha256: 6c082cba6b80c5d89b02aec7ed315c9de8452cd413f5181ece43d7fdb3011481
     targets:
       - debian
       - el10
@@ -1205,9 +1373,9 @@ packages:
       deb:
         tideforge: packages/cosmic-randr
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-randr/archive/epoch-1.4.0.tar.gz
-      sha256: 37745fa8229e30ce1a3f38e724ccab3f4805af0acaaeb26ce1ffe80ad8d73852
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-randr/archive/epoch-1.9.0.tar.gz
+      sha256: 6c082cba6b80c5d89b02aec7ed315c9de8452cd413f5181ece43d7fdb3011481
     targets:
       - ubuntu
     membership: runtime
@@ -1225,13 +1393,41 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cosmic-screenshot
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-screenshot
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-screenshot
+      deb:
+        tideforge: packages/cosmic-screenshot
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-screenshot/archive/epoch-1.9.0.tar.gz
+      sha256: 2f809f4e1ed8ca218b9d39975cee290d168f231b48204a4d91d75ee63f30abcb
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cosmic-session
     family: hummingbird-desktops
     packaging:
       rpm:
         native: src/hummingbird/cosmic-session
     upstream:
-      version: 1.4.0
+      version: 1.9.0
       source: https://github.com/pop-os/cosmic-session/archive/epoch-%{version_no_tilde}/cosmic-session-%{version_no_tilde}.tar.gz
       spec: src/hummingbird/cosmic-session/cosmic-session.spec
     targets:
@@ -1247,9 +1443,9 @@ packages:
       deb:
         tideforge: packages/cosmic-session
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-session/archive/epoch-1.4.0.tar.gz
-      sha256: 34d92d4113b08d8129d2bf5d16d3641fcc64e5c8cbb20df2c03700d06ec5fc2b
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-session/archive/epoch-1.9.0.tar.gz
+      sha256: e6d093938ab59baafdccac576cb0bc1a1966c825a5fedf9cb498061d8099ed57
     targets:
       - debian
       - el10
@@ -1265,9 +1461,9 @@ packages:
       deb:
         tideforge: packages/cosmic-session
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-session/archive/epoch-1.4.0.tar.gz
-      sha256: 34d92d4113b08d8129d2bf5d16d3641fcc64e5c8cbb20df2c03700d06ec5fc2b
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-session/archive/epoch-1.9.0.tar.gz
+      sha256: e6d093938ab59baafdccac576cb0bc1a1966c825a5fedf9cb498061d8099ed57
     targets:
       - debian
       - el10
@@ -1281,7 +1477,7 @@ packages:
       rpm:
         native: src/hummingbird/cosmic-settings
     upstream:
-      version: 1.4.0
+      version: 1.9.0
       source: https://github.com/pop-os/cosmic-settings/archive/epoch-%{version_no_tilde}/cosmic-settings-%{version_no_tilde}.tar.gz
       spec: src/hummingbird/cosmic-settings/cosmic-settings.spec
     targets:
@@ -1297,9 +1493,9 @@ packages:
       deb:
         tideforge: packages/cosmic-settings
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-settings/archive/epoch-1.4.0.tar.gz
-      sha256: 2b31755a67834f029389504cd92b495bdf7e8f55cbfaf7a67cc7d55a9831f671
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-settings/archive/epoch-1.9.0.tar.gz
+      sha256: 1e33fec9dc70408a85eca4055dca16afa82baadc2edb957e1400294b09f2ff27
     targets:
       - debian
       - el10
@@ -1315,9 +1511,9 @@ packages:
       deb:
         tideforge: packages/cosmic-settings
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-settings/archive/epoch-1.4.0.tar.gz
-      sha256: 2b31755a67834f029389504cd92b495bdf7e8f55cbfaf7a67cc7d55a9831f671
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-settings/archive/epoch-1.9.0.tar.gz
+      sha256: 1e33fec9dc70408a85eca4055dca16afa82baadc2edb957e1400294b09f2ff27
     targets:
       - debian
       - el10
@@ -1345,9 +1541,9 @@ packages:
       deb:
         tideforge: packages/cosmic-settings-daemon
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-settings-daemon/archive/epoch-1.4.0.tar.gz
-      sha256: 83057e054570d26e8106b2069f9bbef9c20cb0f6ead18e259a66465f13c3b2df
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-settings-daemon/archive/epoch-1.9.0.tar.gz
+      sha256: 69e34f67c1ae727a75b9a75e7901738adf2779ca1024f53d280d474d1af9ff6c
     targets:
       - debian
       - el10
@@ -1363,9 +1559,9 @@ packages:
       deb:
         tideforge: packages/cosmic-settings-daemon
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/cosmic-settings-daemon/archive/epoch-1.4.0.tar.gz
-      sha256: 83057e054570d26e8106b2069f9bbef9c20cb0f6ead18e259a66465f13c3b2df
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-settings-daemon/archive/epoch-1.9.0.tar.gz
+      sha256: 69e34f67c1ae727a75b9a75e7901738adf2779ca1024f53d280d474d1af9ff6c
     targets:
       - debian
       - el10
@@ -1385,6 +1581,34 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cosmic-term
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-term
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-term
+      deb:
+        tideforge: packages/cosmic-term
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-term/archive/epoch-1.9.0.tar.gz
+      sha256: 2e5ef9ff8428503024f84e9d0c9d8b0007dec0be42b398e5925d209ec91e2e19
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cosmic-wallpapers
     family: hummingbird-desktops
     packaging:
@@ -1397,6 +1621,34 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cosmic-wallpapers
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-wallpapers
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-wallpapers
+      deb:
+        tideforge: packages/cosmic-wallpapers
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-wallpapers/archive/epoch-1.9.0.tar.gz
+      sha256: d898a1a7f84c8138e9b16e6a0cc1ed806ce9a87a94ab75561895b8e1d7a465f5
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cosmic-workspaces
     family: hummingbird-desktops
     packaging:
@@ -1409,6 +1661,34 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: cosmic-workspaces
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: cosmic-workspaces
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/cosmic-workspaces
+      deb:
+        tideforge: packages/cosmic-workspaces
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-workspaces-epoch/archive/epoch-1.9.0.tar.gz
+      sha256: cf9afff9ba023abe3bd996b82ceda7a295f63bcdbbd9ad784a9643a86c647f04
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: cpptrace-devel
     family: tideforge
     packaging:
@@ -10931,7 +11211,7 @@ packages:
       rpm:
         native: src/hummingbird/xdg-desktop-portal-cosmic
     upstream:
-      version: 1.4.0
+      version: 1.9.0
       source: https://github.com/pop-os/xdg-desktop-portal-cosmic/archive/epoch-%{version_no_tilde}/xdg-desktop-portal-cosmic-%{version_no_tilde}.tar.gz
       spec: src/hummingbird/xdg-desktop-portal-cosmic/xdg-desktop-portal-cosmic.spec
     targets:
@@ -10947,9 +11227,9 @@ packages:
       deb:
         tideforge: packages/xdg-desktop-portal-cosmic
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/xdg-desktop-portal-cosmic/archive/epoch-1.4.0.tar.gz
-      sha256: 87abf4fdfce157ae7e36b9055f79ba1584fb1fa20e8946821d7e32f1d1f0cae1
+      version: 1.9.0
+      source: https://github.com/pop-os/xdg-desktop-portal-cosmic/archive/epoch-1.9.0.tar.gz
+      sha256: 4fcd4631348e98decfd991489a5e9a941792741f5cf127f8ca9e874056c144d6
     targets:
       - debian
       - el10
@@ -10965,9 +11245,9 @@ packages:
       deb:
         tideforge: packages/xdg-desktop-portal-cosmic
     upstream:
-      version: 1.4.0
-      source: https://github.com/pop-os/xdg-desktop-portal-cosmic/archive/epoch-1.4.0.tar.gz
-      sha256: 87abf4fdfce157ae7e36b9055f79ba1584fb1fa20e8946821d7e32f1d1f0cae1
+      version: 1.9.0
+      source: https://github.com/pop-os/xdg-desktop-portal-cosmic/archive/epoch-1.9.0.tar.gz
+      sha256: 4fcd4631348e98decfd991489a5e9a941792741f5cf127f8ca9e874056c144d6
     targets:
       - debian
       - el10
