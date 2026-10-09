@@ -2,6 +2,11 @@
 #
 # Packages within a tier build in parallel; tiers are sequential.
 # Each package entry is a path relative to the repo root.
+#
+# Every entry is built here. Dependencies the el10 buildroot's system
+# repositories already supply (graphviz, vala, libgee from AppStream/CRB;
+# highway from EPEL 10) are not listed: they were copr_name entries that
+# pointed at the retired jreilly1821/c10s-gnome-* COPR (#391, #439).
 
 target: centos-stream-10-x86_64
 r2_path: gnome51/10-stream-x86_64
@@ -21,9 +26,7 @@ tiers:
         build_tool: true
       - path: src/deps/gnome50-el10-compat
       - path: src/deps/selinux-policy
-      - copr_name: graphviz
       - path: src/deps/sqlcipher
-        copr_name: sqlcipher
 
   # Tier 1: Needs tools from Tier 0.
   - name: build-tools
@@ -38,7 +41,6 @@ tiers:
         build_tool: true
       - path: src/deps/gi-docgen
         build_tool: true
-      - copr_name: vala
 
   # Tier 3: Bootstrap GLib.
   - name: glib2-bootstrap
@@ -51,7 +53,6 @@ tiers:
     packages:
       - path: src/deps/libei
       - path: src/deps/mozjs140
-        copr_name: mozjs140
       - path: src/deps/libzip
       - path: src/deps/fontconfig
 
@@ -84,9 +85,7 @@ tiers:
       - path: src/deps/pipewire
       - path: src/deps/libglib-testing
       - path: src/deps/simdutf
-        copr_name: simdutf
       - path: src/deps/libgexiv2
-      - copr_name: libgee
       - path: src/deps/libsoup
 
   # Tier 10: System Tools & GJS.
@@ -95,7 +94,6 @@ tiers:
       - path: src/deps/umockdev
         build_tool: true
       - path: src/deps/python-dbusmock
-        copr_name: python-dbusmock
         build_tool: true
       - path: src/deps/avahi
       - path: src/gnome-51/gjs
@@ -114,7 +112,6 @@ tiers:
       # unreferenced in src/gnome-51/gtk4. Per-track copies are the
       # convention the hummingbird order already follows (src/gnome-50/gtk4).
       - path: src/gnome-51/gtk4
-      - copr_name: highway
       - path: src/deps/glycin
       - path: src/deps/libgda
 
@@ -154,7 +151,9 @@ tiers:
       - path: src/gnome-51/gnome-session
       - path: src/gnome-51/gnome-control-center
       - path: src/gnome-51/gdm
-      - copr_name: ptyxis
+      # AppStream ships ptyxis 47.8; the track's 50.1 spec builds here
+      # instead of coming from the retired c10s-gnome COPR (#439).
+      - path: src/gnome-51/ptyxis
 
   # Tier 16: Post-session packages that depend on GDM/gnome-shell.
   - name: post-session
