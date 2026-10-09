@@ -14,6 +14,7 @@ nodes:
   cosmic-workspaces: {source: pop-os/cosmic-workspaces-epoch, needs: [cosmic-comp, cosmic-icon-theme, cargo-toolchain, wayland-stack]}
   cosmic-initial-setup: {source: pop-os/cosmic-initial-setup, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
   cosmic-osk: {source: pop-os/cosmic-osk, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
+  pop-launcher: {source: pop-os/launcher, needs: [cargo-toolchain, wayland-stack]}
   cosmic-bg: {source: pop-os/cosmic-bg, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
   cosmic-icon-theme: {source: pop-os/cosmic-icons, needs: [pop-icon-theme]}
   cosmic-idle: {source: pop-os/cosmic-idle, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
