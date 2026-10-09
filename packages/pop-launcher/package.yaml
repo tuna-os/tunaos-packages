@@ -20,11 +20,22 @@ sources:
     filename: pop-launcher-vendor-config.toml
     destination: .cargo/config.toml
     extract: false
+  # Upstream PR pop-os/launcher#242 (open): `lib-path` justfile variable +
+  # POP_LAUNCHER_LIB_DIR env so the install can target libexec and the
+  # binaries bake that path in. Fedora carries the same Patch0. URL is
+  # hash-pinned: drift fails loudly at fetch, never silently.
+  - url: https://patch-diff.githubusercontent.com/raw/pop-os/launcher/pull/242.patch
+    sha256: 624c6ad4ada8b49f115ce5784ca1142c87584d945b9674901ba5e50456a1444f
+    filename: pop-launcher-lib-path.patch
+    destination: patches/pop-launcher-lib-path.patch
+    extract: false
 build_system: custom
 build:
+  prepare: [patch -p1 < patches/pop-launcher-lib-path.patch]
   environment:
     VERGEN_GIT_SHA: 8a09fa50a9fbbe66a97afe3865b5e61dd1d0432c
     VERGEN_GIT_COMMIT_DATE: "2026-09-30 09:56:55 -0600"
+    POP_LAUNCHER_LIB_DIR: /usr/libexec/pop-launcher
   commands:
     - cargo build --release --offline --frozen
 dependencies:

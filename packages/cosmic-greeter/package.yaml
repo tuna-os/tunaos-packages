@@ -28,12 +28,13 @@ dependencies:
       debian: [cargo, lld, libwayland-dev, clang, libxkbcommon-dev, just, libudev-dev, libinput-dev]
   runtime:
     targets:
-      # greetd-selinux is an EL-only selinux-policy shim with no provider
-      # anywhere (#169); the el10 closure also stages the TunaOS-built
-      # siblings (cosmic-comp, cosmic-icon-theme). The deb targets map the
-      # archive-present half of that set onto Debian/Ubuntu package names and
-      # drop the rest, matching the cosmic-settings deb precedent (#225).
-      el10: [dbus, greetd, greetd-selinux, fprintd-pam, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
+      # No greetd-selinux on EL10 (Fedora-only policy package, unresolvable
+      # here; see #169 for the shim request). The el10 closure also stages
+      # the TunaOS-built siblings (cosmic-comp, cosmic-icon-theme). The deb
+      # targets map the archive-present half of that set onto Debian/Ubuntu
+      # package names and drop the rest, matching the cosmic-settings deb
+      # precedent (#225).
+      el10: [dbus, greetd, fprintd-pam, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
       ubuntu: [dbus, greetd, libpam-fprintd]
       debian: [dbus, greetd, libpam-fprintd]
 files:
