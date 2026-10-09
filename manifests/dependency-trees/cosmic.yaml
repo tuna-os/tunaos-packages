@@ -7,7 +7,7 @@ nodes:
   cosmic-app-library: {source: pop-os/cosmic-app-library, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
   cosmic-applets: {source: pop-os/cosmic-applets, needs: [cosmic-icon-theme, cosmic-panel, cargo-toolchain, wayland-stack, pipewire-stack]}
   cosmic-files: {source: pop-os/cosmic-files, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
-  cosmic-launcher: {source: pop-os/cosmic-launcher, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
+  cosmic-launcher: {source: pop-os/cosmic-launcher, needs: [cosmic-icon-theme, pop-launcher, cargo-toolchain, wayland-stack]}
   cosmic-screenshot: {source: pop-os/cosmic-screenshot, needs: [cargo-toolchain]}
   cosmic-term: {source: pop-os/cosmic-term, needs: [cosmic-icon-theme, cargo-toolchain, wayland-stack]}
   cosmic-wallpapers: {source: pop-os/cosmic-wallpapers, needs: []}
