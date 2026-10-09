@@ -48,7 +48,7 @@ files:
   common:
     - usr/bin/cosmic-screenshot
     - usr/share/applications/com.system76.CosmicScreenshot.desktop
-    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicScreenshot.svg
+    - usr/share/icons/hicolor/*/apps/com.system76.CosmicScreenshot.svg
 install:
   commands:
     - just rootdir={destdir} prefix=/usr install

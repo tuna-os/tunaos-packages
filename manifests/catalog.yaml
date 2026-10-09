@@ -8734,6 +8734,34 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: pop-launcher
+    family: queue-cosmic
+    packaging:
+      rpm:
+        implementation: native-spec
+    targets:
+      - el10
+    membership: runtime
+    referenced_by:
+      - manifests/target-queues/cosmic.yaml
+  - name: pop-launcher
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/pop-launcher
+      deb:
+        tideforge: packages/pop-launcher
+    upstream:
+      version: 1.10.0
+      source: https://github.com/pop-os/launcher/archive/epoch-1.10.0.tar.gz
+      sha256: fbad44078bbebec9e2bc5f03d31a04a08191a877d7d524cf9e34f364e75c2429
+    targets:
+      - debian
+      - el10
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: powerdevil
     family: hummingbird-desktops
     packaging:

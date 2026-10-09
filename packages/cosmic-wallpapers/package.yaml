@@ -30,7 +30,7 @@ files:
     - usr/share/backgrounds/cosmic
 install:
   commands:
-    - cd cosmic-wallpapers && make install DESTDIR={destdir} prefix=/usr
+    - make install DESTDIR={destdir} prefix=/usr
 verify:
   smoke: test -d /usr/share/backgrounds/cosmic
 targets:

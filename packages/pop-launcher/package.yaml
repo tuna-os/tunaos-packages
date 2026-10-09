@@ -1,0 +1,87 @@
+schema: 1
+name: pop-launcher
+version: "1.10.0"
+release: 1
+summary: Launcher backend for the COSMIC Desktop Environment
+description: Launcher backend for the COSMIC Desktop Environment for TunaOS. Required by cosmic-launcher on every arch (the COPR only ships x86_64).
+license: Apache-2.0 AND GPL-3.0-only AND MIT
+source:
+  url: https://github.com/pop-os/launcher/archive/epoch-1.10.0.tar.gz
+  sha256: fbad44078bbebec9e2bc5f03d31a04a08191a877d7d524cf9e34f364e75c2429
+  directory: launcher-epoch-1.10.0
+sources:
+  - url: https://src.fedoraproject.org/repo/pkgs/rpms/pop-launcher/vendor-1.10.0.tar.gz/sha512/b6544a4b144089a22f9d822a3b857528e8eef22c5daf8166f653b2c48ad30a3c6270a9c34579a2c7b8d37d0b11797e0b25c497cffd5b19c66325cdd9f024a871/vendor-1.10.0.tar.gz
+    sha256: 0b5cd9f95cca92a521391c3ce3b1bfbd3f20a18f1370e40e4bedde6a77394e9b
+    filename: pop-launcher-vendor.tar.gz
+    destination: .
+    strip_components: 0
+  - url: https://src.fedoraproject.org/rpms/pop-launcher/raw/e16b28f3fd8b34dabd106e730c3093d626b8888d/f/vendor-config-1.10.0.toml
+    sha256: 8f2f940c572d7aa6240cd66da39c7a5127b88c3f49256142455e84e85f0fafeb
+    filename: pop-launcher-vendor-config.toml
+    destination: .cargo/config.toml
+    extract: false
+  # Upstream PR pop-os/launcher#242 (open): `lib-path` justfile variable +
+  # POP_LAUNCHER_LIB_DIR env so the install can target libexec and the
+  # binaries bake that path in. Fedora carries the same Patch0. URL is
+  # hash-pinned: drift fails loudly at fetch, never silently.
+  - url: https://patch-diff.githubusercontent.com/raw/pop-os/launcher/pull/242.patch
+    sha256: 624c6ad4ada8b49f115ce5784ca1142c87584d945b9674901ba5e50456a1444f
+    filename: pop-launcher-lib-path.patch
+    destination: patches/pop-launcher-lib-path.patch
+    extract: false
+build_system: custom
+build:
+  prepare: [patch -p1 < patches/pop-launcher-lib-path.patch]
+  environment:
+    VERGEN_GIT_SHA: 8a09fa50a9fbbe66a97afe3865b5e61dd1d0432c
+    VERGEN_GIT_COMMIT_DATE: "2026-09-30 09:56:55 -0600"
+    POP_LAUNCHER_LIB_DIR: /usr/libexec/pop-launcher
+  commands:
+    # The binary lives in the pop-launcher-bin member package; a bare
+    # cargo build only builds the root library (same shape as
+    # cosmic-files' thumbnailer). Fedora/just builds -p pop-launcher-bin.
+    - cargo build --release --offline --frozen -p pop-launcher-bin
+dependencies:
+  build:
+    capabilities:
+      - rust
+      - libxkbcommon-dev
+    targets:
+      el10:
+        - cargo
+        - lld
+        - just
+        - libglvnd-devel
+        - libudev-devel
+      ubuntu:
+        - cargo
+        - lld
+        - just
+        - libegl1-mesa-dev
+        - libudev-dev
+      debian:
+        - cargo
+        - lld
+        - just
+        - libegl1-mesa-dev
+        - libudev-dev
+  runtime:
+    targets:
+      el10:
+        - qalculate
+        - fd-find
+      ubuntu: []
+      debian: []
+files:
+  common:
+    - usr/bin/pop-launcher
+    - usr/libexec/pop-launcher
+install:
+  commands:
+    - just rootdir={destdir} lib-path=libexec install
+verify:
+  smoke: test -x /usr/bin/pop-launcher
+targets:
+  - el10
+  - ubuntu
+  - debian

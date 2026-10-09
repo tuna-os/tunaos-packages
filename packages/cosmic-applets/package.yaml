@@ -48,6 +48,7 @@ dependencies:
         - lld
         - just
         - libudev-devel
+        - libxkbcommon-devel
         - pulseaudio-libs-devel
         - libglvnd-devel
         - clang-devel
@@ -99,7 +100,9 @@ files:
     - usr/share/cosmic/com.system76.CosmicAppList/v1/favorites
     - usr/share/cosmic/com.system76.CosmicAppList/v1/filter_top_levels
     - usr/share/icons/hicolor/scalable/status/cosmic-applet-*.svg
-    - usr/share/icons/hicolor/scalable/apps/com.system76.CosmicPanelLauncherButton.svg
+    - usr/share/icons/hicolor/scalable/apps/com.system76.Cosmic*.svg
+    - usr/lib/systemd/user/com.system76.CosmicStatusNotifierWatcher.service
+    - usr/share/metainfo/com.system76.CosmicApplets.metainfo.xml
 install:
   commands:
     - just rootdir={destdir} prefix=/usr install
