@@ -33,7 +33,9 @@ def test_repos_come_from_the_real_mock_config():
     repos = sim.parse_mock_repos(ROOT / "mock" / "hummingbird-ci.cfg")
     by_id = {r["id"]: r for r in repos}
     assert by_id["hummingbird"]["priority"] == 10
-    assert by_id["tunaos-hummingbird"]["priority"] == 11
+    assert by_id["tunaos-hummingbird"]["priority"] == 12
+    # utah is file:// and correctly ABSENT here (skipped with local-build);
+    # its priority is pinned by the buildroot guard test instead
     # #551's excludes must reach the simulator, or it models a buildroot
     # that no longer exists.
     assert "*+*" in by_id["tunaos-hummingbird"]["excludepkgs"]

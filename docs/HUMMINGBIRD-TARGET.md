@@ -311,3 +311,22 @@ The rule that falls out: **a BuildRequires-only tool whose Fedora 44 copy
 cannot install beside the target's own packages is built here from the
 Rawhide reference.**  `tests/test_the_first_fedora44_legs_taught_two_buildroot_gaps.py`
 pins both fixes to the files the chain reads.
+
+## 9. Buildroot consumes utah-packages (2026-10-08)
+
+§8 put utah in the gap engine and the installability walk; the mock
+buildroot still resolved utah-shipped BuildRequires from Fedora 44. The
+build order already excludes what utah ships (measure-target-gap counts
+421 utah binaries as had), so the remaining rebuild-everything behaviour
+was all in the root, not the plan.
+
+`mock/hummingbird-ci*.cfg` now carry `[utah]` at priority 11, between the
+base (10) and our prefix (12, demoted from 11): utah wins ties so a stale
+factory RPM can never shadow the build utah did. The repo is
+`file:///run/utah-repo/repository` because utah publishes no HTTP baseurl
+-- `scripts/materialize-consumed-repo.py` streams the pinned OCI digest's
+`/repository` tree (fail-closed; `--allow-empty` writes a valid empty
+repodata for arches utah does not publish, aarch64 today), the chain-band
+workflow caches it by pin and bind-mounts it, and `build-chain.sh` refuses
+a hummingbird config without it. `tests/test_materialize_consumed_repo.py`
+pins the extractor, the fail-closed paths, and the empty-repo shape.

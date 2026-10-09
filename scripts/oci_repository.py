@@ -206,6 +206,51 @@ def primary_of(ref: str, cache: pathlib.Path, arch: str = "x86_64") -> tuple[byt
     return primary, provenance
 
 
+def extract_tree(host: str, path: str, manifest: dict, token: str | None,
+                 dest: pathlib.Path, prefix: str = "repository/") -> dict:
+    """Stream every layer and write members under `prefix` into `dest`.
+
+    The buildroot twin of repodata_from_layers: instead of keeping only the
+    index in memory it materialises the whole repository tree (RPMs
+    included) so a mock/dnf buildroot can consume it as a file:// repo.
+    Members outside `prefix`, absolute paths, and `..` escapes are skipped
+    and counted, never written. Returns {files, skipped, layers}.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    files = 0
+    skipped: list[str] = []
+    for layer in manifest["layers"]:
+        url = f"https://{host}/v2/{path}/blobs/{layer['digest']}"
+        with _get(url, _auth(token)) as response:
+            with tarfile.open(fileobj=response, mode="r|*") as tar:
+                for member in tar:
+                    if member.name.startswith("/"):
+                        skipped.append(member.name)
+                        continue
+                    name = member.name
+                    while name.startswith("./"):
+                        name = name[2:]
+                    if not name.startswith(prefix):
+                        continue
+                    rel = name[len(prefix):]
+                    if not rel or rel.endswith("/"):
+                        continue
+                    target = dest / rel
+                    try:
+                        target.resolve().relative_to(dest.resolve())
+                    except ValueError:
+                        skipped.append(name)
+                        continue
+                    if not member.isfile():
+                        continue
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with tar.extractfile(member) as src, open(target, "wb") as out:
+                        out.write(src.read())
+                    files += 1
+    return {"files": files, "skipped": skipped,
+            "layers": [layer["digest"] for layer in manifest["layers"]]}
+
+
 def make_layer(files: dict[str, bytes]) -> bytes:
     """A gzip'd tar with the given member names -> bytes. Test helper, and
     the exact shape `podman build` produces for `COPY repository /repository`."""
