@@ -324,6 +324,7 @@ the root, not in the plan.
 between the base (10) and our prefix (12, was 11). Utah wins ties, so
 a stale factory RPM can never hide the build utah did. The repo is
 `file:///run/utah-repo/repository`. Utah has no HTTP baseurl.
+
 `scripts/materialize-consumed-repo.py` streams the pinned OCI digest.
 It fails closed. With `--allow-empty` it writes valid empty repodata
 for arches utah does not publish (aarch64 today).
