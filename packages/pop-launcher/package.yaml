@@ -37,7 +37,10 @@ build:
     VERGEN_GIT_COMMIT_DATE: "2026-09-30 09:56:55 -0600"
     POP_LAUNCHER_LIB_DIR: /usr/libexec/pop-launcher
   commands:
-    - cargo build --release --offline --frozen
+    # The binary lives in the pop-launcher-bin member package; a bare
+    # cargo build only builds the root library (same shape as
+    # cosmic-files' thumbnailer). Fedora/just builds -p pop-launcher-bin.
+    - cargo build --release --offline --frozen -p pop-launcher-bin
 dependencies:
   build:
     capabilities:
