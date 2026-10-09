@@ -205,3 +205,10 @@ def test_chain_band_mounts_utah_only_for_hummingbird():
     assert "UTAH_REPO_DIR" in text
     assert "materialize-consumed-repo.py" in text
     assert "inputs.target == 'hummingbird'" in text
+
+
+def test_factory_cell_materialises_utah_for_hummingbird_build_chain():
+    text = (ROOT / ".github" / "workflows" / "package-factory-cell.yml").read_text()
+    assert "materialize-consumed-repo.py" in text
+    assert "startsWith(matrix.mock_config, 'hummingbird')" in text
+    assert "UTAH_REPO_DIR" in text

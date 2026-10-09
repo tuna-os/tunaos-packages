@@ -147,7 +147,10 @@ def test_utah_repo_is_a_pinned_file_repo(evaluated):
     )
     assert repos.get("utah", "gpgcheck") == "0"
     assert repos.get("utah", "enabled") == "1"
-    assert repos.get("utah", "metadata_expire") == "6h"
+    assert repos.get("utah", "metadata_expire", fallback=None) is None, (
+        "file:// repos must not cache metadata "
+        "(test_static_repos_are_not_refetched_per_package pins this)"
+    )
 
 
 def test_utah_repo_is_bind_mounted(evaluated):
