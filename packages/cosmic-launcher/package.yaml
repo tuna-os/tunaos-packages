@@ -72,8 +72,8 @@ dependencies:
       alma10-kitten:
         - pop-launcher
         - cosmic-icon-theme >= 1.9.0
-      ubuntu: []
-      debian: []
+      ubuntu: [pop-launcher, cosmic-icon-theme (>= 1.9.0)]
+      debian: [pop-launcher, cosmic-icon-theme (>= 1.9.0)]
 files:
   common:
     - usr/bin/cosmic-launcher

@@ -81,11 +81,11 @@ queues:
     format: deb
     implementation: tideforge-debian
     suite: resolute
-    roots: [pop-icon-theme, cosmic-icon-theme, cosmic-bg, cosmic-comp, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-panel, cosmic-randr, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
+    roots: [pop-icon-theme, cosmic-icon-theme, cosmic-bg, cosmic-comp, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-panel, cosmic-randr, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic, cosmic-app-library, cosmic-applets, cosmic-files, cosmic-launcher, cosmic-screenshot, cosmic-term, cosmic-wallpapers, cosmic-workspaces, cosmic-initial-setup, cosmic-osk, pop-launcher]
     gates: [container-build, apt-stage-install, greetd-login, cosmic-session-smoke]
   debian:
     format: deb
     implementation: tideforge-debian
     suite: trixie
-    roots: [pop-icon-theme, cosmic-icon-theme, cosmic-bg, cosmic-comp, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-panel, cosmic-randr, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic]
+    roots: [pop-icon-theme, cosmic-icon-theme, cosmic-bg, cosmic-comp, cosmic-idle, cosmic-notifications, cosmic-osd, cosmic-panel, cosmic-randr, cosmic-settings-daemon, cosmic-session, cosmic-settings, cosmic-greeter, xdg-desktop-portal-cosmic, cosmic-app-library, cosmic-applets, cosmic-files, cosmic-launcher, cosmic-screenshot, cosmic-term, cosmic-wallpapers, cosmic-workspaces, cosmic-initial-setup, cosmic-osk, pop-launcher]
     gates: [container-build, apt-stage-install, greetd-login, cosmic-session-smoke]
