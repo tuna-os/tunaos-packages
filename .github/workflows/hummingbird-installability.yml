@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
-        with: {python-version: "3.14"}
+        with: {python-version: "3.15"}
       - run: pip install --disable-pip-version-check PyYAML zstandard
       - name: Resolve the desktop roots over target + published
         run: |

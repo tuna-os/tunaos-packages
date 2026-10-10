@@ -16,6 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
-        with: {python-version: "3.14"}
+        with: {python-version: "3.15"}
       - run: pip install --disable-pip-version-check PyYAML
       - run: python3 scripts/validate-hummingbird-catalog.py manifests/hummingbird-desktops.yaml
