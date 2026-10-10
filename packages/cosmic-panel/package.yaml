@@ -25,6 +25,11 @@ build:
   environment:
     VERGEN_GIT_SHA: b5cc19e351b82eed999097ced1ff267d27bf8e7a
     VERGEN_GIT_COMMIT_DATE: "2026-09-23 15:07:40 -0400"
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   commands: [cargo build --release --offline --frozen]
 dependencies:
   build:
@@ -37,8 +42,8 @@ dependencies:
     capabilities: [rust, pkg-config, wayland-dev, libxkbcommon-dev]
     targets:
       el10: [lld, just, util-linux]
-      alma10: [lld, just, util-linux]
-      alma10-kitten: [lld, just, util-linux]
+      alma10: [tunaos-rust193 >= 1.93.0, lld, just, util-linux]
+      alma10-kitten: [tunaos-rust193 >= 1.93.0, lld, just, util-linux]
       ubuntu: [lld, just, util-linux]
       debian: [lld, just, util-linux]
 files:

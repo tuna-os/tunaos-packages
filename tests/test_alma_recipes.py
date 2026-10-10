@@ -40,7 +40,7 @@ def test_every_target_specific_map_preserves_exact_el10_value(path, recipe):
                 for target in ('alma10', 'alma10-kitten'):
                     assert target in value, path
                     expected = value['el10']
-                    if path == 'packages/cosmic-bg/package.yaml' and value is recipe['dependencies']['build']['targets']:
+                    if path in {'packages/cosmic-bg/package.yaml', 'packages/cosmic-panel/package.yaml'} and value is recipe['dependencies']['build']['targets']:
                         expected = ['tunaos-rust193 >= 1.93.0', *expected]
                     assert value[target] == expected, path
                     assert value[target] is not value['el10'], path
@@ -60,7 +60,7 @@ def test_real_renderer_keeps_dependencies_verification_and_rpm_payload(path, rec
     expected_spec = renderer.render(recipe, 'el10')
     for target in ('alma10', 'alma10-kitten'):
         actual_build = renderer.target_dependencies(recipe, target)
-        if path == 'packages/cosmic-bg/package.yaml':
+        if path in {'packages/cosmic-bg/package.yaml', 'packages/cosmic-panel/package.yaml'}:
             assert actual_build.count('tunaos-rust193 >= 1.93.0') == 1
             actual_build = [item for item in actual_build if item != 'tunaos-rust193 >= 1.93.0']
         assert actual_build == expected_build, path
@@ -73,7 +73,7 @@ def test_real_renderer_keeps_dependencies_verification_and_rpm_payload(path, rec
             # preparation and installed payload remain identical.
             reference_head, reference_body = reference.split('%build\n', 1)
             actual_head, actual_body = actual.split('%build\n', 1)
-            if path == 'packages/cosmic-bg/package.yaml':
+            if path in {'packages/cosmic-bg/package.yaml', 'packages/cosmic-panel/package.yaml'}:
                 assert actual_head.count('BuildRequires: tunaos-rust193 >= 1.93.0\n') == 1
                 actual_head = actual_head.replace('BuildRequires: tunaos-rust193 >= 1.93.0\n', '')
             assert actual_head == reference_head, path

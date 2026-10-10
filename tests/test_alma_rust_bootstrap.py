@@ -48,8 +48,9 @@ def test_source_archive_immutable_and_isolated_full_toolchain():
 
 
 @pytest.mark.parametrize('target', ['alma10', 'alma10-kitten'])
-def test_cosmic_bg_exact_provider_and_path_before_cargo(target):
-    recipe = load('cosmic-bg')
+@pytest.mark.parametrize('name', ['cosmic-bg', 'cosmic-panel'])
+def test_cosmic_exact_provider_and_path_before_cargo(target, name):
+    recipe = load(name)
     assert 'tunaos-rust193 >= 1.93.0' in tideforge.target_dependencies(recipe, target)
     output = '\n'.join(tideforge.render(recipe, target).values())
     assert output.index('export PATH=/opt/tunaos/rust-1.93/bin:/usr/bin:/bin') < output.index('cargo build --release')
@@ -58,9 +59,10 @@ def test_cosmic_bg_exact_provider_and_path_before_cargo(target):
 
 
 @pytest.mark.parametrize('target', ['el10', 'ubuntu', 'debian'])
-def test_other_targets_do_not_require_isolated_alma_provider(target):
-    assert not any('tunaos-rust193' in item for item in tideforge.target_dependencies(load('cosmic-bg'), target))
-    assert 'opt/tunaos/rust-1.93/bin' not in '\n'.join(tideforge.render(load('cosmic-bg'), target).values())
+@pytest.mark.parametrize('name', ['cosmic-bg', 'cosmic-panel'])
+def test_other_targets_do_not_require_isolated_alma_provider(target, name):
+    assert not any('tunaos-rust193' in item for item in tideforge.target_dependencies(load(name), target))
+    assert 'opt/tunaos/rust-1.93/bin' not in '\n'.join(tideforge.render(load(name), target).values())
 
 
 @pytest.mark.parametrize('mapping', [[], {'missing-target': {}}, {'alma10': []},
