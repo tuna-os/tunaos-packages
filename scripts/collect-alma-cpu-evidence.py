@@ -544,6 +544,10 @@ def main():
         result = collect(args, cpu)
     except (CollectionError, OSError, ValueError) as exc:
         parser.exit(2, 'CPU collection blocked: ' + str(exc) + '\n')
+    print(json.dumps({key: result.get(key) for key in ('status', 'readiness', 'blockers')}, sort_keys=True))
+    if result['status'] != 'evidence-bound':
+        verifier_result = json.loads((Path(args.output) / 'verifier-result.json').read_text())
+        print(json.dumps({'verifierBlockers': verifier_result.get('blockers', [])}, sort_keys=True))
     raise SystemExit(0 if result['status'] == 'evidence-bound' else 1)
 
 

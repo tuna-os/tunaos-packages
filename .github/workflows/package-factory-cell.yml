@@ -211,8 +211,11 @@ jobs:
       #
       # Only for build-chain: a tideforge cell builds a single package, so
       # there is no partial progress to resume.
+      # Alma's initial supply uses a fresh run-local signing identity. A prior
+      # partial is retained for diagnosis but cannot become trusted inputs
+      # without an authenticated immutable dependency snapshot.
       - name: Resume from a previous attempt's partial output
-        if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
+        if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true' && !startsWith(matrix.mock_config, 'alma10-')
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |

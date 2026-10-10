@@ -79,6 +79,17 @@ def test_alma_namespaces_do_not_overwrite_existing_centos_routes():
     assert len(destinations) == 6
 
 
+def test_initial_alma_candidate_cannot_restore_unverified_partial_rpms():
+    """Falsification: CI restored ten prior RPMs before the empty signed bootstrap."""
+    workflow = yaml.safe_load((ROOT / '.github/workflows/package-factory-cell.yml').read_text())
+    restore = next(step for step in workflow['jobs']['build']['steps']
+                   if 'restore-partial-chain-output.py' in step.get('run', ''))
+    assert "matrix.engine == 'build-chain'" in restore['if']
+    assert "steps.verdict.outputs.hit != 'true'" in restore['if']
+    assert "!startsWith(matrix.mock_config, 'alma10-')" in restore['if']
+    assert 'restore-partial-chain-output.py' in restore['run']
+
+
 def test_all_twelve_native_family_cells_use_isolated_configs_and_pins():
     cells = [cell for cell in planner.native_cells(ROOT)
              if cell['target'] in ('alma10', 'alma10-kitten')]
