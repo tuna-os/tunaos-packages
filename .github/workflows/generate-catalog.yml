@@ -2,6 +2,11 @@ name: Generate Factory Catalog
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/generate-catalog.yml'
+      - 'packages/**/package.yaml'
+      - 'manifests/target-queues/**'
 
 permissions:
   contents: read
