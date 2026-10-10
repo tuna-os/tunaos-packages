@@ -22,4 +22,4 @@ four Alma/Kitten architecture combinations. All build budgets stay fixed.
 
 The LLVM and Rust builds may exceed a job budget.
 That outcome blocks supply. A later job must resume authenticated work.
-Foreign binaries cannot satisfy this requirement. The compiler must provide Rust 1.93 or newer.
+Do not use binaries from another distribution to meet this requirement. The compiler must provide Rust 1.93 or newer.
