@@ -73,4 +73,31 @@ for pkg in $names; do
     exit 1
   fi
 done
+
+# Optional source-owned receipt for Tuna Desktop release qualification. Match
+# the installed cached archive to the build's ActionResult on the runner; a
+# version string alone cannot distinguish two builds of the same recipe version.
+if [ -n "${EVIDENCE_DIR:-}" ]; then
+  for pkg in $names; do
+    [ "$pkg" = tuna-desktop ] || continue
+    mkdir -p "$EVIDENCE_DIR"
+    filename=$(pacman --config /tmp/tunaos-pacman.conf -Sp --print-format '%f' "$REPO_NAME/$pkg")
+    case "$filename" in
+      *'/'*|*$'\n'*|*.sig|'') echo "ERROR: unsafe package filename" >&2; exit 1 ;;
+    esac
+    archive="/var/cache/pacman/pkg/$filename"
+    [ -f "$archive" ] || { echo "ERROR: installed archive missing" >&2; exit 1; }
+    installed_version=$(pacman -Q "$pkg" | awk '{print $2}')
+    package_arch=$(bsdtar -xOf "$archive" .PKGINFO | awk -F' = ' '$1 == "arch" {print $2}')
+    archive_hash=$(sha256sum "$archive" | awk '{print $1}')
+    archive_size=$(stat -c '%s' "$archive")
+    curl --fail --location --silent --show-error --retry 3 \
+      "${URL%/}/$filename.sig" -o "$EVIDENCE_DIR/signature.sig"
+    gpg --batch --homedir /etc/pacman.d/gnupg --status-fd 1 \
+      --verify "$EVIDENCE_DIR/signature.sig" "$archive" \
+      > "$EVIDENCE_DIR/signature-status.txt"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$pkg" "$installed_version" "$package_arch" \
+      "$filename" "$archive_hash" "$archive_size" > "$EVIDENCE_DIR/installed.tsv"
+  done
+fi
 echo "verified $(echo "$names" | wc -w) package(s) from $URL"

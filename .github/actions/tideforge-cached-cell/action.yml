@@ -59,6 +59,7 @@ runs:
       name: Resolve immutable inputs and action key
       shell: bash
       env:
+        CELL_ID: ${{ inputs.cell-id }}
         RECIPE: ${{ inputs.recipe }}
         TARGET: ${{ inputs.target }}
         ARCHITECTURE: ${{ inputs.architecture }}
@@ -77,6 +78,8 @@ runs:
         payload=$(python3 scripts/tideforge-action-cache.py key \
           --recipe "$RECIPE" --target "$TARGET" --arch "$ARCHITECTURE" \
           --image "$digest" --source-date-epoch "$epoch")
+        mkdir -p ".factory/${CELL_ID}"
+        printf '%s\n' "$payload" > ".factory/${CELL_ID}/action-inputs.json"
         echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
         echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
         jq . <<<"$payload"
