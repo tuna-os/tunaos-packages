@@ -105,3 +105,9 @@ def test_pull_requests_register_only_unprivileged_source_tests():
     assert workflow["permissions"] == {"contents": "read"}
     assert workflow["jobs"]["capture"]["if"] == "github.event_name == 'workflow_dispatch'"
     assert any("tests/test_tiny_dfr_source_inputs.py" in step.get("run", "") for step in unit["steps"])
+
+
+def test_native_container_inputs_survive_sudo_environment_filter():
+    source = CAPTURE.read_text()
+    for name in ("COMMIT", "CHILD", "GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"):
+        assert '-e "'+name+'=$'+name+'"' in source

@@ -21,8 +21,8 @@ CONFIG=$(jq -er '.config.digest' "$OUT/base-child.json")
 printf '%s  %s\n' "${CONFIG#sha256:}" "$OUT/base-config.json" | sha256sum -c -
 jq -e '.os == "linux" and .architecture == "arm64"' "$OUT/base-config.json"
 sudo podman run --rm --interactive --pull=always --platform linux/arm64 \
-	-v "$OUT:/output:rw" -e COMMIT -e CHILD \
-	-e GITHUB_SHA -e GITHUB_RUN_ID -e GITHUB_RUN_ATTEMPT \
+	-v "$OUT:/output:rw" -e "COMMIT=$COMMIT" -e "CHILD=$CHILD" \
+	-e "GITHUB_SHA=$GITHUB_SHA" -e "GITHUB_RUN_ID=$GITHUB_RUN_ID" -e "GITHUB_RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT" \
 	"${BASE}@${CHILD}" bash -euo pipefail -s <<'NATIVE'
 exec > >(tee /output/native-bootstrap.log) 2>&1
 [[ "$(uname -m)" == aarch64 ]]
