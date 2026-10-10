@@ -462,6 +462,15 @@ ensure_local_repo() {
             trap 'exit 130' INT
             python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" init \
                 --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO"
+            if [[ -n "${ALMA_RESUME_DIR:-}" && -d "$ALMA_RESUME_DIR" ]]; then
+                python3 "${SCRIPT_DIR}/alma-candidate-resume.py" admit \
+                    --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO" \
+                    --meta "${ALMA_CANDIDATE_META:?}" --destination "$ALMA_RESUME_DIR"
+            fi
+            if [[ -n "${ALMA_CANDIDATE_META:-}" ]]; then
+                cp "$ALMA_CANDIDATE_STATE/keys/candidate-public.gpg" "$ALMA_CANDIDATE_META/candidate-public.gpg"
+                cp "$ALMA_CANDIDATE_STATE/identity.json" "$ALMA_CANDIDATE_META/candidate-identity.json"
+            fi
             ALMA_KEY_MOUNT_ARGS=(-v "${ALMA_CANDIDATE_STATE}/keys:/keys:ro,Z")
             echo 'Alma bootstrap scope: run-local candidate, unpromoted; not production readiness'
         fi
@@ -838,7 +847,15 @@ prepare_sources() {
 check_package_exists() {
     # Only the run-local signature gate can accept Alma candidates; no
     # restored RPM or served NVR may suppress a required compatible rebuild.
-    $ALMA_CANDIDATE && return 1
+    if $ALMA_CANDIDATE; then
+        [[ -n "${ALMA_CANDIDATE_META:-}" && -n "${3:-}" ]] || return 1
+        if python3 "${SCRIPT_DIR}/alma-candidate-resume.py" skip \
+            --meta "$ALMA_CANDIDATE_META" --repo "$LOCAL_REPO" --name "$1" --builddir "$3"; then
+            echo "==> [$1] Skipping authenticated completion with identical prepared inputs"
+            return 0
+        fi
+        return 1
+    fi
     local pkg_name="$1"
     local spec="$2"
     local spec_basename
@@ -918,6 +935,9 @@ build_package_podman() {
     trap "rm -rf '${builddir}'" RETURN
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
+    if $ALMA_CANDIDATE && ! $FORCE && check_package_exists "$pkg_name" "$spec" "$builddir"; then
+        return 0
+    fi
 
     # Build SRPM inside the container (to ensure macros like %autorelease are available)
     local spec_basename
@@ -1274,6 +1294,7 @@ build_package_podman() {
 
     # Collect RPMs from results
     local rpm_count=0
+    local alma_completed_outputs=()
     while IFS= read -r -d '' rpm; do
         if $ALMA_CANDIDATE; then
             python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" install \
@@ -1283,6 +1304,7 @@ build_package_podman() {
         fi
         echo "==> [${pkg_name}] -> $(basename "$rpm")"
         rpm_count=$(( rpm_count + 1 ))
+        alma_completed_outputs+=(--output "$(basename "$rpm")")
     done < <(find "$resultdir" -name "*.rpm" ! -name "*.src.rpm" -print0)
 
     record_buildroot_manifest "$resultdir" "$pkg_name"
@@ -1292,6 +1314,11 @@ build_package_podman() {
         return 1
     fi
 
+    if $ALMA_CANDIDATE && [[ -n "${ALMA_CANDIDATE_META:-}" ]]; then
+        python3 "${SCRIPT_DIR}/alma-candidate-resume.py" record \
+            --meta "$ALMA_CANDIDATE_META" --repo "$LOCAL_REPO" --name "$pkg_name" \
+            --builddir "$builddir" "${alma_completed_outputs[@]}"
+    fi
     echo "==> [${pkg_name}] Built ${rpm_count} RPM(s)"
 }
 

@@ -31,7 +31,7 @@ COMMON_RENDERERS = (
 FORMAT_RENDERERS = {
     "deb": ("scripts/assemble-deb-source-tree.py",),
     "rpm": (),
-    "pkg.tar.zst": (),
+    "pkg.tar.zst": ("scripts/arch-native-policy.sh",),
 }
 
 
@@ -264,6 +264,7 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     if args.target in {"alma10", "alma10-kitten"}:
         native_renderers.append("scripts/candidate-rpm-repository.py")
         native_renderers.append("scripts/alma-rpmbuild-guard.py")
+        native_renderers.extend(("scripts/alma-candidate-snapshot.py", "scripts/alma-candidate-resume.py", "scripts/github_api.py"))
     renderer_inputs = {}
     for relative in native_renderers:
         path = root / relative

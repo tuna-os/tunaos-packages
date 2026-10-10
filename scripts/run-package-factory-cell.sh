@@ -319,9 +319,11 @@ case ${FORMAT:?} in
     root="$out/arch"
     python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root"
     docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
+      --env TUNAOS_ARCHITECTURE="$ARCHITECTURE" \
+      --volume "$PWD/scripts:/scripts:ro" \
       --volume "$root:/work" --workdir /work "$image" bash -lc '
         set -euo pipefail
-        echo "Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+        bash /scripts/arch-native-policy.sh configure "$TUNAOS_ARCHITECTURE"
         pacman -Syu --noconfirm
         pacman -S --needed --noconfirm base-devel sudo
         useradd --create-home builder

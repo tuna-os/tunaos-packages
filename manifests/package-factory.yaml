@@ -463,18 +463,18 @@ targets:
   arch:
     status: scaffold
     format: pkg.tar.zst
-    # aarch64 is declared with no build leg, no published index and no
-    # consumer (marlin, the Arch variant, is x86_64-only in tunaOS's
-    # build-config). Narrowing this to [x86_64] is measured and decided
-    # (docs/PACKAGE_FACTORY.md, "one contract"), but it ships in its own PR:
-    # touching `architectures` schedules every Arch cell, and the Arch
-    # engine cannot yet build a cell whose runtime deps are sibling recipes
-    # (dms-cli needs dms and quickshell; makepkg has no repo to find them
-    # in). That staging gap is the prerequisite; see tunaos-packages#631.
+    # Exact native build inputs, not interchangeable architectures. The ARM
+    # candidate's signed rootfs/native inventory and exact-image attestations
+    # were verified in tunaOS run 38079821516 at source 875f45ac3ed3914e99bc6cbe7ed9f43d6e7d7a60.
+    # Candidate input is not package readiness or CPU baseline proof.
     architectures: [x86_64, aarch64]
     r2_path: pacman/arch/{arch}
     repository: pacman
-    probe_image: docker.io/library/archlinux:latest
+    probe_images:
+      x86_64: docker.io/library/archlinux@sha256:2fd1ae548076c67bcd41098ddd44e799058010e8d55f085d453dbb890e706860
+      aarch64: ghcr.io/tuna-os/archlinuxarm@sha256:17ad528bbccd4b59b7ce18c652012916a4bf2e27de53606884ef61eb33c90a0d
+    platforms: {x86_64: linux/amd64, aarch64: linux/arm64}
+    cpu_baselines: {x86_64: x86-64, aarch64: armv8-a}
 
 # Cross-distro dependency capabilities.  Recipes express the dependency they
 # need; Tideforge resolves it to native package names for the selected target.

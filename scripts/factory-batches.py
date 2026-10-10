@@ -16,7 +16,7 @@ import zipfile
 
 REPOSITORY = 'tuna-os/tunaos-packages'
 WORKFLOW = 'package-factory.yml'
-API_VERSION = '2026-03-10'
+from github_api import API_VERSION
 LIMIT = 4 * 1024 * 1024
 
 
@@ -57,7 +57,7 @@ def context():
 def api(endpoint, body=None, raw=False):
     if not endpoint.startswith(f'repos/{REPOSITORY}/actions/'):
         raise ValueError('unapproved batch API endpoint')
-    command = ['gh', 'api', '-H', f'X-GitHub-Api-Version: {API_VERSION}', endpoint]
+    command = ['gh', 'api', '--hostname', 'github.com', '-H', f'X-GitHub-Api-Version: {API_VERSION}', endpoint]
     def limits():
         resource.setrlimit(resource.RLIMIT_FSIZE, (LIMIT, LIMIT))
     with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as errors:

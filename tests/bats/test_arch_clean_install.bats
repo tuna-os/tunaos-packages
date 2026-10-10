@@ -23,8 +23,13 @@ SCRIPT="${REPO_ROOT}/scripts/arch-clean-install.sh"
 # means a refactor that still produces the right file keeps passing, and one
 # that produces the wrong file fails even if the source text looks fine.
 emitted_repo_order() {
-	sed -n '/^} > \/tmp\/tideforge-pacman.conf/q;p' "$SCRIPT" |
-		sed -n "s/^[[:space:]]*echo '\[\([a-z]*\)\]'.*/\1/p"
+	local block
+	# Execute only the actual configuration renderer. Manager/key/mirror setup
+	# stays outside this fixture; native policy has its own behavior tests.
+	block=$(sed -n '/^{/,/^} > \/tmp\/tideforge-pacman.conf/p' "$SCRIPT" |
+		sed 's#^} > /tmp/tideforge-pacman.conf$#}#')
+	native_repositories=$'core\nextra\nalarm\naur' bash -c "$block" |
+		sed -n 's/^\[\([a-z]*\)\]$/\1/p'
 }
 
 @test "arch-clean-install.sh: exists" {
@@ -60,6 +65,12 @@ emitted_repo_order() {
 	# Lower position number == searched first == wins the name.
 	[ "$tideforge" -lt "$core" ]
 	[ "$tideforge" -lt "$extra" ]
+}
+
+@test "native ARM repositories remain after the local candidate repository" {
+	local order
+	order="$(emitted_repo_order)"
+	[[ "$order" == $'options\ntideforge\ncore\nextra\nalarm\naur' ]]
 }
 
 # A local repository pacman refuses to read is the same failure wearing a

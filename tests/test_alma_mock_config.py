@@ -121,7 +121,7 @@ def test_every_enabled_input_requires_signatures_and_missing_inputs_fail(release
         assert repo['skip_if_unavailable'] == '0', section
         assert repo['gpgkey'], section
     assert ('/keys', '/keys') in options['plugin_conf']['bind_mount_opts']['dirs']
-    assert repos['local-build']['gpgkey'] == 'file:///keys/candidate-public.gpg'
+    assert repos['local-build']['gpgkey'] == 'file:///local-repo/candidate-public.gpg'
     assert options['rpmbuild_networking'] is False
     assert options['use_host_resolv'] is False
 

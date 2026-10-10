@@ -38,8 +38,11 @@ COMMON_INPUTS = {
 FORMAT_INPUTS = {
     "scripts/assemble-deb-source-tree.py": {"deb"},
     "scripts/arch-clean-install.sh": {"pkg.tar.zst"},
+    "scripts/arch-native-policy.sh": {"pkg.tar.zst"},
+    "scripts/arch-verify-published.sh": {"pkg.tar.zst"},
 }
-NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py", "scripts/candidate-rpm-repository.py", "scripts/alma-rpmbuild-guard.py"}
+NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py", "scripts/candidate-rpm-repository.py", "scripts/alma-rpmbuild-guard.py",
+                 "scripts/alma-candidate-snapshot.py", "scripts/alma-candidate-resume.py", "scripts/github_api.py"}
 DISTGIT_INPUTS = {"scripts/import-fedora-distgit.py"}
 DEPENDENCY_TREE_CHANGE = re.compile(r"^manifests/dependency-trees/[^/]+\.ya?ml$")
 TARGET_QUEUE_CHANGE = re.compile(r"^manifests/target-queues/[^/]+\.ya?ml$")
@@ -81,11 +84,6 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                 raise ValueError(f"{recipe_path}: incomplete target contract {target_id}")
             architectures = target.get("architectures") or []
             for architecture in architectures:
-                # Arch's official container is x86_64-only. The target contract
-                # may advertise future aarch64 support, but no action is emitted
-                # until it declares a target-native image for that architecture.
-                if target_id == "arch" and architecture != "x86_64":
-                    continue
                 context = build_context(target, str(architecture))
                 image = context["image"]
                 cells.append(

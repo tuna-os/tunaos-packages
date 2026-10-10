@@ -223,6 +223,22 @@ jobs:
             --cell-id '${{ matrix.base_id || matrix.id }}' \
             --action-key '${{ steps.identity.outputs.key }}' \
             --out-dir '.factory/${{ matrix.id }}'
+      - name: Prepare authenticated Alma candidate resume
+        if: matrix.engine == 'build-chain' && startsWith(matrix.mock_config, 'alma10-') && steps.verdict.outputs.hit != 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'schedule') && startsWith(github.ref, 'refs/heads/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CELL: ${{ toJSON(matrix) }}
+          ACTION_KEY: ${{ steps.identity.outputs.key }}
+        run: |
+          set -euo pipefail
+          out='.factory/${{ matrix.id }}'
+          printf '%s\n' "$CELL" > "$out/native-cell.json"
+          python3 scripts/alma-candidate-resume.py prepare \
+            --meta "$out/candidate-meta" --cell "$out/native-cell.json" --action-key "$ACTION_KEY"
+          python3 scripts/alma-candidate-resume.py restore \
+            --meta "$out/candidate-meta" --destination "$out/candidate-resume"
+          echo "ALMA_CANDIDATE_META=$PWD/$out/candidate-meta" >> "$GITHUB_ENV"
+          echo "ALMA_RESUME_DIR=$PWD/$out/candidate-resume" >> "$GITHUB_ENV"
       - name: Install native build tools on an exact miss
         if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
         run: |
@@ -287,6 +303,48 @@ jobs:
       # forever -- the packages never built would read as "already built".
       # Validation, checksums, SBOM, attestation and the publish artifact all
       # still run: shipping what built is the point of stopping cleanly.
+      - name: Inventory native Alma candidate snapshot
+        id: native_snapshot
+        if: always() && matrix.engine == 'build-chain' && startsWith(matrix.mock_config, 'alma10-') && (steps.build.outcome == 'success' || steps.build.outcome == 'failure') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'schedule') && startsWith(github.ref, 'refs/heads/')
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          CHAIN_DEFERRED: ${{ steps.build.outputs.chain_deferred }}
+        run: |
+          set -euo pipefail
+          out='.factory/${{ matrix.id }}'
+          if [ ! -s "$out/candidate-meta/completed-packages.json" ]; then
+            echo 'No completed native candidate packages to bank'
+            exit 0
+          fi
+          args=()
+          if [ "$BUILD_OUTCOME" = success ] && [ "$CHAIN_DEFERRED" != true ]; then
+            args+=(--chain-complete)
+          fi
+          python3 scripts/alma-candidate-resume.py create \
+            --meta "$out/candidate-meta" --repo "$out/artifacts" \
+            --destination "$out/native-snapshot" "${args[@]}"
+          echo 'created=true' >> "$GITHUB_OUTPUT"
+      - name: Attest native Alma candidate snapshot
+        id: native_snapshot_attestation
+        if: always() && steps.native_snapshot.outputs.created == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: .factory/${{ matrix.id }}/native-snapshot/snapshot.json
+      - name: Stage native Alma snapshot attestation bundle
+        if: always() && steps.native_snapshot_attestation.outcome == 'success'
+        env:
+          BUNDLE_PATH: ${{ steps.native_snapshot_attestation.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          test -s "$BUNDLE_PATH"
+          cp "$BUNDLE_PATH" '.factory/${{ matrix.id }}/native-snapshot/bundle.jsonl'
+      - name: Bank authenticated native Alma progress
+        if: always() && steps.native_snapshot_attestation.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.base_id || matrix.id }}-alma-candidate-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.id }}
+          path: .factory/${{ matrix.id }}/native-snapshot/
+          if-no-files-found: error
       - name: Record a new ActionResult
         if: steps.verdict.outputs.hit != 'true' && steps.build.outputs.chain_deferred != 'true'
         run: |
@@ -494,7 +552,7 @@ jobs:
         # publishes no partial, the next shard restores the previous DAY's
         # artifact, and the whole continuation design silently loses the
         # hours it exists to bank.
-        if: always() && matrix.engine == 'build-chain' && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
+        if: always() && matrix.engine == 'build-chain' && !startsWith(matrix.mock_config, 'alma10-') && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
         with:
           # Named by base_id so every continuation shard shares ONE partial
           # per family cell: shard N+1's resume finds shard N's upload as

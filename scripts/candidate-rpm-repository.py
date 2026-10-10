@@ -54,6 +54,10 @@ def initialize(state, repo):
         with (keys / 'candidate-public.gpg').open('w') as output:
             run('gpg', '--homedir', str(home), '--batch', '--armor', '--export', fingerprint,
                 stdout=output)
+        # Mock mounts file:// repository roots in bootstrap before native DNF
+        # starts. Its bind_mount plugin explicitly does not run in bootstrap.
+        # Keep the public key in that same mounted repository, never private state.
+        shutil.copyfile(keys / 'candidate-public.gpg', repo / 'candidate-public.gpg')
         (keys / 'mock-candidate-policy.cfg').write_text(
             "config_opts['plugin_conf']['root_cache_enable'] = False\n"
             "config_opts['plugin_conf']['bind_mount_enable'] = True\n"
@@ -63,8 +67,6 @@ def initialize(state, repo):
             "if _candidate_arch not in ('x86_64', 'aarch64'): raise ValueError('unsupported Alma target CPU')\n"
             "config_opts['rpmbuild_command'] = '/usr/bin/python3 /keys/alma-rpmbuild-guard.py ' + _candidate_arch\n"
             "config_opts['dnf.conf'] = config_opts['dnf.conf'].replace('[local-build]\\n', '[local-build]\\nrepo_gpgcheck=1\\n')\n"
-            "import copy\n"
-            "config_opts['bootstrap_plugin_conf'] = copy.deepcopy(config_opts['plugin_conf'])\n"
         )
         (keys / 'measure-buildroot.sh').write_text(
             '#!/bin/sh\nset -eu\n'
@@ -191,10 +193,14 @@ def rpm_content(path):
 def admit_snapshot(root, manifest, expected_identity, bundle, api_run, repo, state):
     # The subprocess performs cryptographic verification, never a caller boolean.
     with locked(repo):
-        if any(path.name not in {'repo.lock', 'repodata'} for path in repo.iterdir()):
+        if any(path.name not in {'repo.lock', 'repodata', 'candidate-public.gpg'} for path in repo.iterdir()):
             raise ValueError('snapshot admission requires empty candidate repository')
         if not (state / 'identity.json').is_file():
             raise ValueError('fresh candidate state required')
+        public_key = repo / 'candidate-public.gpg'
+        if public_key.exists() and (public_key.is_symlink() or
+                public_key.read_bytes() != (state / 'keys/candidate-public.gpg').read_bytes()):
+            raise ValueError('fresh candidate repository public key mismatch')
         predecessor = file_digest(manifest)
         run(sys.executable, str(Path(__file__).with_name('alma-candidate-snapshot.py')), 'verify',
             '--root', str(root), '--manifest', str(manifest), '--identity', str(expected_identity),

@@ -15,7 +15,8 @@ def build_context(target: dict[str, Any], architecture: str) -> dict[str, str]:
             raise ValueError("architecture-specific probe image must be digest-pinned")
         platform = (target.get("platforms") or {}).get(architecture)
         baseline = (target.get("cpu_baselines") or {}).get(architecture)
-        expected = {"x86_64": ("linux/amd64/v2", "x86-64-v2"),
+        expected = {"x86_64": (("linux/amd64", "x86-64") if target.get("format") == "pkg.tar.zst"
+                               else ("linux/amd64/v2", "x86-64-v2")),
                     "aarch64": ("linux/arm64", "armv8-a")}
         if (platform, baseline) != expected.get(architecture):
             raise ValueError(f"unsupported native platform/baseline for {architecture}")

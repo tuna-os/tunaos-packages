@@ -11,6 +11,7 @@ import re
 import stat
 import subprocess
 import tempfile
+import resource
 
 DIGEST = re.compile(r'^sha256:[0-9a-f]{64}$')
 SHA = re.compile(r'^[0-9a-f]{40}$')
@@ -276,11 +277,14 @@ def main():
             parser.error('verify requires bundle and independently fetched API run')
         identity(binding)
         with tempfile.TemporaryFile() as output:
-            subprocess.run(['gh', 'attestation', 'verify', str(args.manifest), '--repo', binding['repository'],
+            def bound_output():
+                resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_METADATA, MAX_METADATA))
+            subprocess.run(['gh', 'attestation', 'verify', str(args.manifest), '--hostname', 'github.com', '--repo', binding['repository'],
                                  '--signer-workflow', binding['repository'] + '/' + binding['signerWorkflow'],
                                  '--signer-digest', binding['sourceRevision'], '--source-digest', binding['sourceRevision'],
                                  '--source-ref', binding['sourceRef'], '--bundle', str(args.bundle), '--format', 'json'],
-                                check=True, stdout=output, stderr=subprocess.DEVNULL, timeout=120)
+                                check=True, stdout=output, stderr=subprocess.DEVNULL, timeout=120,
+                                preexec_fn=bound_output)
             output.seek(0)
             verification_bytes = output.read(MAX_METADATA + 1)
         if len(verification_bytes) > MAX_METADATA:

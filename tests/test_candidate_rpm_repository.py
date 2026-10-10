@@ -228,13 +228,11 @@ def test_mock_policy_executes_chroot_bind_signed_metadata_and_no_cache(candidate
     assert config['plugin_conf']['root_cache_enable'] is False
     assert config['plugin_conf']['bind_mount_enable'] is True
     assert config['plugin_conf']['bind_mount_opts']['dirs'].count(('/keys', '/keys')) == 1
-    # INCIDENT-bootstrap-key: native DNF could not read candidate-public.gpg.
-    # Falsification: target-only mounts leave the bootstrap signature gate red.
-    assert config['bootstrap_plugin_conf'] == config['plugin_conf']
-    assert config['bootstrap_plugin_conf'] is not config['plugin_conf']
-    assert config['bootstrap_plugin_conf']['root_cache_enable'] is False
-    assert ('/keys', '/keys') in config['bootstrap_plugin_conf']['bind_mount_opts']['dirs']
-    assert ('/local-repo', '/local-repo') in config['bootstrap_plugin_conf']['bind_mount_opts']['dirs']
+    # INCIDENT-bootstrap-key: Mock does not run bind_mount in bootstrap.
+    # Falsification: a key outside the file:// repository mount cannot be read
+    # by bootstrap DNF even if a copied plugin configuration names that path.
+    assert 'bootstrap_plugin_conf' not in config
+    assert (candidate[1] / 'candidate-public.gpg').read_bytes() == (candidate[0] / 'keys/candidate-public.gpg').read_bytes()
     ini = configparser.ConfigParser(); ini.read_string(config['dnf.conf'])
     assert ini['local-build']['gpgcheck'] == '1'
     assert ini['local-build']['repo_gpgcheck'] == '1'

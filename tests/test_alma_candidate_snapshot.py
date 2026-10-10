@@ -161,7 +161,7 @@ def test_cli_cryptographic_verifier_failure_cannot_be_a_claimed_success(candidat
     monkeypatch.setattr(sys, 'argv', [str(SCRIPT), 'verify', '--root', str(root),
         '--identity', str(identity_file), '--manifest', str(manifest), '--bundle', str(bundle), '--api-run', str(api_file)])
     with pytest.raises(subprocess.CalledProcessError): snapshot.main()
-    assert calls == [['gh', 'attestation', 'verify', str(manifest), '--repo', 'tuna-os/tunaos-packages',
+    assert calls == [['gh', 'attestation', 'verify', str(manifest), '--hostname', 'github.com', '--repo', 'tuna-os/tunaos-packages',
         '--signer-workflow', 'tuna-os/tunaos-packages/.github/workflows/package-factory-cell.yml',
         '--signer-digest', 'a' * 40, '--source-digest', 'a' * 40, '--source-ref', 'refs/heads/main',
         '--bundle', str(bundle), '--format', 'json']]

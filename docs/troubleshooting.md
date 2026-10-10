@@ -1,4 +1,4 @@
-# Alma candidate builds
+# Package build failures
 
 Candidates are not published supply. Keep failed attempts and check each
 architecture against its native base before publication.
@@ -35,7 +35,20 @@ satisfies the requested CPU baseline.
 **FIX:** Read `collection.json` and `verifier-result.json` in the CI evidence
 artifact. Repair the reported input or dependency; retain the failing gate.
 The public key, signed RPM bytes and compiler observation must survive failure.
-# COSMIC Debian session installs without its desktop
+
+## Mock bootstrap cannot read its candidate key
+
+**Symptom:** Native Alma canaries report Curl37 for `/keys/candidate-public.gpg`
+([run 38080413978](https://github.com/tuna-os/tunaos-packages/actions/runs/38080413978)).
+
+**Cause:** Mock's bind-mount plugin excludes bootstrap. Copying its configuration
+cannot expose the key there. Mock mounts local repository roots before DNF starts.
+
+**Fix:** Stage only the public key in the signed local repository and reference
+that mounted path. Keep package and metadata signature checks enabled. Native CI
+canaries must prove this repair.
+
+## COSMIC Debian session installs without its desktop
 
 **Symptom:** The session package installs, but its required siblings are absent.
 
