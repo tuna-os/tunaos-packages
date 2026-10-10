@@ -152,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
 
     contract = yaml.safe_load(
         pathlib.Path(args.contract).read_text(encoding="utf-8"))
-    now = args.now or dt.datetime.now(dt.timezone.utc).strftime(
+    now = args.now or dt.datetime.now(dt.UTC).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
 
     with tempfile.TemporaryDirectory() as tmp:

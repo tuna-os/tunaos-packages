@@ -1,6 +1,7 @@
 import json
-import pytest
+
 from scripts.list_copr_packages import parse_copr_json
+
 
 def test_parse_copr_json():
     mock_json = [

@@ -40,7 +40,6 @@ from __future__ import annotations
 
 import argparse
 import gzip
-import io
 import re
 import sys
 import urllib.request

@@ -28,8 +28,7 @@ def _segments(version: str):
     """Alternating alnum runs, alpm-style: split on non-alnum, then on
     the digit/alpha boundary."""
     for block in re.split(r"[^A-Za-z0-9]+", version):
-        for run in re.findall(r"\d+|[A-Za-z]+", block):
-            yield run
+        yield from re.findall(r"\d+|[A-Za-z]+", block)
 
 
 def _cmp_version(a: str, b: str) -> int:

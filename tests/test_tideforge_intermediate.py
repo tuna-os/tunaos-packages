@@ -1,12 +1,11 @@
 import importlib.util
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tarfile
+from pathlib import Path
 
 import yaml
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "tideforge-intermediate.py"

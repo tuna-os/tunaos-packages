@@ -9,10 +9,8 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-import yaml
-
 import tideforge_cache
-
+import yaml
 
 RETRYABLE_HTTP = {408, 429, 500, 502, 503, 504}
 DOWNLOAD_ATTEMPTS = 4

@@ -18,8 +18,6 @@ import importlib.util
 import pathlib
 import re
 
-import pytest
-
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 _spec = importlib.util.spec_from_file_location(
     "render_factory_site", ROOT / "scripts" / "render-factory-site.py")
@@ -208,6 +206,7 @@ def test_the_renderer_writes_nojekyll(tmp_path: pathlib.Path):
     """Pages runs Jekyll unless told not to, and Jekyll drops _-prefixed
     files without saying so."""
     import json
+
     import yaml
     status = tmp_path / "s.json"
     status.write_text(json.dumps(STATUS), encoding="utf-8")

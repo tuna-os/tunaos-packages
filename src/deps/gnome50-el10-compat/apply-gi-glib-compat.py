@@ -18,13 +18,12 @@ re-applies automatically if python3-gobject is reinstalled or updated.
 """
 
 import glob
-import os
 
 MARKER = 'if hasattr(GLib, "unix_signal_add"):'
 SENTINEL = "gnome50-el10-compat"
 
-SHIM = """\
-# {sentinel}: GLib 2.87+ moved g_unix_signal_add to GLibUnix-2.0 namespace.
+SHIM = f"""\
+# {SENTINEL}: GLib 2.87+ moved g_unix_signal_add to GLibUnix-2.0 namespace.
 # PyGObject 3.46 does not handle this mapping; shim it back for compatibility.
 if not hasattr(GLib, "unix_signal_add"):
     try:
@@ -35,7 +34,7 @@ if not hasattr(GLib, "unix_signal_add"):
             GLib.unix_signal_add = _GLibUnix.signal_add
     except Exception:
         pass
-""".format(sentinel=SENTINEL)
+"""
 
 
 def patch_file(path):

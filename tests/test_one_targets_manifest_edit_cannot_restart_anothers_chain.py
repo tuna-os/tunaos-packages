@@ -185,8 +185,8 @@ def test_the_epoch_is_not_derived_from_the_manifest() -> None:
     workflow = (ROOT / ".github" / "workflows" / "package-factory-cell.yml").read_text(
         encoding="utf-8")
     line = next(
-        l for l in workflow.splitlines()
-        if "epoch=$(git log" in l and "source_paths" in l
+        line for line in workflow.splitlines()
+        if "epoch=$(git log" in line and "source_paths" in line
     )
     assert "matrix.manifest" not in line, (
         "SOURCE_DATE_EPOCH is derived from the manifest again, so an edit to "

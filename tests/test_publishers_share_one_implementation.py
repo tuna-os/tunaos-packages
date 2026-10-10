@@ -45,7 +45,6 @@ def test_the_publisher_calls_the_shared_script(path) -> None:
 @pytest.mark.parametrize("path", PUBLISHERS, ids=lambda p: p.name)
 def test_the_publisher_does_not_reimplement_the_rules(path) -> None:
     """The specific incantations that must live in exactly one place."""
-    body = path.read_text()
     # Comments may name these; the point is that no publisher RUNS them.
     run_blocks = "\n".join(
         step.get("run", "")

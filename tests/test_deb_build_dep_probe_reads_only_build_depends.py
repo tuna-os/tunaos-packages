@@ -33,8 +33,6 @@ import re
 import subprocess
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "scripts" / "run-package-factory-cell.sh"
 

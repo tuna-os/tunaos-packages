@@ -10,7 +10,6 @@ misses — which we avoid by pre-seeding).
 """
 
 import hashlib
-import importlib.util
 import os
 import subprocess
 import sys
@@ -135,13 +134,13 @@ class TestAssembleDeb:
         _seed_cache(cache, PRIMARY_SHA, PRIMARY_TAR)
         _seed_cache(cache, AUX_SHA, AUX_TAR)
 
-        recipe = BASE_RECIPE.format(primary=PRIMARY_SHA) + """
+        recipe = BASE_RECIPE.format(primary=PRIMARY_SHA) + f"""
 sources:
   - url: https://example.com/aux.tar.gz
-    sha256: {aux}
+    sha256: {AUX_SHA}
     destination: vendor
     strip_components: 1
-""".format(aux=AUX_SHA)
+"""
 
         result, root = _run(tmp_path, recipe, home)
         assert result.returncode == 0, result.stderr
@@ -155,13 +154,13 @@ sources:
         aux_raw_sha = hashlib.sha256(AUX).hexdigest()
         _seed_cache(cache, aux_raw_sha, AUX)  # raw bytes, not a tarball
 
-        recipe = BASE_RECIPE.format(primary=PRIMARY_SHA) + """
+        recipe = BASE_RECIPE.format(primary=PRIMARY_SHA) + f"""
 sources:
   - url: https://example.com/aux.bin
-    sha256: {aux}
+    sha256: {aux_raw_sha}
     destination: vendor/aux.bin
     extract: false
-""".format(aux=aux_raw_sha)
+"""
 
         result, root = _run(tmp_path, recipe, home)
         assert result.returncode == 0, result.stderr

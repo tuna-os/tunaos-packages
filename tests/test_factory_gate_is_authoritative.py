@@ -1,7 +1,6 @@
 """The unified factory has one required status context, not compatibility aliases."""
 from pathlib import Path
 
-
 WORKFLOW = Path(__file__).parents[1] / ".github" / "workflows" / "package-factory.yml"
 
 

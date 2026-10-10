@@ -150,8 +150,8 @@ def main(argv=None) -> int:
     factory = yaml.safe_load((ROOT / "manifests" / "package-factory.yaml").read_text())
     selected = targets_to_check(factory, args.target)
     if not selected:
-        print(f"ERROR: no target declares both r2_path and "
-              f"gap_measurement.target_index"
+        print("ERROR: no target declares both r2_path and "
+              "gap_measurement.target_index"
               + (f" (--target {args.target})" if args.target else ""),
               file=sys.stderr)
         return 2
