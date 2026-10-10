@@ -46,7 +46,11 @@ dnf repolist -v > /work/evidence/repositories.txt
 dnf history info > /work/evidence/dependency-transaction.txt
 for compiler in gcc clang rustc cargo go; do
   if command -v "$compiler" >/dev/null; then
-    "$compiler" --version > "/work/evidence/${compiler}-version.txt" 2>&1
+    if [[ "$compiler" == go ]]; then
+      "$compiler" version > "/work/evidence/${compiler}-version.txt" 2>&1
+    else
+      "$compiler" --version > "/work/evidence/${compiler}-version.txt" 2>&1
+    fi
   fi
 done
 export TUNAOS_COMPILER_EVIDENCE_DIR=/work/evidence/compiler
