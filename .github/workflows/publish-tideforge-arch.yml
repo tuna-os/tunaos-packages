@@ -109,6 +109,15 @@ jobs:
           path: .factory/${{ env.CELL_ID }}/artifacts/*.pkg.tar.*
           if-no-files-found: error
           retention-days: 1
+      - name: Retain the verified build identity
+        uses: actions/upload-artifact@v7
+        with:
+          name: publish-arch-provenance-${{ matrix.arch }}-${{ matrix.package }}
+          path: |
+            .factory/${{ env.CELL_ID }}/action-inputs.json
+            .factory/${{ env.CELL_ID }}/action-result.json
+          if-no-files-found: error
+          retention-days: 90
 
   publish:
     needs: [plan, build]
@@ -228,14 +237,51 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.publish_matrix) }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: publish-arch-provenance-${{ matrix.arch }}-*
+          path: build-provenance
       - name: Install the published wave from the served repository
         env:
           PACKAGES: ${{ inputs.packages }}
           URL: ${{ matrix.served }}
           REPO_NAME: ${{ matrix.repo_name }}
+          EVIDENCE_DIR: /evidence
         run: |
           set -euo pipefail
-          docker run --rm --env PACKAGES --env URL --env REPO_NAME \
+          mkdir -p evidence
+          docker run --rm --env PACKAGES --env URL --env REPO_NAME --env EVIDENCE_DIR \
             --volume "$PWD/scripts:/scripts:ro" \
             --volume "$PWD/public.gpg:/keys/tunaos-public.gpg:ro" \
+            --volume "$PWD/evidence:/evidence" \
             '${{ needs.plan.outputs.image }}' bash /scripts/arch-verify-published.sh
+      - name: Bind Tuna Desktop served bytes to the verified build
+        env:
+          ARCH: ${{ matrix.arch }}
+          URL: ${{ matrix.served }}
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          set -euo pipefail
+          tuna_selected=$(PYTHONPATH=scripts python3 -c 'import os; from publisher_contract import split; print(int("tuna-desktop" in split(os.environ["PACKAGES"])))')
+          if [[ "$tuna_selected" == 1 ]]; then
+              provenance="build-provenance/publish-arch-provenance-${ARCH}-tuna-desktop"
+              python3 scripts/arch-verification-receipt.py \
+                --provenance "$provenance" --observations evidence --arch "$ARCH" \
+                --revision "$GITHUB_SHA" \
+                --run-url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+                --run-attempt "$GITHUB_RUN_ATTEMPT" \
+                --served-url "$URL" --output evidence/verdict.json
+              cp "$provenance/action-inputs.json" "$provenance/action-result.json" evidence/
+          fi
+      - name: Retain the Tuna Desktop publication receipt
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tuna-desktop-publication-${{ matrix.arch }}
+          path: evidence/
+          if-no-files-found: ignore
+          retention-days: 90
