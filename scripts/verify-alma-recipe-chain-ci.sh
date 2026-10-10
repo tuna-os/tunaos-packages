@@ -2,7 +2,8 @@
 # Actual native provider queue; only signed candidate input, never publication.
 set -eEuo pipefail
 # Include API discovery/admission and key/bootstrap setup in the job budget.
-export CHAIN_STARTED_MONOTONIC="$(python3 -c 'import time; print(time.monotonic())')"
+CHAIN_STARTED_MONOTONIC="$(python3 -c 'import time; print(time.monotonic())')"
+export CHAIN_STARTED_MONOTONIC
 : "${TARGET:?}" "${ARCHITECTURE:?}" "${SCOPE:?}" "${RUNNER_TEMP:?}" "${GITHUB_SHA:?}"
 case "$TARGET" in alma10|alma10-kitten) ;; *) exit 2 ;; esac
 case "$ARCHITECTURE" in x86_64|aarch64) ;; *) exit 2 ;; esac

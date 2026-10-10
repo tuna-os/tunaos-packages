@@ -11833,6 +11833,21 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml
+  - name: tunaos-rust193
+    family: tideforge
+    packaging:
+      rpm:
+        tideforge: packages/tunaos-rust193
+    upstream:
+      version: 1.93.0
+      source: https://static.rust-lang.org/dist/rustc-1.93.0-src.tar.xz
+      sha256: e30d898272c587a22f77679f03c5e8192b5645c7c9ccc3407ad1106761507cea
+    targets:
+      - alma10
+      - alma10-kitten
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: tuned
     family: hummingbird-desktops
     packaging:
