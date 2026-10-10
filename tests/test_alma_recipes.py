@@ -39,7 +39,10 @@ def test_every_target_specific_map_preserves_exact_el10_value(path, recipe):
             if 'el10' in value:
                 for target in ('alma10', 'alma10-kitten'):
                     assert target in value, path
-                    assert value[target] == value['el10'], path
+                    expected = value['el10']
+                    if path == 'packages/cosmic-bg/package.yaml' and value is recipe['dependencies']['build']['targets']:
+                        expected = ['tunaos-rust193 >= 1.93.0', *expected]
+                    assert value[target] == expected, path
                     assert value[target] is not value['el10'], path
             for child in value.values():
                 visit(child)
@@ -56,7 +59,11 @@ def test_real_renderer_keeps_dependencies_verification_and_rpm_payload(path, rec
     expected_verify = renderer.verify_metadata(recipe, 'el10')
     expected_spec = renderer.render(recipe, 'el10')
     for target in ('alma10', 'alma10-kitten'):
-        assert renderer.target_dependencies(recipe, target) == expected_build, path
+        actual_build = renderer.target_dependencies(recipe, target)
+        if path == 'packages/cosmic-bg/package.yaml':
+            assert actual_build.count('tunaos-rust193 >= 1.93.0') == 1
+            actual_build = [item for item in actual_build if item != 'tunaos-rust193 >= 1.93.0']
+        assert actual_build == expected_build, path
         assert renderer.target_runtime_dependencies(recipe, target) == expected_runtime, path
         assert renderer.verify_metadata(recipe, target) == expected_verify, path
         actual_spec = renderer.render(recipe, target)
@@ -66,6 +73,9 @@ def test_real_renderer_keeps_dependencies_verification_and_rpm_payload(path, rec
             # preparation and installed payload remain identical.
             reference_head, reference_body = reference.split('%build\n', 1)
             actual_head, actual_body = actual.split('%build\n', 1)
+            if path == 'packages/cosmic-bg/package.yaml':
+                assert actual_head.count('BuildRequires: tunaos-rust193 >= 1.93.0\n') == 1
+                actual_head = actual_head.replace('BuildRequires: tunaos-rust193 >= 1.93.0\n', '')
             assert actual_head == reference_head, path
             assert actual_body.split('%install\n', 1)[1] == reference_body.split('%install\n', 1)[1], path
             assert 'tunaos_alma_compiler_policy %{_target_cpu}' in actual_body, path
