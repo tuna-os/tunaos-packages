@@ -74,3 +74,6 @@ docs/repo-contents.json
 .coverage.*
 coverage-python.xml
 htmlcov/
+
+# Exact consumer schema checkout for factory contract tests
+.test-deps/

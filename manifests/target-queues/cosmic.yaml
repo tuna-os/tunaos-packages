@@ -1,5 +1,7 @@
 # Native build queues for the shared COSMIC source graph. COSMIC's Rust stack
 # remains target-native: an EL10 RPM never receives Debian packaging metadata.
+# Consumer planning merges these authored roots with immutable image demand.
+# Root membership orders builds; signed native transactions prove readiness.
 schema: 1
 queues:
   el10:

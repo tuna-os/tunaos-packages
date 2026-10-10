@@ -167,13 +167,40 @@ jobs:
         with:
           python-version: '3.14'
 
-      - name: Install dependencies
+      - name: Read pinned consumer test source
+        id: consumer-source
         run: |
-          pip install pytest pyyaml jsonschema
+          python3 - <<'PYTHON'
+          import json, os, re
+          from pathlib import Path
+          pin = json.loads(Path("tests/consumer-source.json").read_text())
+          assert pin["repository"] == "tuna-os/tunaOS"
+          assert re.fullmatch(r"[0-9a-f]{40}", pin["revision"])
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("revision=" + pin["revision"] + "\n")
+          PYTHON
+
+      - name: Checkout exact consumer schemas and validators
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: tuna-os/tunaOS
+          ref: ${{ steps.consumer-source.outputs.revision }}
+          path: .test-deps/tunaos
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /schemas/
+            /scripts/contracts/
+            /required-targets.json
+            /.github/build-config.yml
+
+      - name: Install dependencies
+        run: python3 -m pip install -r requirements-ci.txt
 
       - name: Run pytest
         env:
           PYTHONPATH: scripts:.
+          PYTHONDONTWRITEBYTECODE: '1'
+          TUNAOS_CONSUMER_ROOT: ${{ github.workspace }}/.test-deps/tunaos
         run: |
           echo "=== Python Tests ==="
           FAILED=0

@@ -16,6 +16,7 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
+import consumer_contract
 
 
 SCHEMA = 1
@@ -160,7 +161,7 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     for key in dependency_keys:
         require_sha256(key, "dependency action key")
 
-    return {
+    result = {
         "schema": SCHEMA,
         "recipe": {
             "path": relative_recipe_path(recipe, root),
@@ -179,6 +180,7 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
             "source_date_epoch": int(args.source_date_epoch),
         },
     }
+    return attach_consumer_inputs(result, args, factory)
 
 
 def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
@@ -263,7 +265,7 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         if not path.is_file():
             raise SystemExit(f"renderer input does not exist: {relative}")
         renderer_inputs[relative] = digest_file(path)
-    return {
+    result = {
         "schema": SCHEMA,
         "identity": args.identity,
         "native_inputs": sorted(inputs, key=lambda entry: entry["path"]),
@@ -275,6 +277,21 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         "dependency_action_keys": [],
         "reproducibility": {"contract": 1, "source_date_epoch": int(args.source_date_epoch)},
     }
+    return attach_consumer_inputs(result, args, factory)
+
+
+def attach_consumer_inputs(result: dict, args: argparse.Namespace, factory: dict) -> dict:
+    path = getattr(args, "consumer_bindings", None)
+    if path:
+        document = consumer_contract.read_json(path)
+        if set(document) != {"bindings"}:
+            raise SystemExit("invalid consumer bindings document")
+        try:
+            result["consumer_bindings"] = factory_contract.consumer_binding_inputs(
+                document["bindings"], factory, args.target, args.arch)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+    return result
 
 
 def action_key(inputs: dict[str, Any]) -> str:
@@ -574,6 +591,7 @@ def main() -> int:
     key_parser.add_argument("--image", required=True)
     key_parser.add_argument("--source-date-epoch", required=True, type=int)
     key_parser.add_argument("--dependency-key", action="append", default=[])
+    key_parser.add_argument("--consumer-bindings")
 
     native_parser = commands.add_parser("native-key")
     native_parser.add_argument("--identity", required=True)
@@ -589,6 +607,7 @@ def main() -> int:
     native_parser.add_argument("--arch", required=True)
     native_parser.add_argument("--image", required=True)
     native_parser.add_argument("--source-date-epoch", required=True, type=int)
+    native_parser.add_argument("--consumer-bindings")
 
     result_parser = commands.add_parser("result")
     result_parser.add_argument("--action-key", required=True)

@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import copy
+import hashlib
 import json
 import pathlib
 import re
@@ -15,6 +17,7 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
+import consumer_contract
 
 
 RECIPE_CHANGE = re.compile(r"^packages/([^/]+)/")
@@ -155,6 +158,92 @@ def all_cells(root: pathlib.Path) -> list[dict[str, Any]]:
     if len(ids) != len(set(ids)):
         raise ValueError("package factory cell IDs must be unique")
     return sorted(cells, key=lambda cell: cell["id"])
+
+
+def declared_consumer_providers(root: pathlib.Path, factory: dict, cells: list[dict]) -> dict:
+    """Recipe declarations provide build work; native receipts prove satisfaction."""
+    providers = []
+    for cell in cells:
+        if cell["engine"] != "tideforge":
+            continue
+        path = root / cell["recipe"]
+        recipe = load_yaml(path)
+        manager = {"rpm": "dnf", "deb": "apt", "pkg.tar.zst": "pacman"}.get(cell["format"])
+        matching = [adapter for adapter in factory.get("consumer_adapters", {}).values()
+                    if adapter.get("target") == cell["target"]]
+        managers = {adapter.get("manager", manager) for adapter in matching}
+        if len(managers) > 1:
+            raise ValueError("factory target maps to conflicting native consumer managers")
+        manager = next(iter(managers), manager)
+        baselines = {baseline for adapter in matching for platform, arch in adapter.get("architectures", {}).items()
+                     if arch == cell["architecture"] for baseline in adapter.get("cpuBaselines", [])
+                     if (baseline == "armv8-a") == (platform == "linux/arm64")}
+        for baseline in sorted(baselines):
+            provider = {"id": cell["id"] + ":" + baseline, "name": recipe["name"],
+                        "nativeExpression": recipe["name"], "manager": manager,
+                        "target": cell["target"], "architecture": cell["architecture"],
+                        "cpuBaseline": baseline, "cellId": cell["id"],
+                        "sourceIdentity": {"path": cell["recipe"], "digest": "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()},
+                        "declaredVersion": str(recipe.get("version", "")), "readiness": False}
+            for phase, output in (("build", "buildDependencies"), ("runtime", "runtimeDependencies")):
+                dependencies = (recipe.get("dependencies") or {}).get(phase) or {}
+                expressions = list(dependencies.get("common") or []) + list((dependencies.get("targets") or {}).get(cell["target"]) or [])
+                for capability in dependencies.get("capabilities") or []:
+                    mapping = (factory.get("dependency_catalog") or {}).get(capability, {}).get(cell["target"])
+                    expressions.extend(mapping if isinstance(mapping, list) else ["unmapped-capability:" + capability])
+                provider[output] = [{"nativeExpression": expression} for expression in expressions]
+            providers.append(provider)
+    return {"providers": providers}
+
+
+def consumer_factory_plan(args: argparse.Namespace, cells: list[dict]) -> dict | None:
+    inputs = [args.consumer_contracts, args.consumer_root, args.consumer_revision, args.consumer_required_targets]
+    if not any(inputs):
+        if args.consumer_provider_catalog or args.consumer_plan_output:
+            raise ValueError("consumer inputs are required for a provider catalog or plan output")
+        return None
+    if not all(inputs):
+        raise ValueError("consumer contracts, root, immutable revision and required coverage must be supplied together")
+    contracts = consumer_contract.load_contracts(*[args.consumer_contracts, args.consumer_root,
+                                                  args.consumer_revision, args.consumer_required_targets])
+    factory = copy.deepcopy(load_yaml(args.root / "manifests/package-factory.yaml"))
+    queues = {}
+    for path in sorted((args.root / "manifests/target-queues").glob("*.yaml")):
+        for target, queue in (load_yaml(path).get("queues") or {}).items():
+            queues.setdefault(target, {})[path.stem] = queue.get("roots", [])
+    factory["_consumer_queues"] = queues
+    catalog = (consumer_contract.read_json(args.consumer_provider_catalog) if args.consumer_provider_catalog
+               else declared_consumer_providers(args.root, factory, cells))
+    report = consumer_contract.plan_consumers(contracts, factory, cells, catalog)
+    if args.consumer_plan_output:
+        args.consumer_plan_output.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n")
+    return report
+
+
+def bind_consumer_cells(cells: list[dict], selected: list[dict], report: dict) -> list[dict]:
+    """Rebuild dependents, keeping unrelated cells and consumers out of the selection."""
+    by_id = {cell["id"]: cell for cell in cells}
+    selected_by_id = {cell["id"]: copy.deepcopy(cell) for cell in selected}
+    affected = {cell.get("base_id", cell["id"].removesuffix("-canary")) for cell in selected}
+    changed = True
+    while changed:
+        changed = False
+        for parent, dependencies in report["dependencyCells"].items():
+            if set(dependencies) & affected and parent not in affected:
+                affected.add(parent)
+                if parent in by_id:
+                    selected_by_id[parent] = copy.deepcopy(by_id[parent])
+                changed = True
+    consumers = {row["targetKey"]: row for row in report["consumers"]}
+    for cell in selected_by_id.values():
+        identity = cell.get("base_id", cell["id"].removesuffix("-canary"))
+        bindings = []
+        for key in report["cellBindings"].get(identity, []):
+            row = consumers[key]
+            bindings.append({field: row[field] for field in ("target", "sourceRevision", "contractDigest", "baseDigest", "baseReference", "approvedSources")})
+        if bindings:
+            cell["consumer_bindings"] = bindings
+    return sorted(selected_by_id.values(), key=lambda cell: cell["id"])
 
 
 def affected_formats(changed: set[str]) -> set[str] | None:
@@ -427,6 +516,12 @@ def main() -> int:
     parser.add_argument("--selector", help="cell ID or target=/family=/engine=/architecture=")
     parser.add_argument("--canary-common", action="store_true")
     parser.add_argument("--github-output", type=pathlib.Path)
+    parser.add_argument("--consumer-contracts", type=pathlib.Path)
+    parser.add_argument("--consumer-root", type=pathlib.Path)
+    parser.add_argument("--consumer-revision")
+    parser.add_argument("--consumer-required-targets", type=pathlib.Path)
+    parser.add_argument("--consumer-provider-catalog", type=pathlib.Path)
+    parser.add_argument("--consumer-plan-output", type=pathlib.Path)
     args = parser.parse_args()
     try:
         cells = all_cells(args.root)
@@ -454,6 +549,9 @@ def main() -> int:
             selected = select_by(cells, args.cell)
         if args.selector:
             selected = select_by(selected, args.selector)
+        consumer_plan = consumer_factory_plan(args, cells)
+        if consumer_plan is not None:
+            selected = bind_consumer_cells(cells, selected, consumer_plan)
     except (OSError, ValueError, yaml.YAMLError) as exc:
         print(f"package-factory planner failed closed: {exc}", file=sys.stderr)
         return 2
@@ -512,7 +610,10 @@ def main() -> int:
             shards[shard_index].append(_continuation(cell, suffix))
 
     matrices = [json.dumps({"include": shard}, separators=(",", ":")) for shard in shards]
-    print(json.dumps({"count": len(selected), "matrices": matrices}))
+    result = {"count": len(selected), "matrices": matrices}
+    if consumer_plan is not None:
+        result["consumerPlan"] = consumer_plan
+    print(json.dumps(result))
     if args.github_output:
         with args.github_output.open("a", encoding="utf-8") as output:
             output.write(f"count={len(selected)}\n")

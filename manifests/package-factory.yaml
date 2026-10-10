@@ -17,6 +17,136 @@ upstreams:
     url: https://github.com/zirconium-dev/zirconium
     license_review: required
 
+# Consumer identities are independent of RPM/DEB architecture labels.
+# An absent target or compatible provider remains a blocking supply gap.
+consumer_adapters:
+  albacore:
+    target: alma10
+    manager: dnf
+    architectures:
+      linux/amd64/v2: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64-v2
+    - armv8-a
+  yellowfin:
+    target: alma10-kitten
+    manager: dnf
+    architectures:
+      linux/amd64/v2: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64-v2
+    - armv8-a
+  skipjack:
+    target: el10
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64-v3
+    - armv8-a
+  bonito:
+    target: fedora
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+  bonito-rawhide:
+    target: fedora-rawhide
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+  wahoo:
+    target: eln
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64-v3
+    - armv8-a
+  hummingbird:
+    target: hummingbird
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+  sailfin:
+    target: opensuse-tumbleweed
+    manager: zypper
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+  guppy:
+    target: gentoo
+    manager: portage
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+  gurnard:
+    target: ubuntu-noble
+    manager: apt
+    architectures:
+      linux/amd64: amd64
+      linux/arm64: arm64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+  grouper:
+    target: ubuntu
+    manager: apt
+    architectures:
+      linux/amd64: amd64
+      linux/arm64: arm64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+  marlin:
+    target: arch
+    manager: pacman
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+  flounder:
+    target: debian-trixie
+    manager: apt
+    architectures:
+      linux/amd64: amd64
+      linux/arm64: arm64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+  flounder-sid:
+    target: debian
+    manager: apt
+    architectures:
+      linux/amd64: amd64
+      linux/arm64: arm64
+    cpuBaselines:
+    - x86-64
+    - armv8-a
+
 targets:
   el10:
     status: supported
