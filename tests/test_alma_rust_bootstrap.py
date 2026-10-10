@@ -58,7 +58,10 @@ def test_cosmic_exact_provider_and_path_before_cargo(target, name):
     recipe = load(name)
     assert 'tunaos-rust193 >= 1.93.0' in tideforge.target_dependencies(recipe, target)
     output = '\n'.join(tideforge.render(recipe, target).values())
-    assert output.index('export PATH=/opt/tunaos/rust-1.93/bin:/usr/bin:/bin') < output.index('cargo build --release')
+    # cosmic-osd invokes Cargo through its pinned upstream just build command.
+    # Preserve the actual authored entry point as well as policy ordering.
+    command = recipe['build']['commands'][0]
+    assert output.index('export PATH=/opt/tunaos/rust-1.93/bin:/usr/bin:/bin') < output.index(command)
     assert output.index('export PATH=/opt/tunaos/rust-1.93/bin:/usr/bin:/bin') < output.index('tunaos_alma_compiler_policy %{_target_cpu}')
     assert 'BuildRequires: tunaos-rust193 >= 1.93.0' in output
 
