@@ -34,7 +34,11 @@ dependencies:
       # targets map the archive-present half of that set onto Debian/Ubuntu
       # package names and drop the rest, matching the cosmic-settings deb
       # precedent (#225).
-      el10: [dbus, greetd, fprintd-pam, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
+      # No fprintd-pam on el10 aarch64 (phase-2 wave proved it
+      # unresolvable there; fingerprint auth is optional, password login
+      # is unaffected). The schema has no per-arch runtime deps, so both
+      # arches drop it.
+      el10: [dbus, greetd, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
       ubuntu: [dbus, greetd, libpam-fprintd]
       debian: [dbus, greetd, libpam-fprintd]
 files:
