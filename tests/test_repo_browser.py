@@ -182,7 +182,7 @@ def test_the_rpm_reader_actually_captures_a_location():
     real primary.xml fragment so a refactor of repo_index cannot quietly drop
     the field and leave every download link unbuilt."""
     ri = module("repo_index_mod", "repo_index.py")
-    gap = ri.load("gap", "gap_engine.py")
+    gap = ri.gap_engine
     blob = (
         '<?xml version="1.0"?>'
         f'<metadata xmlns="{gap.COMMON[1:-1]}" xmlns:rpm="{gap.RPM[1:-1]}">'

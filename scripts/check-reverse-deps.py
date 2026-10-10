@@ -47,7 +47,6 @@ from __future__ import annotations
 import argparse
 import collections
 import gzip
-import importlib.util
 import json
 import lzma
 import pathlib
@@ -55,22 +54,27 @@ import sys
 import xml.etree.ElementTree as ET
 
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
 
-_MODULES: dict[str, object] = {}
+import gap_engine  # noqa: E402
+import published_index  # noqa: E402
+import rpm_vercmp  # noqa: E402
 
 
-def load(name: str, filename: str):
-    if name not in _MODULES:
-        spec = importlib.util.spec_from_file_location(name, HERE / filename)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        _MODULES[name] = module
-    return _MODULES[name]
+def load(name: str, _filename: str):
+    """Compatibility surface for callers of the former dynamic loader."""
+    modules = {
+        "gap": gap_engine,
+        "gap_engine": gap_engine,
+        "published_index": published_index,
+        "rpm_vercmp": rpm_vercmp,
+    }
+    return modules[name]
 
 
 def local_primary(repo: pathlib.Path) -> bytes:
     """The decompressed primary.xml of an on-disk repo directory."""
-    gap = load("gap", "gap_engine.py")
+    gap = gap_engine
     repomd = (repo / "repodata" / "repomd.xml").read_bytes()
     root = ET.fromstring(repomd)
     for data in root.findall(f"{gap.REPO}data"):
@@ -90,7 +94,7 @@ def local_primary(repo: pathlib.Path) -> bytes:
 
 def parse_obsoletes(blob: bytes) -> dict[str, list[str]]:
     """package name -> the capability names it Obsoletes."""
-    gap = load("gap", "gap_engine.py")
+    gap = gap_engine
     result: dict[str, list[str]] = {}
     for _, element in ET.iterparse(_bytes_io(blob), events=("end",)):
         if element.tag != f"{gap.COMMON}package":
@@ -226,15 +230,14 @@ def main() -> int:
     parser.add_argument("--json", type=pathlib.Path)
     args = parser.parse_args()
 
-    gap = load("gap", "gap_engine.py")
-    vercmp = load("rpm_vercmp", "rpm_vercmp.py")
+    gap = gap_engine
+    vercmp = rpm_vercmp
 
     urls = list(args.index)
     if not urls and not args.served_repo:
         if not (args.target and args.arch):
             raise SystemExit(
                 "need --index, --served-repo, or --target with --arch")
-        published = load("published_index", "published_index.py")
         target = (published.load().get("targets") or {}).get(args.target) or {}
         urls = published.urls_for(target, args.arch)
         if not urls:

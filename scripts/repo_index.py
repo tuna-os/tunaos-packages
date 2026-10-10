@@ -31,37 +31,31 @@ its toolkit is a red test, not a silent gap.
 """
 from __future__ import annotations
 
-import importlib.util
 import io
 import pathlib
+import sys
 import xml.etree.ElementTree as ET
 
-HERE = pathlib.Path(__file__).resolve().parent
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import apt_packages  # noqa: E402
+import deb_version  # noqa: E402
+import gap_engine  # noqa: E402
+import pacman_db  # noqa: E402
+import rpm_vercmp  # noqa: E402
 
 FORMATS = ("rpm", "deb", "pkg.tar.zst")
-
-_MODULES: dict[str, object] = {}
-
-
-def load(name: str, filename: str | None = None):
-    """Import a sibling script once, hyphenated filenames included."""
-    if name not in _MODULES:
-        spec = importlib.util.spec_from_file_location(
-            name, HERE / (filename or f"{name}.py"))
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        _MODULES[name] = module
-    return _MODULES[name]
 
 
 def version_module(fmt: str):
     """The comparator that is CORRECT for this format's versions."""
     if fmt == "rpm":
-        return load("rpm_vercmp")
+        return rpm_vercmp
     if fmt == "deb":
-        return load("deb_version")
+        return deb_version
     if fmt == "pkg.tar.zst":
-        return load("pacman_db")
+        return pacman_db
     raise ValueError(f"no version comparator for format {fmt!r}")
 
 
@@ -71,7 +65,7 @@ def satisfies(fmt: str, available: str, op: str, required: str) -> bool:
 
 def fetch(url: str, cache: pathlib.Path) -> bytes:
     """Cached HTTPS fetch with the factory's User-Agent (rpm engine's)."""
-    return load("gap", "gap_engine.py").fetch(url, cache)
+    return gap_engine.fetch(url, cache)
 
 
 def _fetch_first(base: str, names: list[str], cache: pathlib.Path) -> tuple[str, bytes]:
@@ -88,19 +82,16 @@ def load_index(url: str, fmt: str, cache: pathlib.Path,
                repo_name: str | None = None) -> dict:
     """Read one served repository into the standard index shape."""
     if fmt == "rpm":
-        gap = load("gap", "gap_engine.py")
-        return gap.parse_primary(gap.primary_of(url, cache)[0])
+        return gap_engine.parse_primary(gap_engine.primary_of(url, cache)[0])
     if fmt == "deb":
-        apt = load("apt_packages")
         name, blob = _fetch_first(
             url, ["Packages.gz", "Packages.xz", "Packages"], cache)
-        return apt.parse_packages(apt.decompress(name, blob).decode(
-            "utf-8", "replace"))
+        text = apt_packages.decompress(name, blob).decode("utf-8", "replace")
+        return apt_packages.parse_packages(text)
     if fmt == "pkg.tar.zst":
-        pacman = load("pacman_db")
         db = f"{repo_name}.db" if repo_name else "tunaos.db"
         _, blob = _fetch_first(url, [db], cache)
-        return pacman.parse_db(blob)
+        return pacman_db.parse_db(blob)
     raise ValueError(f"no index reader for format {fmt!r}")
 
 
@@ -113,37 +104,34 @@ def iter_rows(url: str, fmt: str, cache: pathlib.Path,
     path keeps every entry.
     """
     if fmt == "rpm":
-        gap = load("gap", "gap_engine.py")
-        yield from iter_rpm_rows(gap.primary_of(url, cache)[0])
+        yield from iter_rpm_rows(gap_engine.primary_of(url, cache)[0])
         return
     if fmt == "deb":
-        apt = load("apt_packages")
         name, blob = _fetch_first(
             url, ["Packages.gz", "Packages.xz", "Packages"], cache)
-        yield from apt.iter_rows(apt.decompress(name, blob).decode(
-            "utf-8", "replace"))
+        text = apt_packages.decompress(name, blob).decode("utf-8", "replace")
+        yield from apt_packages.iter_rows(text)
         return
     if fmt == "pkg.tar.zst":
-        pacman = load("pacman_db")
         db = f"{repo_name}.db" if repo_name else "tunaos.db"
         _, blob = _fetch_first(url, [db], cache)
-        yield from pacman.iter_rows(blob)
+        yield from pacman_db.iter_rows(blob)
         return
     raise ValueError(f"no index reader for format {fmt!r}")
 
 
 def iter_rpm_rows(blob: bytes):
     """Every package row of a primary.xml, duplicates included."""
-    gap = load("gap", "gap_engine.py")
     for _, element in ET.iterparse(io.BytesIO(blob), events=("end",)):
-        if element.tag != f"{gap.COMMON}package":
+        if element.tag != f"{gap_engine.COMMON}package":
             continue
-        version = element.find(f"{gap.COMMON}version")
-        source = element.find(f"{gap.COMMON}format/{gap.RPM}sourcerpm")
-        where = element.find(f"{gap.COMMON}location")
+        version = element.find(f"{gap_engine.COMMON}version")
+        source = element.find(
+            f"{gap_engine.COMMON}format/{gap_engine.RPM}sourcerpm")
+        where = element.find(f"{gap_engine.COMMON}location")
         yield {
-            "name": element.findtext(f"{gap.COMMON}name"),
-            "arch": element.findtext(f"{gap.COMMON}arch"),
+            "name": element.findtext(f"{gap_engine.COMMON}name"),
+            "arch": element.findtext(f"{gap_engine.COMMON}arch"),
             "evr": (f"{version.get('epoch') or '0'}:"
                     f"{version.get('ver')}-{version.get('rel')}"),
             "srpm": source.text if source is not None else None,
@@ -156,7 +144,8 @@ def iter_rpm_rows(blob: bytes):
             # Regular files only: directories are co-owned by design
             # and ghosts have no content to conflict.
             "files": [shipped.text for shipped in
-                      element.findall(f"{gap.COMMON}format/{gap.COMMON}file")
+                      element.findall(
+                          f"{gap_engine.COMMON}format/{gap_engine.COMMON}file")
                       if shipped.get("type") not in ("dir", "ghost")],
         }
         element.clear()
