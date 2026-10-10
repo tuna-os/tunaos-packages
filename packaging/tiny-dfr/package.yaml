@@ -1,0 +1,74 @@
+# Pending recipe: intentionally outside packages/ until durable input assets
+# authenticate and the native ARM package candidate passes CI. No HW claim.
+schema: 1
+name: tiny-dfr
+version: "0.3.7"
+release: 1
+summary: Native Apple Silicon and T2 Touch Bar daemon
+description: >-
+  First-party native build of Asahi Linux tiny-dfr and its upstream device
+  rules, systemd units and icons. Initial candidate scope is openSUSE ARM.
+license: MIT AND Apache-2.0
+source:
+  url: https://github.com/AsahiLinux/tiny-dfr/archive/6267754535c16bd2c1006b946aa032561d8432b3.tar.gz
+  sha256: 04e28d0108c7b0e3c67b7f088dddb7ba89d6a368f1291bdd3b386391cc11fe9a
+  directory: tiny-dfr-6267754535c16bd2c1006b946aa032561d8432b3
+sources:
+  - url: https://github.com/tuna-os/tunaos-packages/releases/download/tiny-dfr-vendor-6267754535c16bd2c1006b946aa032561d8432b3/tiny-dfr-vendor.tar.gz
+    sha256: e65f3a94fddd6ece9babd7117d1af80851bfcebbc81bb53617489a50c974abd3
+    filename: tiny-dfr-vendor.tar.gz
+    destination: .
+    strip_components: 0
+build_system: custom
+build:
+  environment:
+    CARGO_NET_OFFLINE: "true"
+  commands:
+    - test "$(uname -m)" = aarch64
+    - rustc -vV | grep -qx 'host: aarch64-unknown-linux-gnu'
+    - pkg-config --atleast-version=2.59 librsvg-2.0
+    - test -s .cargo/config.toml && test -d vendor
+    - cargo build --release --locked --offline
+dependencies:
+  build:
+    capabilities: [rust, c-compiler, pkg-config]
+    targets:
+      opensuse-tumbleweed:
+        - cairo-devel
+        - libinput-devel
+        - freetype2-devel
+        - fontconfig-devel
+        - librsvg-devel >= 2.59
+        - libudev-devel
+        - libdrm-devel
+  runtime:
+    targets:
+      opensuse-tumbleweed: [libcairo2, libinput10, libfreetype6, libfontconfig1, librsvg-2-2, libudev1, libdrm2]
+install:
+  commands:
+    - install -Dm0755 target/release/tiny-dfr {destdir}/usr/bin/tiny-dfr
+    - install -d {destdir}/usr/share/tiny-dfr {destdir}/usr/lib/systemd/system {destdir}/usr/lib/udev/rules.d {destdir}/usr/share/licenses/tiny-dfr
+    - cp -a share/tiny-dfr/. {destdir}/usr/share/tiny-dfr/
+    - cp -a etc/systemd/system/. {destdir}/usr/lib/systemd/system/
+    - cp -a etc/udev/rules.d/. {destdir}/usr/lib/udev/rules.d/
+    - install -m0644 LICENSE LICENSE.material {destdir}/usr/share/licenses/tiny-dfr/
+files:
+  common:
+    - usr/bin/tiny-dfr
+    - usr/share/tiny-dfr
+    - usr/share/licenses/tiny-dfr
+    - usr/lib/systemd/system/tiny-dfr.service
+    - usr/lib/systemd/system/systemd-backlight@backlight:228200000.display-pipe.0.service
+    - usr/lib/systemd/system/systemd-backlight@backlight:appletb_backlight.service
+    - usr/lib/udev/rules.d/99-touchbar-seat.rules
+    - usr/lib/udev/rules.d/99-touchbar-tiny-dfr.rules
+verify:
+  # Payload/loader check only: Touch Bar operation requires actual hardware.
+  smoke: >-
+    test -x /usr/bin/tiny-dfr &&
+    test -s /usr/lib/systemd/system/tiny-dfr.service &&
+    test -s /usr/lib/udev/rules.d/99-touchbar-tiny-dfr.rules &&
+    test -s /usr/share/licenses/tiny-dfr/LICENSE.material &&
+    ldd /usr/bin/tiny-dfr > /tmp/tiny-dfr-loader.txt &&
+    ! grep -q 'not found' /tmp/tiny-dfr-loader.txt
+targets: [opensuse-tumbleweed]

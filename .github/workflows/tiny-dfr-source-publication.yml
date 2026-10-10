@@ -1,0 +1,45 @@
+name: tiny-dfr Source Publication Review
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/tiny-dfr-source-publication.yml
+      - scripts/prepare-tiny-dfr-publication-ci.sh
+      - packaging/tiny-dfr/**
+      - tests/test_tiny_dfr_publication.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  attestations: read
+
+jobs:
+  source-contract:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - run: python -m pip install pytest pyyaml==6.0.3
+      - run: python -m pytest -q tests/test_tiny_dfr_publication.py
+  prepare:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Authenticate and stage exact durable source assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/prepare-tiny-dfr-publication-ci.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tiny-dfr-reviewed-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .factory/tiny-dfr-publication/
+          if-no-files-found: error
+          retention-days: 7
+# This workflow deliberately cannot publish or enable a recipe. A reviewed
+# source artifact and explicit final publication authorization are required.
