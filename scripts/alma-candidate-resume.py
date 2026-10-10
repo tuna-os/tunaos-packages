@@ -227,11 +227,30 @@ def restore(meta, destination):
     current = snapshot.load(meta / 'identity.json')
     repository = current['repository']; prefix = current['cell'] + '-alma-candidate-'
     candidates = []
-    for page in range(1, 11):
-        listing = api('repos/' + repository + '/actions/artifacts?per_page=100&page=' + str(page))['artifacts']
-        candidates.extend(item for item in listing if item['name'].startswith(prefix) and not item['expired'] and
-                          item.get('workflow_run', {}).get('head_sha') == current['sourceRevision'])
-        if len(listing) < 100: break
+    discovery_requests = 0
+    workflow = urllib.parse.quote(Path(current['workflow']).name, safe='')
+    # Limit discovery to this workflow and exact source, not every artifact in
+    # a large repository. Artifact names select candidates; provenance authorizes.
+    for page in range(1, 6):
+        if discovery_requests >= 10: break
+        discovery_requests += 1
+        runs = api('repos/' + repository + '/actions/workflows/' + workflow + '/runs?head_sha=' +
+                   current['sourceRevision'] + '&exclude_pull_requests=true&per_page=30&page=' + str(page))['workflow_runs']
+        for producer_run in runs:
+            if producer_run.get('head_sha') != current['sourceRevision'] or producer_run.get('path') != current['workflow']:
+                continue
+            for artifact_page in range(1, 33):
+                if discovery_requests >= 10: break
+                discovery_requests += 1
+                listing = api('repos/' + repository + '/actions/runs/' + str(producer_run['id']) +
+                              '/artifacts?per_page=30&page=' + str(artifact_page))['artifacts']
+                candidates.extend(item for item in listing if item['name'].startswith(prefix) and not item['expired'] and
+                                  item.get('workflow_run', {}).get('head_sha') == current['sourceRevision'] and
+                                  item.get('workflow_run', {}).get('id') == producer_run['id'])
+                if len(listing) < 30: break
+            if len(candidates) >= 5 or discovery_requests >= 10: break
+        if len(runs) < 30 or len(candidates) >= 5 or discovery_requests >= 10: break
+    candidates.sort(key=lambda item: item['id'], reverse=True)
     for artifact in candidates[:5]:
         with tempfile.TemporaryDirectory(prefix='alma-restore-', dir=meta) as directory:
             stage = Path(directory)

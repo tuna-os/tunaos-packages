@@ -744,10 +744,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-app-library
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-app-library/archive/epoch-1.9.0.tar.gz
+      sha256: d85fb7648429bb3319dc1f1dd69f510019d4f5815be93c42a3f57f2211abe740
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -789,10 +797,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-applets
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-applets/archive/epoch-1.9.0.tar.gz
+      sha256: f113f74cd05b179ab0478dd5876b671880914600d5df56d518f8f80c08543037
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -955,10 +971,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-files
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-files/archive/epoch-1.9.0.tar.gz
+      sha256: c30cb40b8177112c821753a95134ba82e64dfd8230f5c371a1c89a4b0d066309
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -1175,10 +1199,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-initial-setup
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-initial-setup/archive/epoch-1.9.0.tar.gz
+      sha256: 6327cce425d6590b8479bdd459f34e9522663fa47b86c9af020f055e746c61eb
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -1220,10 +1252,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-launcher
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-launcher/archive/epoch-1.9.0.tar.gz
+      sha256: 9ded0bbe14a08f4b83da8124d1243c965cf71751dc7d94539dd71ad5a4eff54a
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -1358,10 +1398,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-osk
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-osk/archive/epoch-1.9.0.tar.gz
+      sha256: 6a4095f0474d55ecefe0e1f4bb24f5a7bffdf0450e87de40c668da1d628bd1f6
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -1537,10 +1585,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-screenshot
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-screenshot/archive/epoch-1.9.0.tar.gz
+      sha256: 2f809f4e1ed8ca218b9d39975cee290d168f231b48204a4d91d75ee63f30abcb
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -1745,10 +1801,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-term
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-term/archive/epoch-1.9.0.tar.gz
+      sha256: 2e5ef9ff8428503024f84e9d0c9d8b0007dec0be42b398e5925d209ec91e2e19
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -1790,10 +1854,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-wallpapers
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-wallpapers/archive/epoch-1.9.0.tar.gz
+      sha256: d898a1a7f84c8138e9b16e6a0cc1ed806ce9a87a94ab75561895b8e1d7a465f5
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -1835,10 +1907,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/cosmic-workspaces
+    upstream:
+      version: 1.9.0
+      source: https://github.com/pop-os/cosmic-workspaces-epoch/archive/epoch-1.9.0.tar.gz
+      sha256: cf9afff9ba023abe3bd996b82ceda7a295f63bcdbbd9ad784a9643a86c647f04
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml
@@ -9627,10 +9707,18 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+      deb:
+        tideforge: packages/pop-launcher
+    upstream:
+      version: 1.10.0
+      source: https://github.com/pop-os/launcher/archive/epoch-1.10.0.tar.gz
+      sha256: fbad44078bbebec9e2bc5f03d31a04a08191a877d7d524cf9e34f364e75c2429
     targets:
       - alma10
       - alma10-kitten
+      - debian
       - el10
+      - ubuntu
     membership: runtime
     referenced_by:
       - manifests/target-queues/cosmic.yaml

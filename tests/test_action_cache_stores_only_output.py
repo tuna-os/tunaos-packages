@@ -131,16 +131,15 @@ def test_the_metadata_the_cache_drops_is_regenerated_every_run():
 def _uploads() -> list[dict]:
     """The two OUTCOME-SPLIT uploads: the deliverable and the debugging tree.
 
-    A third upload exists and is deliberately excluded here. It carries the
-    `-partial` artifact a timed-out build-chain cell resumes from -- see
-    test_a_timed_out_chain_cell_can_resume.py, which pins its own shape. It
-    is neither of the two this file is about: it is not a deliverable and it
-    is not for a human to read, so folding it into the assertions below would
-    only blur what they say.
+    Resume artifacts carry distinct identities: legacy interrupted progress
+    uses `-partial`; authenticated Alma snapshots use `-alma-candidate-`.
+    Neither is the success deliverable or failure debugging tree. Snapshot
+    signing and retention are asserted separately below.
     """
     return [s for s in _steps()
             if str(s.get("uses", "")).startswith("actions/upload-artifact")
-            and "-partial" not in str((s.get("with") or {}).get("name", ""))]
+            and not any(marker in str((s.get("with") or {}).get("name", ""))
+                        for marker in ("-partial", "-alma-candidate-"))]
 
 
 def test_success_uploads_the_output_and_failure_uploads_the_build_tree():
@@ -192,6 +191,30 @@ def test_both_uploads_keep_the_same_artifact_name_and_root():
         for line in step["with"]["path"].splitlines():
             if line.strip():
                 assert line.strip().startswith(".factory/${{ matrix.id }}/")
+
+
+def test_authenticated_native_snapshot_has_separate_signed_attempt_identity():
+    steps = _steps()
+    snapshots = [step for step in steps
+                 if str(step.get("uses", "")).startswith("actions/upload-artifact")
+                 and "-alma-candidate-" in str((step.get("with") or {}).get("name", ""))]
+    assert len(snapshots) == 1
+    snapshot = snapshots[0]
+    assert snapshot["if"] == "always() && steps.native_snapshot_attestation.outcome == 'success'"
+    assert snapshot["with"]["name"] == (
+        "${{ matrix.base_id || matrix.id }}-alma-candidate-${{ github.run_id }}-"
+        "${{ github.run_attempt }}-${{ matrix.id }}"
+    )
+    assert snapshot["with"]["path"] == ".factory/${{ matrix.id }}/native-snapshot/"
+    assert snapshot["with"]["if-no-files-found"] == "error"
+    attestation = next(step for step in steps if step.get("id") == "native_snapshot_attestation")
+    assert str(attestation["uses"]).startswith("actions/attest@")
+    assert attestation["if"] == "always() && steps.native_snapshot.outputs.created == 'true'"
+    assert attestation["with"]["subject-path"] == ".factory/${{ matrix.id }}/native-snapshot/snapshot.json"
+    staging = next(step for step in steps if step.get("name") == "Stage native Alma snapshot attestation bundle")
+    assert staging["if"] == snapshot["if"]
+    assert "test -s" in staging["run"] and "native-snapshot/bundle.jsonl" in staging["run"]
+    assert steps.index(attestation) < steps.index(staging) < steps.index(snapshot)
 
 
 # -------------------------------------------------------------- instrumenting

@@ -60,3 +60,10 @@ them. That did not prove a usable desktop.
 native Debian control files. Both queues include all providers. Signed complete
 candidate installation must pass before this supply becomes ready.
 
+## Snapshot artifact lookup fails
+
+**Symptom:** [Resume run 38081590705](https://github.com/tuna-os/tunaos-packages/actions/runs/38081590705) fails before verification.
+
+**Cause:** Repository-wide artifact metadata returns invalid JSON.
+
+**Fix:** Query exact workflow and source runs, then their artifacts. Retain authentication and the shared request limit.

@@ -185,8 +185,14 @@ def test_restore_diagnostic_does_not_print_signed_url(candidate, tmp_path, monke
     meta, _, _, identity = candidate
     artifact = {'id': 42, 'name': identity['cell'] + '-alma-candidate-123-1-ci', 'expired': False,
                 'workflow_run': {'head_sha': identity['sourceRevision'], 'id': 123}}
+    requests = []
     def github_boundary(command, **kwargs):
-        kwargs['stdout'].write(json.dumps({'artifacts': [artifact]}).encode())
+        requests.append(command[-1])
+        if '/workflows/' in command[-1]:
+            document = {'workflow_runs': [{'id': 123, 'head_sha': identity['sourceRevision'], 'path': identity['workflow']}]}
+        else:
+            document = {'artifacts': [artifact]}
+        kwargs['stdout'].write(json.dumps(document).encode())
         return subprocess.CompletedProcess(command, 0)
     class Opener:
         def open(self, request, **kwargs):
@@ -200,6 +206,9 @@ def test_restore_diagnostic_does_not_print_signed_url(candidate, tmp_path, monke
     assert 'SECRET' not in output.err
     assert 'blob.core.windows.net' not in output.err
     assert 'HTTPError' in output.err
+    assert requests == [
+        'repos/tuna-os/tunaos-packages/actions/workflows/package-factory.yml/runs?head_sha=' + 'a' * 40 + '&exclude_pull_requests=true&per_page=30&page=1',
+        'repos/tuna-os/tunaos-packages/actions/runs/123/artifacts?per_page=30&page=1']
     assert not (tmp_path / 'destination').exists()
 
 
@@ -217,3 +226,25 @@ def test_live_ci_requires_two_distinct_manual_dispatches_at_same_sha():
     assert "receipt['producer']['runId'] != int(os.environ['GITHUB_RUN_ID'])" in script
     assert 'repo_gpgcheck=1' in script
     assert '--nogpgcheck' not in script
+
+
+def test_discovery_has_one_shared_ten_request_budget(candidate, tmp_path, monkeypatch, capsys):
+    meta, _, _, identity = candidate
+    calls = []
+    def github_boundary(command, **kwargs):
+        calls.append(command[-1])
+        if '/workflows/' in command[-1]:
+            document = {'workflow_runs': [{'id': number, 'head_sha': identity['sourceRevision'],
+                        'path': identity['workflow']} for number in range(30)]}
+        else:
+            document = {'artifacts': [{'id': number, 'name': 'unrelated', 'expired': False}
+                                     for number in range(30)]}
+        kwargs['stdout'].write(json.dumps(document).encode())
+        return subprocess.CompletedProcess(command, 0)
+    monkeypatch.setattr(resume.subprocess, 'run', github_boundary)
+    resume.restore(meta, tmp_path / 'destination')
+    assert len(calls) == 10
+    assert len([call for call in calls if '/workflows/' in call]) == 1
+    assert len([call for call in calls if '/artifacts?' in call]) == 9
+    assert 'No authenticated matching Alma snapshot' in capsys.readouterr().out
+    assert not (tmp_path / 'destination').exists()
