@@ -46,7 +46,41 @@ table must move in the same commit.
 """
 from __future__ import annotations
 
+import pathlib
 from typing import Any
+
+import yaml
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+FACTORY = ROOT / "manifests" / "package-factory.yaml"
+
+
+class ContractError(ValueError):
+    """The package-factory document does not have its required structure."""
+
+
+def load_factory(path: pathlib.Path = FACTORY) -> dict[str, Any]:
+    """Load the factory document without normalising malformed structures."""
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as error:
+        raise ContractError(f"cannot load {path}: {error}") from error
+    if not isinstance(data, dict):
+        raise ContractError(f"{path}: expected a YAML mapping")
+    return data
+
+
+def load_targets(path: pathlib.Path = FACTORY) -> dict[str, dict[str, Any]]:
+    """Return the target mapping through the shared structural boundary."""
+    targets = load_factory(path).get("targets")
+    if not isinstance(targets, dict) or not targets:
+        raise ContractError(f"{path}: targets must be a non-empty mapping")
+    malformed = sorted(
+        name for name, spec in targets.items() if not isinstance(spec, dict)
+    )
+    if malformed:
+        raise ContractError(f"{path}: target entries must be mappings: {malformed}")
+    return targets
 
 # Inert for every format: nothing in any build or verify path reads these.
 #   r2_path / r2_path_aarch64  bucket WRITE paths, read by the publishers and
