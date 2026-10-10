@@ -1,13 +1,31 @@
 name: tiny-dfr Native Source Inputs
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/tiny-dfr-source-inputs.yml
+      - scripts/capture-tiny-dfr-inputs-ci.sh
+      - tests/test_tiny_dfr_source_inputs.py
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  source-boundaries:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - run: sudo apt-get update && sudo apt-get install -y jq
+      - run: python -m pip install pytest pyyaml==6.0.3
+      - run: python -m pytest -q tests/test_tiny_dfr_source_inputs.py
   capture:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     permissions:
