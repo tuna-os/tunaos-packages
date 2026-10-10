@@ -43,10 +43,12 @@ import gzip
 import io
 import re
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
 TIMEOUT = 60
+FETCH_ATTEMPTS = 6
 
 
 def published_names(staged: Path) -> set[str]:
@@ -58,9 +60,27 @@ def published_names(staged: Path) -> set[str]:
     }
 
 
-def fetch(url: str) -> bytes:
-    with urllib.request.urlopen(url, timeout=TIMEOUT) as fh:
-        return fh.read()
+def fetch(
+    url: str,
+    *,
+    attempts: int = FETCH_ATTEMPTS,
+    timeout: int = TIMEOUT,
+    sleeper=None,
+) -> bytes:
+    if sleeper is None:
+        sleeper = time.sleep
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(url, timeout=timeout) as fh:
+                return fh.read()
+        except Exception as exc:
+            if attempt == attempts - 1:
+                raise RuntimeError(
+                    f"could not read the served index at {url}: {exc}"
+                ) from exc
+            delay = 2 ** (attempt + 1)
+            sleeper(delay)
+    raise AssertionError("unreachable")
 
 
 def primary_href(repomd: bytes) -> str | None:
@@ -77,11 +97,13 @@ def primary_href(repomd: bytes) -> str | None:
 
 def indexed_names(served_url: str) -> set[str]:
     base = served_url.rstrip("/") + "/"
-    repomd = fetch(base + "repodata/repomd.xml")
+    repomd_url = base + "repodata/repomd.xml"
+    repomd = fetch(repomd_url)
     href = primary_href(repomd)
     if not href:
-        raise RuntimeError(f"no primary index in {base}repodata/repomd.xml")
-    raw = fetch(base + href)
+        raise RuntimeError(f"no primary index in {repomd_url}")
+    primary_url = base + href
+    raw = fetch(primary_url)
     if href.endswith(".gz"):
         raw = gzip.decompress(raw)
     # Index hrefs are repo-relative paths; only the basename is comparable.
@@ -104,8 +126,7 @@ def main(argv=None):
     try:
         served = indexed_names(args.served_url)
     except Exception as exc:
-        print(f"ERROR: could not read the served index at "
-              f"{args.served_url}: {exc}", file=sys.stderr)
+        print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
     missing = sorted(expected - served)
