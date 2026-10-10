@@ -40,7 +40,10 @@ dependencies:
     # the gate's clean-install repo only holds the deb built by that cell, so
     # naming cosmic-comp there renders an unsatisfiable Depends.
     targets:
-      el10: [cosmic-app-library >= 1.9.0, cosmic-applets >= 1.9.0, cosmic-bg >= 1.9.0, cosmic-comp >= 1.9.0, cosmic-files >= 1.9.0, cosmic-greeter >= 1.9.0, cosmic-icon-theme >= 1.9.0, cosmic-idle >= 1.9.0, cosmic-initial-setup >= 1.9.0, cosmic-launcher >= 1.9.0, cosmic-notifications >= 1.9.0, cosmic-osd >= 1.9.0, cosmic-osk >= 1.9.0, cosmic-panel >= 1.9.0, cosmic-randr >= 1.9.0, cosmic-screenshot >= 1.9.0, cosmic-settings >= 1.9.0, cosmic-settings-daemon >= 1.9.0, cosmic-term >= 1.9.0, cosmic-workspaces >= 1.9.0, xdg-desktop-portal-cosmic >= 1.9.0, open-sans-fonts, 'font(notosansmono)', xdg-user-dirs, system-cosmic-config]
+      # No system-cosmic-config on EL10: it is Fedora's distro-default
+      # branding ("a fedora-like experience"); TunaOS desktop defaults
+      # come from the image/desktops layer instead.
+      el10: [cosmic-app-library >= 1.9.0, cosmic-applets >= 1.9.0, cosmic-bg >= 1.9.0, cosmic-comp >= 1.9.0, cosmic-files >= 1.9.0, cosmic-greeter >= 1.9.0, cosmic-icon-theme >= 1.9.0, cosmic-idle >= 1.9.0, cosmic-initial-setup >= 1.9.0, cosmic-launcher >= 1.9.0, cosmic-notifications >= 1.9.0, cosmic-osd >= 1.9.0, cosmic-osk >= 1.9.0, cosmic-panel >= 1.9.0, cosmic-randr >= 1.9.0, cosmic-screenshot >= 1.9.0, cosmic-settings >= 1.9.0, cosmic-settings-daemon >= 1.9.0, cosmic-term >= 1.9.0, cosmic-workspaces >= 1.9.0, xdg-desktop-portal-cosmic >= 1.9.0, open-sans-fonts, 'font(notosansmono)', xdg-user-dirs]
       ubuntu: []
       debian: []
 files:
