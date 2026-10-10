@@ -3,21 +3,20 @@
 Both were pinned below what the packaged release actually needs, which let
 the wrong BuildRequires be satisfied instead of failing fast:
 
-  * gtk4.spec pinned pango_version=1.56.0. GTK 4.23.3's own meson.build --
+  * gtk4.spec pinned pango_version=1.56.0. GTK 4.24.0's own meson.build --
     the exact tag this spec builds -- declares pango_major_req=1,
     pango_minor_req=58 (fetched from gitlab.gnome.org/GNOME/gtk at tag
-    4.23.3). Served pango was 1.57, which satisfied the stale 1.56.0 floor,
+    4.24.0). Served pango was 1.57, which satisfied the stale 1.56.0 floor,
     so dnf never objected -- gtk4 silently vendored pango as a meson
     subproject instead (the tell: libpangoft2-1.0.so.0.5800.0 in the build
     log) and died under -Werror=unused-but-set-variable in the vendored
     copy. #567 fixed the failure by bumping SYSTEM pango to 1.58.2; this
     guards the spec that should have caught the real requirement itself.
 
-  * libadwaita.spec pinned gtk_version=4.21.1. libadwaita 1.10.beta.1's own
-    meson.build -- again the exact tag this spec builds, not main, which
-    can have drifted since this beta -- declares
+  * libadwaita.spec pinned gtk_version=4.21.1. libadwaita 1.10.0's own
+    meson.build -- again the exact tag this spec builds, not main -- declares
     gtk_min_version = '>= 4.23.1' (fetched from
-    gitlab.gnome.org/GNOME/libadwaita at tag 1.10.beta.1).
+    gitlab.gnome.org/GNOME/libadwaita at tag 1.10.0).
 
 Both numbers are transcribed from a live upstream fetch at the time this was
 written, not derived from anything in this repo -- there is nothing else to
@@ -47,7 +46,7 @@ def _global_version(spec: pathlib.Path, name: str) -> tuple[int, ...]:
 
 def test_gtk4_declares_pangos_real_floor():
     assert _global_version(GTK4_SPEC, "pango_version") >= (1, 58), (
-        "GTK 4.23.3's own meson.build requires pango >= 1.58 (pango_major_req=1, "
+        "GTK 4.24.0's own meson.build requires pango >= 1.58 (pango_major_req=1, "
         "pango_minor_req=58) -- a lower floor here is satisfiable by an older "
         "pango, and gtk4 vendors its own copy instead of failing the BuildRequires"
     )
@@ -55,7 +54,7 @@ def test_gtk4_declares_pangos_real_floor():
 
 def test_libadwaita_declares_gtk4s_real_floor():
     assert _global_version(LIBADWAITA_SPEC, "gtk_version") >= (4, 23, 1), (
-        "libadwaita 1.10.beta.1's own meson.build requires gtk4 >= 4.23.1 -- a "
+        "libadwaita 1.10.0's own meson.build requires gtk4 >= 4.23.1 -- a "
         "lower floor here is satisfiable by an older, possibly pango-vendoring gtk4"
     )
 
@@ -64,10 +63,10 @@ def test_libadwaita_declares_glib2s_real_floor():
     """libadwaita.spec re-forked from Rawhide: glib_version must match gtk4.spec's
     own glib2_version floor in this tree, and Rawhide's current spec, not the
     stale 2.80.0 that predated the re-fork."""
-    assert _global_version(LIBADWAITA_SPEC, "glib_version") >= (2, 84, 0), (
-        "Rawhide's current libadwaita.spec (and gtk4.spec's glib2_version in "
-        "this tree) declare glib_version >= 2.84.0 -- a lower floor here is "
-        "satisfiable by an older glib2 than what actually gets built alongside it"
+    assert _global_version(LIBADWAITA_SPEC, "glib_version") >= (2, 89, 3), (
+        "libadwaita 1.10.0 and GTK 4.24.0 declare GLib >= 2.89.3 -- a lower "
+        "floor here is satisfiable by an older glib2 than what actually gets "
+        "built alongside it"
     )
 
 
@@ -89,8 +88,8 @@ def test_the_previously_stale_floor_is_gone(spec, name, stale):
 
 
 # Two tools GTK removed between whatever version this spec last built clean
-# and 4.23.3, confirmed absent from tools/meson.build and demos/meson.build
-# at the exact 4.23.3 tag (no source file, no install rule, no tools/ or
+# and 4.24.0, confirmed absent from tools/meson.build and demos/meson.build
+# at the exact 4.24.0 tag (no source file, no install rule, no tools/ or
 # demos/ subdirectory of that name). A stale %files entry for either fails
 # the whole package at the very end of the build with "File not found" --
 # reproduced live iterating this chain locally: %files -> gtk4-encode-symbolic-svg
@@ -110,7 +109,7 @@ REMOVED_UPSTREAM_FILES = (
 def test_gtk4_files_does_not_reference_a_tool_upstream_removed(stale_file):
     text = GTK4_SPEC.read_text(encoding="utf-8")
     assert stale_file not in text, (
-        f"{stale_file!r} does not exist in GTK 4.23.3 (verified against "
+        f"{stale_file!r} does not exist in GTK 4.24.0 (verified against "
         f"gitlab.gnome.org/GNOME/gtk tools/meson.build and demos/meson.build "
         f"at that tag) -- referencing it in %files fails the whole package "
         f"build with 'File not found', at the very end of a from-scratch build"
@@ -135,24 +134,14 @@ def test_libadwaita_does_not_use_the_meson_macros_that_break_under_console_pipe(
         )
 
 
-# Rawhide's current libadwaita.spec carries Patch0 (fix-sassc-requirement-for-
-# tarball-builds.patch, https://gitlab.gnome.org/GNOME/libadwaita/-/merge_requests/1802)
-# and has dropped the `BuildRequires: /usr/bin/sassc` that the patch makes
-# unnecessary for tarball builds (verified: the 1.10.beta.1 tarball ships
-# src/stylesheet/gtk.css, which is what the patched meson.build check looks
-# for). Losing either half of this pair independently regresses the fork:
-# the patch without dropping the BuildRequires is harmless but the
-# BuildRequires without the patch is what caused the extra dependency.
-def test_libadwaita_carries_the_sassc_patch_and_drops_its_buildrequires():
+# libadwaita 1.10.0 includes the tarball-build fix from upstream MR 1802.
+# Release tarballs ship gtk.css, so sassc and the downstream backport are both
+# unnecessary. Reintroducing either means the stable source was treated like
+# the old beta tarball or a git checkout.
+def test_libadwaita_uses_the_upstream_sassc_fix_without_a_downstream_patch():
     text = LIBADWAITA_SPEC.read_text(encoding="utf-8")
-    assert "Patch0:" in text and "fix-sassc-requirement-for-tarball-builds.patch" in text, (
-        "libadwaita.spec is missing the sassc tarball-build fix patch that "
-        "Rawhide's current spec carries"
-    )
+    assert "fix-sassc-requirement-for-tarball-builds.patch" not in text
     assert "/usr/bin/sassc" not in text, (
-        "libadwaita.spec still declares BuildRequires: /usr/bin/sassc, which "
-        "the sassc tarball-build fix patch makes unnecessary -- Rawhide's "
-        "current spec has already dropped it"
+        "libadwaita.spec declares BuildRequires: /usr/bin/sassc even though "
+        "the 1.10.0 release tarball contains the upstream gtk.css check"
     )
-    patch_path = LIBADWAITA_SPEC.parent / "fix-sassc-requirement-for-tarball-builds.patch"
-    assert patch_path.is_file(), f"{patch_path} referenced by Patch0 but missing from disk"
