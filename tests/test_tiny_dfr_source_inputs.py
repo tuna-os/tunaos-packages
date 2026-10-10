@@ -60,6 +60,7 @@ def test_exact_native_child_and_raw_config_bound_before_native_execution(tmp_pat
     assert f"registry.opensuse.org/opensuse/tumbleweed@{digest}" in calls.splitlines()[-1]
     assert "--interactive" in calls.splitlines()[-1]
     assert "--platform linux/arm64" in calls.splitlines()[-1]
+    assert ":/scripts:ro" in calls.splitlines()[-1]
 
 
 @pytest.mark.parametrize("options", [
@@ -93,6 +94,8 @@ def test_locked_source_and_license_capture_remains_nonready():
     assert "--no-gpg-checks" not in source
     assert "grep -qx 'host: aarch64-unknown-linux-gnu'" in source
     assert "zypper --non-interactive install --no-recommends" in source
+    assert "bash /scripts/zypper-refresh-with-retry.sh" in source
+    assert "zypper --non-interactive refresh" not in source
 
 
 def test_pull_requests_register_only_unprivileged_source_tests():
