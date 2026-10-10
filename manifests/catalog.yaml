@@ -3372,26 +3372,6 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-  - name: graphviz
-    family: gnome50
-    packaging:
-      rpm:
-        copr: graphviz
-    targets:
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order.yml
-  - name: graphviz
-    family: gnome51
-    packaging:
-      rpm:
-        copr: graphviz
-    targets:
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order-gnome51.yml
   - name: greetd
     family: hummingbird-desktops
     packaging:
@@ -3915,26 +3895,6 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-  - name: highway
-    family: gnome50
-    packaging:
-      rpm:
-        copr: highway
-    targets:
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order.yml
-  - name: highway
-    family: gnome51
-    packaging:
-      rpm:
-        copr: highway
-    targets:
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order-gnome51.yml
   - name: highway
     family: hummingbird-desktops
     packaging:
@@ -6137,26 +6097,6 @@ packages:
       version: 6.0.0
       source: http://ftp.gnome.org/pub/GNOME/sources/%{name}/6.0/%{name}-%{version}.tar.xz
       spec: src/deps/libgda/libgda.spec
-    targets:
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order-gnome51.yml
-  - name: libgee
-    family: gnome50
-    packaging:
-      rpm:
-        copr: libgee
-    targets:
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order.yml
-  - name: libgee
-    family: gnome51
-    packaging:
-      rpm:
-        copr: libgee
     targets:
       - el10
     membership: runtime
@@ -8790,7 +8730,11 @@ packages:
     family: gnome50
     packaging:
       rpm:
-        copr: ptyxis
+        native: src/gnome-50/ptyxis
+    upstream:
+      version: '50.1'
+      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-50/ptyxis/ptyxis.spec
     targets:
       - el10
     membership: runtime
@@ -8800,7 +8744,11 @@ packages:
     family: gnome51
     packaging:
       rpm:
-        copr: ptyxis
+        native: src/gnome-51/ptyxis
+    upstream:
+      version: '50.1'
+      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/ptyxis/ptyxis.spec
     targets:
       - el10
     membership: runtime
@@ -10814,26 +10762,6 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-  - name: vala
-    family: gnome50
-    packaging:
-      rpm:
-        copr: vala
-    targets:
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order.yml
-  - name: vala
-    family: gnome51
-    packaging:
-      rpm:
-        copr: vala
-    targets:
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order-gnome51.yml
   - name: vdirsyncer
     family: hummingbird-desktops
     packaging:

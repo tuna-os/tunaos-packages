@@ -2,6 +2,11 @@
 #
 # Packages within a tier build in parallel; tiers are sequential.
 # Each package entry is a path relative to the repo root.
+#
+# Every entry is built here. Dependencies the el10 buildroot's system
+# repositories already supply (graphviz, vala, libgee from AppStream/CRB;
+# highway from EPEL 10) are not listed: they were copr_name entries that
+# pointed at the retired jreilly1821/c10s-gnome-* COPR (#391, #439).
 
 target: centos-stream-10-x86_64
 
@@ -20,13 +25,11 @@ tiers:
         build_tool: true
       - path: src/deps/gnome50-el10-compat
       - path: src/deps/selinux-policy
-      - copr_name: graphviz
       # sqlcipher was copr_name-only, so the GitHub chain skipped it and the
       # buildroot silently took it from the COPR repo -- until #113 removed
       # that fallback and libgda died with 'No matching package to install:
       # sqlcipher-devel' (run 30676231208). Built by both pipelines now.
       - path: src/deps/sqlcipher
-        copr_name: sqlcipher
 
   # Tier 1: Needs tools from Tier 0.
   - name: build-tools
@@ -41,7 +44,6 @@ tiers:
         build_tool: true
       - path: src/deps/gi-docgen
         build_tool: true
-      - copr_name: vala
 
   # Tier 3: Bootstrap GLib.
   - name: glib2-bootstrap
@@ -54,7 +56,6 @@ tiers:
     packages:
       - path: src/deps/libei
       - path: src/deps/mozjs140
-        copr_name: mozjs140
       - path: src/deps/libzip
       - path: src/deps/fontconfig
 
@@ -89,12 +90,10 @@ tiers:
       # simdutf was copr_name-only: vte291 died on pkgconfig(simdutf) once the
       # COPR fallback was gone (run 30712269949) -- the sqlcipher story again.
       - path: src/deps/simdutf
-        copr_name: simdutf
       # localsearch needs pkgconfig(gexiv2-0.16); nothing in el10/EPEL provides
       # it. src/deps/libgexiv2 (0.16.0) was already imported but never wired
       # into the manifest, so no tier ever built it (run 30712269949).
       - path: src/deps/libgexiv2
-      - copr_name: libgee
       - path: src/deps/libsoup
 
   # Tier 10: System Tools & GJS.
@@ -103,7 +102,6 @@ tiers:
       - path: src/deps/umockdev
         build_tool: true
       - path: src/deps/python-dbusmock
-        copr_name: python-dbusmock
         build_tool: true
       - path: src/deps/avahi
       - path: src/gnome-50/gjs
@@ -120,7 +118,6 @@ tiers:
       - path: src/gnome-50/gsettings-desktop-schemas
       - path: src/gnome-50/gnome-desktop3
       - path: src/deps/gtk4
-      - copr_name: highway         # runtime dep of glycin-loaders (bundled libjxl); in EPEL10 but explicit here for self-contained COPR
       - path: src/deps/glycin
       - path: src/deps/libgda
 
@@ -158,7 +155,9 @@ tiers:
       - path: src/gnome-50/gnome-session
       - path: src/gnome-50/gnome-control-center
       - path: src/gnome-50/gdm
-      - copr_name: ptyxis
+      # AppStream ships ptyxis 47.8; the track's 50.1 spec builds here
+      # instead of coming from the retired c10s-gnome COPR (#439).
+      - path: src/gnome-50/ptyxis
 
   # Tier 16: Post-session packages that depend on GDM/gnome-shell.
   - name: post-session
