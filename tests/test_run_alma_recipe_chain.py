@@ -24,7 +24,7 @@ def document():
 def test_container_exact_base_arch_and_readonly_candidate(document, tmp_path):
     item = adapter.Adapter(document, ROOT, tmp_path)
     command = item.container(tmp_path / 'work', tmp_path / 'repo')
-    assert command[:5] == ['podman', 'run', '--rm', '--platform', 'linux/amd64']
+    assert command[:5] == ['podman', 'run', '--rm', '--platform', 'linux/amd64/v2']
     assert str((tmp_path / 'repo').resolve()) + ':/candidate-repo:ro' in command
     assert 'BUILD_IMAGE=' + document['image'] in command
     assert 'TUNAOS_CANDIDATE_REPO=/candidate-repo' in command
@@ -32,6 +32,7 @@ def test_container_exact_base_arch_and_readonly_candidate(document, tmp_path):
     assert 'TZ=UTC' in command and 'LANG=C.UTF-8' in command and 'LC_ALL=C.UTF-8' in command
     assert any(value.startswith('SOURCE_DATE_EPOCH=') for value in command)
     document['architecture'] = 'aarch64'
+    document['platform'] = 'linux/arm64'
     assert adapter.Adapter(document, ROOT, tmp_path, 'docker').container(tmp_path, tmp_path)[4] == 'linux/arm64'
 
 
@@ -155,7 +156,7 @@ def test_native_runner_calls_actual_vendor_guard_before_rpmbuild():
     assert 'python3 /factory/scripts/alma-rpmbuild-guard.py "$ARCHITECTURE" -ba' in source
     assert "--define '_topdir /work/rpmbuild'" in source
     wrapper = (ROOT / 'scripts/verify-alma-recipe-chain-ci.sh').read_text()
-    assert wrapper.index('export CHAIN_STARTED_MONOTONIC=') < wrapper.index('alma-candidate-resume.py prepare')
+    assert wrapper.index('CHAIN_STARTED_MONOTONIC=') < wrapper.index('export CHAIN_STARTED_MONOTONIC\n') < wrapper.index('alma-candidate-resume.py prepare')
 
 
 def test_smoke_cannot_be_substituted_by_changed_recipe(document, tmp_path):
@@ -168,3 +169,9 @@ def test_smoke_cannot_be_substituted_by_changed_recipe(document, tmp_path):
     with pytest.raises(ValueError, match='authored digest'):
         item.verify({'name': 'app', 'recipe': 'packages/app/package.yaml',
             'recipeDigest': 'sha256:' + 'a' * 64, 'requirements': {'build': [], 'runtime': []}}, repo)
+
+
+def test_container_cannot_flatten_alma_v2_variant(document, tmp_path):
+    document['platform'] = 'linux/amd64'
+    with pytest.raises(ValueError, match='platform identity'):
+        adapter.Adapter(document, ROOT, tmp_path).container(tmp_path, tmp_path)

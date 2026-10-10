@@ -105,9 +105,12 @@ class Adapter:
         self.chain_started = chain_started
 
     def container(self, work, repo):
-        # platform v2 is an ISA obligation, not an engine architecture selector.
-        architecture = 'amd64' if self.document['architecture'] == 'x86_64' else 'arm64'
-        return [self.engine, 'run', '--rm', '--platform', 'linux/' + architecture,
+        # Docker also checks a child manifest's OCI variant. Retain v2 in
+        # --platform while native uname checks the host architecture separately.
+        platform = {'x86_64': 'linux/amd64/v2', 'aarch64': 'linux/arm64'}[self.document['architecture']]
+        if self.document.get('platform') != platform:
+            raise ValueError('native container platform identity mismatch')
+        return [self.engine, 'run', '--rm', '--platform', platform,
                 '--volume', str(self.root.resolve()) + ':/factory:ro',
                 '--volume', str((self.root / 'scripts').resolve()) + ':/scripts:ro',
                 '--volume', str(Path(work).resolve()) + ':/work:rw',
