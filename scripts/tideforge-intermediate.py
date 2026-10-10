@@ -23,6 +23,7 @@ import tempfile
 import yaml
 
 import tideforge
+from target_platform import build_context
 
 
 SCHEMA = 0
@@ -485,7 +486,7 @@ def candidates(args: argparse.Namespace) -> None:
                 "payload_architecture": args.architecture,
                 "target": target,
                 "format": target_contract["format"],
-                "image": target_contract["probe_image"],
+                "image": build_context(target_contract, args.architecture)["image"],
             })
     result = {
         "payloads": {"include": payloads},

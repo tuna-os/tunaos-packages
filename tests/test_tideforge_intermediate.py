@@ -246,3 +246,23 @@ def test_a_multi_line_description_stays_one_deb_control_field(tmp_path: Path):
         ["dpkg-deb", "-f", package, "Description"], check=True, text=True,
         stdout=subprocess.PIPE).stdout
     assert "second line" in description
+
+
+def test_portable_arch_carriers_use_the_exact_native_child(tmp_path: Path):
+    """CI38081885545: replacing scalar Arch probe_image broke carrier planning."""
+    packages = tmp_path / 'packages'
+    recipe = packages / 'payload-canary' / 'package.yaml'
+    recipe.parent.mkdir(parents=True)
+    write_recipe(recipe)
+    recipe.write_text(recipe.read_text().replace('targets: [ubuntu, debian]', 'targets: [ubuntu, arch]'))
+    expected = {
+        'x86_64': 'docker.io/library/archlinux@sha256:2fd1ae548076c67bcd41098ddd44e799058010e8d55f085d453dbb890e706860',
+        'aarch64': 'ghcr.io/tuna-os/archlinuxarm@sha256:17ad528bbccd4b59b7ce18c652012916a4bf2e27de53606884ef61eb33c90a0d',
+    }
+    for architecture, child in expected.items():
+        result = json.loads(run('candidates', '--root', str(packages), '--architecture', architecture,
+                                '--targets', 'ubuntu', 'arch').stdout)
+        carrier = next(row for row in result['carriers']['include'] if row['target'] == 'arch')
+        assert carrier['image'] == child
+        assert carrier['architecture'] == architecture
+        assert carrier['format'] == 'pkg.tar.zst'
