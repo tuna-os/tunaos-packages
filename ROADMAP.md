@@ -1,6 +1,6 @@
 # tunaos-packages Roadmap
 
-**Last updated**: 2026-09-02 | **Maintainer**: tuna-os (hanthor) / packaging maintainers
+**Last updated**: 2026-09-16 | **Maintainer**: tuna-os (hanthor) / packaging maintainers
 
 ---
 
@@ -16,7 +16,7 @@ only and is being retired (#439).
 
 ---
 
-## Current Status (2026-09-02)
+## Current Status (2026-09-16)
 
 - **The unified factory landed** (#430, merged 08-19). One planner and one cell
   boundary replaced the per-family build paths; gated artifacts are
