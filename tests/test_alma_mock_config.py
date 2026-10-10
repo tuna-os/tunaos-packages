@@ -56,6 +56,20 @@ def test_native_architecture_and_compiler_floor(release, arch, family):
 
 
 @pytest.mark.parametrize('release,arch,family', CASES)
+def test_bootstrap_release_package_exists_in_the_native_release_namespace(release, arch, family):
+    # CI Kitten bootstrap failed on stable's almalinux-release. Official
+    # Kitten BaseOS publishes almalinux-kitten-release on v2 and ARM alike:
+    # https://kitten.repo.almalinux.org/10-kitten/BaseOS/x86_64_v2/os/Packages/
+    # https://kitten.repo.almalinux.org/10-kitten/BaseOS/aarch64/os/Packages/
+    _, options, _ = load_config(release, arch, family)
+    packages = options['chroot_setup_cmd'].split()[1:]
+    expected = 'almalinux-kitten-release' if release == 'alma10-kitten' else 'almalinux-release'
+    assert expected in packages
+    other = 'almalinux-release' if release == 'alma10-kitten' else 'almalinux-kitten-release'
+    assert other not in packages
+
+
+@pytest.mark.parametrize('release,arch,family', CASES)
 def test_native_repositories_and_signing_keys(release, arch, family):
     _, _, repos = load_config(release, arch, family)
     host = ('https://repo.almalinux.org/almalinux/10' if release == 'alma10'
