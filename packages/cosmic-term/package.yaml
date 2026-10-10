@@ -22,6 +22,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: 9129277bed1e810418a3138d683c1bc15656234f
     VERGEN_GIT_COMMIT_DATE: 2026-09-23 11:55:55 -0600
@@ -38,10 +43,12 @@ dependencies:
         - lld
         - just
       alma10:
+        - tunaos-rust193 >= 1.93.0
         - cargo
         - lld
         - just
       alma10-kitten:
+        - tunaos-rust193 >= 1.93.0
         - cargo
         - lld
         - just

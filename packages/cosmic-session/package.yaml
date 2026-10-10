@@ -23,6 +23,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: 1e4f10b5821982688e4a8a39f819be0bc2ad3e74
     VERGEN_GIT_COMMIT_DATE: "2026-09-23 13:41:35 -0400"
@@ -32,8 +37,8 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [cargo, lld, just, desktop-file-utils]
-      alma10: [cargo, lld, just, desktop-file-utils]
-      alma10-kitten: [cargo, lld, just, desktop-file-utils]
+      alma10: [tunaos-rust193 >= 1.93.0, cargo, lld, just, desktop-file-utils]
+      alma10-kitten: [tunaos-rust193 >= 1.93.0, cargo, lld, just, desktop-file-utils]
       ubuntu: [cargo, lld, just, desktop-file-utils]
       debian: [cargo, lld, just, desktop-file-utils]
   runtime:

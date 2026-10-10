@@ -9,6 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import tideforge
 
+CONSUMERS = ['cosmic-bg', 'cosmic-panel', 'cosmic-app-library', 'cosmic-files',
+    'cosmic-comp', 'cosmic-greeter', 'cosmic-initial-setup', 'cosmic-notifications',
+    'cosmic-launcher', 'cosmic-session', 'cosmic-osd', 'cosmic-settings',
+    'cosmic-term', 'cosmic-workspaces', 'cosmic-applets', 'cosmic-osk', 'cosmic-settings-daemon']
+
 
 def load(name):
     return yaml.safe_load((ROOT / 'packages' / name / 'package.yaml').read_text())
@@ -48,7 +53,7 @@ def test_source_archive_immutable_and_isolated_full_toolchain():
 
 
 @pytest.mark.parametrize('target', ['alma10', 'alma10-kitten'])
-@pytest.mark.parametrize('name', ['cosmic-bg', 'cosmic-panel'])
+@pytest.mark.parametrize('name', CONSUMERS)
 def test_cosmic_exact_provider_and_path_before_cargo(target, name):
     recipe = load(name)
     assert 'tunaos-rust193 >= 1.93.0' in tideforge.target_dependencies(recipe, target)
@@ -59,7 +64,7 @@ def test_cosmic_exact_provider_and_path_before_cargo(target, name):
 
 
 @pytest.mark.parametrize('target', ['el10', 'ubuntu', 'debian'])
-@pytest.mark.parametrize('name', ['cosmic-bg', 'cosmic-panel'])
+@pytest.mark.parametrize('name', CONSUMERS)
 def test_other_targets_do_not_require_isolated_alma_provider(target, name):
     assert not any('tunaos-rust193' in item for item in tideforge.target_dependencies(load(name), target))
     assert 'opt/tunaos/rust-1.93/bin' not in '\n'.join(tideforge.render(load(name), target).values())

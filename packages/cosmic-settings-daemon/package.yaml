@@ -29,6 +29,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   prepare: [patch -p1 < patches/sound-theme-freedesktop.patch]
   environment:
     VERGEN_GIT_SHA: f97bee648c579b5fe2f2000bf3d129f1a7b08f17
@@ -43,8 +48,8 @@ dependencies:
       # what the control file names (same lesson as cosmic-comp, run
       # 30701973171).
       el10: [cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
-      alma10: [cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
-      alma10-kitten: [cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
+      alma10: [tunaos-rust193 >= 1.93.0, cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
+      alma10-kitten: [tunaos-rust193 >= 1.93.0, cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
       ubuntu: [cargo, lld, just, make, patch, libsystemd-dev, libudev-dev, libinput-dev, libwayland-dev, clang, libxkbcommon-dev, pulseaudio-utils, libpipewire-0.3-dev, libssl-dev]
       debian: [cargo, lld, just, make, patch, libsystemd-dev, libudev-dev, libinput-dev, libwayland-dev, clang, libxkbcommon-dev, pulseaudio-utils, libpipewire-0.3-dev, libssl-dev]
   runtime:

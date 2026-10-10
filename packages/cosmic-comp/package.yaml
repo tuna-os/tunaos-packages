@@ -22,6 +22,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: 0fbd4574ef4caf74769a617d205fd1fc909ac9b1
     VERGEN_GIT_COMMIT_DATE: "2026-09-22 17:12:28 -0600"
@@ -37,8 +42,8 @@ dependencies:
     capabilities: [rust, pkg-config, wayland-dev, libxkbcommon-dev, libinput-dev, gbm-dev, pixman-dev, libdisplay-info-dev]
     targets:
       el10: [lld, make, libglvnd-devel, libseat-devel]
-      alma10: [lld, make, libglvnd-devel, libseat-devel]
-      alma10-kitten: [lld, make, libglvnd-devel, libseat-devel]
+      alma10: [tunaos-rust193 >= 1.93.0, lld, make, libglvnd-devel, libseat-devel]
+      alma10-kitten: [tunaos-rust193 >= 1.93.0, lld, make, libglvnd-devel, libseat-devel]
       ubuntu: [lld, make, libegl1-mesa-dev, libseat-dev]
       debian: [lld, make, libegl1-mesa-dev, libseat-dev]
   runtime:

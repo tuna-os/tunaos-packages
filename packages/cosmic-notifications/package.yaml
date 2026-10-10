@@ -22,6 +22,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: aa4dac2702506395ab76da1f6755e03b2ccb0db8
     VERGEN_GIT_COMMIT_DATE: "2026-09-16 16:30:13 -0400"
@@ -31,8 +36,8 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [cargo, lld, just, libxkbcommon-devel, wayland-devel]
-      alma10: [cargo, lld, just, libxkbcommon-devel, wayland-devel]
-      alma10-kitten: [cargo, lld, just, libxkbcommon-devel, wayland-devel]
+      alma10: [tunaos-rust193 >= 1.93.0, cargo, lld, just, libxkbcommon-devel, wayland-devel]
+      alma10-kitten: [tunaos-rust193 >= 1.93.0, cargo, lld, just, libxkbcommon-devel, wayland-devel]
       ubuntu: [cargo, lld, just, libxkbcommon-dev, libwayland-dev]
       debian: [cargo, lld, just, libxkbcommon-dev, libwayland-dev]
   runtime:
