@@ -305,3 +305,87 @@ def test_failed_filesystem_swap_restores_previous_signed_pair(candidate, monkeyp
     assert (live / 'repomd.xml.asc').read_bytes() == b'previous-signature'
     assert any(source.name == 'previous-repodata' and destination == live for source, destination in attempts)
     assert not list(repo.glob('.candidate-index-*'))
+
+
+@pytest.fixture
+def candidate_module():
+    spec = importlib.util.spec_from_file_location('candidate_repository', SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_admission_refuses_existing_artifacts_before_verification(candidate_module, tmp_path):
+    repo = tmp_path / 'repo'; repo.mkdir()
+    (repo / 'foreign.rpm').write_bytes(b'foreign')
+    with pytest.raises(ValueError, match='empty candidate repository'):
+        candidate_module.admit_snapshot(tmp_path / 'snapshot', tmp_path / 'manifest',
+            tmp_path / 'identity', tmp_path / 'bundle', tmp_path / 'api', repo, tmp_path / 'state')
+    assert (repo / 'foreign.rpm').read_bytes() == b'foreign'
+
+
+def test_admission_requires_fresh_initialized_key_state(candidate_module, tmp_path):
+    with pytest.raises(ValueError, match='fresh candidate state'):
+        candidate_module.admit_snapshot(tmp_path / 'snapshot', tmp_path / 'manifest',
+            tmp_path / 'identity', tmp_path / 'bundle', tmp_path / 'api', tmp_path / 'repo', tmp_path / 'state')
+
+
+@pytest.mark.parametrize('raw', [b'', b'not an RPM', bytes.fromhex('edabeedb') + bytes(92),
+    bytes.fromhex('edabeedb') + bytes(92) + bytes.fromhex('8eade80100000000ffffffffffffffff')])
+def test_payload_identity_rejects_malformed_rpm(candidate_module, tmp_path, raw):
+    rpm = tmp_path / 'malformed.rpm'; rpm.write_bytes(raw)
+    with pytest.raises(ValueError): candidate_module.rpm_content(rpm)
+
+
+def test_payload_identity_hashes_real_header_and_payload_not_signature(candidate_module, tmp_path, monkeypatch):
+    import hashlib
+    import struct
+    import types
+    lead = bytes.fromhex('edabeedb') + bytes(92)
+    header = bytes.fromhex('8eade80100000000') + struct.pack('>II', 0, 3) + b'hdr'
+    def rpm_bytes(signature):
+        signature_header = bytes.fromhex('8eade80100000000') + struct.pack('>II', 0, len(signature)) + signature
+        padding = bytes((-len(signature_header)) % 8)
+        return lead + signature_header + padding + header + b'payload'
+    first = tmp_path / 'old.rpm'; first.write_bytes(rpm_bytes(b'old signature'))
+    second = tmp_path / 'new.rpm'; second.write_bytes(rpm_bytes(b'new longer signature'))
+    calls = []
+    def rpm_query(command, **kwargs):
+        calls.append(command)
+        return types.SimpleNamespace(stdout='native\t0:1-1.el10.alma\tx86_64\n')
+    monkeypatch.setattr(candidate_module.subprocess, 'run', rpm_query)
+    expected = {'nevra': 'native\t0:1-1.el10.alma\tx86_64',
+                'headerPayloadDigest': 'sha256:' + hashlib.sha256(header + b'payload').hexdigest(),
+                'payloadDigest': 'sha256:' + hashlib.sha256(b'payload').hexdigest()}
+    assert candidate_module.rpm_content(first) == expected
+    assert candidate_module.rpm_content(second) == expected
+    second.write_bytes(rpm_bytes(b'new longer signature') + b'changed')
+    assert candidate_module.rpm_content(second) != expected
+    assert all(command[0:2] == ['rpm', '-qp'] for command in calls)
+
+
+def test_admission_authenticator_failure_leaves_empty_candidate_unchanged(candidate_module, tmp_path, monkeypatch):
+    repo = tmp_path / 'repo'; repo.mkdir()
+    (repo / 'repodata').mkdir(); (repo / 'repodata/repomd.xml').write_text('old empty metadata')
+    state = tmp_path / 'state'; state.mkdir(); (state / 'identity.json').write_text('{}')
+    manifest = tmp_path / 'snapshot.json'; manifest.write_text('{}')
+    calls = []
+    def failed_verifier(command, **kwargs):
+        calls.append(command)
+        raise subprocess.CalledProcessError(1, command)
+    monkeypatch.setattr(candidate_module.subprocess, 'run', failed_verifier)
+    with pytest.raises(subprocess.CalledProcessError):
+        candidate_module.admit_snapshot(tmp_path / 'snapshot', manifest, tmp_path / 'identity',
+            tmp_path / 'bundle', tmp_path / 'api', repo, state)
+    assert len(calls) == 1
+    assert calls[0][1:3] == [str(SCRIPT.with_name('alma-candidate-snapshot.py')), 'verify']
+    assert (repo / 'repodata/repomd.xml').read_text() == 'old empty metadata'
+    assert not (repo / 'admission-receipt.json').exists()
+
+
+def test_admission_receipt_prevents_double_admission(candidate_module, tmp_path):
+    repo = tmp_path / 'repo'; repo.mkdir()
+    (repo / 'admission-receipt.json').write_text('{"productionReady":false}')
+    with pytest.raises(ValueError, match='empty candidate repository'):
+        candidate_module.admit_snapshot(tmp_path / 'snapshot', tmp_path / 'manifest',
+            tmp_path / 'identity', tmp_path / 'bundle', tmp_path / 'api', repo, tmp_path / 'state')

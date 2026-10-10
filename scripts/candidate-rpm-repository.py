@@ -6,6 +6,9 @@ import argparse
 import contextlib
 import fcntl
 import json
+import hashlib
+import struct
+import sys
 import os
 import re
 from pathlib import Path
@@ -131,12 +134,158 @@ def index(repo, state):
                 raise
 
 
+
+def file_digest(path):
+    hasher = hashlib.sha256()
+    with path.open('rb') as stream:
+        while chunk := stream.read(1024 * 1024):
+            hasher.update(chunk)
+    return 'sha256:' + hasher.hexdigest()
+
+
+def rpm_content(path):
+    """Hash actual RPM main-header/payload bytes, excluding mutable signatures.
+
+    RPM v4 uses a 96-byte lead and an eight-byte padded signature header.
+    https://rpm.org/docs/6.0.x/manual/format_v4.html
+    """
+    size = path.stat().st_size
+    if size > 2 * 1024 ** 3:
+        raise ValueError('RPM exceeds size limit')
+    with path.open('rb') as stream:
+        lead = stream.read(96)
+        if len(lead) != 96 or lead[:4] != bytes.fromhex('edabeedb'):
+            raise ValueError('invalid RPM lead')
+        def header_end():
+            start = stream.tell()
+            header = stream.read(16)
+            if len(header) != 16 or header[:8] != bytes.fromhex('8eade80100000000'):
+                raise ValueError('invalid RPM header')
+            count, length = struct.unpack('>II', header[8:])
+            end = start + 16 + count * 16 + length
+            if end > size:
+                raise ValueError('truncated RPM header')
+            return end
+        signature_end = header_end()
+        stream.seek((signature_end + 7) & ~7)
+        main_start = stream.tell()
+        payload_start = header_end()
+        if payload_start >= size:
+            raise ValueError('missing RPM payload')
+        stream.seek(main_start)
+        content = hashlib.sha256()
+        while chunk := stream.read(1024 * 1024):
+            content.update(chunk)
+        stream.seek(payload_start)
+        payload = hashlib.sha256()
+        while chunk := stream.read(1024 * 1024):
+            payload.update(chunk)
+    nevra = run('rpm', '-qp', '--qf', '%{NAME}\\t%{EPOCHNUM}:%{VERSION}-%{RELEASE}\\t%{ARCH}\\n',
+                str(path), stdout=subprocess.PIPE).stdout.strip()
+    if not nevra or len(nevra.split('\t')) != 3:
+        raise ValueError('invalid queried NEVRA')
+    return {'nevra': nevra, 'headerPayloadDigest': 'sha256:' + content.hexdigest(),
+            'payloadDigest': 'sha256:' + payload.hexdigest()}
+
+
+def admit_snapshot(root, manifest, expected_identity, bundle, api_run, repo, state):
+    # The subprocess performs cryptographic verification, never a caller boolean.
+    with locked(repo):
+        if any(path.name not in {'repo.lock', 'repodata'} for path in repo.iterdir()):
+            raise ValueError('snapshot admission requires empty candidate repository')
+        if not (state / 'identity.json').is_file():
+            raise ValueError('fresh candidate state required')
+        predecessor = file_digest(manifest)
+        run(sys.executable, str(Path(__file__).with_name('alma-candidate-snapshot.py')), 'verify',
+            '--root', str(root), '--manifest', str(manifest), '--identity', str(expected_identity),
+            '--bundle', str(bundle), '--api-run', str(api_run), stdout=subprocess.PIPE)
+        # Parse strict JSON again through the snapshot helper, after verifier success.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('snapshot', Path(__file__).with_name('alma-candidate-snapshot.py'))
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        document = module.load(manifest)
+        module.validate_manifest(document)
+        if module.inventory(root, document['publicKey']['path']) != document['inventory']:
+            raise ValueError('snapshot changed after verification')
+        if file_digest(manifest) != predecessor:
+            raise ValueError('snapshot manifest changed during verification')
+        key = root / document['publicKey']['path']
+        with tempfile.TemporaryDirectory(prefix='.candidate-admission-', dir=repo) as directory:
+            stage = Path(directory)
+            gpg_home = stage / 'old-gpg'; gpg_home.mkdir(mode=0o700)
+            imported = run('gpg', '--homedir', str(gpg_home), '--batch', '--with-colons',
+                           '--import-options', 'show-only', '--import', str(key), stdout=subprocess.PIPE).stdout
+            fingerprints = [line.split(':')[9] for line in imported.splitlines() if line.startswith('fpr:')]
+            if not fingerprints or fingerprints[0] != document['publicKey']['fingerprint'] or any(
+                    line.startswith(('sec:', 'ssb:')) for line in imported.splitlines()):
+                raise ValueError('snapshot public key fingerprint mismatch or private material')
+            if sum(line.startswith('pub:') for line in imported.splitlines()) != 1:
+                raise ValueError('snapshot requires exactly one public key')
+            run('gpg', '--homedir', str(gpg_home), '--batch', '--import', str(key))
+            metadata = root / 'repodata/repomd.xml'
+            signature = root / 'repodata/repomd.xml.asc'
+            if not metadata.is_file() or not signature.is_file():
+                raise ValueError('signed snapshot metadata required')
+            run('gpg', '--homedir', str(gpg_home), '--batch', '--verify', str(signature), str(metadata))
+            old_state = stage / 'old-state'; (old_state / 'keys').mkdir(parents=True)
+            shutil.copyfile(key, old_state / 'keys/candidate-public.gpg')
+            output = stage / 'output'; output.mkdir()
+            records = []
+            for entry in document['inventory']:
+                if not entry['path'].endswith('.rpm'):
+                    continue
+                source = root / entry['path']
+                if source.name != entry['path']:
+                    raise ValueError('candidate RPMs must be top-level files')
+                if file_digest(source) != entry['digest']:
+                    raise ValueError('snapshot RPM changed before admission')
+                verify_rpm(source, old_state)
+                before = rpm_content(source)
+                install(source, output, state)
+                admitted = output / source.name
+                if file_digest(source) != entry['digest']:
+                    raise ValueError('snapshot RPM changed during admission')
+                after = rpm_content(admitted)
+                if after != before:
+                    raise ValueError('RPM content changed while signing')
+                records.append({'path': source.name, 'oldDigest': entry['digest'],
+                                'newDigest': file_digest(admitted), **before})
+            if not records:
+                raise ValueError('snapshot has no completed RPMs')
+            index(output, state)
+            new_digests = {record['path']: record['newDigest'] for record in records}
+            completions = [{'name': package['name'], 'inputDigest': package['inputDigest'],
+                            'outputs': [{'path': item['path'], 'digest': new_digests[item['path']]}
+                                        for item in package['outputs']]}
+                           for package in document['completedPackages']]
+            receipt = {'schemaVersion': 1, 'productionReady': False,
+                       'predecessorSnapshotDigest': predecessor, 'producer': document['identity'],
+                       'completedPackages': completions, 'rpms': records}
+            (output / 'admission-receipt.json').write_text(json.dumps(receipt, sort_keys=True) + '\n')
+            (output / 'repo.lock').unlink()
+            backup = stage / 'previous-repodata'
+            if (repo / 'repodata').exists():
+                os.replace(repo / 'repodata', backup)
+            installed = []
+            try:
+                for path in sorted(output.iterdir()):
+                    destination = repo / path.name
+                    os.replace(path, destination); installed.append(destination)
+            except BaseException:
+                for path in reversed(installed):
+                    if path.is_dir(): shutil.rmtree(path)
+                    else: path.unlink()
+                if backup.exists(): os.replace(backup, repo / 'repodata')
+                raise
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation', choices=['init', 'install', 'index'])
+    parser.add_argument('operation', choices=['init', 'install', 'index', 'admit-snapshot'])
     parser.add_argument('--state', type=Path, required=True)
     parser.add_argument('--repo', type=Path, required=True)
     parser.add_argument('--rpm', type=Path)
+    for option in ('snapshot-root', 'manifest', 'identity', 'bundle', 'api-run'):
+        parser.add_argument('--' + option, type=Path)
     args = parser.parse_args()
     for path in (args.state, args.repo):
         if any(parent.is_symlink() for parent in (path, *path.parents)):
@@ -148,6 +297,10 @@ def main():
         initialize(state, repo)
     elif args.operation == 'index':
         index(repo, state)
+    elif args.operation == 'admit-snapshot':
+        if any(getattr(args, key) is None for key in ('snapshot_root', 'manifest', 'identity', 'bundle', 'api_run')):
+            parser.error('admit-snapshot requires snapshot root, manifest, identity, bundle and API run')
+        admit_snapshot(args.snapshot_root, args.manifest, args.identity, args.bundle, args.api_run, repo, state)
     elif args.rpm is None:
         parser.error('install requires --rpm')
     else:
