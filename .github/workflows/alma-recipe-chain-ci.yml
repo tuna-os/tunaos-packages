@@ -1,0 +1,103 @@
+name: Alma Recipe Chain CI
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/alma-recipe-chain-ci.yml'
+      - 'scripts/*alma*chain*'
+      - 'scripts/run-alma-rpm.sh'
+      - 'tests/test_alma_recipe_chain.py'
+      - 'tests/test_run_alma_recipe_chain.py'
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Native signed provider canary or complete declared recipe queue
+        type: choice
+        options: [canary, full]
+        default: canary
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+  attestations: write
+
+jobs:
+  unit:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.14'
+      - run: |
+          python -m pip install pytest pyyaml==6.0.3
+          python -m pytest tests/test_alma_recipe_chain.py tests/test_run_alma_recipe_chain.py
+  native:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [alma10, alma10-kitten]
+        architecture: [x86_64, aarch64]
+    runs-on: ${{ matrix.architecture == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.14'
+      - name: Install native CI tools
+        run: |
+          python -m pip install pyyaml==6.0.3
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c rpm gnupg
+      - name: Build and verify signed native provider waves
+        id: chain
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET: ${{ matrix.target }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          SCOPE: ${{ inputs.scope }}
+          CHAIN_BUDGET_SECONDS: '16200'
+        run: bash scripts/verify-alma-recipe-chain-ci.sh
+      - name: Attest completed native candidate inputs
+        id: attestation
+        if: always() && steps.chain.outputs.created == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/native-snapshot/snapshot.json
+      - name: Stage attestation bundle
+        if: always() && steps.attestation.outcome == 'success'
+        env:
+          BUNDLE_PATH: ${{ steps.attestation.outputs.bundle-path }}
+        run: |
+          test -s "$BUNDLE_PATH"
+          cp "$BUNDLE_PATH" '.factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/native-snapshot/bundle.jsonl'
+      - name: Retain immutable candidate snapshot
+        if: always() && steps.attestation.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}-alma-candidate-${{ github.run_id }}-${{ github.run_attempt }}-chain
+          path: .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/native-snapshot/
+          if-no-files-found: error
+      - name: Retain public build and installation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: alma-chain-evidence-${{ matrix.target }}-${{ matrix.architecture }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/plan.json
+            .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/result.json
+            .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/work/*/evidence/
+            .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/work/*/rpmbuild/SPECS/
+            .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/work/verification/
+            .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/candidate-meta/
+            .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/candidate/
+          if-no-files-found: warn

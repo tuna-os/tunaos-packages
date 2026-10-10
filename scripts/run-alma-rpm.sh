@@ -4,6 +4,7 @@ set -eEuo pipefail
 : "${TARGET:?}" "${ARCHITECTURE:?}" "${BUILD_IMAGE:?}"
 case "$TARGET" in alma10|alma10-kitten) ;; *) exit 2 ;; esac
 case "$ARCHITECTURE" in x86_64) suffix= ;; aarch64) suffix=-aarch64 ;; *) exit 2 ;; esac
+[[ $(uname -m) == "$ARCHITECTURE" ]] || { echo 'native Alma architecture mismatch' >&2; exit 2; }
 [[ "$BUILD_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] || exit 2
 mkdir -p /work/evidence
 exec > >(tee /work/evidence/build.log) 2>&1
@@ -36,6 +37,37 @@ if [[ -n ${PUBLISHED_INDEX:-} ]]; then
   echo 'Alma build requires a verified immutable dependency snapshot, not PUBLISHED_INDEX' >&2
   exit 1
 fi
+if [[ -n ${TUNAOS_CANDIDATE_REPO:-} ]]; then
+  [[ $TUNAOS_CANDIDATE_REPO == /candidate-repo && -d /candidate-repo && ! -L /candidate-repo ]] || exit 2
+  # The trusted host adapter authenticates the source/cell/key before mounting.
+  # A mounted directory still cannot supply symlinks or secret signing material.
+  python3 - <<'PY'
+from pathlib import Path
+p=Path('/candidate-repo')
+for f in p.rglob('*'):
+    if f.is_symlink() or (not f.is_file() and not f.is_dir()):
+        raise SystemExit('unsafe candidate repository entry')
+    if f.is_file() and not (f.name in {'candidate-public.gpg','repo.lock','admission-receipt.json'} or f.suffix == '.rpm' or f.relative_to(p).parts[0] in {'repodata','buildroots'}):
+        raise SystemExit('unexpected candidate repository material')
+    if f.is_file():
+        with f.open('rb') as stream:
+            if b'PRIVATE KEY' in stream.read(4096):
+                raise SystemExit('private candidate key forbidden')
+for name in ('candidate-public.gpg','repodata/repomd.xml','repodata/repomd.xml.asc'):
+    if not (p/name).is_file() or not (p/name).stat().st_size:
+        raise SystemExit('missing signed candidate repository')
+PY
+  rpm --import /candidate-repo/candidate-public.gpg
+  cat > /etc/tunaos-build-repos/candidate.repo <<'EOF'
+[tunaos-chain-candidate]
+name=Exact run-scoped candidate
+baseurl=file:///candidate-repo
+gpgkey=file:///candidate-repo/candidate-public.gpg
+gpgcheck=1
+repo_gpgcheck=1
+enabled=1
+EOF
+fi
 dnf -y --setopt=gpgcheck=1 install rpm-build redhat-rpm-config dnf-plugins-core
 dnf -y --setopt=gpgcheck=1 builddep /work/rpmbuild/SPECS/*.spec
 rpm --eval '%{_arch} %{_target_cpu} %{optflags}' > /work/evidence/rpm-macros.txt
@@ -54,7 +86,7 @@ for compiler in gcc clang rustc cargo go; do
   fi
 done
 export TUNAOS_COMPILER_EVIDENCE_DIR=/work/evidence/compiler
-rpmbuild -ba --define '_topdir /work/rpmbuild' \
+python3 /factory/scripts/alma-rpmbuild-guard.py "$ARCHITECTURE" -ba --define '_topdir /work/rpmbuild' \
   --define "_target_cpu $ARCHITECTURE" /work/rpmbuild/SPECS/*.spec
 python3 - <<'PY'
 import hashlib

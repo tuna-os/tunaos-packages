@@ -131,14 +131,25 @@ def admit(meta, repo, state, envelope):
     receipt = snapshot.load(repo / 'admission-receipt.json')
     if receipt.get('productionReady') is not False:
         raise ValueError('invalid admission receipt')
-    write(meta / 'completed-packages.json', receipt['completedPackages'])
     previous = envelope / 'payload/buildroots'
     if previous.exists():
         destination = repo / 'buildroots'; destination.mkdir(exist_ok=True)
-        for path in previous.iterdir():
-            if path.suffix in {'.txt', '.json'}:
-                if path.is_symlink() or not path.is_file(): raise ValueError('unsafe prior observation')
-                shutil.copyfile(path, destination / path.name)
+        # Admission has authenticated the complete inventory. Preserve every
+        # nested public compiler/buildroot observation, never just top-level
+        # text files. Recheck filesystem shape before copying that inventory.
+        if previous.is_symlink() or not previous.is_dir():
+            raise ValueError('unsafe prior observation root')
+        for path in sorted(previous.rglob('*')):
+            info = path.lstat()
+            output = destination / path.relative_to(previous)
+            if stat.S_ISDIR(info.st_mode):
+                output.mkdir(parents=True, exist_ok=True)
+            elif stat.S_ISREG(info.st_mode) and info.st_nlink == 1:
+                output.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(path, output)
+            else:
+                raise ValueError('unsafe prior observation')
+    write(meta / 'completed-packages.json', receipt['completedPackages'])
 
 def create(meta, repo, destination, chain_complete):
     if destination.exists(): raise ValueError('snapshot destination must be new')

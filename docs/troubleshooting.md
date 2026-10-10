@@ -41,8 +41,8 @@ The public key, signed RPM bytes and compiler observation must survive failure.
 **Symptom:** Native Alma canaries report Curl37 for `/keys/candidate-public.gpg`
 ([run 38080413978](https://github.com/tuna-os/tunaos-packages/actions/runs/38080413978)).
 
-**Cause:** Mock excludes the bind-mount plugin from bootstrap. A copied configuration
-cannot expose the key there. Mock mounts the roots of local repositories before DNF starts.
+**Cause:** Mock excludes the bind-mount plugin from bootstrap. A copy of that configuration
+does not expose the key there. Mock mounts the roots of local repositories before DNF starts.
 
 **Fix:** Stage only the public key in the signed local repository and reference
 that mounted path. Keep the checks for package and metadata signatures enabled. Native CI

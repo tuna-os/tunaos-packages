@@ -1,0 +1,79 @@
+schema: 1
+name: tunaos-rust193
+version: "1.93.0"
+release: 1
+summary: Isolated native Rust compiler for TunaOS build chains
+description: >-
+  Source-built Rust, Cargo, and native standard libraries under an isolated
+  prefix. This package does not replace Alma system compiler paths.
+license: Apache-2.0 AND MIT
+source:
+  url: https://static.rust-lang.org/dist/rustc-1.93.0-src.tar.xz
+  sha256: e30d898272c587a22f77679f03c5e8192b5645c7c9ccc3407ad1106761507cea
+  directory: rustc-1.93.0-src
+build_system: custom
+build:
+  environment:
+    CARGO_NET_OFFLINE: "true"
+  commands:
+    - |
+      python3 - <<'PY'
+      import json, os, pathlib, shlex, subprocess
+      native = subprocess.check_output(['/usr/bin/rustc', '-vV'], text=True)
+      if not native.startswith('rustc 1.92.'):
+          raise SystemExit('signed native Rust 1.92 bootstrap required')
+      host = next(line.split(': ', 1)[1] for line in native.splitlines() if line.startswith('host: '))
+      expected = {'x86_64': 'x86_64-unknown-linux-gnu', 'aarch64': 'aarch64-unknown-linux-gnu'}
+      if host != expected.get(os.uname().machine):
+          raise SystemExit('native bootstrap host mismatch')
+      if not pathlib.Path('vendor').is_dir() or not pathlib.Path('.cargo/config.toml').is_file():
+          raise SystemExit('official source vendoring missing')
+      q = json.dumps
+      configuration = '\n'.join([
+          'profile = "dist"', 'change-id = "ignore"', '[build]',
+          'build = ' + q(host), 'host = [' + q(host) + ']', 'target = [' + q(host) + ']',
+          'rustc = "/usr/bin/rustc"', 'cargo = "/usr/bin/cargo"',
+          'vendor = true', 'locked-deps = true', 'submodules = false',
+          'docs = false', 'compiler-docs = false', 'extended = true', 'tools = ["cargo"]',
+          '[install]', 'prefix = "/opt/tunaos/rust-1.93"', 'libdir = "lib"',
+          '[rust]', 'channel = "stable"', 'download-rustc = false',
+          'rustflags = ' + q(shlex.split(os.environ['RUSTFLAGS'])),
+          '[llvm]', 'download-ci-llvm = false', 'ninja = true',
+          'targets = ' + q('X86' if os.uname().machine == 'x86_64' else 'AArch64'),
+          'cflags = ' + q(os.environ['CFLAGS']), 'cxxflags = ' + q(os.environ['CXXFLAGS']),
+          '[gcc]', 'download-ci-gcc = false', ''])
+      pathlib.Path('bootstrap.toml').write_text(configuration)
+      PY
+    - python3 x.py build --stage 2 compiler/rustc library/std src/tools/cargo
+dependencies:
+  build:
+    common:
+      - rust >= 1.92
+      - cargo >= 1.92
+      - gcc
+      - gcc-c++
+      - cmake
+      - ninja-build
+      - python3
+      - git
+      - openssl-devel
+      - libcurl-devel
+      - zlib-devel
+      - pkgconf-pkg-config
+  runtime:
+    common: [gcc, binutils]
+install:
+  commands:
+    - DESTDIR={destdir} python3 x.py install --stage 2
+files:
+  common: [opt/tunaos/rust-1.93]
+verify:
+  smoke: >-
+    /opt/tunaos/rust-1.93/bin/rustc --version | grep '^rustc 1.93.0' &&
+    /opt/tunaos/rust-1.93/bin/cargo --version | grep '^cargo 1.93.0' &&
+    test -d /opt/tunaos/rust-1.93/lib/rustlib &&
+    probe_dir=$(mktemp -d) &&
+    printf 'fn main() { println!("native std link passed"); }\n' > "$probe_dir/probe.rs" &&
+    /opt/tunaos/rust-1.93/bin/rustc "$probe_dir/probe.rs" -o "$probe_dir/probe" &&
+    "$probe_dir/probe" && rm -rf -- "$probe_dir"
+targets: [alma10, alma10-kitten]

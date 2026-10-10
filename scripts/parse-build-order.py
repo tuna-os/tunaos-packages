@@ -10,27 +10,46 @@ Usage:
 
 import argparse
 import sys
+from pathlib import Path
 
 import yaml
+
+SCHEMA_PATH = Path(__file__).resolve().parents[1] / 'build-order-schema.json'
+
+
+class ManifestLoader(yaml.SafeLoader):
+    pass
+
+
+def unique_mapping(loader, node, deep=False):
+    result = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if not isinstance(key, str) or key in result:
+            raise ValueError('duplicate or nonstring manifest key')
+        result[key] = loader.construct_object(value_node, deep=deep)
+    return result
+
+
+ManifestLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
 
 
 def validate_manifest(manifest_path):
     import json
-    import os
     import jsonschema
 
-    schema_path = os.path.join(os.path.dirname(manifest_path), "build-order-schema.json")
-    if not os.path.exists(schema_path):
-        schema_path = "build-order-schema.json"
-    if not os.path.exists(schema_path):
-        print("    Schema file not found. Skipping validation.")
-        return
+    schema_path = SCHEMA_PATH
+    if not schema_path.is_file():
+        raise ValueError('required repository build-order schema missing: ' + str(schema_path))
 
     with open(manifest_path) as fh:
-        data = yaml.safe_load(fh)
+        data = yaml.load(fh, Loader=ManifestLoader)
     with open(schema_path) as fh:
         schema = json.load(fh)
     jsonschema.validate(data, schema)
+    names = [tier['name'] for tier in data['tiers']]
+    if len(names) != len(set(names)):
+        raise ValueError('duplicate tier name')
     print("    Schema valid")
 
 

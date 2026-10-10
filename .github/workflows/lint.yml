@@ -89,11 +89,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
 
       - name: Validate workflow YAMLs
         run: |
           echo "=== Checking GitHub Actions workflow syntax ==="
-          pip install pyyaml -q 2>/dev/null || true
+          python3 -m pip install -r requirements-ci.txt
           ERRORS=0
           for f in .github/workflows/*.yml; do
             if ! python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null; then
@@ -110,21 +113,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
 
-      - name: Install yq and check-jsonschema
-        run: |
-          pip install check-jsonschema 2>/dev/null || true
-          sudo wget -qO /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && sudo chmod +x /usr/bin/yq
+      - name: Install pinned validation dependencies
+        run: python3 -m pip install -r requirements-ci.txt
 
       - name: Validate build-order.yml against schema
         run: |
           echo "=== Validating build-order.yml ==="
-          pip install jsonschema pyyaml -q 2>/dev/null || true
-          for f in build-order.yml .copr/build-order-gnome49.yml build-order-xfce.yml; do
-            if [ -f "$f" ]; then
-              echo "  Checking: $f"
-              python3 scripts/parse-build-order.py "$f" --validate || exit $?
-            fi
+          shopt -s nullglob
+          files=(build-order*.yml .copr/build-order*.yml)
+          ((${#files[@]} > 0)) || exit 1
+          for f in "${files[@]}"; do
+            echo "  Checking: $f"
+            python3 scripts/parse-build-order.py "$f" --validate
           done
           echo "All build order files valid"
 

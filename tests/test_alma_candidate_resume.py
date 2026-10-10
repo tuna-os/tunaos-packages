@@ -248,3 +248,38 @@ def test_discovery_has_one_shared_ten_request_budget(candidate, tmp_path, monkey
     assert len([call for call in calls if '/artifacts?' in call]) == 9
     assert 'No authenticated matching Alma snapshot' in capsys.readouterr().out
     assert not (tmp_path / 'destination').exists()
+
+
+def test_authenticated_admission_preserves_nested_public_observations(candidate, tmp_path, monkeypatch):
+    meta, repo, _, _ = candidate
+    envelope = tmp_path / 'envelope'
+    bank = envelope / 'payload/buildroots/app/compiler'
+    bank.mkdir(parents=True)
+    (bank / 'flags.json').write_bytes(b'{"readiness":false}')
+    (bank.parent / 'installed-buildroot.tsv').write_bytes(b'measured native inventory')
+    (repo / 'admission-receipt.json').write_text(json.dumps({
+        'productionReady': False, 'completedPackages': []}))
+    # Only the external admission process is substituted; real receipt and
+    # filesystem handling follow its successful result.
+    monkeypatch.setattr(resume.subprocess, 'run', lambda *args, **kwargs: None)
+    resume.admit(meta, repo, tmp_path / 'state', envelope)
+    assert (repo / 'buildroots/app/compiler/flags.json').read_bytes() == b'{"readiness":false}'
+    assert (repo / 'buildroots/app/installed-buildroot.tsv').read_bytes() == b'measured native inventory'
+
+
+@pytest.mark.parametrize('kind', ['symlink', 'hardlink'])
+def test_nested_admission_observations_reject_links(candidate, tmp_path, monkeypatch, kind):
+    import os
+    meta, repo, _, _ = candidate
+    envelope = tmp_path / 'envelope'
+    bank = envelope / 'payload/buildroots/app'
+    bank.mkdir(parents=True)
+    outside = tmp_path / 'outside'; outside.write_bytes(b'not authenticated evidence')
+    if kind == 'symlink': (bank / 'observation.txt').symlink_to(outside)
+    else: os.link(outside, bank / 'observation.txt')
+    (repo / 'admission-receipt.json').write_text(json.dumps({
+        'productionReady': False, 'completedPackages': []}))
+    monkeypatch.setattr(resume.subprocess, 'run', lambda *args, **kwargs: None)
+    with pytest.raises(ValueError, match='unsafe prior observation'):
+        resume.admit(meta, repo, tmp_path / 'state', envelope)
+    assert not (meta / 'completed-packages.json').exists()

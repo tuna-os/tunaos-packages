@@ -347,6 +347,27 @@ def build_environment_exports(recipe: dict) -> str:
     return "\n".join(f"export {name}={shlex.quote(value)}" for name, value in environment.items())
 
 
+def target_recipe(recipe: dict, target: str | None) -> dict:
+    """Merge authored target environment before native compiler policy."""
+    mapping = recipe.get("build", {}).get("environment_by_target", {})
+    if not isinstance(mapping, dict):
+        fail("build.environment_by_target must be a mapping")
+    known = load_targets()
+    for name, environment in mapping.items():
+        if not isinstance(name, str) or name not in known or name not in recipe.get("targets", []):
+            fail("build.environment_by_target declares an unknown or unsupported target")
+        build_environment({"build": {"environment": environment}})
+    if not mapping:
+        return recipe
+    result = copy.deepcopy(recipe)
+    build = result.setdefault("build", {})
+    build.pop("environment_by_target", None)
+    environment = dict(build.get("environment", {}))
+    environment.update(mapping.get(target, {}))
+    build["environment"] = environment
+    return result
+
+
 def make_environment_exports(recipe: dict) -> str:
     """Render make `export` directives for debian/rules.
 
@@ -583,6 +604,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
         cargo_config_commands(recipe)
     prepare_commands(recipe)
     build_environment(recipe)
+    target_recipe(recipe, target)
     validate_verify(recipe)
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
@@ -745,6 +767,7 @@ def alma_compiler_recipe_guard(recipe: dict) -> None:
 
 
 def render_rpm(recipe: dict, target: str) -> dict[str, str]:
+    recipe = target_recipe(recipe, target)
     alma_environment = None
     if target in {"alma10", "alma10-kitten"}:
         alma_compiler_recipe_guard(recipe)
@@ -1168,6 +1191,7 @@ package() {{
 
 
 def render(recipe: dict, target: str) -> dict[str, str]:
+    recipe = target_recipe(recipe, target)
     target_data = load_targets()[target]
     if target_data["format"] == "rpm":
         return render_rpm(recipe, target)
