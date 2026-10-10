@@ -19,6 +19,7 @@ The native host triple must match the actual execution architecture.
 This is candidate source preparation. Actual CI must prove native bootstrap,
 signed installation, compiler execution and ELF/runtime/CPU closure on all
 four Alma/Kitten architecture combinations. All build budgets stay fixed.
+
 The LLVM and Rust builds may exceed a job budget.
 That outcome blocks supply. A later job must resume authenticated work.
-Foreign binaries and compiler versions below the specified floor cannot satisfy this requirement.
+Foreign binaries cannot satisfy this requirement. The compiler must provide Rust 1.93 or newer.
