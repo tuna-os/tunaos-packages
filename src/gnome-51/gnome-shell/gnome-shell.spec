@@ -9,7 +9,7 @@
 
 Name:           gnome-shell
 Version:        51~beta
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Window management and application launching for GNOME
 
 License:        GPL-2.0-or-later
@@ -178,13 +178,9 @@ Obsoletes:      python2-caribou < 0.4.21-10
 Obsoletes:      python3-caribou < 0.4.21-10
 %endif
 
-# EL10 ships a gnome-shell-common subpackage at version 48.x. This COPR
-# rebuilds gnome-shell as a monolithic package (no split common/) at v50,
-# so the shared data files (org.gnome.shell.gschema.xml, locale files,
-# etc.) now live in gnome-shell itself. Obsolete the older split package
-# so DNF auto-replaces it instead of aborting with a file-conflict.
-Obsoletes:      gnome-shell-common < %{major_version}
-Provides:       gnome-shell-common = %{version}-%{release}
+# The common subpackage owns the GSettings XML files. The main package must
+# require that RPM, not provide its name itself: a self-provider lets DNF
+# omit the schemas and GDM cannot start a session.
 
 # https://bugzilla.redhat.com/show_bug.cgi?id=1740897
 Conflicts:      gnome-shell-extension-background-logo < 3.34.0

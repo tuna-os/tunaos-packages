@@ -45,6 +45,10 @@ GNOME 50 (`mozjs140`, `tinysparql`) requires ICU 77; EL10 base ships ICU 74.
 
 ## Key mandatory workarounds
 
+- **Split schema packages**: GNOME 50/51's XML files belong to the real
+  `gnome-shell-common` RPM. The main RPM must require it, never provide or
+  obsolete its name. The false provider let DNF omit the schemas and GDM
+  crashed before login (issue #747, Yellowfin VM proof on 2026-09-26).
 - **PAM**: `gnome50-el10-compat` (or `gnome49-el10-compat`) must be present
   — fixes GDM dynamic-user login on EL10.
 - **SELinux**: EL10's base `selinux-policy` (42.x) has no policy for GDM
