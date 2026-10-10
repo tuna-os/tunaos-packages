@@ -60,6 +60,8 @@ def initialize(state, repo):
             "if _candidate_arch not in ('x86_64', 'aarch64'): raise ValueError('unsupported Alma target CPU')\n"
             "config_opts['rpmbuild_command'] = '/usr/bin/python3 /keys/alma-rpmbuild-guard.py ' + _candidate_arch\n"
             "config_opts['dnf.conf'] = config_opts['dnf.conf'].replace('[local-build]\\n', '[local-build]\\nrepo_gpgcheck=1\\n')\n"
+            "import copy\n"
+            "config_opts['bootstrap_plugin_conf'] = copy.deepcopy(config_opts['plugin_conf'])\n"
         )
         (keys / 'measure-buildroot.sh').write_text(
             '#!/bin/sh\nset -eu\n'
