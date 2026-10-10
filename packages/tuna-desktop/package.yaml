@@ -78,7 +78,9 @@ dependencies:
       # (xorg-xwayland, ibus, greetd, xdg-desktop-portal-gnome, orca, ...) are
       # optdepends upstream; the recipe schema has no optdepends, so the
       # Marlin image installs them itself.
-      arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+      # The shell and native bell use canberra-gtk-play and the selected
+      # freedesktop event theme; include both in the installed session.
+      arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, sound-theme-freedesktop, systemd-libs, wayland]
 install:
   commands:
     - install -Dm0755 target/release/tuna-compositor {destdir}/usr/bin/tuna-compositor
