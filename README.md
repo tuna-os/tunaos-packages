@@ -1,9 +1,9 @@
-# TunaOS Packages
+# TunaOS GitHub COPR
 
-`tunaos-packages` is TunaOS's source-controlled package repository. It owns
-the native packaging, patches, build ordering, validation, signing, and
-publication work needed to ship curated desktop stacks independently of
-third-party repositories.
+`github-copr` is TunaOS's source-controlled COPR/bootstrap packaging
+repository. It owns the recipes, patches, build ordering, validation, signing,
+and compatibility work needed to maintain the project's COPR-backed package
+infrastructure while newer publication paths are brought online.
 
 ## Current state
 

@@ -1,6 +1,6 @@
-# Contributing
+# Contributing to github-copr
 
-TunaOS Packages contains several packaging pipelines. Before changing a
+github-copr contains several COPR and packaging pipelines. Before changing a
 package, identify which pipeline owns it and preserve that pipeline's source,
 build, install, and runtime gates.
 
