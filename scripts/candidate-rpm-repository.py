@@ -47,6 +47,7 @@ def initialize(state, repo):
                            if line.startswith('fpr:'))
         keys = state / 'keys'
         keys.mkdir(mode=0o755)
+        shutil.copyfile(Path(__file__).with_name('alma-rpmbuild-guard.py'), keys / 'alma-rpmbuild-guard.py')
         with (keys / 'candidate-public.gpg').open('w') as output:
             run('gpg', '--homedir', str(home), '--batch', '--armor', '--export', fingerprint,
                 stdout=output)
@@ -55,6 +56,9 @@ def initialize(state, repo):
             "config_opts['plugin_conf']['bind_mount_enable'] = True\n"
             "_candidate_mounts = config_opts['plugin_conf'].setdefault('bind_mount_opts', {}).setdefault('dirs', [])\n"
             "if ('/keys', '/keys') not in _candidate_mounts: _candidate_mounts.append(('/keys', '/keys'))\n"
+            "_candidate_arch = config_opts['target_arch']\n"
+            "if _candidate_arch not in ('x86_64', 'aarch64'): raise ValueError('unsupported Alma target CPU')\n"
+            "config_opts['rpmbuild_command'] = '/usr/bin/python3 /keys/alma-rpmbuild-guard.py ' + _candidate_arch\n"
             "config_opts['dnf.conf'] = config_opts['dnf.conf'].replace('[local-build]\\n', '[local-build]\\nrepo_gpgcheck=1\\n')\n"
         )
         (keys / 'measure-buildroot.sh').write_text(

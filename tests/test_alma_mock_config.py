@@ -49,11 +49,9 @@ def test_native_architecture_and_compiler_floor(release, arch, family):
     assert options['target_arch'] == arch
     assert options['legal_host_arches'] == (arch,)
     assert options['macros']['%_target_cpu'] == arch
-    flags = options['macros']['%optflags'].split()
-    expected = '-march=x86-64-v2' if arch == 'x86_64' else '-march=armv8-a'
-    assert expected in flags
-    assert '-mtune=generic' in flags
-    assert not any('v3' in flag or 'native' in flag for flag in flags)
+    assert '%optflags' not in options['macros'], 'short resets discard vendor hardening'
+    assert options['rpmbuild_command'] == '/usr/bin/python3 /keys/alma-rpmbuild-guard.py ' + arch
+    assert 'python3' in options['chroot_setup_cmd'].split()
     assert options['use_bootstrap'] is False  # no unpinned image escape
 
 

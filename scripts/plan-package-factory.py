@@ -39,7 +39,7 @@ FORMAT_INPUTS = {
     "scripts/assemble-deb-source-tree.py": {"deb"},
     "scripts/arch-clean-install.sh": {"pkg.tar.zst"},
 }
-NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py", "scripts/candidate-rpm-repository.sh", "scripts/candidate-rpm-repository.py"}
+NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py", "scripts/candidate-rpm-repository.py", "scripts/alma-rpmbuild-guard.py"}
 DISTGIT_INPUTS = {"scripts/import-fedora-distgit.py"}
 DEPENDENCY_TREE_CHANGE = re.compile(r"^manifests/dependency-trees/[^/]+\.ya?ml$")
 TARGET_QUEUE_CHANGE = re.compile(r"^manifests/target-queues/[^/]+\.ya?ml$")

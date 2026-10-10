@@ -263,6 +263,7 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         native_renderers.append("scripts/import-fedora-distgit.py")
     if args.target in {"alma10", "alma10-kitten"}:
         native_renderers.append("scripts/candidate-rpm-repository.py")
+        native_renderers.append("scripts/alma-rpmbuild-guard.py")
     renderer_inputs = {}
     for relative in native_renderers:
         path = root / relative

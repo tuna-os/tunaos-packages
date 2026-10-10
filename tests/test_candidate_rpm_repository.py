@@ -219,7 +219,7 @@ def test_repository_writer_waits_for_existing_reader(candidate):
 
 def test_mock_policy_executes_chroot_bind_signed_metadata_and_no_cache(candidate):
     bootstrap(candidate)
-    config = {'plugin_conf': {'root_cache_enable': True,
+    config = {'target_arch': 'x86_64', 'plugin_conf': {'root_cache_enable': True,
                              'bind_mount_opts': {'dirs': [('/keys', '/keys')]}},
               'dnf.conf': '[local-build]\ngpgcheck=1\nbaseurl=file:///local-repo/\n'}
     namespace = {'config_opts': config}
@@ -231,6 +231,8 @@ def test_mock_policy_executes_chroot_bind_signed_metadata_and_no_cache(candidate
     ini = configparser.ConfigParser(); ini.read_string(config['dnf.conf'])
     assert ini['local-build']['gpgcheck'] == '1'
     assert ini['local-build']['repo_gpgcheck'] == '1'
+    assert config['rpmbuild_command'] == '/usr/bin/python3 /keys/alma-rpmbuild-guard.py x86_64'
+    assert (candidate[0] / 'keys/alma-rpmbuild-guard.py').read_bytes() == (ROOT / 'scripts/alma-rpmbuild-guard.py').read_bytes()
 
 
 def test_observation_script_runs_inventory_macros_and_compiler_inside_its_environment(candidate):
