@@ -36,6 +36,26 @@ def test_native_repo_architecture_is_explicit(arch):
     assert collector.repository_url(url) == url
 
 
+@pytest.mark.parametrize('arch', ['x86_64_v2', 'aarch64'])
+def test_kitten_proof_uses_the_native_release_repository(arch):
+    """Falsification: the /10 alias failed collection after signed installation."""
+    url = f'https://kitten.repo.almalinux.org/10-kitten/BaseOS/{arch}/os/'
+    assert collector.repository_url(url) == url
+    with pytest.raises(collector.CollectionError):
+        collector.repository_url(url.replace('/10-kitten/', '/10/'))
+
+
+def test_root_collected_public_evidence_is_retained_on_failure():
+    """Falsification: CI upload could not read the collector's root-owned GPG DB."""
+    script = (Path(__file__).parents[1] / 'scripts/verify-alma-evtest-ci.sh').read_text()
+    cleanup = script.split('cleanup() {', 1)[1].split('trap cleanup EXIT', 1)[0]
+    assert 'local cleanup_status=$?' in cleanup
+    assert 'sudo chown -R "$(id -u):$(id -g)" "$out/metadata/cpu-proof"' in cleanup
+    assert 'rm -rf -- "$state_parent"' in cleanup
+    assert 'exit "$cleanup_status"' in cleanup
+    assert 'sudo chown -R "$(id -u):$(id -g)" "$state_parent"' not in cleanup
+
+
 @pytest.mark.parametrize('path', ['../escape', '/absolute', '//evil.example/x',
                                  'https://evil.example/x', 'Packages/%2e%2e/x',
                                  'Packages/x?secret=yes', 'Packages\\x'])

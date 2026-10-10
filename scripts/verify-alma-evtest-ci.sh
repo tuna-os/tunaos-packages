@@ -4,7 +4,7 @@ set -eEuo pipefail
 : "${TARGET:?}" "${GITHUB_SHA:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_RUN_ATTEMPT:?}"
 case "$TARGET" in
   alma10) repository=https://repo.almalinux.org/almalinux/10 ;;
-  alma10-kitten) repository=https://kitten.repo.almalinux.org/10 ;;
+  alma10-kitten) repository=https://kitten.repo.almalinux.org/10-kitten ;;
   *) exit 2 ;;
 esac
 out="$PWD/.factory/ci-cpu-${TARGET}"
@@ -29,9 +29,19 @@ state="$state_parent/state"
 repo="$out/candidate"
 container=""
 cleanup() {
+  local cleanup_status=$?
+  # The collector needs root to read the measured consumer RPM database.
+  # Its signature databases hold public keys only; let CI retain this proof
+  # on either success or failure. Private candidate keys stay outside out.
+  if [[ -d "$out/metadata/cpu-proof" ]]; then
+    if ! sudo chown -R "$(id -u):$(id -g)" "$out/metadata/cpu-proof"; then
+      cleanup_status=1
+    fi
+  fi
   if [[ -n $container ]]; then docker rm -f "$container" >/dev/null || true; fi
   gpgconf --homedir "$state/gnupg" --kill gpg-agent || true
   rm -rf -- "$state_parent"
+  exit "$cleanup_status"
 }
 trap cleanup EXIT
 trap 'exit 143' TERM

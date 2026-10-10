@@ -134,7 +134,8 @@ def fetch(url, destination, limit):
             data = response.read(limit + 1)
             modified = response.headers.get('Last-Modified')
     except (OSError, urllib.error.URLError) as exc:
-        raise CollectionError('native-download-unavailable') from exc
+        status = getattr(exc, 'code', None)
+        raise CollectionError('native-download-unavailable: ' + url + ' (HTTP ' + str(status) + ')') from exc
     if len(data) > limit:
         raise CollectionError('native-download-exceeds-bound')
     destination.write_bytes(data)
@@ -143,7 +144,7 @@ def fetch(url, destination, limit):
 
 
 def repository_url(url):
-    if not re.fullmatch(r'https://(?:repo\.almalinux\.org/almalinux/10|kitten\.repo\.almalinux\.org/10)/(?:BaseOS|AppStream|CRB)/(?:x86_64_v2|aarch64)/os/', url):
+    if not re.fullmatch(r'https://(?:repo\.almalinux\.org/almalinux/10|kitten\.repo\.almalinux\.org/10-kitten)/(?:BaseOS|AppStream|CRB)/(?:x86_64_v2|aarch64)/os/', url):
         raise CollectionError('unapproved-native-repository')
     return url
 
