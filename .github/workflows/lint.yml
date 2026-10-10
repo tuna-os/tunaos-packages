@@ -196,6 +196,11 @@ jobs:
       - name: Install dependencies
         run: python3 -m pip install -r requirements-ci.txt
 
+      - name: Install native CPU proof tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm rpm2cpio gnupg binutils gcc libc6-dev qemu-user-static createrepo-c
+
       - name: Run pytest
         env:
           PYTHONPATH: scripts:.
@@ -206,6 +211,23 @@ jobs:
           FAILED=0
           python3 -m pytest tests/ -v --tb=short || FAILED=1
           exit $FAILED
+
+      - name: Verify real signed Alma v2 CPU closure
+        run: |
+          set -euo pipefail
+          for target in alma10 alma10-kitten; do
+            TARGET="$target" bash scripts/verify-alma-evtest-ci.sh
+          done
+
+      - name: Preserve Alma CPU evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: alma-cpu-proof-attempt-${{ github.run_attempt }}
+          path: |
+            .factory/ci-cpu-*/artifacts/
+            .factory/ci-cpu-*/metadata/
+          if-no-files-found: warn
 
       - name: Test summary
         if: always()
