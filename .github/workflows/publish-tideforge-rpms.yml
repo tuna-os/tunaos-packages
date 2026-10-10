@@ -266,7 +266,7 @@ jobs:
         run: |
           set -euo pipefail
           url='${{ matrix.served }}'
-          docker run --rm --env PACKAGES --env TARGET --env URL="$url" '${{ needs.plan.outputs.image }}' bash -lc '
+          docker run --rm --env PACKAGES --env TARGET --env URL="$url" '${{ matrix.image }}' bash -lc '
             set -euo pipefail
             if [[ "$TARGET" == opensuse-tumbleweed ]]; then
               zypper --non-interactive addrepo --no-gpgcheck --priority 200 "$URL" tunaos

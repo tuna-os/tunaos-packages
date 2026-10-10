@@ -5,6 +5,7 @@ import pathlib
 from typing import Any
 
 import yaml
+from target_platform import build_context
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FACTORY = ROOT / "manifests" / "package-factory.yaml"
@@ -21,7 +22,7 @@ def target(name: str, expected_format: str, fail: Any) -> dict[str, Any]:
         fail(f"unknown target {name!r}; the contract declares {sorted(targets)}")
     if spec.get("format") != expected_format:
         fail(f"target {name} is format {spec.get('format')!r}, not {expected_format}")
-    if not spec.get("probe_image"):
+    if not spec.get("probe_image") and not spec.get("probe_images"):
         fail(f"target {name} declares no probe_image to build in")
     return spec
 

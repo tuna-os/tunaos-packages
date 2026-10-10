@@ -308,7 +308,8 @@ case ${FORMAT:?} in
     ;;
   pkg.tar.zst)
     python3 scripts/validate-built-arch-package.py "$recipe" "$out/package-info.txt"
-    docker run --rm --user root --volume "$artifacts:/artifacts:ro" \
+    docker run --rm --user root --env TUNAOS_ARCHITECTURE="${ARCHITECTURE:?}" \
+      --volume "$artifacts:/artifacts:ro" \
       --volume "$out/smoke.sh:/smoke.sh:ro" --volume "$PWD/scripts:/scripts:ro" \
       "${IMAGE:?}" bash /scripts/arch-clean-install.sh "$install_name" /artifacts bash /smoke.sh
     ;;

@@ -53,6 +53,12 @@ jobs:
         run: |
           set -euo pipefail
           image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          consumer_args=()
+          if jq -e 'has("consumer_bindings")' <<<"$CELL" >/dev/null; then
+            consumer_file="${RUNNER_TEMP}/consumer-bindings.json"
+            jq '{bindings: .consumer_bindings}' <<<"$CELL" > "$consumer_file"
+            consumer_args=(--consumer-bindings "$consumer_file")
+          fi
           # %at (AUTHOR date), not %ct (committer date). This epoch is an
           # input to the action key, and a commit object's COMMITTER time
           # changes on every history rewrite even when the tree does not --
@@ -67,7 +73,7 @@ jobs:
             payload=$(python3 scripts/tideforge-action-cache.py key \
               --recipe '${{ matrix.recipe }}' --target '${{ matrix.target }}' \
               --arch '${{ matrix.architecture }}' --image "$image" \
-              --source-date-epoch "$epoch")
+              --source-date-epoch "$epoch" "${consumer_args[@]}")
           else
             mapfile -t source_paths < <(jq -r '.source_paths[]' <<<"$CELL")
             # The SOURCES only, not the manifest. This epoch is SOURCE_DATE_EPOCH
@@ -116,7 +122,7 @@ jobs:
               --dependency-tree '${{ matrix.dependency_tree }}' \
               --target-queue '${{ matrix.target_queue }}' \
               --track '${{ matrix.track }}' --series '${{ matrix.series }}' \
-              --source-date-epoch "$epoch")
+              --source-date-epoch "$epoch" "${consumer_args[@]}")
           fi
           echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
           echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
@@ -205,8 +211,11 @@ jobs:
       #
       # Only for build-chain: a tideforge cell builds a single package, so
       # there is no partial progress to resume.
+      # Alma's initial supply uses a fresh run-local signing identity. A prior
+      # partial is retained for diagnosis but cannot become trusted inputs
+      # without an authenticated immutable dependency snapshot.
       - name: Resume from a previous attempt's partial output
-        if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
+        if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true' && !startsWith(matrix.mock_config, 'alma10-')
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -214,11 +223,27 @@ jobs:
             --cell-id '${{ matrix.base_id || matrix.id }}' \
             --action-key '${{ steps.identity.outputs.key }}' \
             --out-dir '.factory/${{ matrix.id }}'
+      - name: Prepare authenticated Alma candidate resume
+        if: matrix.engine == 'build-chain' && startsWith(matrix.mock_config, 'alma10-') && steps.verdict.outputs.hit != 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'schedule') && startsWith(github.ref, 'refs/heads/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CELL: ${{ toJSON(matrix) }}
+          ACTION_KEY: ${{ steps.identity.outputs.key }}
+        run: |
+          set -euo pipefail
+          out='.factory/${{ matrix.id }}'
+          printf '%s\n' "$CELL" > "$out/native-cell.json"
+          python3 scripts/alma-candidate-resume.py prepare \
+            --meta "$out/candidate-meta" --cell "$out/native-cell.json" --action-key "$ACTION_KEY"
+          python3 scripts/alma-candidate-resume.py restore \
+            --meta "$out/candidate-meta" --destination "$out/candidate-resume"
+          echo "ALMA_CANDIDATE_META=$PWD/$out/candidate-meta" >> "$GITHUB_ENV"
+          echo "ALMA_RESUME_DIR=$PWD/$out/candidate-resume" >> "$GITHUB_ENV"
       - name: Install native build tools on an exact miss
         if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q createrepo-c podman rpm
+          sudo apt-get install -y -q createrepo-c podman rpm gnupg
       # Hummingbird build-chain cells resolve utah-shipped BuildRequires
       # from the mock config's [utah] repo, which is a file:// bind-mount
       # with no HTTP baseurl: materialise the pinned OCI digest first
@@ -278,6 +303,48 @@ jobs:
       # forever -- the packages never built would read as "already built".
       # Validation, checksums, SBOM, attestation and the publish artifact all
       # still run: shipping what built is the point of stopping cleanly.
+      - name: Inventory native Alma candidate snapshot
+        id: native_snapshot
+        if: always() && matrix.engine == 'build-chain' && startsWith(matrix.mock_config, 'alma10-') && (steps.build.outcome == 'success' || steps.build.outcome == 'failure') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'schedule') && startsWith(github.ref, 'refs/heads/')
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          CHAIN_DEFERRED: ${{ steps.build.outputs.chain_deferred }}
+        run: |
+          set -euo pipefail
+          out='.factory/${{ matrix.id }}'
+          if [ ! -s "$out/candidate-meta/completed-packages.json" ]; then
+            echo 'No completed native candidate packages to bank'
+            exit 0
+          fi
+          args=()
+          if [ "$BUILD_OUTCOME" = success ] && [ "$CHAIN_DEFERRED" != true ]; then
+            args+=(--chain-complete)
+          fi
+          python3 scripts/alma-candidate-resume.py create \
+            --meta "$out/candidate-meta" --repo "$out/artifacts" \
+            --destination "$out/native-snapshot" "${args[@]}"
+          echo 'created=true' >> "$GITHUB_OUTPUT"
+      - name: Attest native Alma candidate snapshot
+        id: native_snapshot_attestation
+        if: always() && steps.native_snapshot.outputs.created == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: .factory/${{ matrix.id }}/native-snapshot/snapshot.json
+      - name: Stage native Alma snapshot attestation bundle
+        if: always() && steps.native_snapshot_attestation.outcome == 'success'
+        env:
+          BUNDLE_PATH: ${{ steps.native_snapshot_attestation.outputs.bundle-path }}
+        run: |
+          set -euo pipefail
+          test -s "$BUNDLE_PATH"
+          cp "$BUNDLE_PATH" '.factory/${{ matrix.id }}/native-snapshot/bundle.jsonl'
+      - name: Bank authenticated native Alma progress
+        if: always() && steps.native_snapshot_attestation.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.base_id || matrix.id }}-alma-candidate-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.id }}
+          path: .factory/${{ matrix.id }}/native-snapshot/
+          if-no-files-found: error
       - name: Record a new ActionResult
         if: steps.verdict.outputs.hit != 'true' && steps.build.outputs.chain_deferred != 'true'
         run: |
@@ -485,7 +552,7 @@ jobs:
         # publishes no partial, the next shard restores the previous DAY's
         # artifact, and the whole continuation design silently loses the
         # hours it exists to bank.
-        if: always() && matrix.engine == 'build-chain' && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
+        if: always() && matrix.engine == 'build-chain' && !startsWith(matrix.mock_config, 'alma10-') && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
         with:
           # Named by base_id so every continuation shard shares ONE partial
           # per family cell: shard N+1's resume finds shard N's upload as

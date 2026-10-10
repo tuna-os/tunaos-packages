@@ -287,6 +287,22 @@ if [[ -n "$FILTER_PACKAGES_FILE" ]]; then
     fi
 fi
 
+ALMA_CANDIDATE=false
+ALMA_CANDIDATE_STATE=""
+ALMA_KEY_MOUNT_ARGS=()
+if [[ "$MOCK_CONFIG" == alma10-* ]]; then
+    ALMA_CANDIDATE=true
+    if [[ "$BACKEND" != podman ]]; then
+        echo 'ERROR: signed Alma bootstrap currently requires the podman mock backend' >&2
+        exit 1
+    fi
+    # Neither restored roots nor an NVR from another publication proves this
+    # target's baseline. Initial supply is built from signed native inputs.
+    SERVED_NVRS_FILE=""
+    MOCK_CACHE_DIR=""
+    export BUILDROOT_MANIFESTS="${BUILDROOT_MANIFESTS:-${LOCAL_REPO}/buildroots}"
+fi
+
 if [[ -n "$SERVED_NVRS_FILE" ]]; then
     if [[ ! -f "$SERVED_NVRS_FILE" ]]; then
         echo "ERROR: --served-nvrs '$SERVED_NVRS_FILE' does not exist" >&2
@@ -433,6 +449,35 @@ fi
 
 ensure_local_repo() {
     mkdir -p "${LOCAL_REPO}"
+    if $ALMA_CANDIDATE; then
+        if [[ -z "${ALMA_CANDIDATE_STATE:-}" ]]; then
+            ALMA_CANDIDATE_PARENT=$(mktemp -d "${TMPDIR:-/tmp}/tunaos-candidate.XXXXXXXX")
+            ALMA_CANDIDATE_STATE="${ALMA_CANDIDATE_PARENT}/state"
+            cleanup_alma_candidate() {
+                gpgconf --homedir "$ALMA_CANDIDATE_STATE/gnupg" --kill gpg-agent || true
+                rm -rf -- "$ALMA_CANDIDATE_PARENT"
+            }
+            trap cleanup_alma_candidate EXIT
+            trap 'exit 143' TERM
+            trap 'exit 130' INT
+            python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" init \
+                --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO"
+            if [[ -n "${ALMA_RESUME_DIR:-}" && -d "$ALMA_RESUME_DIR" ]]; then
+                python3 "${SCRIPT_DIR}/alma-candidate-resume.py" admit \
+                    --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO" \
+                    --meta "${ALMA_CANDIDATE_META:?}" --destination "$ALMA_RESUME_DIR"
+            fi
+            if [[ -n "${ALMA_CANDIDATE_META:-}" ]]; then
+                cp "$ALMA_CANDIDATE_STATE/keys/candidate-public.gpg" "$ALMA_CANDIDATE_META/candidate-public.gpg"
+                cp "$ALMA_CANDIDATE_STATE/identity.json" "$ALMA_CANDIDATE_META/candidate-identity.json"
+            fi
+            ALMA_KEY_MOUNT_ARGS=(-v "${ALMA_CANDIDATE_STATE}/keys:/keys:ro,Z")
+            echo 'Alma bootstrap scope: run-local candidate, unpromoted; not production readiness'
+        fi
+        python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" index \
+            --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO"
+        return
+    fi
     if [[ ! -f "${LOCAL_REPO}/repodata/repomd.xml" ]]; then
         log "Initializing local repo at ${LOCAL_REPO}"
         createrepo_c "${LOCAL_REPO}"
@@ -448,6 +493,18 @@ ensure_local_repo() {
 record_buildroot_manifest() {
     local resultdir="$1" pkg_name="$2"
     [[ -n "${BUILDROOT_MANIFESTS:-}" ]] || return 0
+    if $ALMA_CANDIDATE; then
+        # Actual chroot observations are retained separately from declarations
+        # and the legacy log-derived inventory. They do not prove CPU readiness.
+        test -s "$resultdir/candidate-buildroot-observed.txt"
+        mkdir -p "$BUILDROOT_MANIFESTS"
+        cp "$resultdir/candidate-buildroot-observed.txt" \
+            "$BUILDROOT_MANIFESTS/${pkg_name}.candidate-observed.txt"
+        cp "$ALMA_CANDIDATE_STATE/identity.json" \
+            "$BUILDROOT_MANIFESTS/${pkg_name}.candidate-scope.json"
+        cp "$ALMA_CANDIDATE_STATE/keys/candidate-public.gpg" \
+            "$BUILDROOT_MANIFESTS/${pkg_name}.candidate-public.gpg"
+    fi
     python3 "${REPO_ROOT}/scripts/extract-buildroot-manifest.py" "$resultdir" \
         --output "${BUILDROOT_MANIFESTS}/${pkg_name}.buildroot.txt" \
         || echo "==> [${pkg_name}] buildroot manifest not recorded (non-fatal)"
@@ -455,6 +512,11 @@ record_buildroot_manifest() {
 
 update_local_repo() {
     log "Updating local repo metadata"
+    if $ALMA_CANDIDATE; then
+        python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" index \
+            --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO"
+        return
+    fi
     # createrepo_c stages into `.repodata/` and renames it to `repodata/` when
     # it finishes, and it REFUSES to start if that temp directory is already
     # there:
@@ -783,6 +845,17 @@ prepare_sources() {
 
 # Check if the package already exists in the local repo with the same NVR
 check_package_exists() {
+    # Only the run-local signature gate can accept Alma candidates; no
+    # restored RPM or served NVR may suppress a required compatible rebuild.
+    if $ALMA_CANDIDATE; then
+        [[ -n "${ALMA_CANDIDATE_META:-}" && -n "${3:-}" ]] || return 1
+        if python3 "${SCRIPT_DIR}/alma-candidate-resume.py" skip \
+            --meta "$ALMA_CANDIDATE_META" --repo "$LOCAL_REPO" --name "$1" --builddir "$3"; then
+            echo "==> [$1] Skipping authenticated completion with identical prepared inputs"
+            return 0
+        fi
+        return 1
+    fi
     local pkg_name="$1"
     local spec="$2"
     local spec_basename
@@ -862,6 +935,9 @@ build_package_podman() {
     trap "rm -rf '${builddir}'" RETURN
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
+    if $ALMA_CANDIDATE && ! $FORCE && check_package_exists "$pkg_name" "$spec" "$builddir"; then
+        return 0
+    fi
 
     # Build SRPM inside the container (to ensure macros like %autorelease are available)
     local spec_basename
@@ -897,7 +973,11 @@ build_package_podman() {
 
     # Ensure the local repo metadata is up-to-date before mock starts,
     # locked to prevent parallel jobs from corrupting it.
-    flock "${LOCAL_REPO}/repo.lock" -c "createrepo_c --update \"${LOCAL_REPO}\""
+    if $ALMA_CANDIDATE; then
+        update_local_repo
+    else
+        flock "${LOCAL_REPO}/repo.lock" -c "createrepo_c --update \"${LOCAL_REPO}\""
+    fi
 
     echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
@@ -1013,6 +1093,7 @@ build_package_podman() {
             -v "${LOCAL_REPO}:/local-repo:Z" \
             -v "${REPO_ROOT}/mock:/repo-mock:ro,Z" \
             "${UTAH_MOUNT_ARGS[@]}" \
+            "${ALMA_KEY_MOUNT_ARGS[@]}" \
             "${MOCK_CACHE_ARGS[@]}" \
             "${BUILD_IMAGE}" \
             bash -exc "
@@ -1095,6 +1176,12 @@ build_package_podman() {
                 # against a 39.0m no-cache baseline (31265993115). The mount
                 # was right; this one flag was what made it worthless.
                 cp -p /repo-mock/*.cfg /tmp/mock-configdir/
+                if ${ALMA_CANDIDATE}; then
+                    test -s /keys/candidate-public.gpg
+                    # Policy binds keys into mock's real chroot and rejects
+                    # unsigned metadata; its key is only a run-local candidate.
+                    cat /keys/mock-candidate-policy.cfg >> /tmp/mock-configdir/${MOCK_CONFIG}.cfg
+                fi
                 chmod -R a+rX /tmp/mock-configdir
                 # SHARED lock: mock only READS /local-repo as a dnf repo, so
                 # any number of builds can hold it at once. The exclusive half
@@ -1154,6 +1241,13 @@ build_package_podman() {
                             exit 1;
                         }
                 \"
+                if ${ALMA_CANDIDATE}; then
+                    setpriv --reuid=builder --regid=mock --init-groups \\
+                    mock --configdir /tmp/mock-configdir -r '${MOCK_CONFIG}' \\
+                        --uniqueext='${pkg_name}' --chroot -- \\
+                        /bin/sh /keys/measure-buildroot.sh \\
+                        > /builddir/results/candidate-buildroot-observed.txt
+                fi
             "
     }
 
@@ -1200,10 +1294,17 @@ build_package_podman() {
 
     # Collect RPMs from results
     local rpm_count=0
+    local alma_completed_outputs=()
     while IFS= read -r -d '' rpm; do
-        cp "$rpm" "${LOCAL_REPO}/"
+        if $ALMA_CANDIDATE; then
+            python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" install \
+                --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO" --rpm "$rpm"
+        else
+            cp "$rpm" "${LOCAL_REPO}/"
+        fi
         echo "==> [${pkg_name}] -> $(basename "$rpm")"
         rpm_count=$(( rpm_count + 1 ))
+        alma_completed_outputs+=(--output "$(basename "$rpm")")
     done < <(find "$resultdir" -name "*.rpm" ! -name "*.src.rpm" -print0)
 
     record_buildroot_manifest "$resultdir" "$pkg_name"
@@ -1213,6 +1314,11 @@ build_package_podman() {
         return 1
     fi
 
+    if $ALMA_CANDIDATE && [[ -n "${ALMA_CANDIDATE_META:-}" ]]; then
+        python3 "${SCRIPT_DIR}/alma-candidate-resume.py" record \
+            --meta "$ALMA_CANDIDATE_META" --repo "$LOCAL_REPO" --name "$pkg_name" \
+            --builddir "$builddir" "${alma_completed_outputs[@]}"
+    fi
     echo "==> [${pkg_name}] Built ${rpm_count} RPM(s)"
 }
 

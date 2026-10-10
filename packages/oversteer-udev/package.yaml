@@ -22,4 +22,4 @@ verify:
   # `-name \*oversteer\*` could never match: the package built and installed
   # correctly and the assertion failed anyway. Assert the real filenames.
   smoke: "test -f /usr/lib/udev/rules.d/99-logitech-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-fanatec-wheel-perms.rules && test -f /usr/lib/udev/rules.d/99-thrustmaster-wheel-perms.rules"
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

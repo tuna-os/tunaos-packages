@@ -53,6 +53,18 @@ dependencies:
         - just
         - libglvnd-devel
         - libudev-devel
+      alma10:
+        - cargo
+        - lld
+        - just
+        - libglvnd-devel
+        - libudev-devel
+      alma10-kitten:
+        - cargo
+        - lld
+        - just
+        - libglvnd-devel
+        - libudev-devel
       ubuntu:
         - cargo
         - lld
@@ -70,6 +82,12 @@ dependencies:
       el10:
         - qalculate
         - fd-find
+      alma10:
+        - qalculate
+        - fd-find
+      alma10-kitten:
+        - qalculate
+        - fd-find
       ubuntu: []
       debian: []
 files:
@@ -83,5 +101,7 @@ verify:
   smoke: test -x /usr/bin/pop-launcher
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

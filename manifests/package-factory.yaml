@@ -17,7 +17,179 @@ upstreams:
     url: https://github.com/zirconium-dev/zirconium
     license_review: required
 
+# Consumer identities are independent of RPM/DEB architecture labels.
+# An absent target or compatible provider remains a blocking supply gap.
+consumer_adapters:
+  albacore:
+    target: alma10
+    manager: dnf
+    architectures:
+      linux/amd64/v2: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64-v2
+      - armv8-a
+  yellowfin:
+    target: alma10-kitten
+    manager: dnf
+    architectures:
+      linux/amd64/v2: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64-v2
+      - armv8-a
+  skipjack:
+    target: el10
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64-v3
+      - armv8-a
+  bonito:
+    target: fedora
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  bonito-rawhide:
+    target: fedora-rawhide
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  wahoo:
+    target: eln
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64-v3
+      - armv8-a
+  hummingbird:
+    target: hummingbird
+    manager: dnf
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  sailfin:
+    target: opensuse-tumbleweed
+    manager: zypper
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  guppy:
+    target: gentoo
+    manager: portage
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  gurnard:
+    target: ubuntu-noble
+    manager: apt
+    architectures:
+      linux/amd64: amd64
+      linux/arm64: arm64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  grouper:
+    target: ubuntu
+    manager: apt
+    architectures:
+      linux/amd64: amd64
+      linux/arm64: arm64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  marlin:
+    target: arch
+    manager: pacman
+    architectures:
+      linux/amd64: x86_64
+      linux/arm64: aarch64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  flounder:
+    target: debian-trixie
+    manager: apt
+    architectures:
+      linux/amd64: amd64
+      linux/arm64: arm64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  flounder-sid:
+    target: debian
+    manager: apt
+    architectures:
+      linux/amd64: amd64
+      linux/arm64: arm64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+
 targets:
+  alma10:
+    status: supported
+    format: rpm
+    buildroot: alma10
+    architectures: [x86_64, aarch64]
+    r2_path: rpm/alma10/{arch}
+    repository: rpm-md
+    # Exact native child pins; compiler/ELF evidence is required separately.
+    probe_images:
+      x86_64: quay.io/almalinuxorg/almalinux@sha256:51d5589de16b26f7145a20e2eba45aa2030fa12a2f9782b04fe5a4e8e6dc7912
+      aarch64: quay.io/almalinuxorg/almalinux@sha256:f65410c601aa3b514801aecf8d10eeefaa5b6a56248279b96e4085f1861b7d64
+    platforms:
+      x86_64: linux/amd64/v2
+      aarch64: linux/arm64
+    cpu_baselines:
+      x86_64: x86-64-v2
+      aarch64: armv8-a
+    build_repositories: [baseos, appstream, crb, epel]
+    system_repositories: [baseos, appstream, crb, epel]
+    # No served index is asserted before its first verified publication.
+    published_index_pending: [x86_64, aarch64]
+  alma10-kitten:
+    status: supported
+    format: rpm
+    buildroot: alma10-kitten
+    architectures: [x86_64, aarch64]
+    r2_path: rpm/alma10-kitten/{arch}
+    repository: rpm-md
+    # Exact native child pins; compiler/ELF evidence is required separately.
+    probe_images:
+      x86_64: quay.io/almalinuxorg/almalinux@sha256:a85da6343aca56df44ae45493a78bda56d4055d6e2d4c950ba81c7e25b25491a
+      aarch64: quay.io/almalinuxorg/almalinux@sha256:ea0cc0a1592d6ee73727e9efe5628094d0e4e12a762e26bce966592ad5d1ef6c
+    platforms:
+      x86_64: linux/amd64/v2
+      aarch64: linux/arm64
+    cpu_baselines:
+      x86_64: x86-64-v2
+      aarch64: armv8-a
+    build_repositories: [baseos, appstream, crb, epel]
+    system_repositories: [baseos, appstream, crb, epel]
+    # No served index is asserted before its first verified publication.
+    published_index_pending: [x86_64, aarch64]
   el10:
     status: supported
     format: rpm
@@ -291,18 +463,18 @@ targets:
   arch:
     status: scaffold
     format: pkg.tar.zst
-    # aarch64 is declared with no build leg, no published index and no
-    # consumer (marlin, the Arch variant, is x86_64-only in tunaOS's
-    # build-config). Narrowing this to [x86_64] is measured and decided
-    # (docs/PACKAGE_FACTORY.md, "one contract"), but it ships in its own PR:
-    # touching `architectures` schedules every Arch cell, and the Arch
-    # engine cannot yet build a cell whose runtime deps are sibling recipes
-    # (dms-cli needs dms and quickshell; makepkg has no repo to find them
-    # in). That staging gap is the prerequisite; see tunaos-packages#631.
+    # Exact native build inputs, not interchangeable architectures. The ARM
+    # candidate's signed rootfs/native inventory and exact-image attestations
+    # were verified in tunaOS run 38079821516 at source 875f45ac3ed3914e99bc6cbe7ed9f43d6e7d7a60.
+    # Candidate input is not package readiness or CPU baseline proof.
     architectures: [x86_64, aarch64]
     r2_path: pacman/arch/{arch}
     repository: pacman
-    probe_image: docker.io/library/archlinux:latest
+    probe_images:
+      x86_64: docker.io/library/archlinux@sha256:2fd1ae548076c67bcd41098ddd44e799058010e8d55f085d453dbb890e706860
+      aarch64: ghcr.io/tuna-os/archlinuxarm@sha256:17ad528bbccd4b59b7ce18c652012916a4bf2e27de53606884ef61eb33c90a0d
+    platforms: {x86_64: linux/amd64, aarch64: linux/arm64}
+    cpu_baselines: {x86_64: x86-64, aarch64: armv8-a}
 
 # Cross-distro dependency capabilities.  Recipes express the dependency they
 # need; Tideforge resolves it to native package names for the selected target.
@@ -310,45 +482,45 @@ targets:
 # packages.  Native names remain available under dependencies.*.common/targets
 # for exceptional or genuinely target-specific requirements.
 dependency_catalog:
-  rust: {el10: [rust, cargo], eln: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], opensuse-tumbleweed: [rust, cargo], arch: [rust]}
-  go: {el10: [golang], eln: [golang], ubuntu: [golang-go], debian: [golang-go], opensuse-tumbleweed: [go], arch: [go]}
-  c-compiler: {el10: [gcc], eln: [gcc], ubuntu: [build-essential], debian: [build-essential], opensuse-tumbleweed: [gcc], arch: [base-devel]}
-  cpp-compiler: {el10: [gcc-c++], eln: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
-  pkg-config: {el10: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
-  cmake: {el10: [cmake], eln: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
-  ninja: {el10: [ninja-build], eln: [ninja-build], ubuntu: [ninja-build], debian: [ninja-build], opensuse-tumbleweed: [ninja], arch: [ninja]}
+  rust: {el10: [rust, cargo], alma10: [rust, cargo], alma10-kitten: [rust, cargo], eln: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], opensuse-tumbleweed: [rust, cargo], arch: [rust]}
+  go: {el10: [golang], alma10: [golang], alma10-kitten: [golang], eln: [golang], ubuntu: [golang-go], debian: [golang-go], opensuse-tumbleweed: [go], arch: [go]}
+  c-compiler: {el10: [gcc], alma10: [gcc], alma10-kitten: [gcc], eln: [gcc], ubuntu: [build-essential], debian: [build-essential], opensuse-tumbleweed: [gcc], arch: [base-devel]}
+  cpp-compiler: {el10: [gcc-c++], alma10: [gcc-c++], alma10-kitten: [gcc-c++], eln: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
+  pkg-config: {el10: [pkgconf-pkg-config], alma10: [pkgconf-pkg-config], alma10-kitten: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
+  cmake: {el10: [cmake], alma10: [cmake], alma10-kitten: [cmake], eln: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
+  ninja: {el10: [ninja-build], alma10: [ninja-build], alma10-kitten: [ninja-build], eln: [ninja-build], ubuntu: [ninja-build], debian: [ninja-build], opensuse-tumbleweed: [ninja], arch: [ninja]}
   # Wayland-desktop build capabilities (#169). Nothing COSMIC links against
   # had a catalog entry, which made every deb widening a hand-curated name
   # hunt; these eight unblock all 14 cosmic recipes at once. Arch dev headers
   # ship in the main package, so the arch column names the library package.
-  wayland-dev: {el10: [wayland-devel], eln: [wayland-devel], ubuntu: [libwayland-dev], debian: [libwayland-dev], opensuse-tumbleweed: [wayland-devel], arch: [wayland]}
-  libxkbcommon-dev: {el10: [libxkbcommon-devel], eln: [libxkbcommon-devel], ubuntu: [libxkbcommon-dev], debian: [libxkbcommon-dev], opensuse-tumbleweed: [libxkbcommon-devel], arch: [libxkbcommon]}
-  libinput-dev: {el10: [libinput-devel], eln: [libinput-devel], ubuntu: [libinput-dev], debian: [libinput-dev], opensuse-tumbleweed: [libinput-devel], arch: [libinput]}
-  pipewire-dev: {el10: [pipewire-devel], eln: [pipewire-devel], ubuntu: [libpipewire-0.3-dev], debian: [libpipewire-0.3-dev], opensuse-tumbleweed: [pipewire-devel], arch: [libpipewire]}
-  gbm-dev: {el10: [mesa-libgbm-devel], eln: [mesa-libgbm-devel], ubuntu: [libgbm-dev], debian: [libgbm-dev], opensuse-tumbleweed: [libgbm-devel], arch: [mesa]}
-  pixman-dev: {el10: [pixman-devel], eln: [pixman-devel], ubuntu: [libpixman-1-dev], debian: [libpixman-1-dev], opensuse-tumbleweed: [libpixman-1-0-devel], arch: [pixman]}
-  dav1d-dev: {el10: [libdav1d-devel], eln: [libdav1d-devel], ubuntu: [libdav1d-dev], debian: [libdav1d-dev], opensuse-tumbleweed: [libdav1d-devel], arch: [dav1d]}
-  libdisplay-info-dev: {el10: [libdisplay-info-devel], eln: [libdisplay-info-devel], ubuntu: [libdisplay-info-dev], debian: [libdisplay-info-dev], opensuse-tumbleweed: [libdisplay-info-devel], arch: [libdisplay-info]}
-  gettext: {el10: [gettext], eln: [gettext], ubuntu: [gettext], debian: [gettext], opensuse-tumbleweed: [gettext-tools], arch: [gettext]}
-  dbus: {el10: [dbus], eln: [dbus], ubuntu: [dbus], debian: [dbus], opensuse-tumbleweed: [dbus-1], arch: [dbus]}
-  dbus-dev: {el10: [dbus-devel], eln: [dbus-devel], ubuntu: [libdbus-1-dev], debian: [libdbus-1-dev], opensuse-tumbleweed: [dbus-1-devel], arch: [dbus]}
-  bluez: {el10: [bluez-libs], eln: [bluez-libs], ubuntu: [bluez], debian: [bluez], opensuse-tumbleweed: [bluez], arch: [bluez]}
-  bluez-dev: {el10: [bluez-libs-devel], eln: [bluez-libs-devel], ubuntu: [libbluetooth-dev], debian: [libbluetooth-dev], opensuse-tumbleweed: [bluez-devel], arch: [bluez-libs]}
-  lmdb-dev: {el10: [lmdb-devel], eln: [lmdb-devel], ubuntu: [liblmdb-dev], debian: [liblmdb-dev], opensuse-tumbleweed: [lmdb-devel], arch: [lmdb]}
-  lmdb: {el10: [lmdb-libs], eln: [lmdb-libs], ubuntu: [liblmdb0], debian: [liblmdb0], opensuse-tumbleweed: [lmdb], arch: [lmdb]}
-  pam-dev: {el10: [pam-devel], eln: [pam-devel], ubuntu: [libpam0g-dev], debian: [libpam0g-dev], opensuse-tumbleweed: [pam-devel], arch: [pam]}
-  flatpak: {el10: [flatpak], eln: [flatpak], ubuntu: [flatpak], debian: [flatpak], opensuse-tumbleweed: [flatpak], arch: [flatpak]}
-  extra-cmake-modules: {el10: [extra-cmake-modules], eln: [extra-cmake-modules], ubuntu: [extra-cmake-modules], debian: [extra-cmake-modules], opensuse-tumbleweed: [extra-cmake-modules], arch: [extra-cmake-modules]}
-  kf6-config-dev: {el10: [kf6-kconfig-devel], eln: [kf6-kconfig-devel], ubuntu: [libkf6config-dev], debian: [libkf6config-dev], opensuse-tumbleweed: [kf6-kconfig-devel], arch: [kconfig]}
-  kf6-runner-dev: {el10: [kf6-krunner-devel], eln: [kf6-krunner-devel], ubuntu: [libkf6runner-dev], debian: [libkf6runner-dev], opensuse-tumbleweed: [kf6-krunner-devel], arch: [krunner]}
-  kf6-i18n-dev: {el10: [kf6-ki18n-devel], eln: [kf6-ki18n-devel], ubuntu: [libkf6i18n-dev], debian: [libkf6i18n-dev], opensuse-tumbleweed: [kf6-ki18n-devel], arch: [ki18n]}
-  kf6-coreaddons-dev: {el10: [kf6-kcoreaddons-devel], eln: [kf6-kcoreaddons-devel], ubuntu: [libkf6coreaddons-dev], debian: [libkf6coreaddons-dev], opensuse-tumbleweed: [kf6-kcoreaddons-devel], arch: [kcoreaddons]}
-  qt6-base-dev: {el10: [qt6-qtbase-devel], eln: [qt6-qtbase-devel], ubuntu: [qt6-base-dev], debian: [qt6-base-dev], opensuse-tumbleweed: [qt6-base-devel], arch: [qt6-base]}
+  wayland-dev: {el10: [wayland-devel], alma10: [wayland-devel], alma10-kitten: [wayland-devel], eln: [wayland-devel], ubuntu: [libwayland-dev], debian: [libwayland-dev], opensuse-tumbleweed: [wayland-devel], arch: [wayland]}
+  libxkbcommon-dev: {el10: [libxkbcommon-devel], alma10: [libxkbcommon-devel], alma10-kitten: [libxkbcommon-devel], eln: [libxkbcommon-devel], ubuntu: [libxkbcommon-dev], debian: [libxkbcommon-dev], opensuse-tumbleweed: [libxkbcommon-devel], arch: [libxkbcommon]}
+  libinput-dev: {el10: [libinput-devel], alma10: [libinput-devel], alma10-kitten: [libinput-devel], eln: [libinput-devel], ubuntu: [libinput-dev], debian: [libinput-dev], opensuse-tumbleweed: [libinput-devel], arch: [libinput]}
+  pipewire-dev: {el10: [pipewire-devel], alma10: [pipewire-devel], alma10-kitten: [pipewire-devel], eln: [pipewire-devel], ubuntu: [libpipewire-0.3-dev], debian: [libpipewire-0.3-dev], opensuse-tumbleweed: [pipewire-devel], arch: [libpipewire]}
+  gbm-dev: {el10: [mesa-libgbm-devel], alma10: [mesa-libgbm-devel], alma10-kitten: [mesa-libgbm-devel], eln: [mesa-libgbm-devel], ubuntu: [libgbm-dev], debian: [libgbm-dev], opensuse-tumbleweed: [libgbm-devel], arch: [mesa]}
+  pixman-dev: {el10: [pixman-devel], alma10: [pixman-devel], alma10-kitten: [pixman-devel], eln: [pixman-devel], ubuntu: [libpixman-1-dev], debian: [libpixman-1-dev], opensuse-tumbleweed: [libpixman-1-0-devel], arch: [pixman]}
+  dav1d-dev: {el10: [libdav1d-devel], alma10: [libdav1d-devel], alma10-kitten: [libdav1d-devel], eln: [libdav1d-devel], ubuntu: [libdav1d-dev], debian: [libdav1d-dev], opensuse-tumbleweed: [libdav1d-devel], arch: [dav1d]}
+  libdisplay-info-dev: {el10: [libdisplay-info-devel], alma10: [libdisplay-info-devel], alma10-kitten: [libdisplay-info-devel], eln: [libdisplay-info-devel], ubuntu: [libdisplay-info-dev], debian: [libdisplay-info-dev], opensuse-tumbleweed: [libdisplay-info-devel], arch: [libdisplay-info]}
+  gettext: {el10: [gettext], alma10: [gettext], alma10-kitten: [gettext], eln: [gettext], ubuntu: [gettext], debian: [gettext], opensuse-tumbleweed: [gettext-tools], arch: [gettext]}
+  dbus: {el10: [dbus], alma10: [dbus], alma10-kitten: [dbus], eln: [dbus], ubuntu: [dbus], debian: [dbus], opensuse-tumbleweed: [dbus-1], arch: [dbus]}
+  dbus-dev: {el10: [dbus-devel], alma10: [dbus-devel], alma10-kitten: [dbus-devel], eln: [dbus-devel], ubuntu: [libdbus-1-dev], debian: [libdbus-1-dev], opensuse-tumbleweed: [dbus-1-devel], arch: [dbus]}
+  bluez: {el10: [bluez-libs], alma10: [bluez-libs], alma10-kitten: [bluez-libs], eln: [bluez-libs], ubuntu: [bluez], debian: [bluez], opensuse-tumbleweed: [bluez], arch: [bluez]}
+  bluez-dev: {el10: [bluez-libs-devel], alma10: [bluez-libs-devel], alma10-kitten: [bluez-libs-devel], eln: [bluez-libs-devel], ubuntu: [libbluetooth-dev], debian: [libbluetooth-dev], opensuse-tumbleweed: [bluez-devel], arch: [bluez-libs]}
+  lmdb-dev: {el10: [lmdb-devel], alma10: [lmdb-devel], alma10-kitten: [lmdb-devel], eln: [lmdb-devel], ubuntu: [liblmdb-dev], debian: [liblmdb-dev], opensuse-tumbleweed: [lmdb-devel], arch: [lmdb]}
+  lmdb: {el10: [lmdb-libs], alma10: [lmdb-libs], alma10-kitten: [lmdb-libs], eln: [lmdb-libs], ubuntu: [liblmdb0], debian: [liblmdb0], opensuse-tumbleweed: [lmdb], arch: [lmdb]}
+  pam-dev: {el10: [pam-devel], alma10: [pam-devel], alma10-kitten: [pam-devel], eln: [pam-devel], ubuntu: [libpam0g-dev], debian: [libpam0g-dev], opensuse-tumbleweed: [pam-devel], arch: [pam]}
+  flatpak: {el10: [flatpak], alma10: [flatpak], alma10-kitten: [flatpak], eln: [flatpak], ubuntu: [flatpak], debian: [flatpak], opensuse-tumbleweed: [flatpak], arch: [flatpak]}
+  extra-cmake-modules: {el10: [extra-cmake-modules], alma10: [extra-cmake-modules], alma10-kitten: [extra-cmake-modules], eln: [extra-cmake-modules], ubuntu: [extra-cmake-modules], debian: [extra-cmake-modules], opensuse-tumbleweed: [extra-cmake-modules], arch: [extra-cmake-modules]}
+  kf6-config-dev: {el10: [kf6-kconfig-devel], alma10: [kf6-kconfig-devel], alma10-kitten: [kf6-kconfig-devel], eln: [kf6-kconfig-devel], ubuntu: [libkf6config-dev], debian: [libkf6config-dev], opensuse-tumbleweed: [kf6-kconfig-devel], arch: [kconfig]}
+  kf6-runner-dev: {el10: [kf6-krunner-devel], alma10: [kf6-krunner-devel], alma10-kitten: [kf6-krunner-devel], eln: [kf6-krunner-devel], ubuntu: [libkf6runner-dev], debian: [libkf6runner-dev], opensuse-tumbleweed: [kf6-krunner-devel], arch: [krunner]}
+  kf6-i18n-dev: {el10: [kf6-ki18n-devel], alma10: [kf6-ki18n-devel], alma10-kitten: [kf6-ki18n-devel], eln: [kf6-ki18n-devel], ubuntu: [libkf6i18n-dev], debian: [libkf6i18n-dev], opensuse-tumbleweed: [kf6-ki18n-devel], arch: [ki18n]}
+  kf6-coreaddons-dev: {el10: [kf6-kcoreaddons-devel], alma10: [kf6-kcoreaddons-devel], alma10-kitten: [kf6-kcoreaddons-devel], eln: [kf6-kcoreaddons-devel], ubuntu: [libkf6coreaddons-dev], debian: [libkf6coreaddons-dev], opensuse-tumbleweed: [kf6-kcoreaddons-devel], arch: [kcoreaddons]}
+  qt6-base-dev: {el10: [qt6-qtbase-devel], alma10: [qt6-qtbase-devel], alma10-kitten: [qt6-qtbase-devel], eln: [qt6-qtbase-devel], ubuntu: [qt6-base-dev], debian: [qt6-base-dev], opensuse-tumbleweed: [qt6-base-devel], arch: [qt6-base]}
   # PEP 517 Python build system.  EL10 needs python3-devel for the
   # pyproject macros (which also supply python3), plus setuptools for
   # setup.py projects.  DEB targets separate the interpreter (python3),
   # the build plugin (pybuild-plugin-pyproject) and dh-python itself.
   # Arch splits python-build (PEP 517 frontend) from python-installer
   # (wheel installer) and python-setuptools (setup.py build backend).
-  python-build: {el10: [python3-devel, python3-setuptools], eln: [python3-devel, python3-setuptools], ubuntu: [python3, python3-setuptools, dh-python, pybuild-plugin-pyproject], debian: [python3, python3-setuptools, dh-python, pybuild-plugin-pyproject], opensuse-tumbleweed: [python3-devel, python3-setuptools], arch: [python, python-build, python-installer, python-setuptools]}
-  python: {el10: [python3], eln: [python3], ubuntu: [python3], debian: [python3], opensuse-tumbleweed: [python3], arch: [python]}
+  python-build: {el10: [python3-devel, python3-setuptools], alma10: [python3-devel, python3-setuptools], alma10-kitten: [python3-devel, python3-setuptools], eln: [python3-devel, python3-setuptools], ubuntu: [python3, python3-setuptools, dh-python, pybuild-plugin-pyproject], debian: [python3, python3-setuptools, dh-python, pybuild-plugin-pyproject], opensuse-tumbleweed: [python3-devel, python3-setuptools], arch: [python, python-build, python-installer, python-setuptools]}
+  python: {el10: [python3], alma10: [python3], alma10-kitten: [python3], eln: [python3], ubuntu: [python3], debian: [python3], opensuse-tumbleweed: [python3], arch: [python]}

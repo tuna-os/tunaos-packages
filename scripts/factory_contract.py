@@ -47,6 +47,8 @@ table must move in the same commit.
 from __future__ import annotations
 
 from typing import Any
+import json
+import re
 
 # Inert for every format: nothing in any build or verify path reads these.
 #   r2_path / r2_path_aarch64  bucket WRITE paths, read by the publishers and
@@ -119,3 +121,68 @@ def tideforge_cell_id(package: str, target: str, architecture: str) -> str:
     re-spelled.
     """
     return f"tideforge-{package}-{target}-{architecture}"
+
+
+def consumer_binding_inputs(bindings: Any, factory: dict, target_id: str, architecture: str) -> list[dict]:
+    """Pin this cell's consumers without importing another target's inputs."""
+    digest = re.compile(r"sha256:[0-9a-f]{64}\Z")
+    fields = {"target", "sourceRevision", "contractDigest", "baseDigest", "baseReference", "approvedSources"}
+    target_fields = {"variant", "flavor", "platform", "cpuBaseline", "hardwareScope"}
+    if not isinstance(bindings, list):
+        raise ValueError("consumer bindings must be an array")
+    seen = set()
+    for binding in bindings:
+        if not isinstance(binding, dict) or set(binding) != fields:
+            raise ValueError("invalid consumer binding shape")
+        target = binding["target"]
+        if not isinstance(target, dict) or set(target) != target_fields:
+            raise ValueError("invalid consumer binding target")
+        if any(not isinstance(value, str) or not value for value in target.values()):
+            raise ValueError("consumer binding target fields must be strings")
+        identifier = r"[a-z0-9][a-z0-9._-]*"
+        if any(not re.fullmatch(identifier, target[field]) for field in ("variant", "flavor")):
+            raise ValueError("invalid consumer target identifier")
+        tokens = target["flavor"].split("-")
+        scope = "apple-silicon" if "asahi" in tokens else "apple-t2" if "t2" in tokens else "generic"
+        platform = target["platform"]
+        baseline = ("armv8-a" if platform == "linux/arm64" else
+                    "x86-64-v2" if platform == "linux/amd64/v2" else
+                    "x86-64-v3" if target["variant"] in {"skipjack", "wahoo"} else "x86-64")
+        if (platform not in {"linux/amd64", "linux/amd64/v2", "linux/arm64"}
+            or target["hardwareScope"] != scope or target["cpuBaseline"] != baseline
+            or ("asahi" in tokens and "t2" in tokens)
+            or (scope == "apple-silicon" and platform != "linux/arm64")
+            or (scope == "apple-t2" and platform == "linux/arm64")
+            or (platform == "linux/amd64/v2" and target["variant"] not in {"albacore", "yellowfin"})
+            or (platform == "linux/amd64" and target["variant"] in {"albacore", "yellowfin"})):
+            raise ValueError("inconsistent consumer hardware or CPU identity")
+        if not isinstance(binding["sourceRevision"], str) or not re.fullmatch(r"[0-9a-f]{40}", binding["sourceRevision"]):
+            raise ValueError("consumer binding revision must be immutable")
+        if any(not isinstance(binding[field], str) or not digest.fullmatch(binding[field]) for field in ("contractDigest", "baseDigest")):
+            raise ValueError("consumer binding digests must be immutable")
+        if not isinstance(binding["baseReference"], str) or binding["baseReference"].rsplit("@", 1)[-1] != binding["baseDigest"]:
+            raise ValueError("consumer binding base reference disagrees")
+        if not isinstance(binding["approvedSources"], list):
+            raise ValueError("consumer binding sources must be an array")
+        if not re.fullmatch(r"[a-z0-9.-]+(?::[0-9]+)?/[a-z0-9._/-]+@sha256:[0-9a-f]{64}", binding["baseReference"]):
+            raise ValueError("invalid immutable base reference")
+        for source in binding["approvedSources"]:
+            if (not isinstance(source, dict)
+                or not {"id", "url", "signingIdentity"} <= set(source)
+                or set(source) - {"id", "url", "signingIdentity", "snapshotDigest"}
+                or not isinstance(source["id"], str) or not re.fullmatch(identifier, source["id"])
+                or not isinstance(source["url"], str) or not re.fullmatch(r"https://[^\s@]+", source["url"])
+                or not isinstance(source["signingIdentity"], str) or not source["signingIdentity"]
+                or ("snapshotDigest" in source and (not isinstance(source["snapshotDigest"], str)
+                    or not digest.fullmatch(source["snapshotDigest"])))):
+                raise ValueError("invalid approved source snapshot")
+        adapter = factory.get("consumer_adapters", {}).get(target["variant"], {})
+        if (adapter.get("target") != target_id
+            or adapter.get("architectures", {}).get(target["platform"]) != architecture
+            or target["cpuBaseline"] not in adapter.get("cpuBaselines", [])):
+            raise ValueError("consumer binding belongs to another factory target or baseline")
+        identity = tuple(target[field] for field in ("variant", "flavor", "platform"))
+        if identity in seen:
+            raise ValueError("duplicate consumer binding")
+        seen.add(identity)
+    return sorted(bindings, key=lambda item: json.dumps(item, sort_keys=True))

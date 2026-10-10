@@ -39,7 +39,36 @@ def cells() -> list[dict]:
 
 
 def baseurls(cfg: Path) -> set[str]:
-    return set(re.findall(r"^baseurl=(\S+)", cfg.read_text(), flags=re.M))
+    if cfg.name.startswith("alma10-"):
+        # Alma family profiles include their checkout-relative native profile
+        # and replace only its factory endpoint. Execute that actual profile;
+        # regex over the wrapper cannot observe the resulting DNF contract.
+        namespace = {"config_opts": {}, "__builtins__": {}}
+        active = []
+
+        def load(path: Path):
+            path = path.resolve()
+            if path.parent != MOCK.resolve() or path.suffix != ".cfg":
+                raise ValueError("mock include must remain in the checkout mock directory")
+            if path in active:
+                raise ValueError("recursive mock include")
+            active.append(path)
+            try:
+                exec(compile(path.read_text(), str(path), "exec"), namespace)
+            finally:
+                active.pop()
+
+        def include(name):
+            if not isinstance(name, str) or Path(name).is_absolute():
+                raise ValueError("mock include must be checkout relative")
+            load(active[-1].parent / name)
+
+        namespace["include"] = include
+        load(cfg)
+        body = namespace["config_opts"]["dnf.conf"]
+    else:
+        body = cfg.read_text()
+    return set(re.findall(r"^baseurl=(\S+)", body, flags=re.M))
 
 
 # Cells that still violate the rule. Every one of them can lose a tier the
@@ -122,3 +151,15 @@ def test_the_skip_still_justifies_itself_by_the_buildroot():
     src = (ROOT / "scripts" / "build-chain.sh").read_text()
     assert "already served by the published index" in src
     assert "SERVED_NVRS_SET" in src
+
+
+@pytest.mark.parametrize("family", ["gnome50", "gnome51", "xfce"])
+@pytest.mark.parametrize("distribution", ["alma10", "alma10-kitten"])
+@pytest.mark.parametrize("architecture", ["x86_64", "aarch64"])
+def test_alma_family_profile_executes_to_its_isolated_signed_supply_endpoint(family, distribution, architecture):
+    suffix = "-aarch64" if architecture == "aarch64" else ""
+    cfg = MOCK / f"{distribution}-ci-{family}{suffix}.cfg"
+    urls = baseurls(cfg)
+    assert f"https://repo.tunaos.org/{family}/{distribution}-{architecture}/" in urls
+    assert f"https://repo.tunaos.org/rpm/{distribution}/{architecture}/" not in urls
+    assert not any("10-stream" in url or "/rpm/el10/" in url or "copr" in url for url in urls)

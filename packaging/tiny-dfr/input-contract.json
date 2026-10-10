@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "scope": "source-inputs-native-bootstrap",
+  "readiness": false,
+  "upstream": {
+    "repository": "AsahiLinux/tiny-dfr",
+    "commit": "6267754535c16bd2c1006b946aa032561d8432b3",
+    "url": "https://github.com/AsahiLinux/tiny-dfr/archive/6267754535c16bd2c1006b946aa032561d8432b3.tar.gz",
+    "version": "0.3.7",
+    "license": "MIT AND Apache-2.0"
+  },
+  "target": {
+    "id": "opensuse-tumbleweed",
+    "architecture": "aarch64",
+    "platform": "linux/arm64",
+    "cpuPolicy": "armv8-a",
+    "cpuCompatibilityVerified": false
+  },
+  "producer": {
+    "repository": "tuna-os/tunaos-packages",
+    "sourceRevision": "dd0c94685ca05e6232e8e85bc210713c66768155",
+    "runId": 38085707264,
+    "runAttempt": 1
+  },
+  "base": {
+    "repository": "registry.opensuse.org/opensuse/tumbleweed",
+    "childDigest": "sha256:2f6265bd80baeaacf496b73a3cd9f077be2d0d5eda271fd2bd9b78567d834b7a",
+    "configDigest": "sha256:c71eaba4bb3a30ef50f89189a601695b18d3a2600540df0a29012738720fe6bf"
+  },
+  "artifacts": {
+    "tiny-dfr-source.tar.gz": {
+      "sha256": "04e28d0108c7b0e3c67b7f088dddb7ba89d6a368f1291bdd3b386391cc11fe9a",
+      "size": 40747
+    },
+    "tiny-dfr-vendor.tar.gz": {
+      "sha256": "e65f3a94fddd6ece9babd7117d1af80851bfcebbc81bb53617489a50c974abd3",
+      "size": 32682699
+    },
+    "vendor-config.toml": {
+      "sha256": "77e9219c27274120197571fd165cbe4121963b5ad3bc0b20b383c86ef0ce6c2b",
+      "size": 101
+    },
+    "Cargo.lock": {
+      "sha256": "3d58a56be936df88aa08a1d5efa1d39ea20d6f5b6ab3599c542eb27f5fe2cd42",
+      "size": 34428
+    },
+    "LICENSE": {
+      "sha256": "e40d19f40fb52b0abf6e3e0ad973eb555378a06976c1a4a983508158d72d750e",
+      "size": 1081
+    },
+    "LICENSE.material": {
+      "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd",
+      "size": 11357
+    },
+    "native-rpm-inventory.tsv": {
+      "sha256": "1bbc34be4795ff501faceb9642823f1595f3057cbf6a9911809834a357924b40",
+      "size": 11735
+    },
+    "native-repositories.txt": {
+      "sha256": "94afe9d2fbc3a00a3b0ce557e9f67e97b762a41ca122122dfa7f9d5c1d17b310",
+      "size": 1566
+    },
+    "rustc.txt": {
+      "sha256": "d788783f12183879b31e4116e39f172064a39ee02f4ac260b08b02e34dcf068f",
+      "size": 227
+    },
+    "cargo.txt": {
+      "sha256": "e3b397818064437a9f34aad0e51c57a88ec95557c48a22e8b5b41e2ffccd8f0e",
+      "size": 66
+    },
+    "gcc.txt": {
+      "sha256": "3f81656f0ee6d927a3a61976998c747131e5805dacf7f4a08d34826741eb0ab9",
+      "size": 235
+    },
+    "native-optflags.txt": {
+      "sha256": "7e53a19c218684b06b2097cc9babec0399b4c962f35b5b92e434a4f599efa309",
+      "size": 7
+    },
+    "native-library-versions.txt": {
+      "sha256": "d906cc7d523f8bb45ef1a42fb33f6cd98c3f8e160c17a661f77b43d383090bfd",
+      "size": 111
+    },
+    "cargo-metadata.json": {
+      "sha256": "6694e6d783a09ac24581eb105643342e5c0f0de76be6b5744d8e367b242cd33b",
+      "size": 511115
+    }
+  }
+}

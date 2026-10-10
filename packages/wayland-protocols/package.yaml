@@ -45,4 +45,4 @@ outputs:
         files: [usr/share/wayland-protocols, usr/share/pkgconfig/wayland-protocols.pc]
 verify:
   smoke: "pkg-config --atleast-version=1.41 wayland-protocols && test -f /usr/share/wayland-protocols/staging/ext-session-lock/ext-session-lock-v1.xml"
-targets: [el10, eln, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, eln, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

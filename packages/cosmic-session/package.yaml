@@ -23,6 +23,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: 1e4f10b5821982688e4a8a39f819be0bc2ad3e74
     VERGEN_GIT_COMMIT_DATE: "2026-09-23 13:41:35 -0400"
@@ -32,20 +37,22 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [cargo, lld, just, desktop-file-utils]
+      alma10: [tunaos-rust193 >= 1.93.0, cargo, lld, just, desktop-file-utils]
+      alma10-kitten: [tunaos-rust193 >= 1.93.0, cargo, lld, just, desktop-file-utils]
       ubuntu: [cargo, lld, just, desktop-file-utils]
       debian: [cargo, lld, just, desktop-file-utils]
   runtime:
-    # The deb targets stay empty on purpose: the COSMIC siblings this session
-    # pulls in on el10 ship in neither the Debian nor the Ubuntu archive, and
-    # the gate's clean-install repo only holds the deb built by that cell, so
-    # naming cosmic-comp there renders an unsatisfiable Depends.
+    # Native candidate waves must supply the complete session transaction.
+    # A missing sibling blocks the gate; an empty Depends cannot prove it.
     targets:
       # No system-cosmic-config on EL10: it is Fedora's distro-default
       # branding ("a fedora-like experience"); TunaOS desktop defaults
       # come from the image/desktops layer instead.
       el10: [cosmic-app-library >= 1.9.0, cosmic-applets >= 1.9.0, cosmic-bg >= 1.9.0, cosmic-comp >= 1.9.0, cosmic-files >= 1.9.0, cosmic-greeter >= 1.9.0, cosmic-icon-theme >= 1.9.0, cosmic-idle >= 1.9.0, cosmic-initial-setup >= 1.9.0, cosmic-launcher >= 1.9.0, cosmic-notifications >= 1.9.0, cosmic-osd >= 1.9.0, cosmic-osk >= 1.9.0, cosmic-panel >= 1.9.0, cosmic-randr >= 1.9.0, cosmic-screenshot >= 1.9.0, cosmic-settings >= 1.9.0, cosmic-settings-daemon >= 1.9.0, cosmic-term >= 1.9.0, cosmic-workspaces >= 1.9.0, xdg-desktop-portal-cosmic >= 1.9.0, open-sans-fonts, 'font(notosansmono)', xdg-user-dirs]
-      ubuntu: []
-      debian: []
+      alma10: [cosmic-app-library >= 1.9.0, cosmic-applets >= 1.9.0, cosmic-bg >= 1.9.0, cosmic-comp >= 1.9.0, cosmic-files >= 1.9.0, cosmic-greeter >= 1.9.0, cosmic-icon-theme >= 1.9.0, cosmic-idle >= 1.9.0, cosmic-initial-setup >= 1.9.0, cosmic-launcher >= 1.9.0, cosmic-notifications >= 1.9.0, cosmic-osd >= 1.9.0, cosmic-osk >= 1.9.0, cosmic-panel >= 1.9.0, cosmic-randr >= 1.9.0, cosmic-screenshot >= 1.9.0, cosmic-settings >= 1.9.0, cosmic-settings-daemon >= 1.9.0, cosmic-term >= 1.9.0, cosmic-workspaces >= 1.9.0, xdg-desktop-portal-cosmic >= 1.9.0, open-sans-fonts, 'font(notosansmono)', xdg-user-dirs]
+      alma10-kitten: [cosmic-app-library >= 1.9.0, cosmic-applets >= 1.9.0, cosmic-bg >= 1.9.0, cosmic-comp >= 1.9.0, cosmic-files >= 1.9.0, cosmic-greeter >= 1.9.0, cosmic-icon-theme >= 1.9.0, cosmic-idle >= 1.9.0, cosmic-initial-setup >= 1.9.0, cosmic-launcher >= 1.9.0, cosmic-notifications >= 1.9.0, cosmic-osd >= 1.9.0, cosmic-osk >= 1.9.0, cosmic-panel >= 1.9.0, cosmic-randr >= 1.9.0, cosmic-screenshot >= 1.9.0, cosmic-settings >= 1.9.0, cosmic-settings-daemon >= 1.9.0, cosmic-term >= 1.9.0, cosmic-workspaces >= 1.9.0, xdg-desktop-portal-cosmic >= 1.9.0, open-sans-fonts, 'font(notosansmono)', xdg-user-dirs]
+      ubuntu: [cosmic-app-library (>= 1.9.0), cosmic-applets (>= 1.9.0), cosmic-bg (>= 1.9.0), cosmic-comp (>= 1.9.0), cosmic-files (>= 1.9.0), cosmic-greeter (>= 1.9.0), cosmic-icon-theme (>= 1.9.0), cosmic-idle (>= 1.9.0), cosmic-initial-setup (>= 1.9.0), cosmic-launcher (>= 1.9.0), cosmic-notifications (>= 1.9.0), cosmic-osd (>= 1.9.0), cosmic-osk (>= 1.9.0), cosmic-panel (>= 1.9.0), cosmic-randr (>= 1.9.0), cosmic-screenshot (>= 1.9.0), cosmic-settings (>= 1.9.0), cosmic-settings-daemon (>= 1.9.0), cosmic-term (>= 1.9.0), cosmic-workspaces (>= 1.9.0), xdg-desktop-portal-cosmic (>= 1.9.0), fonts-open-sans, fonts-noto-mono, xdg-user-dirs]
+      debian: [cosmic-app-library (>= 1.9.0), cosmic-applets (>= 1.9.0), cosmic-bg (>= 1.9.0), cosmic-comp (>= 1.9.0), cosmic-files (>= 1.9.0), cosmic-greeter (>= 1.9.0), cosmic-icon-theme (>= 1.9.0), cosmic-idle (>= 1.9.0), cosmic-initial-setup (>= 1.9.0), cosmic-launcher (>= 1.9.0), cosmic-notifications (>= 1.9.0), cosmic-osd (>= 1.9.0), cosmic-osk (>= 1.9.0), cosmic-panel (>= 1.9.0), cosmic-randr (>= 1.9.0), cosmic-screenshot (>= 1.9.0), cosmic-settings (>= 1.9.0), cosmic-settings-daemon (>= 1.9.0), cosmic-term (>= 1.9.0), cosmic-workspaces (>= 1.9.0), xdg-desktop-portal-cosmic (>= 1.9.0), fonts-open-sans, fonts-noto-mono, xdg-user-dirs]
 files:
   common:
     - usr/bin/cosmic-session
@@ -62,4 +69,4 @@ install:
       content: "user-db:user\nsystem-db:local\n"
 verify:
   smoke: "test -x /usr/bin/cosmic-session && test -x /usr/bin/start-cosmic && test -f /usr/share/wayland-sessions/cosmic.desktop"
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

@@ -112,7 +112,7 @@ jobs:
 
   publish:
     needs: [plan, build]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       # Serial: the arches talk to the same bucket and rclone config.
       max-parallel: 1
@@ -125,7 +125,7 @@ jobs:
         # Arch container below rather than here.
         run: curl -fsSL https://rclone.org/install.sh | sudo bash
       - name: Pull the Arch image, retrying transient registry failures
-        run: scripts/pull-container-image.sh '${{ needs.plan.outputs.image }}'
+        run: scripts/pull-container-image.sh '${{ matrix.image }}'
       - name: Configure rclone for R2
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -192,14 +192,15 @@ jobs:
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          TUNAOS_ARCHITECTURE: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           docker run --rm \
-            --env GPG_PRIVATE_KEY --env GPG_PASSPHRASE \
+            --env GPG_PRIVATE_KEY --env GPG_PASSPHRASE --env TUNAOS_ARCHITECTURE \
             --volume "$PWD/repo:/work/repo" \
             --volume "$PWD/staged:/work/staged:ro" \
             --volume "$PWD/scripts:/scripts:ro" \
-            '${{ needs.plan.outputs.image }}' \
+            '${{ matrix.image }}' \
             bash /scripts/publish-arch-wave.sh \
               --staged /work/staged --repo /work/repo --name '${{ matrix.repo_name }}'
       - name: Refuse a wave that breaks the served repository
@@ -233,9 +234,10 @@ jobs:
           PACKAGES: ${{ inputs.packages }}
           URL: ${{ matrix.served }}
           REPO_NAME: ${{ matrix.repo_name }}
+          TUNAOS_ARCHITECTURE: ${{ matrix.arch }}
         run: |
           set -euo pipefail
-          docker run --rm --env PACKAGES --env URL --env REPO_NAME \
+          docker run --rm --env PACKAGES --env URL --env REPO_NAME --env TUNAOS_ARCHITECTURE \
             --volume "$PWD/scripts:/scripts:ro" \
             --volume "$PWD/public.gpg:/keys/tunaos-public.gpg:ro" \
-            '${{ needs.plan.outputs.image }}' bash /scripts/arch-verify-published.sh
+            '${{ matrix.image }}' bash /scripts/arch-verify-published.sh

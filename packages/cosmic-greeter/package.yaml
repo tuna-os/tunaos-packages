@@ -16,6 +16,11 @@ sources:
   - {url: https://raw.githubusercontent.com/tuna-os/tunaos-packages/0578e2643a88c0bb569dd8de44747161a1d9f816/src/hummingbird/cosmic-greeter/include-greetd.patch, sha256: 6941d90a13c1b2408eaa692a5eff8fc2b1d0d43fa288cc5eff0b8aea477a0e1a, filename: cosmic-greeter-include-greetd.patch, destination: patches/cosmic-greeter-include-greetd.patch, extract: false}
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   prepare: [patch -p1 < patches/cosmic-greeter-display-manager.patch, patch -p1 < patches/cosmic-greeter-include-greetd.patch]
   environment: {VERGEN_GIT_SHA: 98df07df93df1cb091c95451f7162dca1a2ae2dd, VERGEN_GIT_COMMIT_DATE: "2026-10-07 21:19:02 +0200"}
   commands: [cargo build --release --all --offline --frozen]
@@ -24,6 +29,8 @@ dependencies:
     capabilities: [rust, pam-dev]
     targets:
       el10: [cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel, libdav1d-devel]
+      alma10: [tunaos-rust193 >= 1.93.0, cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel, libdav1d-devel]
+      alma10-kitten: [tunaos-rust193 >= 1.93.0, cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel, libdav1d-devel]
       ubuntu: [cargo, lld, libwayland-dev, clang, libxkbcommon-dev, just, libudev-dev, libinput-dev]
       debian: [cargo, lld, libwayland-dev, clang, libxkbcommon-dev, just, libudev-dev, libinput-dev]
   runtime:
@@ -39,6 +46,8 @@ dependencies:
       # is unaffected). The schema has no per-arch runtime deps, so both
       # arches drop it.
       el10: [dbus, greetd, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
+      alma10: [dbus, greetd, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
+      alma10-kitten: [dbus, greetd, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
       ubuntu: [dbus, greetd, libpam-fprintd]
       debian: [dbus, greetd, libpam-fprintd]
 files:
@@ -57,4 +66,4 @@ install:
     - install -Dm0644 debian/cosmic-greeter.pam {destdir}/etc/pam.d/cosmic-greeter
 verify:
   smoke: "test -x /usr/bin/cosmic-greeter && test -x /usr/bin/cosmic-greeter-daemon && test -x /usr/bin/cosmic-greeter-start"
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

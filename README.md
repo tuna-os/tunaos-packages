@@ -1,24 +1,23 @@
 # TunaOS Packages
 
 `tunaos-packages` is TunaOS's source-controlled package repository. It owns
-the native packaging, patches, build ordering, validation, signing, and
-publication work needed to ship curated desktop stacks independently of
-third-party repositories.
+native packages, patches, build order, validation, signatures, and publication.
+This lets TunaOS ship its desktop stacks independently of third-party repositories.
 
 ## Current state
 
 The active production implementation is the native EL10 RPM build chain for
 GNOME and XFWL4. Package specifications and EL10 compatibility fixes live in
-`src/`; build order is declared in `build-order*.yml`; GitHub Actions invokes
+`src/`; `build-order*.yml` declares the build order; GitHub Actions invokes
 `scripts/build-chain.sh` in isolated Mock environments.
 
-The project is migrating publication to GitHub Actions and Cloudflare R2. Any
+The project will move publication to GitHub Actions and Cloudflare R2. Any
 remaining COPR projects are compatibility/bootstrap infrastructure, not a
 desired end state. They will remain available until their GitHub/R2 replacement
 has passed build, staged-install, and desktop runtime gates. Do not remove or
-rewrite the native GNOME EL10 specs while that migration is incomplete.
+rewrite the native specs for GNOME on EL10 while that migration is incomplete.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the currently deployed RPM/R2
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the deployed RPM/R2
 pipeline and [COPR-AUDIT.md](COPR-AUDIT.md) for the historical package-source
 inventory.
 
@@ -36,9 +35,9 @@ repository install and desktop/runtime validation
 sign and publish to the TunaOS repository
 ```
 
-The build chain is deliberately native for the difficult EL10 GNOME bootstrap:
-it supports RPM scriptlets, file triggers, SELinux policy, bootstrap variants,
-and dependency workarounds that a generic recipe format does not yet model.
+The build chain uses native RPM tools for the GNOME bootstrap on EL10.
+It supports RPM scriptlets, file triggers, SELinux policy and bootstrap variants.
+It also supports dependency workarounds that a generic recipe format does not yet model.
 
 ## Repository layout
 
@@ -61,7 +60,7 @@ and dependency workarounds that a generic recipe format does not yet model.
    dependencies.
 4. Build it in the declared Mock target and install it from the staged
    repository.
-5. Add a focused runtime/desktop gate before promoting it to users.
+5. Add a focused runtime/desktop gate before promotion to users.
 
 Useful local commands:
 
@@ -74,20 +73,20 @@ python3 scripts/parse-build-order.py build-order.yml --validate
 ## Tideforge and cross-distro packaging
 
 Tideforge is a single-recipe abstraction for straightforward packages across
-RPM, DEB, and Pacman targets. Supported targets, the upstream-source policy,
-and the migration away from COPRs and PPAs are defined in
-[the package-factory contract](docs/PACKAGE_FACTORY.md).
+RPM, DEB, and Pacman targets. [The package-factory contract](docs/PACKAGE_FACTORY.md)
+defines supported targets, the upstream-source policy, and the migration away
+from COPRs and PPAs.
 
 It must prove source, build, install, and runtime parity before it replaces any
-native EL10 GNOME packaging. Native specs remain the authoritative production
+native packages for GNOME on EL10. Native specs remain the authoritative production
 path for EL10-specific compatibility work until then.
 
 ## Release policy
 
-Packages are promoted only after their source and packaging are reviewed, the
-target build succeeds, the staged repository installs cleanly, and the relevant
-desktop/session validation passes. Automated source updates should open review
-PRs; they must never publish directly.
+Before promotion, maintainers must review the source and package definitions.
+The target build must succeed. Packages from the staged repository must install
+cleanly, and the relevant desktop/session validation must pass. Automated source
+updates should open review PRs; they must never publish directly.
 
 <!-- hive-contribute-plea: donated-compute appeal, keep in sync across repos -->
 ## Contribute compute — no code needed

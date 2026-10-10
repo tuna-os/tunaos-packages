@@ -155,10 +155,9 @@ def test_the_restore_searches_by_base_id():
 
 
 def _gate_script() -> str:
-    """The gate's real shell. Found by having a `run:`, not by index — the
-    job gained a checkout step when the logic moved into a script."""
+    """Find the continuation gate command among other orchestration steps."""
     steps = _jobs()["gate"]["steps"]
-    return next(s["run"] for s in steps if "run" in s)
+    return next(s["run"] for s in steps if "gate-shard-results.py" in s.get("run", ""))
 
 
 def _chain(cell_id: str) -> tuple[str, str, str]:

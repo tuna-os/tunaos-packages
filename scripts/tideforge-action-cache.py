@@ -16,6 +16,7 @@ import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
+import consumer_contract
 
 
 SCHEMA = 1
@@ -30,7 +31,7 @@ COMMON_RENDERERS = (
 FORMAT_RENDERERS = {
     "deb": ("scripts/assemble-deb-source-tree.py",),
     "rpm": (),
-    "pkg.tar.zst": (),
+    "pkg.tar.zst": ("scripts/arch-native-policy.sh",),
 }
 
 
@@ -149,6 +150,8 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         raise SystemExit("SOURCE_DATE_EPOCH must be a positive integer")
 
     renderers = renderer_paths(target)
+    if args.target in {"alma10", "alma10-kitten"}:
+        renderers += ("scripts/run-alma-rpm.sh", "scripts/alma-compiler-policy.sh", "scripts/target_platform.py")
     renderer_digests = {}
     for relative in renderers:
         path = root / relative
@@ -160,7 +163,7 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     for key in dependency_keys:
         require_sha256(key, "dependency action key")
 
-    return {
+    result = {
         "schema": SCHEMA,
         "recipe": {
             "path": relative_recipe_path(recipe, root),
@@ -179,6 +182,7 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
             "source_date_epoch": int(args.source_date_epoch),
         },
     }
+    return attach_consumer_inputs(result, args, factory)
 
 
 def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
@@ -257,13 +261,17 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     native_renderers = ["scripts/build-chain.sh", "scripts/run-package-factory-cell.sh"]
     if "distgit:" in pathlib.Path(args.manifest).read_text(encoding="utf-8"):
         native_renderers.append("scripts/import-fedora-distgit.py")
+    if args.target in {"alma10", "alma10-kitten"}:
+        native_renderers.append("scripts/candidate-rpm-repository.py")
+        native_renderers.append("scripts/alma-rpmbuild-guard.py")
+        native_renderers.extend(("scripts/alma-candidate-snapshot.py", "scripts/alma-candidate-resume.py", "scripts/github_api.py"))
     renderer_inputs = {}
     for relative in native_renderers:
         path = root / relative
         if not path.is_file():
             raise SystemExit(f"renderer input does not exist: {relative}")
         renderer_inputs[relative] = digest_file(path)
-    return {
+    result = {
         "schema": SCHEMA,
         "identity": args.identity,
         "native_inputs": sorted(inputs, key=lambda entry: entry["path"]),
@@ -275,6 +283,21 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         "dependency_action_keys": [],
         "reproducibility": {"contract": 1, "source_date_epoch": int(args.source_date_epoch)},
     }
+    return attach_consumer_inputs(result, args, factory)
+
+
+def attach_consumer_inputs(result: dict, args: argparse.Namespace, factory: dict) -> dict:
+    path = getattr(args, "consumer_bindings", None)
+    if path:
+        document = consumer_contract.read_json(path)
+        if set(document) != {"bindings"}:
+            raise SystemExit("invalid consumer bindings document")
+        try:
+            result["consumer_bindings"] = factory_contract.consumer_binding_inputs(
+                document["bindings"], factory, args.target, args.arch)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+    return result
 
 
 def action_key(inputs: dict[str, Any]) -> str:
@@ -574,6 +597,7 @@ def main() -> int:
     key_parser.add_argument("--image", required=True)
     key_parser.add_argument("--source-date-epoch", required=True, type=int)
     key_parser.add_argument("--dependency-key", action="append", default=[])
+    key_parser.add_argument("--consumer-bindings")
 
     native_parser = commands.add_parser("native-key")
     native_parser.add_argument("--identity", required=True)
@@ -589,6 +613,7 @@ def main() -> int:
     native_parser.add_argument("--arch", required=True)
     native_parser.add_argument("--image", required=True)
     native_parser.add_argument("--source-date-epoch", required=True, type=int)
+    native_parser.add_argument("--consumer-bindings")
 
     result_parser = commands.add_parser("result")
     result_parser.add_argument("--action-key", required=True)

@@ -38,6 +38,8 @@ dependencies:
       # build died later at %files with 'File not found' (#169's blind-spot
       # fix surfaced this on the recipe's first-ever CI run, job 91337045768).
       el10: [cargo, lld, just, util-linux, libxkbcommon-devel, wayland-devel, pipewire-devel, clang-devel, mesa-libEGL-devel, mesa-libgbm-devel, gstreamer1-devel, glib2-devel]
+      alma10: [cargo, lld, just, util-linux, libxkbcommon-devel, wayland-devel, pipewire-devel, clang-devel, mesa-libEGL-devel, mesa-libgbm-devel, gstreamer1-devel, glib2-devel]
+      alma10-kitten: [cargo, lld, just, util-linux, libxkbcommon-devel, wayland-devel, pipewire-devel, clang-devel, mesa-libEGL-devel, mesa-libgbm-devel, gstreamer1-devel, glib2-devel]
       ubuntu: [cargo, lld, just, util-linux, libxkbcommon-dev, libwayland-dev, libpipewire-0.3-dev, clang, libegl1-mesa-dev, libgbm-dev, libgstreamer1.0-dev, libglib2.0-dev]
       debian: [cargo, lld, just, util-linux, libxkbcommon-dev, libwayland-dev, libpipewire-0.3-dev, clang, libegl1-mesa-dev, libgbm-dev, libgstreamer1.0-dev, libglib2.0-dev]
   runtime:
@@ -46,6 +48,8 @@ dependencies:
       # the gate's clean-install repo only holds the cell's own artifact
       # (same call as cosmic-settings, #225).
       el10: [cosmic-icon-theme >= 1.9.0]
+      alma10: [cosmic-icon-theme >= 1.9.0]
+      alma10-kitten: [cosmic-icon-theme >= 1.9.0]
       ubuntu: []
       debian: []
 files:
@@ -62,4 +66,4 @@ install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
 verify:
   smoke: "test -x /usr/libexec/xdg-desktop-portal-cosmic && test -f /usr/share/xdg-desktop-portal/portals/cosmic.portal"
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

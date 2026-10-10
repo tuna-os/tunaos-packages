@@ -18,6 +18,8 @@ dependencies:
     # into Arch where the C++ compiler is part of gcc, not a separate package.
     targets:
       el10: [cmake, gcc-c++, libunwind-devel]
+      alma10: [cmake, gcc-c++, libunwind-devel]
+      alma10-kitten: [cmake, gcc-c++, libunwind-devel]
       ubuntu: [cmake, g++, libunwind-dev]
       debian: [cmake, g++, libunwind-dev]
       opensuse-tumbleweed: [cmake, gcc-c++, libunwind-devel]
@@ -70,4 +72,4 @@ verify:
   # installed and registered. Recorded here so the recipe carries the gate's
   # full contract instead of a weaker one a switchover would silently adopt.
   smoke: "test -f /usr/include/cpptrace/cpptrace.hpp && test -f /usr/include/ctrace/ctrace.h && ldconfig -p | grep -F libcpptrace.so.1"
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]
