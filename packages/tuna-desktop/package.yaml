@@ -97,6 +97,9 @@ install:
     - ln -s tuna-shell-gtk {destdir}/usr/bin/roost-shell-gtk
     - ln -s tuna-ibus-bridge {destdir}/usr/bin/roost-ibus-bridge
     - ln -s tuna-greeter {destdir}/usr/bin/roost-greeter
+  # Requires the final v1 source/vendor pin, whose tree contains this data.
+  directories:
+    - {source: share/tuna-desktop/icons, destination: usr/share/tuna-desktop/icons}
   files:
     - {source: share/wayland-sessions/tuna.desktop, destination: usr/share/wayland-sessions/tuna.desktop}
     - {source: share/systemd/user/tuna-session.target, destination: usr/lib/systemd/user/tuna-session.target}
@@ -132,6 +135,7 @@ files:
     - etc/pam.d/roost-lock
     - usr/share/licenses/tuna-desktop/LICENSE
     - usr/share/doc/tuna-desktop/nested-session.md
+    - usr/share/tuna-desktop/icons
 verify:
   # The real session contract, not just "a binary exists": every one of the
   # six binaries runs and reports the package version, under both its name
@@ -154,4 +158,7 @@ verify:
     && test -f /etc/pam.d/tuna-lock
     && test -f /etc/pam.d/roost-lock
     && test -f /usr/lib/systemd/user/tuna-session.target
+    && test -f /usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/default/metadata.json
+    && test -f /usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/wait/metadata.json
+    && test -f /usr/share/tuna-desktop/icons/Adwaita/UPSTREAM.json
 targets: [arch]
