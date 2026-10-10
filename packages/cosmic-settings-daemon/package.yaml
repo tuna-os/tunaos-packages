@@ -43,6 +43,8 @@ dependencies:
       # what the control file names (same lesson as cosmic-comp, run
       # 30701973171).
       el10: [cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
+      alma10: [cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
+      alma10-kitten: [cargo, lld, just, patch, systemd-devel, libudev-devel, libinput-devel, wayland-devel, clang-devel, libxkbcommon-devel, pulseaudio-utils, pipewire-devel, openssl-devel]
       ubuntu: [cargo, lld, just, make, patch, libsystemd-dev, libudev-dev, libinput-dev, libwayland-dev, clang, libxkbcommon-dev, pulseaudio-utils, libpipewire-0.3-dev, libssl-dev]
       debian: [cargo, lld, just, make, patch, libsystemd-dev, libudev-dev, libinput-dev, libwayland-dev, clang, libxkbcommon-dev, pulseaudio-utils, libpipewire-0.3-dev, libssl-dev]
   runtime:
@@ -52,6 +54,8 @@ dependencies:
       # clean-install verify, so el10 drops it like the deb targets do.
       # Re-add if the theme is ever packaged (it is cosmetic only).
       el10: [acpid, sound-theme-freedesktop]
+      alma10: [acpid, sound-theme-freedesktop]
+      alma10-kitten: [acpid, sound-theme-freedesktop]
       ubuntu: [acpid, sound-theme-freedesktop]
       debian: [acpid, sound-theme-freedesktop]
 files:
@@ -63,4 +67,4 @@ install:
   commands: ["make install DESTDIR={destdir} prefix=/usr"]
 verify:
   smoke: "test -x /usr/bin/cosmic-settings-daemon && test -f /usr/share/polkit-1/rules.d/cosmic-settings-daemon.rules"
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

@@ -88,6 +88,16 @@ def tideforge_cells(root: pathlib.Path) -> list[dict]:
     return module.tideforge_cells(root)
 
 
+def native_cells(root: pathlib.Path) -> list[dict]:
+    """Enabled native target assignments are authoritative over legacy labels."""
+    spec = importlib.util.spec_from_file_location(
+        "catalog_native_planner", os.path.join(ROOT, "scripts", "plan-package-factory.py"))
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.native_cells(root)
+
+
 def load_yaml(path: str):
     with open(path, encoding="utf-8") as fh:
         return yaml.safe_load(fh)
@@ -194,6 +204,40 @@ def collect() -> dict:
                     # honestly so the completeness test can flag it.
                     rpm.setdefault("native", path)
                     rpm["missing_on_disk"] = True
+
+    # A shared native manifest can build independently for CentOS and Alma.
+    # Record every enabled cell target; changing its legacy target label would
+    # incorrectly erase the other consumers of that same source manifest.
+    for cell in native_cells(pathlib.Path(ROOT)):
+        manifest = str(cell["manifest"])
+        data = load_yaml(os.path.join(ROOT, manifest)) or {}
+        family = str(cell["family"])
+        for tier in data.get("tiers") or []:
+            for pkg in tier.get("packages") or []:
+                path = pkg.get("path")
+                name = os.path.basename(path) if path else pkg.get("copr_name")
+                if not name:
+                    raise ValueError(f"{manifest}: package lacks path or copr_name")
+                e = entry(name, family)
+                if cell["target"] not in e["targets"]:
+                    e["targets"].append(cell["target"])
+                for reference in (manifest, "manifests/package-builds.yaml"):
+                    if reference not in e["referenced_by"]:
+                        e["referenced_by"].append(reference)
+                rpm = e["packaging"].setdefault("rpm", {})
+                if not path:
+                    rpm.setdefault("copr", name)
+                elif pkg.get("distgit"):
+                    rpm.setdefault("distgit", pkg["distgit"])
+                    e["upstream"].setdefault("distgit", pkg["distgit"])
+                else:
+                    rpm.setdefault("native", path)
+                    if os.path.isdir(os.path.join(ROOT, path)):
+                        e["upstream"].update(spec_upstream(os.path.join(ROOT, path)))
+                    else:
+                        rpm["missing_on_disk"] = True
+                if pkg.get("build_tool"):
+                    e["membership"] = "build_tool"
 
     # ── Unified factory cells ────────────────────────────────────────────
     # The per-family gate workflows (build-tideforge-supported.yml,

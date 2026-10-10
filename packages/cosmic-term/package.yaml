@@ -37,6 +37,14 @@ dependencies:
         - cargo
         - lld
         - just
+      alma10:
+        - cargo
+        - lld
+        - just
+      alma10-kitten:
+        - cargo
+        - lld
+        - just
       ubuntu:
         - cargo
         - lld
@@ -48,6 +56,10 @@ dependencies:
   runtime:
     targets:
       el10:
+        - cosmic-icon-theme >= 1.9.0
+      alma10:
+        - cosmic-icon-theme >= 1.9.0
+      alma10-kitten:
         - cosmic-icon-theme >= 1.9.0
       ubuntu: []
       debian: []
@@ -64,5 +76,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-term
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

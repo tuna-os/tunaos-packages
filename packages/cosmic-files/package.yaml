@@ -38,6 +38,16 @@ dependencies:
         - lld
         - just
         - glib2-devel
+      alma10:
+        - cargo
+        - lld
+        - just
+        - glib2-devel
+      alma10-kitten:
+        - cargo
+        - lld
+        - just
+        - glib2-devel
       ubuntu:
         - cargo
         - lld
@@ -51,6 +61,16 @@ dependencies:
   runtime:
     targets:
       el10:
+        - gvfs
+        - gvfs-fuse
+        - xdg-utils
+        - cosmic-icon-theme >= 1.9.0
+      alma10:
+        - gvfs
+        - gvfs-fuse
+        - xdg-utils
+        - cosmic-icon-theme >= 1.9.0
+      alma10-kitten:
         - gvfs
         - gvfs-fuse
         - xdg-utils
@@ -73,5 +93,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-files && test -x /usr/bin/cosmic-files-applet
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

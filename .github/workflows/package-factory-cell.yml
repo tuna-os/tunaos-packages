@@ -224,7 +224,7 @@ jobs:
         if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true'
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q createrepo-c podman rpm
+          sudo apt-get install -y -q createrepo-c podman rpm gnupg
       # Hummingbird build-chain cells resolve utah-shipped BuildRequires
       # from the mock config's [utah] repo, which is a file:// bind-mount
       # with no HTTP baseurl: materialise the pinned OCI digest first

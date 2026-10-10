@@ -16,6 +16,7 @@ from typing import Any
 import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from target_platform import build_context
 import factory_contract  # noqa: E402  (needs the path above)
 import consumer_contract
 
@@ -29,12 +30,16 @@ COMMON_INPUTS = {
     "scripts/verify-package-factory-cell.sh",
     "scripts/tideforge-action-cache.py",
     "scripts/tideforge.py",
+    "scripts/target_platform.py",
+    "scripts/run-alma-rpm.sh",
+    "scripts/alma-compiler-policy.sh",
+    "scripts/factory-batches.py",
 }
 FORMAT_INPUTS = {
     "scripts/assemble-deb-source-tree.py": {"deb"},
     "scripts/arch-clean-install.sh": {"pkg.tar.zst"},
 }
-NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py"}
+NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py", "scripts/candidate-rpm-repository.sh", "scripts/candidate-rpm-repository.py"}
 DISTGIT_INPUTS = {"scripts/import-fedora-distgit.py"}
 DEPENDENCY_TREE_CHANGE = re.compile(r"^manifests/dependency-trees/[^/]+\.ya?ml$")
 TARGET_QUEUE_CHANGE = re.compile(r"^manifests/target-queues/[^/]+\.ya?ml$")
@@ -71,9 +76,8 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
             target = (factory.get("targets") or {}).get(target_id)
             if not isinstance(target, dict):
                 raise ValueError(f"{recipe_path}: unknown target {target_id}")
-            image = target.get("probe_image")
             package_format = target.get("format")
-            if not image or not package_format:
+            if not package_format:
                 raise ValueError(f"{recipe_path}: incomplete target contract {target_id}")
             architectures = target.get("architectures") or []
             for architecture in architectures:
@@ -82,6 +86,8 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                 # until it declares a target-native image for that architecture.
                 if target_id == "arch" and architecture != "x86_64":
                     continue
+                context = build_context(target, str(architecture))
+                image = context["image"]
                 cells.append(
                     {
                         "id": factory_contract.tideforge_cell_id(package, target_id, architecture),
@@ -91,7 +97,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                         "target": target_id,
                         "format": package_format,
                         "architecture": architecture,
-                        "image": image,
+                        **context,
                         "verify_image": image,
                         "runner": runner_for(str(architecture)),
                         "source_paths": [recipe_path.parent.relative_to(root).as_posix() + "/"],
@@ -127,6 +133,20 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
         missing = sorted(required - cell.keys())
         if missing:
             raise ValueError(f"native build {cell.get('id', '<unknown>')} misses {missing}")
+        if cell["target"] in {"alma10", "alma10-kitten"}:
+            factory = load_yaml(root / "manifests/package-factory.yaml")
+            target = factory["targets"][cell["target"]]
+            context = build_context(target, cell["architecture"])
+            if any(cell.get(key) != value for key, value in (
+                ("verify_image", context["image"]), ("platform", context["platform"]),
+                ("cpu_baseline", context["cpu_baseline"]),
+            )):
+                raise ValueError(f"native Alma build {cell['id']} has incompatible verification context")
+            family, name, architecture = cell["family"], cell["target"], cell["architecture"]
+            suffix = "-aarch64" if architecture == "aarch64" else ""
+            if (cell["mock_config"] != f"{name}-ci-{family}{suffix}"
+                    or cell.get("r2_path") != f"{family}/{name}-{architecture}"):
+                raise ValueError(f"native Alma build {cell['id']} has incompatible namespace or mock config")
         cell.update(
             {
                 "engine": "build-chain",
@@ -507,6 +527,43 @@ def select_by(cells: list[dict[str, Any]], selector: str) -> list[dict[str, Any]
     return selected
 
 
+def selection_batches(selected: list[dict], source_revision: str) -> dict:
+    """Reserve continuation capacity without discarding any selected cell."""
+    if not re.fullmatch(r"[0-9a-f]{40}", source_revision):
+        raise ValueError("batch source revision must be a full immutable SHA")
+    identities = [cell["id"] for cell in selected]
+    if len(identities) != len(set(identities)):
+        raise ValueError("batch selection has duplicate cell IDs")
+    def full(cell):
+        return cell.get("engine") == "build-chain" and not cell.get("tiers") and not cell.get("canary")
+    canonical = json.dumps({"sourceRevision": source_revision, "cells": selected},
+                           sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    identity = "sha256:" + hashlib.sha256(canonical).hexdigest()
+    original = [selected[index:index + 200] for index in range(0, len(selected), 200)] or [[]]
+    while len(original) < 3:
+        original.append([])
+    continuations = sum(full(cell) for cell in original[0])
+    if len(original) == 3 and all(len(original[index]) + continuations <= 200 for index in (1, 2)):
+        batches = [original]
+    else:
+        native = [cell for cell in selected if full(cell)]
+        recipes = [cell for cell in selected if not full(cell)]
+        batches = []
+        while native or recipes:
+            first = native[:200]
+            native = native[200:]
+            reserved = len(first)
+            capacities = [200 - reserved, 200 - reserved, 200 - reserved]
+            shards = [first, [], []]
+            for index, capacity in enumerate(capacities):
+                shards[index].extend(recipes[:capacity])
+                recipes = recipes[capacity:]
+            batches.append(shards)
+    return {"selection_digest": identity, "shards": batches,
+            "planned_batches": [{"batch_index": index, "cells": [cell["id"] for shard in batch for cell in shard]}
+                                for index, batch in enumerate(batches)]}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path("."))
@@ -515,6 +572,8 @@ def main() -> int:
     parser.add_argument("--cell", help="optional exact cell ID for a manual run")
     parser.add_argument("--selector", help="cell ID or target=/family=/engine=/architecture=")
     parser.add_argument("--canary-common", action="store_true")
+    parser.add_argument("--batch-index", type=int, default=0)
+    parser.add_argument("--selection-digest")
     parser.add_argument("--github-output", type=pathlib.Path)
     parser.add_argument("--consumer-contracts", type=pathlib.Path)
     parser.add_argument("--consumer-root", type=pathlib.Path)
@@ -555,12 +614,20 @@ def main() -> int:
     except (OSError, ValueError, yaml.YAMLError) as exc:
         print(f"package-factory planner failed closed: {exc}", file=sys.stderr)
         return 2
-    shards = [selected[index:index + 200] for index in range(0, len(selected), 200)] or [[]]
-    while len(shards) < 3:
-        shards.append([])
-    if len(shards) > 3:
-        print("package-factory planner exceeded three 200-cell shards", file=sys.stderr)
+    try:
+        source_revision = subprocess.run(["git", "-C", str(args.root), "rev-parse", "HEAD"],
+                                         check=True, capture_output=True, text=True).stdout.strip()
+        batch_plan = selection_batches(selected, source_revision)
+        if args.batch_index < 0 or args.batch_index >= len(batch_plan["shards"]):
+            raise ValueError("batch index outside complete selection")
+        if args.selection_digest is not None and args.selection_digest != batch_plan["selection_digest"]:
+            raise ValueError("selection digest does not match pinned source and inventory")
+    except (ValueError, subprocess.SubprocessError) as exc:
+        print(f"package-factory batching failed closed: {exc}", file=sys.stderr)
         return 2
+    selection = selected
+    shards = batch_plan["shards"][args.batch_index]
+    selected = [cell for shard in shards for cell in shard]
 
     # Continuation shards for full-chain build-chain cells.
     #
@@ -610,13 +677,25 @@ def main() -> int:
             shards[shard_index].append(_continuation(cell, suffix))
 
     matrices = [json.dumps({"include": shard}, separators=(",", ":")) for shard in shards]
-    result = {"count": len(selected), "matrices": matrices}
+    pending = [batch for batch in batch_plan["planned_batches"] if batch["batch_index"] > args.batch_index]
+    result = {"count": len(selected), "matrices": matrices,
+              "batch_index": args.batch_index, "batch_count": len(batch_plan["shards"]),
+              "source_revision": source_revision, "selection_count": len(selection),
+              "selection_digest": batch_plan["selection_digest"], "selection_inventory": selection,
+              "planned_batches": batch_plan["planned_batches"], "pending_batches": pending,
+              "pending_cells": [cell for batch in pending for cell in batch["cells"]],
+              "readiness": False}
+
     if consumer_plan is not None:
         result["consumerPlan"] = consumer_plan
     print(json.dumps(result))
     if args.github_output:
         with args.github_output.open("a", encoding="utf-8") as output:
             output.write(f"count={len(selected)}\n")
+            for field in ("batch_index", "batch_count", "selection_count", "selection_digest", "source_revision"):
+                output.write(f"{field}={result[field]}\n")
+            for field in ("pending_cells", "pending_batches", "planned_batches"):
+                output.write(f"{field}={json.dumps(result[field], separators=(',', ':'))}\n")
             for index, matrix in enumerate(matrices):
                 output.write(f"matrix_{index}={matrix}\n")
                 # Shard occupancy drives the build-1/build-2 job conditions:

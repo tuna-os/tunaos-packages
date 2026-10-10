@@ -24,6 +24,8 @@ dependencies:
     capabilities: [rust, pam-dev]
     targets:
       el10: [cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel, libdav1d-devel]
+      alma10: [cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel, libdav1d-devel]
+      alma10-kitten: [cargo, lld, wayland-devel, clang-devel, libxkbcommon-devel, just, libudev-devel, libinput-devel, libdav1d-devel]
       ubuntu: [cargo, lld, libwayland-dev, clang, libxkbcommon-dev, just, libudev-dev, libinput-dev]
       debian: [cargo, lld, libwayland-dev, clang, libxkbcommon-dev, just, libudev-dev, libinput-dev]
   runtime:
@@ -39,6 +41,8 @@ dependencies:
       # is unaffected). The schema has no per-arch runtime deps, so both
       # arches drop it.
       el10: [dbus, greetd, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
+      alma10: [dbus, greetd, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
+      alma10-kitten: [dbus, greetd, pam, cosmic-comp >= 1.9.0, cosmic-icon-theme >= 1.9.0]
       ubuntu: [dbus, greetd, libpam-fprintd]
       debian: [dbus, greetd, libpam-fprintd]
 files:
@@ -57,4 +61,4 @@ install:
     - install -Dm0644 debian/cosmic-greeter.pam {destdir}/etc/pam.d/cosmic-greeter
 verify:
   smoke: "test -x /usr/bin/cosmic-greeter && test -x /usr/bin/cosmic-greeter-daemon && test -x /usr/bin/cosmic-greeter-start"
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

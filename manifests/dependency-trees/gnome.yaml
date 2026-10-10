@@ -1,6 +1,6 @@
 schema: 1
 tree: gnome-latest
-targets: [el10, ubuntu, debian]
+targets: [el10, alma10, alma10-kitten, ubuntu, debian]
 roots: [gnome-shell, mutter, gdm, gnome-session, uupd, bazaar]
 # Release tracks are data, not workflows. Common graph edits affect both;
 # track-only edits invalidate only the selected series.

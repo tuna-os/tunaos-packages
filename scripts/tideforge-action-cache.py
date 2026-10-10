@@ -150,6 +150,8 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         raise SystemExit("SOURCE_DATE_EPOCH must be a positive integer")
 
     renderers = renderer_paths(target)
+    if args.target in {"alma10", "alma10-kitten"}:
+        renderers += ("scripts/run-alma-rpm.sh", "scripts/alma-compiler-policy.sh", "scripts/target_platform.py")
     renderer_digests = {}
     for relative in renderers:
         path = root / relative
@@ -259,6 +261,8 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     native_renderers = ["scripts/build-chain.sh", "scripts/run-package-factory-cell.sh"]
     if "distgit:" in pathlib.Path(args.manifest).read_text(encoding="utf-8"):
         native_renderers.append("scripts/import-fedora-distgit.py")
+    if args.target in {"alma10", "alma10-kitten"}:
+        native_renderers.append("scripts/candidate-rpm-repository.py")
     renderer_inputs = {}
     for relative in native_renderers:
         path = root / relative

@@ -36,6 +36,8 @@ dependencies:
     common: [gcc, pkgconf-pkg-config, meson, ninja-build]
     targets:
       el10: [systemd-rpm-macros]
+      alma10: [systemd-rpm-macros]
+      alma10-kitten: [systemd-rpm-macros]
       # Do NOT list debhelper-compat here. render_deb always emits
       # "debhelper-compat (= 13)" itself; a bare entry used to be appended
       # alongside it, and dh reads the unversioned one and aborts with
@@ -69,4 +71,4 @@ verify:
   # targets:
   #   ubuntu:
   #     install_name: libexample-tool0
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

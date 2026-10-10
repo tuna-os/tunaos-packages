@@ -181,11 +181,32 @@ def test_legacy_default_cli_retains_current_local_cells():
     document = json.loads(run.stdout)
     assert 'consumerPlan' not in document
     expected = {cell['id'] for cell in planner.all_cells(ROOT)}
-    actual = [cell for matrix in document['matrices']
-              for cell in json.loads(matrix)['include'] if 'base_id' not in cell]
-    assert document['count'] == len(expected)
-    assert {cell['id'] for cell in actual} == expected
-    assert len(actual) == len(expected)
+    assert document['selection_count'] == len(expected)
+    assert {cell['id'] for cell in document['selection_inventory']} == expected
+    source = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, check=True,
+                            capture_output=True, text=True).stdout.strip()
+    assert document['source_revision'] == source
+    complete = []
+    for index in range(document['batch_count']):
+        if index:
+            run = subprocess.run([sys.executable, str(ROOT / 'scripts/plan-package-factory.py'),
+                '--root', str(ROOT), '--batch-index', str(index),
+                '--selection-digest', document['selection_digest']], cwd=ROOT, capture_output=True, text=True)
+            assert run.returncode == 0, run.stderr
+            batch = json.loads(run.stdout)
+        else:
+            batch = document
+        assert 'consumerPlan' not in batch
+        assert batch['selection_digest'] == document['selection_digest']
+        assert batch['source_revision'] == source
+        actual = [cell for matrix in batch['matrices']
+                  for cell in json.loads(matrix)['include'] if 'base_id' not in cell]
+        assert batch['count'] == len(actual)
+        assert {cell['id'] for cell in actual} == set(document['planned_batches'][index]['cells'])
+        complete.extend(cell['id'] for cell in actual)
+    assert set(complete) == expected
+    assert len(complete) == len(expected)
+
 
 
 @pytest.mark.parametrize('target', [{**TARGET, 'flavor': '../secret'},

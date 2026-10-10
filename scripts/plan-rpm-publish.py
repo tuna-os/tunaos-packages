@@ -81,7 +81,7 @@ def split(value: str) -> list[str]:
 
 def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dict:
     target = publisher_contract.target(target_name, "rpm", fail)
-    image = target.get("probe_image")
+    image = target.get("probe_image") or ""
     if not packages:
         fail("no packages requested")
 
@@ -100,7 +100,7 @@ def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dic
                 "arch": arch,
                 "runner": RUNNERS[arch],
                 "target": target_name,
-                "image": image,
+                **publisher_contract.build_context(target, arch),
                 "cell_id": factory_contract.tideforge_cell_id(package, target_name, arch),
             })
 
@@ -110,6 +110,7 @@ def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dic
         src = override.get("src") or r2_path.replace("{arch}", arch)
         row = {
             "arch": arch,
+            **publisher_contract.build_context(target, arch),
             "src": src,
             "mirror": override.get("mirror", ""),
             "served": override.get("served") or f"{SERVED_ROOT}{src}/",

@@ -3,6 +3,26 @@
 # shared across distro families.
 schema: 1
 queues:
+  alma10:
+    format: rpm
+    implementation: native-spec
+    build_order: build-order.yml
+    compatibility_overlay: src/deps/gnome50-el10-compat
+    gates:
+    - mock-build
+    - rpm-md-stage-install
+    - gnome-session-smoke
+    - selinux-enforcing
+  alma10-kitten:
+    format: rpm
+    implementation: native-spec
+    build_order: build-order.yml
+    compatibility_overlay: src/deps/gnome50-el10-compat
+    gates:
+    - mock-build
+    - rpm-md-stage-install
+    - gnome-session-smoke
+    - selinux-enforcing
   el10:
     format: rpm
     implementation: native-spec

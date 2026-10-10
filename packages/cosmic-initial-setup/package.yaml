@@ -49,6 +49,22 @@ dependencies:
         - openssl-devel
         - flatpak-devel
         - systemd-devel
+      alma10:
+        - cargo
+        - lld
+        - just
+        - libxkbcommon-devel
+        - openssl-devel
+        - flatpak-devel
+        - systemd-devel
+      alma10-kitten:
+        - cargo
+        - lld
+        - just
+        - libxkbcommon-devel
+        - openssl-devel
+        - flatpak-devel
+        - systemd-devel
       ubuntu:
         - cargo
         - lld
@@ -72,6 +88,16 @@ dependencies:
         - polkit
         - hicolor-icon-theme
         - cosmic-icon-theme >= 1.9.0
+      alma10:
+        - flatpak-libs
+        - polkit
+        - hicolor-icon-theme
+        - cosmic-icon-theme >= 1.9.0
+      alma10-kitten:
+        - flatpak-libs
+        - polkit
+        - hicolor-icon-theme
+        - cosmic-icon-theme >= 1.9.0
       ubuntu: []
       debian: []
 files:
@@ -90,5 +116,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-initial-setup
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

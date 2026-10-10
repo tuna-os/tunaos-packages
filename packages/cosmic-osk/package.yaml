@@ -38,6 +38,16 @@ dependencies:
         - lld
         - just
         - libudev-devel
+      alma10:
+        - cargo
+        - lld
+        - just
+        - libudev-devel
+      alma10-kitten:
+        - cargo
+        - lld
+        - just
+        - libudev-devel
       ubuntu:
         - cargo
         - lld
@@ -52,6 +62,10 @@ dependencies:
     targets:
       el10:
         - cosmic-icon-theme >= 1.9.0
+      alma10:
+        - cosmic-icon-theme >= 1.9.0
+      alma10-kitten:
+        - cosmic-icon-theme >= 1.9.0
       ubuntu: []
       debian: []
 files:
@@ -64,5 +78,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-osk
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

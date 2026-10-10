@@ -62,3 +62,16 @@ def test_payload_paths_exist_on_disk() -> None:
             for kind in ("native", "tideforge"):
                 if package.get(kind):
                     assert (ROOT / package[kind]).is_dir(), (entry["name"], kind)
+
+
+def test_catalog_covers_every_enabled_native_cell_target():
+    indexed = {(entry['name'], entry['family']): entry for entry in catalog()}
+    for cell in planner.native_cells(ROOT):
+        manifest = yaml.safe_load((ROOT / cell['manifest']).read_text())
+        for tier in manifest.get('tiers', []):
+            for package in tier.get('packages', []):
+                name = Path(package['path']).name if package.get('path') else package['copr_name']
+                entry = indexed[(name, cell['family'])]
+                assert cell['target'] in entry['targets'], (name, cell['id'], entry['targets'])
+                assert cell['manifest'] in entry['referenced_by']
+                assert 'manifests/package-builds.yaml' in entry['referenced_by']

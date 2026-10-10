@@ -8,6 +8,7 @@ toolchain availability are real compatibility constraints.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 from pathlib import Path
 import re
@@ -728,7 +729,28 @@ def rpm_subpackage_block(subpackage: dict) -> str:
     return "\n".join(header)
 
 
+def alma_compiler_recipe_guard(recipe: dict) -> None:
+    """Reject authored compiler resets; upstream build behavior still needs proof."""
+    build = recipe.get("build", {})
+    environment = build.get("environment", {})
+    for name, value in environment.items():
+        if name == "CARGO_ENCODED_RUSTFLAGS":
+            fail("Alma encoded Rust flags require measured compiler adapter")
+        if re.search(r"(?:-march=|-mcpu=|target-cpu=|target-feature=|GOAMD64=)", value):
+            fail("Alma recipe CPU overrides must be expressed by compiler policy")
+    material = json.dumps({key: value for key, value in build.items() if key != "environment"}, sort_keys=True)
+    material = re.sub(r'-mtls-dialect=gnu2(?=\s|["\\]|$)', '', material)
+    if re.search(r"(?:-march=|-mcpu=|target-cpu=|target-feature=|GOAMD64=|(?:CFLAGS|CXXFLAGS|RUSTFLAGS|CPPFLAGS|FCFLAGS|FFLAGS|CC|CXX|FC|CMAKE_C_FLAGS|CMAKE_CXX_FLAGS)\s*=|\s-m(?!no-|tune=|64)[a-zA-Z])", material):
+        fail("Alma build commands/options may not override CPU policy")
+
+
 def render_rpm(recipe: dict, target: str) -> dict[str, str]:
+    alma_environment = None
+    if target in {"alma10", "alma10-kitten"}:
+        alma_compiler_recipe_guard(recipe)
+        alma_environment = build_environment_exports(recipe)
+        recipe = copy.deepcopy(recipe)
+        recipe.setdefault("build", {})["environment"] = {}
     build, install = rpm_build_lines(recipe["build_system"], recipe)
     prepare = prepare_commands(recipe)
     if prepare:
@@ -749,6 +771,11 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
     elif recipe["build_system"] == "custom":
         build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
         install = custom_commands(recipe, "install", "%{buildroot}")
+    if alma_environment is not None:
+        policy = (ROOT / "scripts/alma-compiler-policy.sh").read_text().replace("%", "%%")
+        build = "\n".join(filter(None, ["%set_build_flags", alma_environment,
+            "export TUNAOS_COMPILER_EVIDENCE_DIR=\"${TUNAOS_COMPILER_EVIDENCE_DIR:-%{_builddir}/tunaos-compiler-evidence}\"",
+            policy, "tunaos_alma_compiler_policy %{_target_cpu}", build]))
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
     provides = "\n".join(f"Provides:       {dep}" for dep in provides_entries(recipe))

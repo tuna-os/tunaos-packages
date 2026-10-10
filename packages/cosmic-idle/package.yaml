@@ -31,6 +31,8 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [cargo, lld, just, libxkbcommon-devel, wayland-devel]
+      alma10: [cargo, lld, just, libxkbcommon-devel, wayland-devel]
+      alma10-kitten: [cargo, lld, just, libxkbcommon-devel, wayland-devel]
       ubuntu: [cargo, lld, just, libxkbcommon-dev, libwayland-dev]
       debian: [cargo, lld, just, libxkbcommon-dev, libwayland-dev]
   runtime:
@@ -39,6 +41,8 @@ dependencies:
       # the gate's clean-install repo only holds the cell's own artifact
       # (same call as cosmic-settings, #225).
       el10: [cosmic-icon-theme >= 1.9.0]
+      alma10: [cosmic-icon-theme >= 1.9.0]
+      alma10-kitten: [cosmic-icon-theme >= 1.9.0]
       ubuntu: []
       debian: []
 files:
@@ -47,4 +51,4 @@ install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
 verify:
   smoke: test -x /usr/bin/cosmic-idle
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

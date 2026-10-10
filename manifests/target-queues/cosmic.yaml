@@ -4,6 +4,74 @@
 # Root membership orders builds; signed native transactions prove readiness.
 schema: 1
 queues:
+  alma10:
+    format: rpm
+    implementation: native-spec
+    roots:
+    - pop-icon-theme
+    - cosmic-icon-theme
+    - cosmic-bg
+    - cosmic-comp
+    - cosmic-idle
+    - cosmic-notifications
+    - cosmic-osd
+    - cosmic-panel
+    - cosmic-randr
+    - cosmic-settings-daemon
+    - cosmic-session
+    - cosmic-settings
+    - cosmic-greeter
+    - xdg-desktop-portal-cosmic
+    - cosmic-app-library
+    - cosmic-applets
+    - cosmic-files
+    - cosmic-launcher
+    - cosmic-screenshot
+    - cosmic-term
+    - cosmic-wallpapers
+    - cosmic-workspaces
+    - cosmic-initial-setup
+    - cosmic-osk
+    - pop-launcher
+    gates:
+    - mock-build
+    - rpm-md-stage-install
+    - greetd-login
+    - cosmic-session-smoke
+  alma10-kitten:
+    format: rpm
+    implementation: native-spec
+    roots:
+    - pop-icon-theme
+    - cosmic-icon-theme
+    - cosmic-bg
+    - cosmic-comp
+    - cosmic-idle
+    - cosmic-notifications
+    - cosmic-osd
+    - cosmic-panel
+    - cosmic-randr
+    - cosmic-settings-daemon
+    - cosmic-session
+    - cosmic-settings
+    - cosmic-greeter
+    - xdg-desktop-portal-cosmic
+    - cosmic-app-library
+    - cosmic-applets
+    - cosmic-files
+    - cosmic-launcher
+    - cosmic-screenshot
+    - cosmic-term
+    - cosmic-wallpapers
+    - cosmic-workspaces
+    - cosmic-initial-setup
+    - cosmic-osk
+    - pop-launcher
+    gates:
+    - mock-build
+    - rpm-md-stage-install
+    - greetd-login
+    - cosmic-session-smoke
   el10:
     format: rpm
     implementation: native-spec

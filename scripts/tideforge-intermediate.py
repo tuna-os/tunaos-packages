@@ -458,7 +458,10 @@ def candidates(args: argparse.Namespace) -> None:
             continue
         recipe = yaml.safe_load(recipe_path.read_text())
         contract = tideforge.portable_payload_contract(recipe)
-        targets = [target for target in recipe.get("targets", []) if target in requested_targets]
+        # Shared compiled payloads have no Alma baseline proof. Keep these
+        # consumers on their actual native compiler/buildroot path.
+        targets = [target for target in recipe.get("targets", []) if target in requested_targets
+                   and target not in {"alma10", "alma10-kitten"}]
         # A one-target recipe cannot save a duplicate build, so leave it on
         # the native path even if its bytes happen to satisfy the handler.
         if contract is None or len(targets) < 2:

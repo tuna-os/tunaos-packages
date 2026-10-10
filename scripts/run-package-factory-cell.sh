@@ -129,6 +129,14 @@ case ${FORMAT:?} in
           ((${#requirements[@]} == 0)) || zypper --non-interactive install "${requirements[@]}"
           rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
         '
+    elif [[ $target == alma10 || $target == alma10-kitten ]]; then
+      docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
+        --env TARGET="$target" --env ARCHITECTURE="$ARCHITECTURE" --env BUILD_IMAGE="$image" \
+        --env PUBLISHED_INDEX="$published_index" \
+        --volume "$PWD:/factory:ro" --volume "$PWD/scripts:/scripts:ro" \
+        --volume "$root:/work" "$image" bash /scripts/run-alma-rpm.sh
+      mkdir -p "$out/artifacts/buildroots"
+      cp -a "$root/evidence" "$out/artifacts/buildroots/alma"
     else
       docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
         --env TARGET="$target" --env PUBLISHED_INDEX="$published_index" \

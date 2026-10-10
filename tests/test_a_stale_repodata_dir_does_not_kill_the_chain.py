@@ -110,6 +110,7 @@ def _run_update_local_repo(repo: Path, bindir: Path) -> subprocess.CompletedProc
         f'export PATH="{bindir}:$PATH"\n'
         f'LOCAL_REPO="{repo}"\n'
         'BACKEND="stub"\n'
+        'ALMA_CANDIDATE=false\n'
         'log() { echo "==> $*"; }\n'
         'warn() { echo "WARNING: $*" >&2; }\n'
         "update_local_repo() {\n" + func + "\n}\n"

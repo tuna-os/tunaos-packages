@@ -44,6 +44,22 @@ dependencies:
         - libglvnd-devel
         - libseat-devel
         - make
+      alma10:
+        - cargo
+        - lld
+        - just
+        - systemd-devel
+        - libglvnd-devel
+        - libseat-devel
+        - make
+      alma10-kitten:
+        - cargo
+        - lld
+        - just
+        - systemd-devel
+        - libglvnd-devel
+        - libseat-devel
+        - make
       ubuntu:
         - cargo
         - lld
@@ -65,6 +81,12 @@ dependencies:
       el10:
         - cosmic-comp >= 1.9.0
         - cosmic-icon-theme >= 1.9.0
+      alma10:
+        - cosmic-comp >= 1.9.0
+        - cosmic-icon-theme >= 1.9.0
+      alma10-kitten:
+        - cosmic-comp >= 1.9.0
+        - cosmic-icon-theme >= 1.9.0
       ubuntu: []
       debian: []
 files:
@@ -79,5 +101,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-workspaces
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

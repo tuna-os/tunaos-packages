@@ -78,13 +78,37 @@ def load_factory() -> dict:
     return yaml.safe_load(FACTORY.read_text())
 
 
+QUERY_SCRIPTS["alma10"] = QUERY_SCRIPTS["el10"]
+QUERY_SCRIPTS["alma10-kitten"] = QUERY_SCRIPTS["el10"]
+
+
 def native_dependencies(recipe: dict, target: str) -> list[str]:
     dependencies = tideforge.target_dependencies(recipe, target) + tideforge.target_runtime_dependencies(recipe, target)
     return list(dict.fromkeys(dependencies))
 
 
-def repository_setup(target: str, repositories: list[str]) -> str:
+def repository_setup(target: str, repositories: list[str], architecture: str = "x86_64") -> str:
     """Return target-native setup for repositories used only while building."""
+    if target in {"alma10", "alma10-kitten"}:
+        import configparser
+        import io
+        namespace = {"config_opts": {}}
+        suffix = "-aarch64" if architecture == "aarch64" else ""
+        path = ROOT / "mock" / f"{target}-ci{suffix}.cfg"
+        exec(compile(path.read_bytes(), str(path), "exec"), namespace)
+        config = configparser.ConfigParser(interpolation=None)
+        config.read_string(namespace["config_opts"]["dnf.conf"])
+        for section in list(config.sections()):
+            if section not in {"main", "baseos", "appstream", "crb", "alma-epel-v2", "epel-arm"}:
+                config.remove_section(section)
+        config["main"]["reposdir"] = "/etc/tunaos-build-repos"
+        output = io.StringIO()
+        config.write(output)
+        return ("mkdir -p /etc/tunaos-build-repos\n"
+                "cat > /etc/tunaos-build-repos/native.repo <<'TUNA_NATIVE_REPOS'\n" + output.getvalue() +
+                "TUNA_NATIVE_REPOS\n"
+                "printf '[main]\\nreposdir=/etc/tunaos-build-repos\\ngpgcheck=1\\n' > /etc/dnf/dnf.conf\n"
+                "dnf -qy --setopt=gpgcheck=1 install dnf-plugins-core\n")
     if target != "el10":
         return ""
     commands: list[str] = []
@@ -96,13 +120,14 @@ def repository_setup(target: str, repositories: list[str]) -> str:
     return "\n".join(commands) + ("\n" if commands else "")
 
 
-def podman_command(image: str, target: str, packages: list[str], repositories: list[str] | None = None) -> list[str]:
-    script = repository_setup(target, repositories or []) + QUERY_SCRIPTS[target]
+def podman_command(image: str, target: str, packages: list[str], repositories: list[str] | None = None,
+                   architecture: str = "x86_64") -> list[str]:
+    script = repository_setup(target, repositories or [], architecture) + QUERY_SCRIPTS[target]
     return ["podman", "run", "--rm", image, "bash", "-euc", script, "tideforge-probe", *packages]
 
 
-def probe(image: str, target: str, packages: list[str], repositories: list[str]) -> tuple[dict[str, str], str]:
-    completed = subprocess.run(podman_command(image, target, packages, repositories), text=True, capture_output=True, check=False)
+def probe(image: str, target: str, packages: list[str], repositories: list[str], architecture: str = "x86_64") -> tuple[dict[str, str], str]:
+    completed = subprocess.run(podman_command(image, target, packages, repositories, architecture), text=True, capture_output=True, check=False)
     if completed.returncode:
         raise RuntimeError(completed.stderr.strip() or completed.stdout.strip() or f"podman exited {completed.returncode}")
     result: dict[str, str] = {}
@@ -119,6 +144,7 @@ def main() -> None:
     parser.add_argument("--target", action="append", choices=sorted(QUERY_SCRIPTS), help="probe one target; repeatable")
     parser.add_argument("--dry-run", action="store_true", help="print resolved names without starting containers")
     parser.add_argument("--json", action="store_true", help="emit machine-readable results")
+    parser.add_argument("--architecture", default="x86_64", choices=["x86_64", "aarch64"])
     args = parser.parse_args()
 
     recipe = tideforge.load_yaml(args.recipe)
@@ -130,13 +156,15 @@ def main() -> None:
     for target in targets:
         packages = native_dependencies(recipe, target)
         target_data = factory["targets"][target]
-        image = target_data["probe_image"]
+        from target_platform import build_context
+        architecture = {"x86_64": "amd64", "aarch64": "arm64"}.get(args.architecture) if target_data["format"] == "deb" else args.architecture
+        image = build_context(target_data, architecture)["image"]
         repositories = target_data.get("build_repositories", [])
         if args.dry_run:
             report[target] = {"image": image, "dependencies": packages, "status": "not-run"}
             continue
         try:
-            results, stderr = probe(image, target, packages, repositories)
+            results, stderr = probe(image, target, packages, repositories, args.architecture)
         except RuntimeError as error:
             report[target] = {"image": image, "dependencies": packages, "status": "probe-error", "error": str(error)}
             failed = True

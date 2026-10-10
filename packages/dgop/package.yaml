@@ -20,4 +20,4 @@ files:
   common: [usr/bin/dgop]
 verify:
   smoke: dgop --help
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

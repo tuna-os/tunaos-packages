@@ -52,6 +52,24 @@ dependencies:
         - pulseaudio-libs-devel
         - libglvnd-devel
         - clang-devel
+      alma10:
+        - cargo
+        - lld
+        - just
+        - libudev-devel
+        - libxkbcommon-devel
+        - pulseaudio-libs-devel
+        - libglvnd-devel
+        - clang-devel
+      alma10-kitten:
+        - cargo
+        - lld
+        - just
+        - libudev-devel
+        - libxkbcommon-devel
+        - pulseaudio-libs-devel
+        - libglvnd-devel
+        - clang-devel
       ubuntu:
         - cargo
         - lld
@@ -71,6 +89,12 @@ dependencies:
   runtime:
     targets:
       el10:
+        - cosmic-icon-theme >= 1.9.0
+        - cosmic-panel >= 1.9.0
+      alma10:
+        - cosmic-icon-theme >= 1.9.0
+        - cosmic-panel >= 1.9.0
+      alma10-kitten:
         - cosmic-icon-theme >= 1.9.0
         - cosmic-panel >= 1.9.0
       ubuntu: []
@@ -111,5 +135,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-applets && test -x /usr/bin/cosmic-app-list
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

@@ -37,6 +37,8 @@ dependencies:
     capabilities: [rust, pkg-config, wayland-dev, libxkbcommon-dev]
     targets:
       el10: [lld, just, util-linux]
+      alma10: [lld, just, util-linux]
+      alma10-kitten: [lld, just, util-linux]
       ubuntu: [lld, just, util-linux]
       debian: [lld, just, util-linux]
 files:
@@ -47,4 +49,4 @@ install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
 verify:
   smoke: test -x /usr/bin/cosmic-panel
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]
