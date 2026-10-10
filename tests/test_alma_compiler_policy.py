@@ -154,3 +154,24 @@ def test_renderer_accepts_non_cpu_tls_abi_option_in_custom_commands(recipe):
     recipe['build']={'commands':['gcc -mtls-dialect=gnu2 hello.c -o hello']}
     recipe['install']={'commands':['install -Dm0755 hello {destdir}/usr/bin/hello']}
     assert 'gcc -mtls-dialect=gnu2' in tideforge.render_rpm(recipe,'alma10')['hello-tuna.spec']
+
+
+def test_actual_alma_arm_hardening_preserves_armv8_baseline(tmp_path):
+    """Falsification: CI's native Alma ARM optflags must retain PAC/BTI hardening."""
+    flags = '-O2 -g -march=armv8-a -mbranch-protection=standard -mno-omit-leaf-frame-pointer'
+    result = helper(tmp_path, 'aarch64', CFLAGS=flags)
+    assert result.returncode == 0, result.stderr
+    evidence = json.loads((tmp_path / 'effective-flags.json').read_text())
+    assert evidence['flags']['CFLAGS'] == flags + ' -march=armv8-a'
+    assert evidence['cpuBaseline'] == 'armv8-a'
+
+
+@pytest.mark.parametrize('architecture,flag', [
+    ('x86_64', '-mbranch-protection=standard'),
+    ('aarch64', '-mbranch-protection=standard+leaf'),
+    ('aarch64', '-mbranch-protection=unknown'),
+    ('aarch64', '-march=armv8.3-a'),
+    ('aarch64', '-march=armv8-a+crypto'),
+])
+def test_arm_hardening_exception_cannot_raise_or_change_baseline(tmp_path, architecture, flag):
+    assert helper(tmp_path, architecture, CFLAGS=flag).returncode != 0

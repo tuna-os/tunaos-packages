@@ -37,6 +37,19 @@ def test_compatible_v2_evidence_is_bound_but_not_authenticated_readiness(tmp_pat
     assert result['readiness'] is False
 
 
+@pytest.mark.parametrize('baseline,flag,blocked', [
+    ('armv8-a', '-mbranch-protection=standard', False),
+    ('armv8-a', '-mbranch-protection=standard+leaf', True),
+    ('armv8-a', '-mbranch-protection=unknown', True),
+    ('x86-64-v2', '-mbranch-protection=standard', True),
+])
+def test_measured_arm_hardening_has_an_exact_architecture_scoped_exception(tmp_path, baseline, flag, blocked):
+    document, inspect = fixture(tmp_path, baseline=baseline)
+    document['artifacts'][0]['compiler']['flags'].append(flag)
+    codes = check(document, inspect)['artifacts'][0]['blockers']
+    assert ('incompatible-compiler-baseline' in codes) is blocked
+
+
 def test_v3_required_isa_blocks_v2_even_with_v2_flags(tmp_path):
     document, inspect = fixture(tmp_path, 3)
     assert 'incompatible-elf-isa' in check(document, inspect)['artifacts'][0]['blockers']

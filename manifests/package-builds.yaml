@@ -365,10 +365,10 @@ native_builds:
     manifest: build-order.yml
     mock_config: alma10-ci-gnome50
     source_paths: &id001
-    - src/gnome-50/
-    - src/deps/
-    - src/input-remapper/
-    - src/python3-evdev/
+      - src/gnome-50/
+      - src/deps/
+      - src/input-remapper/
+      - src/python3-evdev/
     r2_path: gnome50/alma10-x86_64
     canary_tiers: base-tools
     platform: linux/amd64/v2
@@ -403,8 +403,8 @@ native_builds:
     manifest: build-order-gnome51.yml
     mock_config: alma10-ci-gnome51
     source_paths: &id002
-    - src/gnome-51/
-    - src/deps/
+      - src/gnome-51/
+      - src/deps/
     r2_path: gnome51/alma10-x86_64
     canary_tiers: base-tools
     platform: linux/amd64/v2
@@ -440,10 +440,10 @@ native_builds:
     manifest: build-order.yml
     mock_config: alma10-ci-gnome50-aarch64
     source_paths: &id003
-    - src/gnome-50/
-    - src/deps/
-    - src/input-remapper/
-    - src/python3-evdev/
+      - src/gnome-50/
+      - src/deps/
+      - src/input-remapper/
+      - src/python3-evdev/
     r2_path: gnome50/alma10-aarch64
     canary_tiers: base-tools
     platform: linux/arm64
@@ -480,8 +480,8 @@ native_builds:
     manifest: build-order-gnome51.yml
     mock_config: alma10-ci-gnome51-aarch64
     source_paths: &id004
-    - src/gnome-51/
-    - src/deps/
+      - src/gnome-51/
+      - src/deps/
     r2_path: gnome51/alma10-aarch64
     canary_tiers: base-tools
     platform: linux/arm64
@@ -513,7 +513,7 @@ native_builds:
     manifest: build-order-xfce.yml
     mock_config: alma10-ci-xfce
     source_paths: &id005
-    - src/xfce-wayland/
+      - src/xfce-wayland/
     r2_path: xfce/alma10-x86_64
     canary_tiers: xfce-build-tools
     platform: linux/amd64/v2
@@ -541,7 +541,7 @@ native_builds:
     manifest: build-order-xfce.yml
     mock_config: alma10-ci-xfce-aarch64
     source_paths: &id006
-    - src/xfce-wayland/
+      - src/xfce-wayland/
     r2_path: xfce/alma10-aarch64
     canary_tiers: xfce-build-tools
     platform: linux/arm64

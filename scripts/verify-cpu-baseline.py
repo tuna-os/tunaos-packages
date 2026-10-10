@@ -244,6 +244,8 @@ def verify(document, inspect=inspect_elf, extract=rpm_elfs, native_identity=rpm_
                 # richer measured compiler adapter; unknown overrides fail closed.
                 # GNU2 TLS selects the target ABI, not extra CPU instructions.
                 extension_flags = re.sub(r'(?<!\S)-mtls-dialect=gnu2(?=\s|$)', '', flags)
+                if baseline == 'armv8-a':
+                    extension_flags = re.sub(r'(?<!\S)-mbranch-protection=standard(?=\s|$)', '', extension_flags)
                 extensions = re.findall(r'(?<!\S)-m([^\s=]+)', extension_flags)
                 if (any(value not in ('64', 'arch', 'cpu', 'tune') and not value.startswith('no-') for value in extensions) or
                         re.search(r'target-feature[^\s]*.*?\+', flags) or

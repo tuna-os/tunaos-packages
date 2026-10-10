@@ -21,6 +21,10 @@ for name in ('CFLAGS', 'CXXFLAGS', 'CPPFLAGS', 'FFLAGS', 'FCFLAGS', 'RUSTFLAGS',
     except ValueError:
         sys.exit('Malformed compiler flags: ' + name)
     for token in tokens:
+        # Alma's AArch64 hardening uses backward-compatible PAC/BTI hint
+        # instructions with -march=armv8-a. It does not raise the ISA floor.
+        if baseline == 'armv8-a' and token == '-mbranch-protection=standard':
+            continue
         for setting in re.findall(r'(?:-march=|-mcpu=|target-cpu=)([^\s]+)', token):
             if setting != (rust if 'target-cpu=' in token else baseline):
                 sys.exit('Incompatible or unknown CPU override: ' + name)
