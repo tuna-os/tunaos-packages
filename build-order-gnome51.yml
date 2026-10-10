@@ -100,6 +100,7 @@ tiers:
       - path: src/deps/avahi
       - path: src/gnome-51/gjs
       - path: src/deps/gdk-pixbuf2
+        spec_override: gdk-pixbuf2-bootstrap.spec
 
   # Tier 11: GTK Core.
   - name: gtk-core
@@ -115,7 +116,6 @@ tiers:
       # convention the hummingbird order already follows (src/gnome-50/gtk4).
       - path: src/gnome-51/gtk4
       - copr_name: highway
-      - path: src/deps/glycin
       - path: src/deps/libgda
 
   # Tier 12: Desktop Foundations.
@@ -128,11 +128,13 @@ tiers:
       # carries 0.84.1.
       - path: src/gnome-51/vte291
         spec_override: vte291.spec
+      - path: src/deps/glycin
 
-  # Tier 12b: Parental controls stack (needs gtk4, libadwaita, flatpak).
+  # Tier 12b: Parental controls stack (needs gtk4, libadwaita, flatpak) and full gdk-pixbuf2 (needs glycin).
   - name: parental-controls
     packages:
       - path: src/deps/malcontent
+      - path: src/deps/gdk-pixbuf2
 
   # Tier 13: Compositor & Shell.
   - name: shell-foundations
