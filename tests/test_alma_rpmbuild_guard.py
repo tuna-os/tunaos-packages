@@ -43,6 +43,13 @@ def boundary(monkeypatch):
         field = command[-1][2:-1]
         assert command[-2] == '--eval'
         value = changed.get(field, values[field]) if len(command) > 3 else values[field]
+        for position, token in enumerate(command):
+            if token == '--define':
+                name, _, definition = command[position + 1].partition(' ')
+                if name == field:
+                    value = definition
+                    if changed.get('corruptInjection'):
+                        value = '-O2 -march=armv8-a'
         return SimpleNamespace(stdout=value + '\n')
 
     monkeypatch.setattr(subprocess, 'run', rpm)
@@ -64,6 +71,8 @@ def test_native_vendor_flags_are_measured_before_exact_rpmbuild_and_never_reset(
     assert line.startswith('TUNAOS_ALMA_RPMBUILD_GUARD ')
     evidence = json.loads(line.split(' ', 1)[1])
     assert evidence['macros'] == values
+    assert evidence['vendorMacros'] == values
+    assert evidence['baselineDefinitions'] == []
     assert evidence['arguments'] == arguments
     assert evidence['cpuBaseline'] == ('x86-64-v2' if architecture == 'x86_64' else 'armv8-a')
     assert evidence['readiness'] is False
@@ -71,7 +80,7 @@ def test_native_vendor_flags_are_measured_before_exact_rpmbuild_and_never_reset(
 
 @pytest.mark.parametrize('field,value', [
     ('_target_cpu', 'aarch64'), ('optflags', ''), ('build_cflags', '%{build_cflags}'),
-    ('build_cxxflags', '-O2 -g'), ('build_ldflags', '-Wl,-z,relro\nadditional-output'),
+    ('build_cxxflags', '-O2 -march=native'), ('build_ldflags', '-Wl,-z,relro\nadditional-output'),
     ('optflags', X86_FLAGS + ' -march=x86-64-v3'),
     ('build_cflags', X86_FLAGS + ' -march=native'),
     ('build_cxxflags', X86_FLAGS + ' -mavx2'),
@@ -130,4 +139,35 @@ def test_arm_hardening_permission_cannot_change_the_native_floor(boundary, flags
     values.update(_target_cpu='aarch64', optflags=flags, build_cflags=flags, build_cxxflags=flags)
     with pytest.raises(ValueError):
         guard.main(['aarch64', '-bb', 'evtest.spec'])
+    assert executions == []
+
+
+def test_missing_native_arm_baseline_is_appended_without_dropping_vendor_hardening(boundary, capsys):
+    values, _, commands, executions = boundary
+    flags = '-O2 -g -D_FORTIFY_SOURCE=3 -fstack-protector-strong -mbranch-protection=standard -mno-omit-leaf-frame-pointer'
+    expected_flags = flags + ' -march=armv8-a'
+    values.update(_target_cpu='aarch64', optflags=flags, build_cflags=flags, build_cxxflags=flags)
+    definitions = ['--define', 'optflags ' + expected_flags,
+                   '--define', 'build_cflags ' + expected_flags,
+                   '--define', 'build_cxxflags ' + expected_flags]
+    arguments = ['-bb', '--target', 'aarch64', 'evtest.spec']
+    guard.main(['aarch64', *arguments])
+    assert len(commands) == 15
+    assert executions == [('/usr/bin/rpmbuild', ['/usr/bin/rpmbuild', *arguments, *definitions])]
+    evidence = json.loads(capsys.readouterr().out.split(' ', 1)[1])
+    assert evidence['vendorMacros'] == values
+    assert evidence['macros'] == {'_target_cpu': 'aarch64', 'optflags': expected_flags,
+                                  'build_cflags': expected_flags, 'build_cxxflags': expected_flags,
+                                  'build_ldflags': LINK_FLAGS}
+    assert evidence['baselineDefinitions'] == definitions
+    assert evidence['readiness'] is False
+
+
+def test_macro_reexpansion_that_strips_vendor_hardening_blocks_baseline_injection(boundary):
+    values, changed, _, executions = boundary
+    values.update(_target_cpu='aarch64', optflags='-O2 -D_FORTIFY_SOURCE=3',
+                  build_cflags='-O2 -D_FORTIFY_SOURCE=3', build_cxxflags='-O2 -D_FORTIFY_SOURCE=3')
+    changed['corruptInjection'] = True
+    with pytest.raises(ValueError, match='changed native vendor hardening'):
+        guard.main(['aarch64', '-bb', '--target', 'aarch64', 'evtest.spec'])
     assert executions == []

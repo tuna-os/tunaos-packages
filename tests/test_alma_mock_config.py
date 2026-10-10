@@ -52,7 +52,22 @@ def test_native_architecture_and_compiler_floor(release, arch, family):
     assert '%optflags' not in options['macros'], 'short resets discard vendor hardening'
     assert options['rpmbuild_command'] == '/usr/bin/python3 /keys/alma-rpmbuild-guard.py ' + arch
     assert 'python3' in options['chroot_setup_cmd'].split()
-    assert options['use_bootstrap'] is False  # no unpinned image escape
+    assert options['use_bootstrap'] is True
+    assert options['use_bootstrap_image'] is True
+    assert options['bootstrap_image_fallback'] is False
+    assert options['bootstrap_image_ready'] is False
+    expected_pins = {
+        ('alma10', 'x86_64'): '51d5589de16b26f7145a20e2eba45aa2030fa12a2f9782b04fe5a4e8e6dc7912',
+        ('alma10', 'aarch64'): 'f65410c601aa3b514801aecf8d10eeefaa5b6a56248279b96e4085f1861b7d64',
+        ('alma10-kitten', 'x86_64'): 'a85da6343aca56df44ae45493a78bda56d4055d6e2d4c950ba81c7e25b25491a',
+        ('alma10-kitten', 'aarch64'): 'ea0cc0a1592d6ee73727e9efe5628094d0e4e12a762e26bce966592ad5d1ef6c',
+    }
+    pin = 'sha256:' + expected_pins[(release, arch)]
+    assert options['bootstrap_image'] == 'quay.io/almalinuxorg/almalinux@' + pin
+    # Mock's image_assert_digest uses a RootFS/config hash, not an OCI manifest
+    # digest. The @sha256 child reference supplies the immutable OCI identity.
+    assert 'bootstrap_image_assert_digest' not in options
+    assert options['oci_platform_map'] == {arch: 'linux/amd64/v2' if arch == 'x86_64' else 'linux/arm64'}
 
 
 @pytest.mark.parametrize('release,arch,family', CASES)

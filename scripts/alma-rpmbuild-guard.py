@@ -55,7 +55,7 @@ def observed_macros(options):
     return result
 
 
-def validate_flags(macros, architecture):
+def validate_flags(macros, architecture, require_baseline=True):
     baseline = BASELINES.get(architecture)
     if baseline is None or macros['_target_cpu'] != architecture:
         raise ValueError('native RPM target CPU disagrees with Alma target')
@@ -69,7 +69,7 @@ def validate_flags(macros, architecture):
                     raise ValueError('incompatible native RPM CPU flag: ' + token)
             if re.search(r'(?<!\w)-m(?!arch=|cpu=|tune=|64$|no-|tls-dialect=gnu2$)[a-zA-Z]', token):
                 raise ValueError('unproved native RPM CPU extension: ' + token)
-        if name != 'build_ldflags' and '-march=' + baseline not in tokens:
+        if require_baseline and name != 'build_ldflags' and '-march=' + baseline not in tokens:
             raise ValueError('native RPM flags lack explicit Alma baseline: ' + name)
 
 
@@ -81,17 +81,31 @@ def main(arguments=None):
     options = macro_options(arguments)
     vendor = observed_macros([])
     effective = observed_macros(options)
-    validate_flags(vendor, architecture)
-    validate_flags(effective, architecture)
+    validate_flags(vendor, architecture, require_baseline=False)
+    validate_flags(effective, architecture, require_baseline=False)
     if vendor != effective:
         raise ValueError('rpmbuild arguments alter native vendor compiler macros')
+    # Native ARM vendor flags need not spell out GCC's default ISA. Append
+    # only its explicit baseline; never reset hardening or mask a higher ISA.
+    expected = dict(effective)
+    injected = []
+    for name in ('optflags', 'build_cflags', 'build_cxxflags'):
+        baseline_flag = '-march=' + BASELINES[architecture]
+        if baseline_flag not in shlex.split(effective[name]):
+            expected[name] = effective[name] + ' ' + baseline_flag
+            injected.extend(('--define', name + ' ' + expected[name]))
+    if injected:
+        effective = observed_macros([*options, *injected])
+        if effective != expected:
+            raise ValueError('baseline injection changed native vendor hardening')
+    validate_flags(effective, architecture)
     # Mock captures this immutable observation in build.log before rpmbuild.
     print('TUNAOS_ALMA_RPMBUILD_GUARD ' + json.dumps({
         'schemaVersion': 1, 'architecture': architecture,
-        'cpuBaseline': BASELINES[architecture], 'macros': effective,
-        'arguments': arguments, 'readiness': False,
+        'cpuBaseline': BASELINES[architecture], 'vendorMacros': vendor, 'macros': effective,
+        'arguments': arguments, 'baselineDefinitions': injected, 'readiness': False,
     }, sort_keys=True), flush=True)
-    os.execv('/usr/bin/rpmbuild', ['/usr/bin/rpmbuild', *arguments])
+    os.execv('/usr/bin/rpmbuild', ['/usr/bin/rpmbuild', *arguments, *injected])
 
 
 if __name__ == '__main__':
