@@ -80,6 +80,9 @@ def split(value: str) -> list[str]:
 
 
 def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dict:
+    rejection = publisher_contract.production_rejection(target_name)
+    if rejection:
+        fail(rejection)
     target = publisher_contract.target(target_name, "rpm", fail)
     image = target.get("probe_image") or ""
     if not packages:
@@ -90,6 +93,9 @@ def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dic
     r2_path = target.get("r2_path")
     if not r2_path:
         fail(f"target {target_name} declares no r2_path to publish into")
+    rejection = publisher_contract.production_rejection(target_name, r2_path)
+    if rejection:
+        fail(rejection)
 
     build = []
     for package in packages:

@@ -36,6 +36,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import publisher_contract  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 
 # Prefixes publish-tideforge-rpms.yml syncs into. Publishing a build-chain
@@ -70,6 +73,11 @@ def resolve(requested, available):
                 f"{name}: not a build-chain cell "
                 f"(known: {', '.join(sorted(available))})"
             )
+            continue
+        rejection = publisher_contract.production_rejection(
+            cell.get("target", ""), cell.get("r2_path") or "")
+        if rejection:
+            rejections.append(f"{name}: {rejection}")
             continue
         if cell.get("publish") is False:
             rejections.append(f"{name}: catalog sets publish: false")

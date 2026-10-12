@@ -42,7 +42,7 @@ IDENTITIES = {'x86_64': ('linux/amd64/v2', 'x86-64-v2'), 'aarch64': ('linux/arm6
 
 
 @pytest.mark.parametrize('target,arch', PINS)
-def test_actual_planner_and_publisher_keep_exact_native_identity(target, arch):
+def test_candidate_planner_keeps_native_identity_and_production_is_held(target, arch):
     image = 'quay.io/almalinuxorg/almalinux@sha256:' + PINS[target, arch]
     platform, baseline = IDENTITIES[arch]
     cells = planner.tideforge_cells(ROOT)
@@ -51,16 +51,12 @@ def test_actual_planner_and_publisher_keep_exact_native_identity(target, arch):
     assert cell['image'] == cell['verify_image'] == image
     assert cell['platform'] == platform
     assert cell['cpu_baseline'] == baseline
-    result = publisher.plan(target, ['cosmic-session'], [arch])
-    build, publish = result['build']['include'][0], result['publish']['include'][0]
-    for row in (build, publish):
-        assert row['image'] == image
-        assert row['platform'] == platform
-        assert row['cpu_baseline'] == baseline
-    assert publish['src'] == f'rpm/{target}/{arch}'
-    assert publish['served'] == f'https://repo.tunaos.org/rpm/{target}/{arch}/'
-    assert publish['mirror'] == ''
-    assert publish['min_rpms'] == 0
+    # A native candidate identity does not authorize production promotion.
+    # Keep validating the declared isolated namespace without emitting a
+    # signing/upload matrix for an unqualified candidate.
+    assert FACTORY['targets'][target]['r2_path'].format(arch=arch) == f'rpm/{target}/{arch}'
+    with pytest.raises(SystemExit, match='candidate-only; production publication is forbidden'):
+        publisher.plan(target, ['cosmic-session'], [arch])
     assert FACTORY['targets'][target]['published_index_pending'] == ['x86_64', 'aarch64']
     assert not FACTORY['targets'][target].get('published_index')
 
@@ -73,9 +69,12 @@ def test_alma_namespaces_do_not_overwrite_existing_centos_routes():
     assert rows[1]['src'] == 'rpm/el10/aarch64'
     destinations = {row['src'] for row in rows}
     for target in ('alma10', 'alma10-kitten'):
-        for row in publisher.plan(target, ['cosmic-session'], None)['publish']['include']:
-            assert row['src'] not in destinations
-            destinations.add(row['src'])
+        with pytest.raises(SystemExit, match='candidate-only; production publication is forbidden'):
+            publisher.plan(target, ['cosmic-session'], None)
+        for arch in FACTORY['targets'][target]['architectures']:
+            destination = FACTORY['targets'][target]['r2_path'].format(arch=arch)
+            assert destination not in destinations
+            destinations.add(destination)
     assert len(destinations) == 6
 
 
