@@ -11,7 +11,7 @@ only when all of these match:
   SHA-256 match that ActionResult.
 - Pacman installs from the intended repository with required signatures.
   GPG verifies the detached signature against the pinned key.
-- Every installed regular file matches the signed archive's SHA-256 and mode.
+- Each file has the SHA-256 and mode from the signed archive.
   Each symlink has the same target. Portal files, six executable binaries,
   compatibility links and private cursor metadata must be present.
 - The archive declares the recipe's runtime dependencies, and the installed
@@ -39,9 +39,8 @@ retroactively. This document and synthetic contract tests are not evidence that
 an actual publication receipt has passed.
 
 The staged recipe adds cursor data, portal files and event sound dependencies.
-These require a new qualified source/vendor pin before any package build or
-publication. The old source is retained deliberately; this staging is not a
-passing final build.
+These need a qualified source/vendor pin before any package build or publication.
+The recipe keeps the old source. The final package build remains unqualified.
 
 These checks cover publication and installation. Desktop capability,
 GNOME performance, image greeter, upgrade, user-data recovery, and Corral results
