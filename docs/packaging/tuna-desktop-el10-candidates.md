@@ -1,23 +1,22 @@
-# Tuna Desktop EL10 candidate inputs
+# Tuna Desktop candidates for EL10
 
-`scripts/stage-tuna-desktop-el10.py` stages independent native RPM recipe
-inputs for skipjack/el10, albacore/alma10, and yellowfin/alma10-kitten, each
-on x86_64 and aarch64. It does not build, publish, update the production
-source pin, or qualify a release. Builds run in CI against each admitted
-base; a single CentOS RPM result cannot qualify the AlmaLinux cells.
+`scripts/stage-tuna-desktop-el10.py` prepares recipes for six cells.
+These cover skipjack/el10, albacore/alma10 and yellowfin/alma10-kitten on x86_64 and aarch64.
+Each cell needs its own build in CI. AlmaLinux needs its own results.
+The tool does not build or publish packages, change production pins, or qualify a release.
 
-Prerequisites:
+## Prerequisites
 
-- The common portal and licensed cursor installation/file ownership additions
-  from PR818 must be present in the input recipe.
-- The native target, consumer adapter, dependency capability and immutable
-  AlmaLinux child image definitions from PR819 must be present in the input
-  factory contract. Missing definitions fail before staging any recipes.
-- Explicit candidate source archive, vendor archive and Cargo.lock hashes,
-  plus the retained CI vendor receipt, must agree. No source is assumed to
-  be the final release candidate.
+- Supply the recipe with the portal, cursor and file ownership declarations from PR818.
+- Supply the factory contract with targets, adapters, capability maps and pinned images from PR819.
+- Supply hashes for the source archive, vendor archive and Cargo.lock.
+- Supply the receipt from the CI job that checked the vendor archive.
 
-Invoke with six explicit local input paths (nothing is downloaded):
+Missing prerequisites prevent output. The caller chooses the source explicitly; the tool does not select a final candidate.
+
+## Command
+
+Use paths to six local files. The tool does not download files.
 
 ```sh
 python3 scripts/stage-tuna-desktop-el10.py \
@@ -29,62 +28,68 @@ python3 scripts/stage-tuna-desktop-el10.py \
   --output /owned/new-el10-candidate
 ```
 
-The JSON input contains `source_sha` (40 hexadecimal characters),
-`source_archive_sha256`, `vendor_archive_sha256`, `lock_sha256`, and an
-hash-bound `vendor_url` under the package repository's GitHub release assets.
-`vendor_receipt` retains `source_sha`, `lock_sha256`, `archive_sha256`, a
-positive integer `run_id`, and `offline_metadata_success: true` from the
-actual locked offline vendor metadata job. This tool compares the supplied
-receipt; it does not authenticate GitHub or independently rerun Cargo.
-The CI caller must authenticate the producing run/artifact before admission.
-GitHub release tags and assets can change; the URL is not inherently
-immutable. The verified archive SHA256 binds the admitted bytes.
+## Input identities
 
-`cells` is exactly six objects, each containing `consumer`, `target`, `arch`,
-`platform`, `base_reference` and `base_image`. Use the factory target's exact
-per-architecture `probe_images` entry as both references where provided.
-For a tagged probe such as CentOS Stream, retain that tag as `base_reference`
-and its CI-resolved immutable digest as `base_image`; CI must verify the
-resolution and guest OS identity before building. A tag/digest assertion
-supplied here is an input binding, not evidence of the running base.
-AlmaLinux v2 platforms and child digests cannot be exchanged between
-architectures or substituted with Kitten or Stream.
+The JSON includes `source_sha`, `source_archive_sha256`, `vendor_archive_sha256`, `lock_sha256` and `vendor_url`.
+Use 40 hexadecimal characters for `source_sha`.
+The URL must identify an asset in the package repository on GitHub.
+Release tags and assets can change; the archive hash binds the expected bytes.
 
-The output contains six recipes and `candidate-inputs.json`, binding hashes
-of the factory, original recipe, input JSON, source, vendor, lock and every
-staged recipe. Input documents are read once and their parsed bytes hashed;
-changed documents or archives are rejected before any output is written.
-An existing output directory is rejected. Staging preserves
-the source recipe's six executable, schema smoke, portal, cursor and license
-payload rules. Rust and compiler inputs use the native factory capability
-mappings; do not substitute the CentOS mapping for an AlmaLinux toolchain.
+The `vendor_receipt` includes `source_sha`, `lock_sha256`, `archive_sha256`, `run_id` and `offline_metadata_success: true`.
+The positive run ID identifies the CI job that checked metadata offline with the lock.
+The tool compares this receipt; it does not authenticate GitHub or rerun Cargo.
+The caller must authenticate the original run and artifact before admission.
 
-## Unmeasured dependency and installation gates
+The `cells` array contains exactly six objects.
+Each object includes `consumer`, `target`, `arch`, `platform`, `base_reference` and `base_image`.
+Use the exact factory entry from `probe_images` for each architecture.
+For a tagged probe, retain the tag in `base_reference` and its resolved digest in `base_image`.
+CI must verify this resolution and the guest OS before the build.
+Input bindings do not prove the identity of a live guest.
 
-Dependency lists are proposed native inputs, **not a repository availability
-claim**. In particular `pkgconfig(gtk4-layer-shell-0) >= 1.1` is required; the existing
-GTK3 `gtk-layer-shell` recipe cannot satisfy it. No native GTK4 layer shell
-provider has yet been demonstrated for these cells. The upstream locked
-`gtk4-session-lock-sys`0.4.1 crate (archive checksum from Cargo.lock verified)
-uses the same pkg-config library and requires >= 1.1 for the enabled
-`v1_1` feature; it is not a separate GTK3 or session lock library. GTK4 >= 4.12 is explicit;
-Cargo's actual system-library checks must also succeed. A missing provider,
-wrong API/ABI or CPU baseline is a blocking build input, never a fallback.
-RPM-generated ELF Requires complement explicit dconf, GSettings schemas,
-canberra player/Pulse backend, freedesktop sound theme and portal routing.
-Native installation must verify their resolved package owners and ABI too.
+AlmaLinux v2 platforms and child digests must match their architecture.
+Do not substitute Kitten or Stream for AlmaLinux.
 
-The factory CI can build candidates after these input admissions. It must
-retain the immutable base digest, exact repository inputs/resolved NEVRAs,
-compiler and CPU admission, Cargo.lock/offline build outcome, RPM digest and
-signature, and pristine install package database/ownership/mode/symlink and
-smoke receipts. Each cell remains `dependency_status: unmeasured` and
-`native_install_status: unmeasured` in this staging receipt; later evidence
-must be a separate receipt bound to these hashes. Staging is not an
-ActionResult, signed RPM publisher, or installed-session proof.
+## Output identities
 
-The final 72-capability, visual, GNOME comparison, hardware and all-variant
-working-release gates govern promotion and publication. They must not block
-building the candidate needed to obtain those proofs. Issue828 and the
-variant installed-state gates3195–3197 remain open until actual CI evidence
-satisfies them; this scaffold does not close those requirements.
+The output contains six recipes and `candidate-inputs.json`.
+The receipt binds hashes of the factory, recipe, input JSON, source, vendor, lock and each output recipe.
+The tool hashes and parses the same bytes from each input document.
+It rejects changed documents or archives before it writes output.
+It also rejects an existing destination.
+
+The recipes preserve declarations for six executables, schemas, portals, cursors and licenses.
+Rust and compiler inputs use the factory maps for each target.
+Do not substitute a CentOS toolchain map for AlmaLinux.
+
+## Dependencies and installation
+
+These lists name dependencies for native builds. They do not prove repository availability.
+Each cell needs `pkgconfig(gtk4) >= 4.12` and `pkgconfig(gtk4-layer-shell-0) >= 1.1`.
+A recipe for GTK3 does not supply GTK4.
+No native provider for this GTK4 library has passed the cell checks yet.
+
+The locked `gtk4-session-lock-sys` version 0.4.1 uses the same library.
+Its `v1_1` feature needs version 1.1 or later; it does not use a separate library.
+Cargo must accept the system APIs and ABI.
+Missing providers or wrong CPU baselines prevent a build.
+
+RPM derives dependencies from ELF.
+The explicit dependencies also cover dconf, schemas, canberra, the sound theme and portals.
+A native installation must prove their package owners and ABI.
+
+## CI evidence and promotion
+
+CI can build candidates after input admission.
+It must retain the base digest, repository inputs, resolved NEVRAs, compiler and CPU evidence.
+It must also retain the lock, offline build result, RPM digest and signature.
+A pristine installation needs receipts for package ownership, modes, symlinks and smoke checks.
+
+This receipt keeps `dependency_status` and `native_install_status` at `unmeasured`.
+Later receipts must bind these input hashes.
+The tool does not emit an ActionResult, publish a signed RPM or prove an installed session.
+
+Promotion needs all 72 capabilities, visual checks, a GNOME comparison and hardware evidence.
+Publication also needs a functional release on every variant.
+These gates do not prevent a candidate build that supplies the evidence.
+Issue828 and variant gates3195–3197 stay open until CI proves their requirements.
