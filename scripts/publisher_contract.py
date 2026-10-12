@@ -11,6 +11,28 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 FACTORY = ROOT / "manifests" / "package-factory.yaml"
 
 
+# These targets have native candidate inputs, but no production CPU/closure
+# qualification yet. This deliberate denylist is independent of status/r2_path:
+# supported build targets and a declared destination do not authorize promotion.
+# Remove a target only in a reviewed production-admission change.
+CANDIDATE_ONLY_RPM_TARGETS = frozenset({"alma10", "alma10-kitten"})
+
+
+def production_rejection(name: str, destination: str = "") -> str | None:
+    candidate = name if name in CANDIDATE_ONLY_RPM_TARGETS else None
+    # Also protect the existing Alma repository namespaces if a catalog cell
+    # accidentally drops/aliases its target. A destination never grants release
+    # authority, even when the target field incorrectly names a qualified lane.
+    for segment in destination.strip("/").split("/"):
+        if segment == "alma10" or segment.startswith("alma10-"):
+            candidate = candidate or segment
+    if candidate:
+        return (f"target/destination {candidate} is candidate-only; "
+                "production publication is forbidden "
+                "pending source-bound CPU and dependency-closure qualification")
+    return None
+
+
 def split(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
