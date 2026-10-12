@@ -31,12 +31,14 @@ python3 scripts/stage-tuna-desktop-el10.py \
 
 The JSON input contains `source_sha` (40 hexadecimal characters),
 `source_archive_sha256`, `vendor_archive_sha256`, `lock_sha256`, and an
-immutable `vendor_url` under the package repository's GitHub release assets.
+hash-bound `vendor_url` under the package repository's GitHub release assets.
 `vendor_receipt` retains `source_sha`, `lock_sha256`, `archive_sha256`, a
 positive integer `run_id`, and `offline_metadata_success: true` from the
 actual locked offline vendor metadata job. This tool compares the supplied
 receipt; it does not authenticate GitHub or independently rerun Cargo.
 The CI caller must authenticate the producing run/artifact before admission.
+GitHub release tags and assets can change; the URL is not inherently
+immutable. The verified archive SHA256 binds the admitted bytes.
 
 `cells` is exactly six objects, each containing `consumer`, `target`, `arch`,
 `platform`, `base_reference` and `base_image`. Use the factory target's exact
@@ -50,7 +52,9 @@ architectures or substituted with Kitten or Stream.
 
 The output contains six recipes and `candidate-inputs.json`, binding hashes
 of the factory, original recipe, input JSON, source, vendor, lock and every
-staged recipe. An existing output directory is rejected. Staging preserves
+staged recipe. Input documents are read once and their parsed bytes hashed;
+changed documents or archives are rejected before any output is written.
+An existing output directory is rejected. Staging preserves
 the source recipe's six executable, schema smoke, portal, cursor and license
 payload rules. Rust and compiler inputs use the native factory capability
 mappings; do not substitute the CentOS mapping for an AlmaLinux toolchain.

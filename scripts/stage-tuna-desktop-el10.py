@@ -83,9 +83,17 @@ def read_archive(path):
 
 
 def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive, output):
-    recipe = yaml.safe_load(Path(recipe_path).read_text())
-    factory = yaml.safe_load(Path(factory_path).read_text())
-    inputs = json.loads(Path(inputs_path).read_text())
+    recipe_input = Path(recipe_path).read_bytes()
+    factory_input = Path(factory_path).read_bytes()
+    json_input = Path(inputs_path).read_bytes()
+    admitted = {
+        "recipe_input_sha256": hashlib.sha256(recipe_input).hexdigest(),
+        "factory_sha256": hashlib.sha256(factory_input).hexdigest(),
+        "inputs_sha256": hashlib.sha256(json_input).hexdigest(),
+    }
+    recipe = yaml.safe_load(recipe_input)
+    factory = yaml.safe_load(factory_input)
+    inputs = json.loads(json_input)
     require(recipe.get("name") == "tuna-desktop", "wrong recipe")
     sha = inputs.get("source_sha", "")
     require(re.fullmatch(r"[0-9a-f]{40}", sha) is not None, "exact source SHA required")
@@ -177,7 +185,7 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
             inputs.get("vendor_url", ""),
         )
         is not None,
-        "immutable vendor release URL required",
+        "hash-bound vendor GitHub release URL required",
     )
     cells = inputs.get("cells", [])
     expected = {
@@ -286,6 +294,12 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
         and digest(vendor_archive) == inputs["vendor_archive_sha256"],
         "archive changed during admission",
     )
+    require(
+        digest(recipe_path) == admitted["recipe_input_sha256"]
+        and digest(factory_path) == admitted["factory_sha256"]
+        and digest(inputs_path) == admitted["inputs_sha256"],
+        "parsed inputs changed during admission",
+    )
     out = Path(output)
     require(not out.exists(), "destination already exists; stale staging is forbidden")
     out.mkdir(parents=True)
@@ -303,9 +317,7 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
         "vendor_archive_sha256": inputs["vendor_archive_sha256"],
         "lock_sha256": inputs["lock_sha256"],
         "vendor_receipt": vendor,
-        "factory_sha256": digest(factory_path),
-        "recipe_input_sha256": digest(recipe_path),
-        "inputs_sha256": digest(inputs_path),
+        **admitted,
         "cells": [entry[2] for entry in planned],
     }
     (out / "candidate-inputs.json").write_text(json.dumps(receipt, indent=2) + "\n")

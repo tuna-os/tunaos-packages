@@ -214,3 +214,19 @@ def test_wrong_sha_cannot_relabel_archive(tmp_path):
     with pytest.raises(ValueError, match="source missing"):
         stager.stage(*args)
     assert not args[-1].exists()
+
+
+@pytest.mark.parametrize("index", [0, 1, 2])
+def test_changed_document_cannot_claim_unparsed_hash(tmp_path, monkeypatch, index):
+    args = fixture(tmp_path)
+    original = stager.read_archive
+
+    def mutate_after_parse(path):
+        result = original(path)
+        args[index].write_bytes(args[index].read_bytes() + b"\n ")
+        return result
+
+    monkeypatch.setattr(stager, "read_archive", mutate_after_parse)
+    with pytest.raises(ValueError, match="parsed inputs changed"):
+        stager.stage(*args)
+    assert not args[-1].exists()
