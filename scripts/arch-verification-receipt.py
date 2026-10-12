@@ -155,6 +155,81 @@ def receipt(
     require(
         signature.is_file() and signature.stat().st_size > 0, "served detached signature missing"
     )
+    payload_lines = (observations / "installed-payload.tsv").read_text().splitlines()
+    require(
+        bool(payload_lines) and payload_lines[0] == f"archive\t{observed_hash}",
+        "installed payload is not bound to the verified archive",
+    )
+    payload = {}
+    for line in payload_lines[1:]:
+        parts = line.split("\t")
+        require(len(parts) in (3, 4), "malformed installed payload member")
+        kind, path = parts[:2]
+        require(
+            path not in payload
+            and not path.startswith("/")
+            and all(part not in ("", ".", "..") for part in path.split("/")),
+            "unsafe or duplicate installed payload member",
+        )
+        require(
+            (
+                kind == "file"
+                and len(parts) == 4
+                and re.fullmatch(r"[0-7]{3,4}", parts[2]) is not None
+                and re.fullmatch(r"[0-9a-f]{64}", parts[3]) is not None
+            )
+            or (kind == "symlink" and len(parts) == 3 and bool(parts[2])),
+            "invalid installed payload member",
+        )
+        payload[path] = parts
+    directories = {entry["destination"] for entry in recipe["install"].get("directories", [])}
+    required_payload = set(recipe["files"]["common"]) - directories
+    required_payload |= {
+        "usr/share/tuna-desktop/icons/Adwaita/UPSTREAM.json",
+        "usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/default/metadata.json",
+        "usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/wait/metadata.json",
+    }
+    require(required_payload <= payload.keys(), "required installed payload member missing")
+    for binary in ("compositor", "session", "shell-host", "shell-gtk", "ibus-bridge", "greeter"):
+        require(
+            payload[f"usr/bin/tuna-{binary}"][0] == "file"
+            and payload[f"usr/bin/tuna-{binary}"][2] == "755",
+            "installed executable is not a regular 0755 file",
+        )
+        require(
+            payload[f"usr/bin/roost-{binary}"]
+            == ["symlink", f"usr/bin/roost-{binary}", f"tuna-{binary}"],
+            "installed compatibility target differs",
+        )
+    package_info = (observations / "package-info.txt").read_text().splitlines()
+    declared_dependencies = {
+        re.split(r"[<>=]", line.removeprefix("depend = "))[0]
+        for line in package_info
+        if line.startswith("depend = ")
+    }
+    installed_dependencies = {
+        line.split()[0]
+        for line in (observations / "installed-packages.txt").read_text().splitlines()
+        if len(line.split()) == 2
+    }
+    required_dependencies = set(recipe["dependencies"]["runtime"]["targets"]["arch"])
+    require(
+        required_dependencies <= declared_dependencies,
+        "archive lacks declared runtime dependencies",
+    )
+    require(
+        required_dependencies <= installed_dependencies,
+        "required runtime dependency is not installed",
+    )
+    required_schemas = {
+        "org.gnome.desktop.interface",
+        "org.gnome.desktop.wm.keybindings",
+        "org.gnome.desktop.a11y.keyboard",
+        "org.gnome.desktop.privacy",
+        "org.gnome.desktop.sound",
+    }
+    installed_schemas = set((observations / "installed-schemas.txt").read_text().splitlines())
+    require(required_schemas <= installed_schemas, "compiled required GSettings schema missing")
     sources = [recipe["source"], *recipe.get("sources", [])]
     require(
         all(re.fullmatch(r"[0-9a-f]{64}", source["sha256"]) for source in sources),
@@ -184,9 +259,19 @@ def receipt(
             "sha256": hashlib.sha256(signature.read_bytes()).hexdigest(),
             "url": served_url.rstrip("/") + "/" + filename + ".sig",
         },
-        "verification": {"served_install": "pass", "exact_artifact": "pass", "signature": "pass"},
+        "verification": {
+            "served_install": "pass",
+            "exact_artifact": "pass",
+            "signature": "pass",
+            "installed_payload": "pass",
+            "runtime_dependencies": "pass",
+        },
         "artifacts": [
             "installed.tsv",
+            "installed-payload.tsv",
+            "package-info.txt",
+            "installed-packages.txt",
+            "installed-schemas.txt",
             "signature-status.txt",
             "signature.sig",
             "action-inputs.json",

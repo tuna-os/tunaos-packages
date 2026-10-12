@@ -96,6 +96,10 @@ if [ -n "${EVIDENCE_DIR:-}" ]; then
     gpg --batch --homedir /etc/pacman.d/gnupg --status-fd 1 \
       --verify "$EVIDENCE_DIR/signature.sig" "$archive" \
       > "$EVIDENCE_DIR/signature-status.txt"
+    bash /scripts/arch-installed-payload.sh "$archive" / "$EVIDENCE_DIR/installed-payload.tsv"
+    bsdtar -xOf "$archive" .PKGINFO > "$EVIDENCE_DIR/package-info.txt"
+    pacman -Q > "$EVIDENCE_DIR/installed-packages.txt"
+    gsettings list-schemas > "$EVIDENCE_DIR/installed-schemas.txt"
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$pkg" "$installed_version" "$package_arch" \
       "$filename" "$archive_hash" "$archive_size" > "$EVIDENCE_DIR/installed.tsv"
   done

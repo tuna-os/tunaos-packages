@@ -11,6 +11,11 @@ only when all of these match:
   SHA-256 match that ActionResult.
 - Pacman installs from the intended repository with required signatures.
   GPG verifies the detached signature against the pinned key.
+- Every installed regular file matches the signed archive's SHA-256 and mode.
+  Each symlink has the same target. Portal files, six executable binaries,
+  compatibility links and private cursor metadata must be present.
+- The archive declares the recipe's runtime dependencies, and the installed
+  package database contains them. These observations accompany the receipt.
 - The publisher revision equals the verification checkout. The run URL,
   `run_attempt`, generation time, exact source/vendor URLs and checksums, and immutable
   package/signature identities accompany the result.
@@ -32,6 +37,11 @@ pinned source/vendor assets or dispatch a rebuild of the already published
 `d443858` package. Runs completed before this change do not acquire receipts
 retroactively. This document and synthetic contract tests are not evidence that
 an actual publication receipt has passed.
+
+The staged recipe adds cursor data, portal files and event sound dependencies.
+These require a new qualified source/vendor pin before any package build or
+publication. The old source is retained deliberately; this staging is not a
+passing final build.
 
 These checks cover publication and installation. Desktop capability,
 GNOME performance, image greeter, upgrade, user-data recovery, and Corral results

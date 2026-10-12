@@ -80,7 +80,7 @@ dependencies:
       # Marlin image installs them itself.
       # The shell and native bell use canberra-gtk-play and the selected
       # freedesktop event theme; include both in the installed session.
-      arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, sound-theme-freedesktop, systemd-libs, wayland]
+      arch: [dbus, dconf, glib2, gsettings-desktop-schemas, gtk4, gtk4-layer-shell, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, sound-theme-freedesktop, systemd-libs, wayland]
 install:
   commands:
     - install -Dm0755 target/release/tuna-compositor {destdir}/usr/bin/tuna-compositor
@@ -103,6 +103,8 @@ install:
   files:
     - {source: share/wayland-sessions/tuna.desktop, destination: usr/share/wayland-sessions/tuna.desktop}
     - {source: share/systemd/user/tuna-session.target, destination: usr/lib/systemd/user/tuna-session.target}
+    - {source: share/xdg-desktop-portal/portals/tuna.portal, destination: usr/share/xdg-desktop-portal/portals/tuna.portal}
+    - {source: packaging/marlin/tuna-portals.conf, destination: usr/share/xdg-desktop-portal/tuna-portals.conf}
     # Lock-screen PAM service (tuna-desktop#62): unlock under GDM, where no
     # greetd runs.
     - {source: share/pam.d/tuna-lock, destination: etc/pam.d/tuna-lock}
@@ -131,6 +133,8 @@ files:
     - usr/share/wayland-sessions/tuna.desktop
     - usr/share/wayland-sessions/roost.desktop
     - usr/lib/systemd/user/tuna-session.target
+    - usr/share/xdg-desktop-portal/portals/tuna.portal
+    - usr/share/xdg-desktop-portal/tuna-portals.conf
     - etc/pam.d/tuna-lock
     - etc/pam.d/roost-lock
     - usr/share/licenses/tuna-desktop/LICENSE
@@ -158,6 +162,18 @@ verify:
     && test -f /etc/pam.d/tuna-lock
     && test -f /etc/pam.d/roost-lock
     && test -f /usr/lib/systemd/user/tuna-session.target
+    && grep -qx 'DBusName=org.freedesktop.impl.portal.desktop.tuna' /usr/share/xdg-desktop-portal/portals/tuna.portal
+    && grep -qx 'Interfaces=org.freedesktop.impl.portal.Lockdown;' /usr/share/xdg-desktop-portal/portals/tuna.portal
+    && grep -qx 'org.freedesktop.impl.portal.Lockdown=tuna;' /usr/share/xdg-desktop-portal/tuna-portals.conf
+    && grep -qx 'org.freedesktop.impl.portal.Access=gtk;' /usr/share/xdg-desktop-portal/tuna-portals.conf
+    && command -v canberra-gtk-play
+    && gsettings list-schemas | grep -qx org.gnome.desktop.interface
+    && gsettings list-schemas | grep -qx org.gnome.desktop.wm.keybindings
+    && gsettings list-schemas | grep -qx org.gnome.desktop.a11y.keyboard
+    && gsettings list-schemas | grep -qx org.gnome.desktop.privacy
+    && gsettings list-schemas | grep -qx org.gnome.desktop.sound
+    && test -s /usr/share/sounds/freedesktop/stereo/bell.oga
+    && test -s /usr/share/sounds/freedesktop/stereo/audio-volume-change.oga
     && test -f /usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/default/metadata.json
     && test -f /usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/wait/metadata.json
     && test -f /usr/share/tuna-desktop/icons/Adwaita/UPSTREAM.json

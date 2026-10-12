@@ -59,6 +59,46 @@ def evidence(tmp_path):
         f"[GNUPG:] VALIDSIG {'C' * 40} 2026-10-10 1791640000 0 4 0 1 10 00 {receipt.SIGNER}\n"
     )
     (observations / "signature.sig").write_bytes(b"synthetic-unit-test-signature")
+    directories = {item["destination"] for item in recipe["install"].get("directories", [])}
+    files = set(recipe["files"]["common"]) - directories
+    files |= {
+        "usr/share/tuna-desktop/icons/Adwaita/UPSTREAM.json",
+        "usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/default/metadata.json",
+        "usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/wait/metadata.json",
+    }
+    payload = ["archive\t" + "a" * 64]
+    for path in sorted(files):
+        if path.startswith("usr/bin/roost-"):
+            payload.append(
+                "symlink\t" + path + "\t" + path.rsplit("/", 1)[1].replace("roost-", "tuna-")
+            )
+        else:
+            payload.append(
+                "file\t"
+                + path
+                + "\t"
+                + ("755" if path.startswith("usr/bin/") else "644")
+                + "\t"
+                + "b" * 64
+            )
+    (observations / "installed-payload.tsv").write_text("\n".join(payload) + "\n")
+    deps = recipe["dependencies"]["runtime"]["targets"]["arch"]
+    (observations / "package-info.txt").write_text(
+        "".join("depend = " + dep + "\n" for dep in deps)
+    )
+    (observations / "installed-packages.txt").write_text("".join(dep + " 1.0\n" for dep in deps))
+    (observations / "installed-schemas.txt").write_text(
+        "\n".join(
+            [
+                "org.gnome.desktop.interface",
+                "org.gnome.desktop.wm.keybindings",
+                "org.gnome.desktop.a11y.keyboard",
+                "org.gnome.desktop.privacy",
+                "org.gnome.desktop.sound",
+            ]
+        )
+        + "\n"
+    )
     return provenance, observations
 
 
@@ -286,3 +326,47 @@ def test_workflow_receipt_guard_uses_the_planner_package_normalization(packages,
     )
     assert not result.stderr
     assert (result.stdout == "selected") is selected
+
+
+@pytest.mark.parametrize(
+    "observation", ["installed-payload.tsv", "package-info.txt", "installed-packages.txt"]
+)
+def test_missing_payload_or_dependency_observation_is_not_a_pass(evidence, observation):
+    (evidence[1] / observation).unlink()
+    with pytest.raises(FileNotFoundError):
+        check(evidence)
+
+
+def test_missing_portal_payload_is_not_a_pass(evidence):
+    path = evidence[1] / "installed-payload.tsv"
+    path.write_text(
+        "\n".join(line for line in path.read_text().splitlines() if "tuna-portals.conf" not in line)
+        + "\n"
+    )
+    with pytest.raises(ValueError, match="required installed payload"):
+        check(evidence)
+
+
+@pytest.mark.parametrize(
+    "file_name,line",
+    [("package-info.txt", "depend = libcanberra"), ("installed-packages.txt", "libcanberra 1.0")],
+)
+def test_missing_runtime_dependency_is_not_a_pass(evidence, file_name, line):
+    path = evidence[1] / file_name
+    path.write_text(path.read_text().replace(line + "\n", ""))
+    with pytest.raises(ValueError, match="runtime dependenc"):
+        check(evidence)
+
+
+def test_payload_from_another_archive_is_rejected(evidence):
+    path = evidence[1] / "installed-payload.tsv"
+    path.write_text(path.read_text().replace("archive\t" + "a" * 64, "archive\t" + "c" * 64))
+    with pytest.raises(ValueError, match="verified archive"):
+        check(evidence)
+
+
+def test_missing_compiled_required_schema_is_not_a_pass(evidence):
+    path = evidence[1] / "installed-schemas.txt"
+    path.write_text(path.read_text().replace("org.gnome.desktop.privacy\n", ""))
+    with pytest.raises(ValueError, match="compiled required GSettings schema"):
+        check(evidence)
