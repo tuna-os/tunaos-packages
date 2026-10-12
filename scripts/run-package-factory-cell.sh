@@ -196,6 +196,13 @@ case ${FORMAT:?} in
           rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
         '
     fi
+    # Native provider recipes keep bounded test evidence outside BUILD, which
+    # rpmbuild may remove after success. Carry it in the existing cell artifact;
+    # publishers select package extensions and do not publish this directory.
+    if [[ -d "$root/rpmbuild/provider-test-evidence" ]]; then
+      mkdir -p "$out/artifacts/provider-tests"
+      cp -a "$root/rpmbuild/provider-test-evidence/." "$out/artifacts/provider-tests/"
+    fi
     find "$root/rpmbuild/RPMS" -type f -name '*.rpm' -exec cp -t "$out/artifacts" {} +
     ;;
   deb)
