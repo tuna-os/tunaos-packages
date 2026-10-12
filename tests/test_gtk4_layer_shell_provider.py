@@ -67,7 +67,7 @@ def test_rpm_owns_both_apis_and_keeps_runtime_devel_matched():
 
 def admission_script(data):
     command = next(c for c in data["build"]["commands"] if c.startswith("meson introspect"))
-    argv = shlex.split(command.split("|", 1)[1])
+    argv = shlex.split(command.rsplit("|", 1)[1])
     assert argv[:2] == ["python3", "-c"]
     return argv[2]
 
@@ -100,7 +100,7 @@ def test_upstream_tests_and_installed_smoke_are_not_replaced_by_presence():
     for option in ("-Dtests=true", "-Dintrospection=true", "-Dvapi=true", "-Dsmoke-tests=false"):
         assert option in setup
     assert (
-        commands[-1]
+        commands[5]
         == "GDK_BACKEND=wayland GSK_RENDERER=cairo meson test -C build --no-rebuild --print-errorlogs"
     )
     assert "ext-session-lock-v1.xml" in commands[1]
@@ -116,3 +116,104 @@ def test_upstream_tests_and_installed_smoke_are_not_replaced_by_presence():
         assert symbol in smoke
     assert "is_supported()" not in smoke  # Does not attach to the caller's desktop.
     assert subprocess.run(["sh", "-n"], input=smoke, text=True, check=False).returncode == 0
+
+
+def result_script(data):
+    command = next(c for c in data["build"]["commands"] if c.startswith("python3 -c"))
+    argv = shlex.split(command)
+    assert argv[:2] == ["python3", "-c"]
+    return argv[2]
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        None,
+        "skip",
+        "missing",
+        "duplicate",
+        "wrong_result",
+        "timeout",
+        "error",
+        "rc",
+        "command",
+        "start",
+        "duration",
+    ],
+)
+def test_actual_result_admission(tmp_path, bad):
+    build = tmp_path / "build"
+    logs = build / "meson-logs"
+    logs.mkdir(parents=True)
+    names = ["layer-probe", "lock-probe", "unit-test-get-version"]
+    (build / "provider-admitted-tests.json").write_text(json.dumps([{"name": n} for n in names]))
+    results = [
+        {
+            "name": n,
+            "result": "OK",
+            "returncode": 0,
+            "command": ["/owned/test", "--auto"],
+            "starttime": 12345.0,
+            "duration": 0.1,
+        }
+        for n in names
+    ]
+    if bad == "missing":
+        results.pop()
+    elif bad == "duplicate":
+        results[-1] = results[0].copy()
+    elif bad in {"skip", "wrong_result", "timeout", "error"}:
+        results[0]["result"] = {
+            "skip": "SKIP",
+            "wrong_result": "EXPECTEDFAIL",
+            "timeout": "TIMEOUT",
+            "error": "ERROR",
+        }[bad]
+    elif bad == "rc":
+        results[0]["returncode"] = 77
+    elif bad == "command":
+        results[0]["command"] = []
+    elif bad == "start":
+        results[0]["starttime"] = None
+    elif bad == "duration":
+        results[0]["duration"] = -1
+    (logs / "testlog.json").write_text("\n".join(json.dumps(r) for r in results) + "\n")
+    result = subprocess.run(
+        [sys.executable, "-O", "-c", result_script(recipe())],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert (result.returncode == 0) is (bad is None)
+    receipt = build / "provider-test-receipt.json"
+    assert receipt.exists() is (bad is None)
+    if bad is None:
+        data = json.loads(receipt.read_text())
+        assert data["passed"] == sorted(names)
+        assert not data["hardware_qualified"]
+        import hashlib
+
+        assert (
+            data["testlog_sha256"]
+            == hashlib.sha256((logs / "testlog.json").read_bytes()).hexdigest()
+        )
+
+
+def test_logs_reach_existing_factory_artifact():
+    data = recipe()
+    commands = "\n".join(data["build"]["commands"])
+    for filename in (
+        "provider-admitted-tests.json",
+        "provider-test-receipt.json",
+        "testlog.json",
+        "testlog.txt",
+    ):
+        assert filename in commands
+    assert "%{_topdir}/provider-test-evidence/gtk4-layer-shell/" in commands
+    runner = (ROOT / "scripts/run-package-factory-cell.sh").read_text()
+    assert (
+        'cp -a "$root/rpmbuild/provider-test-evidence/." "$out/artifacts/provider-tests/"' in runner
+    )
+    workflow = (ROOT / ".github/workflows/package-factory-cell.yml").read_text()
+    assert ".factory/${{ matrix.id }}/artifacts/" in workflow

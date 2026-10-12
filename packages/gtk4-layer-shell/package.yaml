@@ -31,13 +31,43 @@ build:
       -Dintrospection=true -Dvapi=true
     - meson compile -C build
     - >-
-      meson introspect --tests build | python3 -c
+      meson introspect --tests build | tee build/provider-admitted-tests.json | python3 -c
       'import json,sys; names={t["name"] for t in json.load(sys.stdin)};
       assert any(n.startswith("layer-") for n in names), "layer tests missing";
       assert any(n.startswith("lock-") for n in names), "lock tests missing";
       assert "unit-test-get-version" in names, "version test missing";
       print("GTK4 provider admitted tests:", len(names))'
     - GDK_BACKEND=wayland GSK_RENDERER=cairo meson test -C build --no-rebuild --print-errorlogs
+    - |
+      python3 -c '
+      import hashlib,json,math,pathlib
+      def need(condition,message):
+          if not condition:
+              raise ValueError(message)
+      admitted=pathlib.Path("build/provider-admitted-tests.json").read_bytes()
+      expected=[test["name"] for test in json.loads(admitted)]
+      need(expected and len(expected)==len(set(expected)),"empty or duplicate admitted tests")
+      need(any(name.startswith("layer-") for name in expected),"layer tests missing")
+      need(any(name.startswith("lock-") for name in expected),"lock tests missing")
+      need("unit-test-get-version" in expected,"version test missing")
+      log=pathlib.Path("build/meson-logs/testlog.json").read_bytes()
+      results=[json.loads(line) for line in log.splitlines()]
+      names=[test["name"] for test in results]
+      need(len(names)==len(expected) and set(names)==set(expected),"missing, duplicate or foreign test result")
+      need(len(names)==len(set(names)),"duplicate test result")
+      for test in results:
+          need(test.get("result")=="OK" and type(test.get("returncode")) is int and test["returncode"]==0,"test did not pass")
+          need(isinstance(test.get("command"),list) and test["command"] and all(isinstance(arg,str) for arg in test["command"]),"test command missing")
+          need(type(test.get("starttime")) in (int,float) and math.isfinite(test["starttime"]) and test["starttime"]>0,"test start missing")
+          need(type(test.get("duration")) in (int,float) and math.isfinite(test["duration"]) and test["duration"]>=0,"test duration missing")
+      receipt={"schema":1,"scope":"upstream-mock-wayland-provider-tests","source_sha256":"1ebb01ab14e98afd1727f68f64981c37bd23305b1f131f5667c02b94cf593192","admitted_sha256":hashlib.sha256(admitted).hexdigest(),"testlog_sha256":hashlib.sha256(log).hexdigest(),"passed":sorted(names),"hardware_qualified":False}
+      pathlib.Path("build/provider-test-receipt.json").write_text(json.dumps(receipt,indent=2)+"\n")
+      '
+    - mkdir -p %{_topdir}/provider-test-evidence/gtk4-layer-shell
+    - >-
+      cp build/provider-admitted-tests.json build/provider-test-receipt.json
+      build/meson-logs/testlog.json build/meson-logs/testlog.txt
+      %{_topdir}/provider-test-evidence/gtk4-layer-shell/
 dependencies:
   build:
     common:
