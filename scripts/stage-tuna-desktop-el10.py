@@ -270,6 +270,14 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
         ]
         if admission is not None:
             candidate['build']['cargo_config'] = admission['vendor_config']
+            # This exact Arch workaround is replaced by a checked native RPM
+            # requirement, not permission for authored compiler flag resets.
+            workaround = 'export CFLAGS="${CFLAGS:-} -ffat-lto-objects"'
+            commands = candidate['build'].get('commands', [])
+            if workaround in commands:
+                require(commands.count(workaround) == 1, 'ambiguous fat-LTO workaround')
+                candidate['build']['commands'] = [line for line in commands if line != workaround]
+                candidate['build']['require_fat_lto_objects'] = True
         candidate["dependencies"]["build"]["targets"] = {target: BUILD}
         candidate["dependencies"]["runtime"]["targets"] = {target: RUNTIME}
         # ELF Requires remain RPM-generated; GTK4-layer-shell is a separate GTK4 input.

@@ -613,6 +613,11 @@ def validate(recipe: dict, target: str | None = None, *, candidate_inputs: dict 
     prepare_commands(recipe)
     build_environment(recipe)
     target_recipe(recipe, target)
+    if target is not None:
+        fat_lto_requirement(recipe, target)
+    elif 'require_fat_lto_objects' in recipe.get('build', {}):
+        for requested_target in recipe.get('targets', []):
+            fat_lto_requirement(recipe, requested_target)
     validate_verify(recipe)
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
@@ -774,14 +779,45 @@ def alma_compiler_recipe_guard(recipe: dict) -> None:
         fail("Alma build commands/options may not override CPU policy")
 
 
+def fat_lto_requirement(recipe: dict, target: str) -> str:
+    """Require native vendor fat objects without replacing compiler policy flags.
+
+    Alma redhat-rpm-config 63ab021ee8302e36e19a975ff353d250f9bf0282
+    macros:431-438 ships GCC and Clang fat LTO. Runtime flags are authoritative.
+    """
+    required = recipe.get("build", {}).get("require_fat_lto_objects", False)
+    if type(required) is not bool:
+        fail("build.require_fat_lto_objects must be a boolean")
+    if not required:
+        return ""
+    if target not in {"alma10", "alma10-kitten", "el10"}:
+        fail("fat-LTO requirement needs a supported native RPM compiler adapter")
+    return """python3 - <<'TUNA_FAT_LTO'
+import os, shlex, sys
+try:
+    flags = shlex.split(os.environ.get('CFLAGS', ''))
+except ValueError:
+    sys.exit('Malformed native CFLAGS for fat-LTO requirement')
+if '-ffat-lto-objects' not in flags or '-fno-fat-lto-objects' in flags:
+    sys.exit('Native RPM compiler flags do not satisfy fat-LTO object requirement')
+TUNA_FAT_LTO"""
+
+
 def render_rpm(recipe: dict, target: str, *, candidate_inputs: dict | None = None) -> dict[str, str]:
     if any('candidate_input' in source for source in source_entries(recipe)):
         validate(recipe, target, candidate_inputs=candidate_inputs)
     recipe = target_recipe(recipe, target)
+    fat_lto = fat_lto_requirement(recipe, target)
     alma_environment = None
-    if target in {"alma10", "alma10-kitten"}:
+    native_environment = None
+    if target in {"alma10", "alma10-kitten"} or fat_lto:
         alma_compiler_recipe_guard(recipe)
-        alma_environment = build_environment_exports(recipe)
+        native_environment = build_environment_exports(recipe)
+    if target in {"alma10", "alma10-kitten"}:
+        alma_environment = native_environment
+        recipe = copy.deepcopy(recipe)
+        recipe.setdefault("build", {})["environment"] = {}
+    elif fat_lto:
         recipe = copy.deepcopy(recipe)
         recipe.setdefault("build", {})["environment"] = {}
     build, install = rpm_build_lines(recipe["build_system"], recipe)
@@ -808,7 +844,9 @@ def render_rpm(recipe: dict, target: str, *, candidate_inputs: dict | None = Non
         policy = (ROOT / "scripts/alma-compiler-policy.sh").read_text().replace("%", "%%")
         build = "\n".join(filter(None, ["%set_build_flags", alma_environment,
             "export TUNAOS_COMPILER_EVIDENCE_DIR=\"${TUNAOS_COMPILER_EVIDENCE_DIR:-%{_builddir}/tunaos-compiler-evidence}\"",
-            policy, "tunaos_alma_compiler_policy %{_target_cpu}", build]))
+            policy, "tunaos_alma_compiler_policy %{_target_cpu}", fat_lto, build]))
+    elif fat_lto:
+        build = "\n".join(filter(None, ["%set_build_flags", native_environment, fat_lto, build]))
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
     provides = "\n".join(f"Provides:       {dep}" for dep in provides_entries(recipe))
@@ -1205,6 +1243,7 @@ def render(recipe: dict, target: str, *, candidate_inputs: dict | None = None) -
         validate(recipe, target, candidate_inputs=candidate_inputs)
     recipe = target_recipe(recipe, target)
     target_data = load_targets()[target]
+    fat_lto_requirement(recipe, target)
     if target_data["format"] == "rpm":
         return render_rpm(recipe, target, candidate_inputs=candidate_inputs)
     if target_data["format"] == "deb":
