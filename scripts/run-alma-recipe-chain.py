@@ -17,6 +17,7 @@ import subprocess
 import sys
 
 import yaml
+import gtk4_candidate
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -122,6 +123,32 @@ class Adapter:
                 '--env', 'TZ=UTC', '--env', 'LANG=C.UTF-8', '--env', 'LC_ALL=C.UTF-8',
                 '--env', 'TUNAOS_CANDIDATE_REPO=/candidate-repo']
 
+    def is_projected(self, record):
+        return ('candidateRecipeDigest' in record or
+                (self.document.get('candidateScope') is not None and record.get('name') == 'gtk4-layer-shell'))
+
+    def projected_recipe(self, record):
+        if (self.document.get('candidateScope') != gtk4_candidate.SCOPE or record.get('name') != 'gtk4-layer-shell'
+                or record.get('recipe') != 'packages/gtk4-layer-shell/package.yaml'):
+            raise ValueError('GTK4 projection ownership mismatch')
+        path = self.root / record['recipe']
+        if path.is_symlink() or file_digest(path) != record['recipeDigest']:
+            raise ValueError('canonical GTK4 recipe changed')
+        projected = gtk4_candidate.project(yaml.safe_load(path.read_text()), self.document['target'])
+        if chain.digest(projected) != record.get('candidateRecipeDigest'):
+            raise ValueError('GTK4 projected recipe changed')
+        return projected
+
+    def provider_admission(self, record, directory):
+        projected = self.projected_recipe(record)
+        files = gtk4_candidate.admit_tests(directory, projected['source']['sha256'])
+        return {'schemaVersion': 1, 'kind': 'gtk4-candidate-upstream-tests',
+                'sourceRevision': self.document['sourceRevision'], 'queueDigest': self.document['queueDigest'],
+                'actionKey': self.document['actionKey'], 'baseDigest': self.document['baseDigest'],
+                'platform': self.document['platform'], 'recipeDigest': record['recipeDigest'],
+                'candidateRecipeDigest': record['candidateRecipeDigest'], 'evidence': files,
+                'published': False, 'readiness': False, 'hardwareQualified': False}
+
     def prepare(self, record, work, repo):
         if self.package_seconds is not None:
             # One deadline spans preparation, build, signing, indexing, native
@@ -139,6 +166,10 @@ class Adapter:
         for name in ('BUILD', 'BUILDROOT', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS'):
             (build / name).mkdir(parents=True, exist_ok=True)
         recipe = self.root / record['recipe']
+        if self.is_projected(record):
+            projected = self.projected_recipe(record)
+            recipe = work / 'candidate-recipe.yaml'
+            recipe.write_text(yaml.safe_dump(projected, sort_keys=False))
         run([sys.executable, str(self.root / 'scripts/tideforge.py'), 'render', str(recipe),
              '--target', self.document['target'], '--output', str(build / 'SPECS')], timeout=120)
         run([sys.executable, str(self.root / 'scripts/fetch-tideforge-sources.py'), str(recipe),
@@ -153,6 +184,8 @@ class Adapter:
         build = work / 'rpmbuild'
         if not (build / 'SPECS').is_dir() or not (build / 'SOURCES').is_dir():
             raise ValueError('actual prepared inputs missing')
+        if self.is_projected(record):
+            self.projected_recipe(record)
         run(self.container(work, repo) + [self.document['image'], 'bash',
              '/factory/scripts/run-alma-rpm.sh'], timeout=7200)
         outputs = sorted((build / 'RPMS').rglob('*.rpm'))
@@ -164,6 +197,16 @@ class Adapter:
         for path in evidence.rglob('*'):
             if path.is_symlink() or (not path.is_file() and not path.is_dir()):
                 raise ValueError('unsafe buildroot observation')
+        if self.is_projected(record):
+            provider = build / 'provider-test-evidence/gtk4-layer-shell'
+            admission = self.provider_admission(record, provider)
+            retained = evidence / 'gtk4-provider'
+            if retained.exists():
+                raise ValueError('stale GTK4 provider evidence')
+            shutil.copytree(provider, retained)
+            if self.provider_admission(record, retained) != admission:
+                raise ValueError('provider evidence changed during retention')
+            (evidence / 'gtk4-provider-admission.json').write_text(json.dumps(admission, sort_keys=True)+'\n')
         # Bank only observations from this actual build; resume retains restored
         # historical observations and performs fresh installation independently.
         bank = Path(repo) / 'buildroots' / record['name']
@@ -182,6 +225,13 @@ class Adapter:
         outputs = sorted(self.outputs.get(record['name'], []))
         if not outputs:
             raise ValueError('signed authored artifacts missing')
+        provider_proof = None
+        if self.is_projected(record):
+            bank = Path(repo) / 'buildroots' / record['name']
+            provider_proof = self.provider_admission(record, bank / 'gtk4-provider')
+            retained = chain.strict_json(bank / 'gtk4-provider-admission.json')
+            if retained != provider_proof:
+                raise ValueError('signed provider admission belongs to another source/cell')
         requirements = sorted(set(record['requirements']['build'] + record['requirements']['runtime']))
         (proof / 'requirements.txt').write_text(''.join(item + '\n' for item in requirements))
         (proof / 'packages.txt').write_text(''.join('/candidate-repo/' + item + '\n' for item in outputs))
@@ -203,6 +253,7 @@ class Adapter:
             'actionKey': self.document['actionKey'], 'baseDigest': self.document['baseDigest'],
             'platform': self.document['platform'], 'cpuBaseline': self.document['cpuBaseline'],
             'recipeDigest': record['recipeDigest'], 'readiness': False,
+            **({'candidateProviderTests': provider_proof} if provider_proof is not None else {}),
             'artifacts': [{'name': name, 'digest': file_digest(Path(repo) / name)}
                           for name in outputs],
             'evidence': [{'path': name, 'digest': file_digest(proof / name)}

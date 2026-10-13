@@ -17,7 +17,7 @@ SHA = 'a'*40
 @pytest.fixture
 def selection_checkout(tmp_path):
     (tmp_path/'scripts').mkdir()
-    for name in ['alma-recipe-chain.py', 'target_platform.py']:
+    for name in ['alma-recipe-chain.py', 'target_platform.py', 'gtk4_candidate.py']:
         shutil.copy2(ROOT/'scripts'/name, tmp_path/'scripts'/name)
     for name, targets in [('cosmic-icon-theme', ['alma10']), ('tuna-desktop', ['alma10', 'alma10-kitten']),
                           ('foreign', ['arch'])]:
@@ -83,7 +83,7 @@ def test_workflow_dispatch_remains_native_candidate_only():
     trigger=workflow.get('on',workflow.get(True))
     scope=trigger['workflow_dispatch']['inputs']['scope']
     assert scope['default'] == 'canary'
-    assert scope['options'] == ['canary','full','tuna']
+    assert scope['options'] == ['canary','full','tuna','gtk4-provider']
     native=workflow['jobs']['native']
     assert native['if'] == "github.event_name == 'workflow_dispatch'"
     assert native['strategy']['matrix'] == {'target':['alma10','alma10-kitten'],
