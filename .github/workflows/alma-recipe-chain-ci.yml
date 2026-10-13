@@ -7,13 +7,14 @@ on:
       - 'scripts/*alma*chain*'
       - 'scripts/run-alma-rpm.sh'
       - 'tests/test_alma_recipe_chain.py'
+      - 'tests/test_alma_candidate_selection.py'
       - 'tests/test_run_alma_recipe_chain.py'
   workflow_dispatch:
     inputs:
       scope:
-        description: Native signed provider canary or complete declared recipe queue
+        description: Native signed provider canary, bounded Tuna root, or complete declared recipe queue
         type: choice
-        options: [canary, full]
+        options: [canary, full, tuna]
         default: canary
         required: true
 
@@ -36,7 +37,7 @@ jobs:
           python-version: '3.14'
       - run: |
           python -m pip install pytest pyyaml==6.0.3
-          python -m pytest tests/test_alma_recipe_chain.py tests/test_run_alma_recipe_chain.py
+          python -m pytest tests/test_alma_recipe_chain.py tests/test_run_alma_recipe_chain.py tests/test_alma_candidate_selection.py
   native:
     if: github.event_name == 'workflow_dispatch'
     strategy:
@@ -93,6 +94,7 @@ jobs:
         with:
           name: alma-chain-evidence-${{ matrix.target }}-${{ matrix.architecture }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/selection.json
             .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/plan.json
             .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/result.json
             .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/work/*/evidence/
