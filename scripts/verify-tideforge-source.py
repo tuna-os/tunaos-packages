@@ -50,6 +50,8 @@ def main() -> None:
     args = parser.parse_args()
     recipe = yaml.safe_load(args.recipe.read_text())
     sources = tideforge_cache.recipe_sources(recipe)
+    if any('candidate_input' in source for source in sources):
+        raise SystemExit('candidate member requires the admitted local assembler; generic verification forbidden')
     for index, source in enumerate(sources):
         if args.cache_dir is not None:
             payload = tideforge_cache.oras_lookup(args.cache_dir, source["sha256"])

@@ -82,7 +82,7 @@ def read_archive(path):
         return members
 
 
-def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive, output):
+def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive, output, admission=None):
     recipe_input = Path(recipe_path).read_bytes()
     factory_input = Path(factory_path).read_bytes()
     json_input = Path(inputs_path).read_bytes()
@@ -179,14 +179,24 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
         isinstance(vendor.get("run_id"), int) and vendor["run_id"] > 0,
         "vendor receipt must retain producing CI run",
     )
-    require(
+    if admission is not None:
+        require(admission['candidate_only'] is True and admission['release_qualified'] is False
+                and admission['published'] is False and admission['source_sha'] == sha
+                and admission['source_archive_sha256'] == inputs['source_archive_sha256']
+                and admission['vendor_archive_sha256'] == inputs['vendor_archive_sha256']
+                and admission['lock_sha256'] == inputs['lock_sha256']
+                and admission['vendor_receipt'] == vendor, 'admitted input identity mismatch')
+        from tuna_candidate_inputs import descriptor
+        member = descriptor(admission)
+    else:
+        require(
         re.fullmatch(
             r"https://github.com/tuna-os/tunaos-packages/releases/download/[^/]+/tuna-desktop-vendor.tar.gz",
             inputs.get("vendor_url", ""),
         )
         is not None,
         "hash-bound vendor GitHub release URL required",
-    )
+        )
     cells = inputs.get("cells", [])
     expected = {
         (consumer, target, arch)
@@ -251,13 +261,15 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
         }
         candidate["sources"] = [
             {
-                "url": inputs["vendor_url"],
+                **({'candidate_input': member} if admission is not None else {'url': inputs['vendor_url']}),
                 "sha256": inputs["vendor_archive_sha256"],
                 "filename": "tuna-desktop-vendor.tar.gz",
                 "destination": ".",
                 "strip_components": 0,
             }
         ]
+        if admission is not None:
+            candidate['build']['cargo_config'] = admission['vendor_config']
         candidate["dependencies"]["build"]["targets"] = {target: BUILD}
         candidate["dependencies"]["runtime"]["targets"] = {target: RUNTIME}
         # ELF Requires remain RPM-generated; GTK4-layer-shell is a separate GTK4 input.
@@ -303,10 +315,22 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
     out = Path(output)
     require(not out.exists(), "destination already exists; stale staging is forbidden")
     out.mkdir(parents=True)
-    for key, recipe_bytes, _ in planned:
-        directory = out / key
-        directory.mkdir()
-        (directory / "package.yaml").write_bytes(recipe_bytes)
+    if admission is not None:
+        # One source closure across six native cells, not six duplicate recipe names.
+        candidate = yaml.safe_load(planned[0][1])
+        candidate['targets'] = sorted(CELLS.values())
+        candidate['dependencies']['build']['targets'] = {target: BUILD for target in candidate['targets']}
+        candidate['dependencies']['runtime']['targets'] = {target: RUNTIME for target in candidate['targets']}
+        recipe_bytes = yaml.safe_dump(candidate, sort_keys=False).encode()
+        (out / 'recipe').mkdir()
+        (out / 'recipe/package.yaml').write_bytes(recipe_bytes)
+        for _, _, cell in planned:
+            cell['recipe_sha256'] = hashlib.sha256(recipe_bytes).hexdigest()
+    else:
+        for key, recipe_bytes, _ in planned:
+            directory = out / key
+            directory.mkdir()
+            (directory / "package.yaml").write_bytes(recipe_bytes)
     receipt = {
         "schema": 1,
         "candidate_only": True,
@@ -317,6 +341,7 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
         "vendor_archive_sha256": inputs["vendor_archive_sha256"],
         "lock_sha256": inputs["lock_sha256"],
         "vendor_receipt": vendor,
+        **({'candidate_member': member, 'source_admission': admission} if admission is not None else {}),
         **admitted,
         "cells": [entry[2] for entry in planned],
     }

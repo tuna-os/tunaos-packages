@@ -1,0 +1,26 @@
+name: Tuna candidate member inputs
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tuna-candidate-inputs.yml'
+      - 'scripts/tuna_candidate_inputs.py'
+      - 'scripts/stage-tuna-desktop-el10.py'
+      - 'scripts/tideforge.py'
+      - 'scripts/fetch-tideforge-sources.py'
+      - 'scripts/verify-tideforge-source.py'
+      - 'tests/test_tuna_candidate_inputs.py'
+      - 'tests/test_tuna_desktop_el10_staging.py'
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v6
+        with:
+          python-version: '3.14'
+      - run: python -m pip install pytest pyyaml==6.0.3
+      - run: python -m pytest -q tests/test_tuna_candidate_inputs.py tests/test_tuna_desktop_el10_staging.py tests/test_tideforge.py tests/test_gtk4_layer_shell_provider.py tests/test_alma_recipe_chain.py tests/test_alma_candidate_selection.py
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'

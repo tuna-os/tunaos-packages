@@ -28,6 +28,8 @@ def main() -> None:
                         help="content-addressed store consulted before the network")
     args = parser.parse_args()
     recipe = yaml.safe_load(args.recipe.read_text())
+    if any('candidate_input' in source for source in tideforge_cache.recipe_sources(recipe)):
+        raise SystemExit('candidate member requires the admitted local assembler; generic fetch forbidden')
     args.destination.mkdir(parents=True, exist_ok=True)
     for source in tideforge_cache.recipe_sources(recipe):
         payload = None

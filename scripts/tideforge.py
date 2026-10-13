@@ -420,14 +420,22 @@ def rpm_source_field(source: dict, index: int) -> str:
     # its basename already matches the fetched filename; otherwise reference the
     # local filename directly so rpm can find it on disk.
     filename = source_filename(source, index)
+    if 'candidate_input' in source:
+        return filename
     url = source["url"]
     if Path(url.split("?", 1)[0]).name == filename:
         return f"{filename}::{url}"
     return filename
 
 
-def validate_source(source: dict, *, auxiliary: bool) -> None:
-    if not isinstance(source, dict) or not source.get("url", "").startswith("https://"):
+def validate_source(source: dict, *, auxiliary: bool, candidate_inputs: dict | None = None) -> None:
+    candidate = isinstance(source, dict) and 'candidate_input' in source
+    if candidate:
+        if (not auxiliary or source.get('url') is not None or not source.get('filename')
+                or candidate_inputs is None
+                or candidate_inputs.get(source.get('sha256')) != source['candidate_input']):
+            fail('candidate member requires an independently admitted input context')
+    elif not isinstance(source, dict) or not source.get("url", "").startswith("https://"):
         fail("source.url must use HTTPS")
     if not re.fullmatch(r"[0-9a-f]{64}", str(source.get("sha256", ""))):
         fail("source.sha256 must be a 64-character lowercase SHA-256")
@@ -437,7 +445,7 @@ def validate_source(source: dict, *, auxiliary: bool) -> None:
     # pinned to the branch starts 404ing at fetch time. Require an immutable
     # commit id so a recipe's sources stay fetchable for as long as its
     # checksums claim they are.
-    ref = DIST_GIT_RAW_REF.match(source["url"])
+    ref = DIST_GIT_RAW_REF.match(source.get("url", ""))
     if ref and not re.fullmatch(r"[0-9a-f]{40}", ref.group(1)):
         fail(f"dist-git source.url must pin a commit, not the mutable ref {ref.group(1)!r}")
     source_filename(source, 0)
@@ -574,7 +582,7 @@ def portable_payload_contract(recipe: dict) -> dict | None:
     return None
 
 
-def validate(recipe: dict, target: str | None = None) -> None:
+def validate(recipe: dict, target: str | None = None, *, candidate_inputs: dict | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
     for field in ("name", "version", "summary", "description", "license", "source", "build_system", "files", "targets"):
@@ -583,7 +591,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
     if not re.fullmatch(r"[a-z0-9][a-z0-9+._-]*", str(recipe["name"])):
         fail("name must be a lowercase package identifier")
     for index, source in enumerate(source_entries(recipe)):
-        validate_source(source, auxiliary=index > 0)
+        validate_source(source, auxiliary=index > 0, candidate_inputs=candidate_inputs)
     if recipe["build_system"] not in VALID_BUILD_SYSTEMS:
         fail(f"build_system must be one of {sorted(VALID_BUILD_SYSTEMS)}")
     if recipe["build_system"] == "cmake":
@@ -766,7 +774,9 @@ def alma_compiler_recipe_guard(recipe: dict) -> None:
         fail("Alma build commands/options may not override CPU policy")
 
 
-def render_rpm(recipe: dict, target: str) -> dict[str, str]:
+def render_rpm(recipe: dict, target: str, *, candidate_inputs: dict | None = None) -> dict[str, str]:
+    if any('candidate_input' in source for source in source_entries(recipe)):
+        validate(recipe, target, candidate_inputs=candidate_inputs)
     recipe = target_recipe(recipe, target)
     alma_environment = None
     if target in {"alma10", "alma10-kitten"}:
@@ -1190,11 +1200,13 @@ package() {{
     return {"PKGBUILD": pkgbuild}
 
 
-def render(recipe: dict, target: str) -> dict[str, str]:
+def render(recipe: dict, target: str, *, candidate_inputs: dict | None = None) -> dict[str, str]:
+    if any("candidate_input" in source for source in source_entries(recipe)):
+        validate(recipe, target, candidate_inputs=candidate_inputs)
     recipe = target_recipe(recipe, target)
     target_data = load_targets()[target]
     if target_data["format"] == "rpm":
-        return render_rpm(recipe, target)
+        return render_rpm(recipe, target, candidate_inputs=candidate_inputs)
     if target_data["format"] == "deb":
         return render_deb(recipe, target)
     if target_data["format"] == "pkg.tar.zst":
