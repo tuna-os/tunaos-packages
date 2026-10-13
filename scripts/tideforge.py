@@ -420,14 +420,22 @@ def rpm_source_field(source: dict, index: int) -> str:
     # its basename already matches the fetched filename; otherwise reference the
     # local filename directly so rpm can find it on disk.
     filename = source_filename(source, index)
+    if 'candidate_input' in source:
+        return filename
     url = source["url"]
     if Path(url.split("?", 1)[0]).name == filename:
         return f"{filename}::{url}"
     return filename
 
 
-def validate_source(source: dict, *, auxiliary: bool) -> None:
-    if not isinstance(source, dict) or not source.get("url", "").startswith("https://"):
+def validate_source(source: dict, *, auxiliary: bool, candidate_inputs: dict | None = None) -> None:
+    candidate = isinstance(source, dict) and 'candidate_input' in source
+    if candidate:
+        if (not auxiliary or source.get('url') is not None or not source.get('filename')
+                or candidate_inputs is None
+                or candidate_inputs.get(source.get('sha256')) != source['candidate_input']):
+            fail('candidate member requires an independently admitted input context')
+    elif not isinstance(source, dict) or not source.get("url", "").startswith("https://"):
         fail("source.url must use HTTPS")
     if not re.fullmatch(r"[0-9a-f]{64}", str(source.get("sha256", ""))):
         fail("source.sha256 must be a 64-character lowercase SHA-256")
@@ -437,7 +445,7 @@ def validate_source(source: dict, *, auxiliary: bool) -> None:
     # pinned to the branch starts 404ing at fetch time. Require an immutable
     # commit id so a recipe's sources stay fetchable for as long as its
     # checksums claim they are.
-    ref = DIST_GIT_RAW_REF.match(source["url"])
+    ref = DIST_GIT_RAW_REF.match(source.get("url", ""))
     if ref and not re.fullmatch(r"[0-9a-f]{40}", ref.group(1)):
         fail(f"dist-git source.url must pin a commit, not the mutable ref {ref.group(1)!r}")
     source_filename(source, 0)
@@ -574,7 +582,7 @@ def portable_payload_contract(recipe: dict) -> dict | None:
     return None
 
 
-def validate(recipe: dict, target: str | None = None) -> None:
+def validate(recipe: dict, target: str | None = None, *, candidate_inputs: dict | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
     for field in ("name", "version", "summary", "description", "license", "source", "build_system", "files", "targets"):
@@ -583,7 +591,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
     if not re.fullmatch(r"[a-z0-9][a-z0-9+._-]*", str(recipe["name"])):
         fail("name must be a lowercase package identifier")
     for index, source in enumerate(source_entries(recipe)):
-        validate_source(source, auxiliary=index > 0)
+        validate_source(source, auxiliary=index > 0, candidate_inputs=candidate_inputs)
     if recipe["build_system"] not in VALID_BUILD_SYSTEMS:
         fail(f"build_system must be one of {sorted(VALID_BUILD_SYSTEMS)}")
     if recipe["build_system"] == "cmake":
@@ -605,6 +613,11 @@ def validate(recipe: dict, target: str | None = None) -> None:
     prepare_commands(recipe)
     build_environment(recipe)
     target_recipe(recipe, target)
+    if target is not None:
+        fat_lto_requirement(recipe, target)
+    elif 'require_fat_lto_objects' in recipe.get('build', {}):
+        for requested_target in recipe.get('targets', []):
+            fat_lto_requirement(recipe, requested_target)
     validate_verify(recipe)
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
@@ -766,12 +779,45 @@ def alma_compiler_recipe_guard(recipe: dict) -> None:
         fail("Alma build commands/options may not override CPU policy")
 
 
-def render_rpm(recipe: dict, target: str) -> dict[str, str]:
+def fat_lto_requirement(recipe: dict, target: str) -> str:
+    """Require native vendor fat objects without replacing compiler policy flags.
+
+    Alma redhat-rpm-config 63ab021ee8302e36e19a975ff353d250f9bf0282
+    macros:431-438 ships GCC and Clang fat LTO. Runtime flags are authoritative.
+    """
+    required = recipe.get("build", {}).get("require_fat_lto_objects", False)
+    if type(required) is not bool:
+        fail("build.require_fat_lto_objects must be a boolean")
+    if not required:
+        return ""
+    if target not in {"alma10", "alma10-kitten", "el10"}:
+        fail("fat-LTO requirement needs a supported native RPM compiler adapter")
+    return """python3 - <<'TUNA_FAT_LTO'
+import os, shlex, sys
+try:
+    flags = shlex.split(os.environ.get('CFLAGS', ''))
+except ValueError:
+    sys.exit('Malformed native CFLAGS for fat-LTO requirement')
+if '-ffat-lto-objects' not in flags or '-fno-fat-lto-objects' in flags:
+    sys.exit('Native RPM compiler flags do not satisfy fat-LTO object requirement')
+TUNA_FAT_LTO"""
+
+
+def render_rpm(recipe: dict, target: str, *, candidate_inputs: dict | None = None) -> dict[str, str]:
+    if any('candidate_input' in source for source in source_entries(recipe)):
+        validate(recipe, target, candidate_inputs=candidate_inputs)
     recipe = target_recipe(recipe, target)
+    fat_lto = fat_lto_requirement(recipe, target)
     alma_environment = None
-    if target in {"alma10", "alma10-kitten"}:
+    native_environment = None
+    if target in {"alma10", "alma10-kitten"} or fat_lto:
         alma_compiler_recipe_guard(recipe)
-        alma_environment = build_environment_exports(recipe)
+        native_environment = build_environment_exports(recipe)
+    if target in {"alma10", "alma10-kitten"}:
+        alma_environment = native_environment
+        recipe = copy.deepcopy(recipe)
+        recipe.setdefault("build", {})["environment"] = {}
+    elif fat_lto:
         recipe = copy.deepcopy(recipe)
         recipe.setdefault("build", {})["environment"] = {}
     build, install = rpm_build_lines(recipe["build_system"], recipe)
@@ -798,7 +844,9 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         policy = (ROOT / "scripts/alma-compiler-policy.sh").read_text().replace("%", "%%")
         build = "\n".join(filter(None, ["%set_build_flags", alma_environment,
             "export TUNAOS_COMPILER_EVIDENCE_DIR=\"${TUNAOS_COMPILER_EVIDENCE_DIR:-%{_builddir}/tunaos-compiler-evidence}\"",
-            policy, "tunaos_alma_compiler_policy %{_target_cpu}", build]))
+            policy, "tunaos_alma_compiler_policy %{_target_cpu}", fat_lto, build]))
+    elif fat_lto:
+        build = "\n".join(filter(None, ["%set_build_flags", native_environment, fat_lto, build]))
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
     provides = "\n".join(f"Provides:       {dep}" for dep in provides_entries(recipe))
@@ -1190,11 +1238,14 @@ package() {{
     return {"PKGBUILD": pkgbuild}
 
 
-def render(recipe: dict, target: str) -> dict[str, str]:
+def render(recipe: dict, target: str, *, candidate_inputs: dict | None = None) -> dict[str, str]:
+    if any("candidate_input" in source for source in source_entries(recipe)):
+        validate(recipe, target, candidate_inputs=candidate_inputs)
     recipe = target_recipe(recipe, target)
     target_data = load_targets()[target]
+    fat_lto_requirement(recipe, target)
     if target_data["format"] == "rpm":
-        return render_rpm(recipe, target)
+        return render_rpm(recipe, target, candidate_inputs=candidate_inputs)
     if target_data["format"] == "deb":
         return render_deb(recipe, target)
     if target_data["format"] == "pkg.tar.zst":

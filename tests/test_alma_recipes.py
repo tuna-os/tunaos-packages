@@ -5,6 +5,7 @@ reusing an EL10 artifact does not establish a native Alma build.
 """
 from __future__ import annotations
 
+import copy
 import importlib.util
 import subprocess
 from pathlib import Path
@@ -22,6 +23,24 @@ TRACKED = subprocess.check_output(
 ).splitlines()
 RECIPES = [(path, yaml.safe_load((ROOT / path).read_text())) for path in TRACKED]
 EL10 = [(path, recipe) for path, recipe in RECIPES if 'el10' in recipe.get('targets', [])]
+# Source recipe presence is not native Alma provider qualification. The new
+# GTK4 provider declares EL10 only; activating Alma needs its own reviewed
+# target/dependency/native proof, not automatic coverage by this inventory.
+ALMA_PENDING = {'packages/gtk4-layer-shell/package.yaml': ['el10']}
+ALMA_COVERED = [(path, recipe) for path, recipe in EL10 if path not in ALMA_PENDING]
+
+
+def assert_alma_inventory(records):
+    found = {path: recipe for path, recipe in records}
+    assert ALMA_PENDING.keys() <= found.keys(), 'tracked pending provider disappeared'
+    for path, expected_targets in ALMA_PENDING.items():
+        assert found[path]['targets'] == expected_targets, 'pending provider activation requires review: ' + path
+    covered = [(path, recipe) for path, recipe in records if path not in ALMA_PENDING]
+    for path, recipe in covered:
+        for target in ('alma10', 'alma10-kitten'):
+            assert recipe['targets'].count(target) == 1, 'unreviewed Alma coverage gap: ' + path
+    assert len(covered) == 54, 'reviewed Alma inventory changed'
+
 RUST193_CONSUMERS = {
     'packages/' + name + '/package.yaml' for name in (
         'cosmic-bg', 'cosmic-panel', 'cosmic-app-library', 'cosmic-files',
@@ -31,15 +50,30 @@ RUST193_CONSUMERS = {
         'cosmic-applets', 'cosmic-osk', 'cosmic-settings-daemon')}
 
 
-def test_tracked_el10_coverage_is_complete():
-    assert len(EL10) == 54
+def test_tracked_el10_inventory_has_explicit_alma_gaps():
+    assert_alma_inventory(EL10)
     assert 'packages/rwd/package.yaml' not in TRACKED
-    for path, recipe in EL10:
+    for path, _ in ALMA_PENDING.items():
         for target in ('alma10', 'alma10-kitten'):
-            assert recipe['targets'].count(target) == 1, path
+            with pytest.raises(SystemExit):
+                renderer.validate(dict(EL10)[path], target)
 
 
-@pytest.mark.parametrize('path,recipe', EL10, ids=[path for path, _ in EL10])
+@pytest.mark.parametrize('change', ['unreviewed-gap', 'missing-provider', 'provider-activated'])
+def test_inventory_cannot_hide_new_gaps_or_claim_pending_provider_qualification(change):
+    records = copy.deepcopy(EL10)
+    if change == 'unreviewed-gap':
+        path, recipe = next((path, recipe) for path, recipe in records if path not in ALMA_PENDING)
+        recipe['targets'].remove('alma10')
+    elif change == 'missing-provider':
+        records = [(path, recipe) for path, recipe in records if path not in ALMA_PENDING]
+    else:
+        dict(records)['packages/gtk4-layer-shell/package.yaml']['targets'].append('alma10')
+    with pytest.raises(AssertionError):
+        assert_alma_inventory(records)
+
+
+@pytest.mark.parametrize('path,recipe', ALMA_COVERED, ids=[path for path, _ in ALMA_COVERED])
 def test_every_target_specific_map_preserves_exact_el10_value(path, recipe):
     def visit(value):
         if isinstance(value, dict):
@@ -59,7 +93,7 @@ def test_every_target_specific_map_preserves_exact_el10_value(path, recipe):
     visit(recipe)
 
 
-@pytest.mark.parametrize('path,recipe', EL10, ids=[path for path, _ in EL10])
+@pytest.mark.parametrize('path,recipe', ALMA_COVERED, ids=[path for path, _ in ALMA_COVERED])
 def test_real_renderer_keeps_dependencies_verification_and_rpm_payload(path, recipe):
     expected_build = renderer.target_dependencies(recipe, 'el10')
     expected_runtime = renderer.target_runtime_dependencies(recipe, 'el10')
