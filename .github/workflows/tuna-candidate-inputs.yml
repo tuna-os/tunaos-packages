@@ -10,6 +10,7 @@ on:
       - 'scripts/verify-tideforge-source.py'
       - 'tests/test_tuna_candidate_inputs.py'
       - 'tests/test_tuna_desktop_el10_staging.py'
+      - 'tests/test_alma_recipes.py'
 permissions:
   contents: read
 jobs:
@@ -21,6 +22,6 @@ jobs:
         with:
           python-version: '3.14'
       - run: python -m pip install pytest pyyaml==6.0.3
-      - run: python -m pytest -q tests/test_tuna_candidate_inputs.py tests/test_tuna_desktop_el10_staging.py tests/test_tideforge.py tests/test_gtk4_layer_shell_provider.py tests/test_alma_recipe_chain.py tests/test_alma_candidate_selection.py tests/test_alma_compiler_policy.py tests/test_alma_rpmbuild_guard.py
+      - run: python -m pytest -q tests/test_tuna_candidate_inputs.py tests/test_tuna_desktop_el10_staging.py tests/test_tideforge.py tests/test_gtk4_layer_shell_provider.py tests/test_alma_recipe_chain.py tests/test_alma_candidate_selection.py tests/test_alma_compiler_policy.py tests/test_alma_rpmbuild_guard.py tests/test_alma_recipes.py
         env:
           PYTHONDONTWRITEBYTECODE: '1'
