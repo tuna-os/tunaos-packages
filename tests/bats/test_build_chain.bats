@@ -54,3 +54,34 @@ BUILD_CHAIN="${REPO_ROOT}/scripts/build-chain.sh"
   run grep -F 'build_package_native()' "${REPO_ROOT}/scripts/lib/build-chain/native.sh"
   [ "$status" -eq 0 ]
 }
+
+@test "build-chain.sh: _record_result is a no-op when BUILD_RESULTS_FILE is unset" {
+  # Truncated copy (drop the trailing `main "$@"` call) so sourcing it just
+  # defines functions/vars instead of running a build.
+  local tmp_script="${REPO_ROOT}/scripts/.test-build-chain-$$.sh"
+  head -n -1 "${BUILD_CHAIN}" > "${tmp_script}"
+
+  run bash -c "cd '${REPO_ROOT}' && unset BUILD_RESULTS_FILE; set --; source '${tmp_script}'; _record_result pkg tier success 1 false; echo ok"
+  rm -f "${tmp_script}"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ ok ]]
+}
+
+@test "build-chain.sh: _record_result writes one JSONL object per call when BUILD_RESULTS_FILE is set" {
+  local tmp_script="${REPO_ROOT}/scripts/.test-build-chain-$$.sh"
+  head -n -1 "${BUILD_CHAIN}" > "${tmp_script}"
+  local results_file
+  results_file="$(mktemp)"
+
+  run bash -c "cd '${REPO_ROOT}' && export BUILD_RESULTS_FILE='${results_file}'; set --; source '${tmp_script}'; _record_result src/foo tierA success 12 false; _record_result src/bar tierA failure 3 true"
+  rm -f "${tmp_script}"
+  [ "$status" -eq 0 ]
+
+  [ "$(wc -l < "${results_file}")" -eq 2 ]
+  run python3 -c "import json,sys; [json.loads(l) for l in open('${results_file}')]"
+  [ "$status" -eq 0 ]
+
+  run grep -c '"outcome": "failure"' "${results_file}"
+  [ "$output" -eq 1 ]
+  rm -f "${results_file}"
+}

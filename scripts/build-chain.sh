@@ -367,6 +367,43 @@ fi
 # --- Helpers ---
 log() { echo "==> $*"; }
 err() { echo "ERROR: $*" >&2; }
+
+# --- Structured per-package result recording ---
+#
+# Every outcome this script knows about -- which package, which tier, how
+# long it ran, pass or fail -- already exists transiently inside wait_one:
+# started_at[i] and `now` compute elapsed, and the wait/err branch knows
+# pass or fail. All of that was previously only ever echoed as prose
+# (`log`/`err`), which is exactly what the _on_error narrative above
+# documents as unreadable after the fact once a log is hundreds of MB and
+# every retrieval path only serves the tail.
+#
+# BUILD_RESULTS_FILE, when set by the caller, gets one JSON object per
+# line per package outcome (JSONL, so a crash mid-run still leaves prior
+# lines parseable). Unset = no behavior change, same convention as
+# CHAIN_DEFERRED_MARKER and FAILURE_LOGS above. Fields are fixed and
+# bounded (package path, tier, backend, outcome, duration, retry flag,
+# timestamp) -- no free-form text, so this cannot grow unbounded labels
+# the way a raw log tail already can.
+_record_result() {
+    local pkg_path="$1" tier_name="$2" outcome="$3" duration_s="$4" is_retry="$5"
+    [[ -n "${BUILD_RESULTS_FILE:-}" ]] || return 0
+    python3 - "$pkg_path" "$tier_name" "$outcome" "$duration_s" "$is_retry" "$BACKEND" \
+        >> "${BUILD_RESULTS_FILE}" 2>/dev/null <<'PYEOF' || true
+import json, sys, datetime
+pkg_path, tier_name, outcome, duration_s, is_retry, backend = sys.argv[1:7]
+print(json.dumps({
+    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "package": pkg_path,
+    "tier": tier_name,
+    "backend": backend,
+    "outcome": outcome,
+    "duration_s": int(duration_s),
+    "retry": is_retry == "true",
+}))
+PYEOF
+}
+
 # Used by update_local_repo()'s retry path but never defined, so a
 # createrepo_c hiccup became "warn: command not found" (exit 127) and buried
 # whatever actually went wrong.
@@ -1372,10 +1409,12 @@ build_tier() {
                     local logfile
                     logfile="${logdir}/$(basename "$path").log"
                     cat "$logfile"
+                    local _dur=$(( now - started_at[i] ))
                     if wait "$pid"; then
-                        : # success
+                        _record_result "${path}" "${tier_name}" "success" "${_dur}" "false"
                     else
                         err "Failed: ${path}"
+                        _record_result "${path}" "${tier_name}" "failure" "${_dur}" "false"
                         _tier_failed+=("${path}")
                     fi
                     unset 'pids[$i]' 'pkg_paths[$i]' 'started_at[$i]' 'last_heartbeat[$i]'
@@ -1466,10 +1505,13 @@ build_tier() {
         log "  retrying them once in case they lost an intra-tier race"
         local path
         for path in "${retry[@]}"; do
+            local _retry_start=$(date +%s)
             if build_package "$path" ""; then
                 log "  [retry] ${path} built on the second pass"
+                _record_result "${path}" "${tier_name}" "success" "$(( $(date +%s) - _retry_start ))" "true"
             else
                 err "Failed: ${path}"
+                _record_result "${path}" "${tier_name}" "failure" "$(( $(date +%s) - _retry_start ))" "true"
                 _tier_failed+=("${path}")
             fi
         done
@@ -1512,10 +1554,12 @@ build_stream() {
                     local logfile
                     logfile="${logdir}/$(basename "$path").log"
                     cat "$logfile"
+                    local _dur=$(( now - started_at[i] ))
                     if wait "$pid"; then
-                        : # success
+                        _record_result "${path}" "stream" "success" "${_dur}" "false"
                     else
                         err "Failed: ${path}"
+                        _record_result "${path}" "stream" "failure" "${_dur}" "false"
                         _failed+=("${path}")
                     fi
                     unset 'pids[$i]' 'pkg_paths[$i]' 'started_at[$i]' 'last_heartbeat[$i]'
@@ -1594,10 +1638,13 @@ build_stream() {
         log "  retrying them once in case they lost a dependency race"
         local path
         for path in "${retry[@]}"; do
+            local _retry_start=$(date +%s)
             if build_package "$path" ""; then
                 log "  [retry] ${path} built on the second pass"
+                _record_result "${path}" "stream" "success" "$(( $(date +%s) - _retry_start ))" "true"
             else
                 err "Failed: ${path}"
+                _record_result "${path}" "stream" "failure" "$(( $(date +%s) - _retry_start ))" "true"
                 _failed+=("${path}")
             fi
         done
