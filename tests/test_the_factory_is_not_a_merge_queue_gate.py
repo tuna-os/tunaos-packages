@@ -36,6 +36,7 @@ a red test, which is exactly why it is written down.
 from __future__ import annotations
 
 import pathlib
+import copy
 
 import pytest
 
@@ -98,18 +99,89 @@ def test_the_required_checks_are_not_path_filtered_on_pull_request():
     )
 
 
-def test_the_rollup_still_covers_every_fast_job():
-    """`required-checks` is the single stable check branch protection points
-    at, so it must aggregate the fast jobs rather than drift behind them."""
-    data = yaml.safe_load(LINT.read_text(encoding="utf-8"))
+DEFAULT_FAST = {"yamllint", "shellcheck", "workspace-validate", "bats-tests",
+                "pytest", "build-order-validate"}
+MANUAL_EL10 = "el10-native-closure"
+
+
+def assert_rollup_contract(data):
+    """Exclude only the source-pinned manual native measurement job."""
     jobs = data["jobs"]
     rollup = jobs["required-checks"]
-    fast = {name for name in jobs if name != "required-checks"}
+    native = jobs[MANUAL_EL10]
+    assert native == {
+        "name": "Native EL10 closure",
+        "if": "github.event_name == 'workflow_dispatch' && inputs.el10_native_closure",
+        "uses": "./.github/workflows/el10-closure-producer.yml",
+        "permissions": {"contents": "read"},
+    }, "only the exact manual, read-only reusable measurement job is exempt"
+    on = data.get("on") or data.get(True) or {}
+    option = on["workflow_dispatch"]["inputs"]["el10_native_closure"]
+    assert option["type"] == "boolean" and option["default"] is False
+    assert data["permissions"] == {"contents": "read"}
+    assert "merge_group" in on and on.get("pull_request") in (None, {})
+    fast = set(jobs) - {"required-checks", MANUAL_EL10}
     assert set(rollup["needs"]) == fast, (
         f"required-checks needs {sorted(rollup['needs'])} but lint.yml "
-        f"defines {sorted(fast)} -- a job outside the roll-up is not required"
+        f"defines {sorted(fast)} -- a fast job outside the roll-up is not required"
     )
+    assert fast == DEFAULT_FAST, "default six fast checks must remain unchanged"
     assert str(rollup.get("if", "")).strip() == "always()", (
         "without always() a failed member SKIPS the roll-up, and a skipped "
         "required check reports success"
     )
+    for job in jobs.values():
+        needs = job.get("needs", [])
+        if isinstance(needs, str):
+            needs = [needs]
+        assert MANUAL_EL10 not in needs, "manual measurement must not gate ordinary checks"
+
+
+def lint_data():
+    return yaml.safe_load(LINT.read_text(encoding="utf-8"))
+
+
+def test_the_rollup_still_covers_every_fast_job():
+    """The stable required check covers all six ordinary checks."""
+    assert_rollup_contract(lint_data())
+
+
+def test_ordinary_extra_fast_job_cannot_escape_rollup():
+    data = lint_data()
+    data["jobs"]["extra-fast"] = {"runs-on": "ubuntu-latest", "steps": []}
+    with pytest.raises(AssertionError, match="outside the roll-up"):
+        assert_rollup_contract(data)
+
+
+@pytest.mark.parametrize("mutation", [
+    "condition", "uses", "default", "type", "permission", "global-permission",
+    "ordinary-needs", "rollup-needs", "always", "merge-group", "pr-filter",
+])
+def test_manual_exemption_does_not_widen(mutation):
+    data = copy.deepcopy(lint_data())
+    on = data.get("on") or data.get(True)
+    native = data["jobs"][MANUAL_EL10]
+    if mutation == "condition":
+        native["if"] = "inputs.el10_native_closure"
+    elif mutation == "uses":
+        native["uses"] = "./.github/workflows/package-factory.yml"
+    elif mutation == "default":
+        on["workflow_dispatch"]["inputs"]["el10_native_closure"]["default"] = True
+    elif mutation == "type":
+        on["workflow_dispatch"]["inputs"]["el10_native_closure"]["type"] = "string"
+    elif mutation == "permission":
+        native["permissions"]["packages"] = "write"
+    elif mutation == "global-permission":
+        data["permissions"]["packages"] = "write"
+    elif mutation == "ordinary-needs":
+        data["jobs"]["pytest"]["needs"] = MANUAL_EL10
+    elif mutation == "rollup-needs":
+        data["jobs"]["required-checks"]["needs"].append(MANUAL_EL10)
+    elif mutation == "always":
+        data["jobs"]["required-checks"]["if"] = "success()"
+    elif mutation == "merge-group":
+        del on["merge_group"]
+    elif mutation == "pr-filter":
+        on["pull_request"] = {"paths": ["scripts/**"]}
+    with pytest.raises(AssertionError):
+        assert_rollup_contract(data)
