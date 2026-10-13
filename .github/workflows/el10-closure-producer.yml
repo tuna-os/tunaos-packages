@@ -1,0 +1,126 @@
+name: EL10 Closure Producer
+
+# Called only by the registered lint.yml manual opt-in. Local native checks
+# precede artifact upload; original completed-run/API admission is separate.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve native EL10 image pair
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      x86_64: ${{ steps.base.outputs.x86_64_image }}
+      aarch64: ${{ steps.base.outputs.aarch64_image }}
+      x86_64_arch: ${{ steps.base.outputs.x86_64_image_arch }}
+      aarch64_arch: ${{ steps.base.outputs.aarch64_image_arch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.15'
+      - name: Install metadata-only resolver tools
+        run: |
+          set -euo pipefail
+          timeout --kill-after=10s 180s sudo apt-get update
+          timeout --kill-after=10s 180s sudo apt-get install -y skopeo
+          python -m pip install pyyaml==6.0.3
+      - id: base
+        name: Resolve exact immutable two-architecture image metadata
+        run: |
+          python scripts/el10-native-base.py \
+            --factory manifests/package-factory.yaml \
+            --output "$RUNNER_TEMP/el10-base-pair" \
+            --github-output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: el10-base-pair-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/el10-base-pair/
+          if-no-files-found: warn
+
+  produce:
+    name: el10-closure-${{ matrix.cell }}
+    needs: resolve
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    container:
+      image: ${{ matrix.arch == 'x86_64' && needs.resolve.outputs.x86_64 || needs.resolve.outputs.aarch64 }}
+      options: --cpus 2 --memory 6g --pids-limit 256
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+            cell: skipjack-el10-x86_64
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            cell: skipjack-el10-aarch64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Measure natively inside the pinned container
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE_ARCH: ${{ matrix.arch == 'x86_64' && needs.resolve.outputs.x86_64_arch || needs.resolve.outputs.aarch64_arch }}
+          RUNNER_ARCH_CONTEXT: ${{ runner.arch }}
+          BASE_X86: ${{ needs.resolve.outputs.x86_64 }}
+          BASE_ARM: ${{ needs.resolve.outputs.aarch64 }}
+          HEAD_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          case "$RUNNER_ARCH_CONTEXT" in
+            X64) runner_machine=x86_64 ;;
+            ARM64) runner_machine=aarch64 ;;
+            *) echo 'Unsupported actual runner architecture'; exit 1 ;;
+          esac
+          test "$runner_machine" = "$ARCH"
+          # Existing native image Python is part of its DNF runtime. No
+          # downloaded Python/bootstrap executable or fake vendor receipt.
+          command -v python3
+          python3 scripts/el10-native-producer.py \
+            --recipe packages/tuna-desktop/package.yaml \
+            --factory manifests/package-factory.yaml \
+            --factory-key public.gpg \
+            --output "$RUNNER_TEMP/el10-$ARCH" \
+            --arch "$ARCH" --image-arch "$IMAGE_ARCH" \
+            --runner-machine "$runner_machine" \
+            --base-x86_64 "$BASE_X86" --base-aarch64 "$BASE_ARM" \
+            --head-sha "$HEAD_SHA" --run-id "$RUN_ID" --run-attempt "$RUN_ATTEMPT"
+      - name: Verify original local artifact byte bindings
+        run: |
+          python3 scripts/el10-measure-closure.py verify-artifacts \
+            --report "$RUNNER_TEMP/el10-${{ matrix.arch }}/measured/report.json" \
+            --dir "$RUNNER_TEMP/el10-${{ matrix.arch }}/measured"
+      - name: Validate local native semantics without original-run admission
+        run: |
+          python3 scripts/el10-measure-closure.py validate-local \
+            --report "$RUNNER_TEMP/el10-${{ matrix.arch }}/measured/report.json" \
+            --plan "$RUNNER_TEMP/el10-${{ matrix.arch }}/plan.json" \
+            --receipt "$RUNNER_TEMP/el10-${{ matrix.arch }}/staged/candidate-inputs.json" \
+            --policy "$RUNNER_TEMP/el10-${{ matrix.arch }}/policy.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: success()
+        with:
+          name: el10-closure-${{ matrix.cell }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/el10-${{ matrix.arch }}/upload/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: failure()
+        with:
+          name: el10-closure-failure-${{ matrix.cell }}-attempt-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/el10-${{ matrix.arch }}/commands/
+            ${{ runner.temp }}/el10-${{ matrix.arch }}/measured/
+            ${{ runner.temp }}/el10-${{ matrix.arch }}/checked-consumer/consumer-receipt.json
+          if-no-files-found: warn

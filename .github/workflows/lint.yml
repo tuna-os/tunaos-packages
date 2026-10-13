@@ -36,6 +36,11 @@ on:
       - '**.sh'
       - 'scripts/**'
   workflow_dispatch:
+    inputs:
+      el10_native_closure:
+        description: 'Measure two native EL10 cells; no publication or original-run admission'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -207,3 +212,10 @@ jobs:
         run: |
           failed=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result | IN("success", "skipped") | not) | .key')
           test -z "$failed" || { echo "Required jobs failed: $failed"; exit 1; }
+
+  el10-native-closure:
+    name: Native EL10 closure
+    if: github.event_name == 'workflow_dispatch' && inputs.el10_native_closure
+    uses: ./.github/workflows/el10-closure-producer.yml
+    permissions:
+      contents: read

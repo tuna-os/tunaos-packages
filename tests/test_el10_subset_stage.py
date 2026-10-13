@@ -630,3 +630,45 @@ def test_admission_always_fails_invented_receipt_unbound_plan(tmp_path):
     assert closure.validate_closure_report(forged, invented["cell"]) == 2
     with pytest.raises(ValueError, match="not implemented"):
         closure.admit_measured_closure(forged, invented, receipt)
+
+
+def _checked_consumer_control(inputs):
+    """Synthetic local binding control, never a successful Cargo/native run."""
+    return dict(schema=1,kind='new-consumer-offline-metadata',
+        source_sha=inputs['source_sha'],lock_sha256=inputs['lock_sha256'],
+        archive_sha256=inputs['vendor_archive_sha256'],
+        source_archive_sha256=inputs['source_archive_sha256'],
+        head_sha='a'*40,measurement_run=123,measurement_attempt=2,
+        original_vendor_producing_run=None,metadata_json_sha256='b'*64,
+        cargo_executable_sha256='c'*64,private_cargo_home=True,cargo_version='synthetic local control',
+        command=['cargo','metadata','--locked','--offline','--format-version','1'],
+        exit_code=0,offline_metadata_success=True)
+
+
+def test_new_checked_consumer_subset_is_explicit_and_does_not_forge_vendor_origin(tmp_path):
+    paths=fixture(tmp_path,el10_cells())
+    recipe,factory,inputs_path,source,vendor=paths
+    inputs=json.loads(inputs_path.read_text());inputs['vendor_receipt']=_checked_consumer_control(inputs)
+    inputs_path.write_text(json.dumps(inputs))
+    with pytest.raises(ValueError,match='producing CI run'):
+        stager.stage_el10_only(*paths,tmp_path/'legacy-subset')
+    context=dict(head_sha='a'*40,run_id=123,run_attempt=2)
+    receipt=stager.stage_el10_only(*paths,tmp_path/'checked-subset',checked_consumer_context=context)
+    assert receipt['vendor_receipt']['original_vendor_producing_run'] is None
+    assert 'run_id' not in receipt['vendor_receipt']
+    assert receipt['release_qualified'] is False
+    assert receipt['published'] is False
+
+
+def test_new_checked_consumer_cannot_change_default_six_or_current_attempt(tmp_path):
+    paths=fixture(tmp_path,six_cells())
+    recipe,factory,inputs_path,source,vendor=paths
+    inputs=json.loads(inputs_path.read_text());inputs['vendor_receipt']=_checked_consumer_control(inputs)
+    inputs_path.write_text(json.dumps(inputs))
+    with pytest.raises(ValueError,match='producing CI run'):
+        stager.stage(*paths,tmp_path/'six-default')
+    # Even the subset-private entry must reject a different measurement attempt.
+    inputs['cells']=el10_cells();inputs_path.write_text(json.dumps(inputs))
+    with pytest.raises(ValueError,match='measurement binding differs'):
+        stager.stage_el10_only(*paths,tmp_path/'wrong-attempt',
+            checked_consumer_context=dict(head_sha='a'*40,run_id=123,run_attempt=3))

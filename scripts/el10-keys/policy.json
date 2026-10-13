@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "official_identity_sources": [
+    "https://www.centos.org/keys/",
+    "https://fedoraproject.org/security/"
+  ],
+  "keys": [
+    {
+      "path": "centosofficial.asc",
+      "url": "https://www.centos.org/keys/RPM-GPG-KEY-CentOS-Official-SHA256",
+      "sha256": "5af55449d6c9bc594e2e2fb7222374cb25a8ad2d8ea6ce3de894a3201944daa2",
+      "primary_fingerprint": "99DB70FAE1D7CE227FB6488205B555B38483C65D",
+      "signing_fingerprints": [
+        "99DB70FAE1D7CE227FB6488205B555B38483C65D"
+      ],
+      "repositories": [
+        "baseos",
+        "appstream",
+        "crb"
+      ]
+    },
+    {
+      "path": "centos-extras.asc",
+      "url": "https://www.centos.org/keys/RPM-GPG-KEY-CentOS-SIG-Extras",
+      "sha256": "87dcc7f4e517ec161caf0cc85587ac4cad7cab080e640cbbd1296e3ab0e48ce1",
+      "primary_fingerprint": "363FC0972F64B699AED3968E1FF6A2171D997668",
+      "signing_fingerprints": [
+        "363FC0972F64B699AED3968E1FF6A2171D997668",
+        "272C8917D437D0B6B3FE0B048B5C8111FCA5D0FF"
+      ],
+      "repositories": [
+        "extras-common"
+      ],
+      "packages": [
+        "epel-release"
+      ],
+      "scope": "bootstrap-only"
+    },
+    {
+      "path": "epel10.asc",
+      "url": "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-10",
+      "sha256": "de390fc168eae5ab2852e9e93d34a0b9ddf05cf9ce90ee28d97de26a4b1f6b93",
+      "primary_fingerprint": "7D8D15CBFC4E62688591FB2633D98517E37ED158",
+      "signing_fingerprints": [
+        "7D8D15CBFC4E62688591FB2633D98517E37ED158"
+      ],
+      "repositories": [
+        "epel"
+      ]
+    }
+  ],
+  "factory": {
+    "sha256": "4de5dfede473d4d56d79719a23e7b0925336719adfc142ea638735118039a82e",
+    "primary_fingerprint": "4E5CC9F8B3B521793D95266E629BE6EA45188366",
+    "signing_fingerprints": [
+      "4E5CC9F8B3B521793D95266E629BE6EA45188366",
+      "D0ED0FEA5E5BFE3324DFCDACF7A5375898C78B31"
+    ]
+  }
+}

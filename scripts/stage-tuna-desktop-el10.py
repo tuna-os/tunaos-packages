@@ -99,6 +99,7 @@ def _stage_impl(
     output,
     expected_cells=None,
     require_consumer_adapters=True,
+    checked_consumer_context=None,
 ):
     recipe_input = Path(recipe_path).read_bytes()
     factory_input = Path(factory_path).read_bytes()
@@ -192,10 +193,21 @@ def _stage_impl(
         and vendor.get("offline_metadata_success") is True,
         "exact source/lock/vendor offline receipt required",
     )
-    require(
-        isinstance(vendor.get("run_id"), int) and vendor["run_id"] > 0,
-        "vendor receipt must retain producing CI run",
-    )
+    if checked_consumer_context is None:
+        require(
+            isinstance(vendor.get("run_id"), int) and vendor["run_id"] > 0,
+            "vendor receipt must retain producing CI run",
+        )
+    else:
+        require(expected_cells == EL10_ONLY_CELLS and require_consumer_adapters is False,
+                "new checked-consumer operation is restricted to native EL10 subset")
+        import importlib.util
+        helper_path = Path(__file__).with_name("el10-producer-inputs.py")
+        spec = importlib.util.spec_from_file_location("el10_checked_consumer_inputs",helper_path)
+        helper = importlib.util.module_from_spec(spec); spec.loader.exec_module(helper)
+        helper.validate_checked_consumer(vendor,source_sha=sha,
+            lock_sha256=inputs["lock_sha256"],archive_sha256=inputs["vendor_archive_sha256"],
+            source_archive_sha256=inputs["source_archive_sha256"],**checked_consumer_context)
     require(
         re.fullmatch(
             r"https://github.com/tuna-os/tunaos-packages/releases/download/[^/]+/tuna-desktop-vendor.tar.gz",
@@ -374,7 +386,8 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
 
 
 def stage_el10_only(
-    recipe_path, factory_path, inputs_path, source_archive, vendor_archive, output
+    recipe_path, factory_path, inputs_path, source_archive, vendor_archive, output,
+    *, checked_consumer_context=None,
 ):
     """Stage only the skipjack/el10 candidate cells; Alma cells absent, not relabeled."""
     return _stage_impl(
@@ -386,6 +399,7 @@ def stage_el10_only(
         output,
         expected_cells=EL10_ONLY_CELLS,
         require_consumer_adapters=False,
+        checked_consumer_context=checked_consumer_context,
     )
 
 
@@ -398,7 +412,17 @@ def main():
         action="store_true",
         help="stage only the skipjack/el10 candidate cells (candidate-only subset)",
     )
+    parser.add_argument("--checked-consumer-head")
+    parser.add_argument("--checked-consumer-run", type=int)
+    parser.add_argument("--checked-consumer-attempt", type=int)
     args = parser.parse_args()
+    checked = None
+    supplied = (args.checked_consumer_head,args.checked_consumer_run,args.checked_consumer_attempt)
+    if any(value is not None for value in supplied):
+        if not args.only_el10 or any(value is None for value in supplied):
+            parser.error("checked-consumer identity requires EL10-only and all three exact identity fields")
+        checked = dict(head_sha=args.checked_consumer_head,run_id=args.checked_consumer_run,
+                       run_attempt=args.checked_consumer_attempt)
     entry = stage_el10_only if args.only_el10 else stage
     try:
         entry(
@@ -408,6 +432,7 @@ def main():
             args.source_archive,
             args.vendor_archive,
             args.output,
+            **({"checked_consumer_context": checked} if args.only_el10 else {}),
         )
     except (ValueError, KeyError, TypeError, OSError, tarfile.TarError) as error:
         parser.exit(1, f"candidate staging rejected: {error}\n")
