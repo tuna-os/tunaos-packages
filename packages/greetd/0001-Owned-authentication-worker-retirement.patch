@@ -1,0 +1,1426 @@
+--- a/greetd/src/main.rs
++++ b/greetd/src/main.rs
+@@ -2,6 +2,7 @@
+ mod context;
+ mod error;
+ mod pam;
++mod retirement;
+ mod scrambler;
+ mod server;
+ mod session;
+--- a/greetd/src/context.rs
++++ b/greetd/src/context.rs
+@@ -1,6 +1,9 @@
+ use std::{
++    cell::{Cell, RefCell},
++    collections::BTreeMap,
+     fs::File,
+     path::Path,
++    sync::Arc,
+     time::{Duration, Instant},
+ };
+ 
+@@ -10,6 +13,7 @@
+ };
+ use tokio::{sync::RwLock, time::sleep};
+ 
++use crate::retirement::{Connection, Worker};
+ use crate::{
+     error::Error,
+     scrambler::Scrambler,
+@@ -27,6 +31,7 @@
+ }
+ 
+ struct SessionSet {
++    owner: u64,
+     session: Session,
+     time: Instant,
+ }
+@@ -48,6 +53,10 @@
+     source_profile: bool,
+     runfile: String,
+     listener_path: String,
++    next_connection: Cell<u64>,
++    workers: RefCell<BTreeMap<i32, (Arc<Worker>, Option<u64>)>>,
++    clients: RefCell<BTreeMap<u64, (Arc<Connection>, std::os::unix::net::UnixStream)>>,
++    retiring: RefCell<BTreeMap<u64, Arc<tokio::sync::Mutex<SessionSet>>>>,
+ }
+ 
+ impl Context {
+@@ -75,6 +84,167 @@
+             source_profile,
+             runfile,
+             listener_path,
++            next_connection: Cell::new(1),
++            workers: RefCell::new(BTreeMap::new()),
++            clients: RefCell::new(BTreeMap::new()),
++            retiring: RefCell::new(BTreeMap::new()),
++        }
++    }
++
++    pub fn connection(&self, stream: &tokio::net::UnixStream) -> Result<Arc<Connection>, Error> {
++        let id = self.next_connection.get();
++        let next = id.checked_add(1).ok_or("connection identity exhausted")?;
++        let connection = Connection::new(id)?;
++        use std::os::unix::io::{AsRawFd, FromRawFd};
++        let descriptor = unsafe { libc::fcntl(stream.as_raw_fd(), libc::F_DUPFD_CLOEXEC, 0) };
++        if descriptor < 0 {
++            return Err(std::io::Error::last_os_error().into());
++        }
++        let held = unsafe { std::os::unix::net::UnixStream::from_raw_fd(descriptor) };
++        // Custody needs no reactor registration: this duplicate is never read
++        // or written and remains CLOEXEC across the worker's exec.
++        self.clients
++            .borrow_mut()
++            .insert(id, (connection.clone(), held));
++        self.next_connection.set(next);
++        Ok(connection)
++    }
++    fn new_session(&self, owner: Option<u64>) -> Result<Session, Error> {
++        let session = Session::new_external()?;
++        let worker = session.worker();
++        self.workers
++            .borrow_mut()
++            .insert(worker.pid(), (worker, owner));
++        Ok(session)
++    }
++    #[cfg(test)]
++    pub fn test_client_owner(&self) -> Option<Arc<Connection>> {
++        self.clients
++            .borrow()
++            .values()
++            .next()
++            .map(|(owner, _)| owner.clone())
++    }
++    #[cfg(test)]
++    pub fn test_register_unknown_worker(&self, worker: Arc<Worker>, owner: &Connection) {
++        self.workers
++            .borrow_mut()
++            .insert(worker.pid(), (worker, Some(owner.id)));
++    }
++    pub fn owned_auth_workers_remain(&self) -> bool {
++        self.workers
++            .borrow()
++            .values()
++            .any(|(worker, owner)| owner.is_some() && !worker.reaped())
++    }
++    /// Half-close is not a receipt. This held socket closes only after every
++    /// worker created on THIS exact connection has central terminal evidence.
++    pub fn close_retired_connection(&self, owner: &Connection) -> bool {
++        if !owner.canceled()
++            || self
++                .workers
++                .borrow()
++                .values()
++                .any(|(worker, id)| *id == Some(owner.id) && !worker.reaped())
++        {
++            return false;
++        }
++        self.clients.borrow_mut().remove(&owner.id);
++        true
++    }
++    fn close_retired_orphans(&self) {
++        let owners: Vec<Arc<Connection>> = self
++            .clients
++            .borrow()
++            .values()
++            .map(|(owner, _)| owner.clone())
++            .collect();
++        for owner in owners {
++            self.close_retired_connection(&owner);
++        }
++    }
++    fn owner_live(session: &SessionSet, owner: &Connection) -> Result<(), Error> {
++        if session.owner != owner.id || owner.canceled() {
++            Err("authentication owner changed".into())
++        } else {
++            Ok(())
++        }
++    }
++    /// Caller EOF/cancel never discards custody; timeout keeps the retiring
++    /// Session, blocking another Create until exact central reaper evidence.
++    pub async fn cancel_owned(&self, owner: &Connection) -> Result<(), Error> {
++        let mut inner = self.inner.write().await;
++        if inner
++            .configuring
++            .as_ref()
++            .map_or(false, |session| session.owner == owner.id)
++        {
++            let session = inner.configuring.take().expect("checked owner");
++            self.retiring
++                .borrow_mut()
++                .insert(owner.id, Arc::new(tokio::sync::Mutex::new(session)));
++        }
++        drop(inner);
++        let retained = self.retiring.borrow().get(&owner.id).cloned();
++        if let Some(retained) = retained {
++            let mut session = retained.lock().await;
++            session.session.cancel().await?;
++            if !session.session.worker().reaped() {
++                return Err("worker retirement unconfirmed".into());
++            }
++            drop(session);
++            self.retiring.borrow_mut().remove(&owner.id);
++        }
++        // A panic between atomic spawn/registry publication and configuration
++        // publication can lose the Session socket, but never the held pidfd.
++        // Cancel ONLY unknown workers registered to this exact caller; never
++        // adopt a foreign/current worker or infer retirement from ESRCH.
++        let unknown: Vec<Arc<Worker>> = self
++            .workers
++            .borrow()
++            .values()
++            .filter(|(worker, id)| *id == Some(owner.id) && !worker.reaped())
++            .map(|(worker, _)| worker.clone())
++            .collect();
++        for worker in unknown {
++            worker.cancel_unknown().await?;
++        }
++        Ok(())
++    }
++
++    /// Existing CancelSession is a positive physical barrier on this patched
++    /// daemon, never a claim inferred from empty per-client bookkeeping. It
++    /// cancels ONLY the caller's worker; foreign or unknown custody refuses.
++    pub async fn cancel_barrier(&self, owner: &Connection) -> Result<(), Error> {
++        self.cancel_owned(owner).await?;
++        let inner = self.inner.read().await;
++        if inner.configuring.is_some()
++            || !self.retiring.borrow().is_empty()
++            || self.owned_auth_workers_remain()
++        {
++            return Err("authentication retirement remains owned".into());
++        }
++        Ok(())
++    }
++
++    /// A cleanup task retains Context even after its protocol task panics or
++    /// is aborted. No new worker can be admitted to a canceled owner.
++    pub async fn retain_until_reaped(&self, owner: &Connection) {
++        loop {
++            let workers: Vec<Arc<Worker>> = self
++                .workers
++                .borrow()
++                .values()
++                .filter(|(_, id)| *id == Some(owner.id))
++                .map(|(worker, _)| worker.clone())
++                .collect();
++            if workers.iter().all(|worker| worker.reaped()) {
++                self.close_retired_connection(owner);
++                return;
++            }
++            for worker in workers {
++                worker.reaped_wait().await;
++            }
+         }
+     }
+ 
+@@ -88,7 +258,7 @@
+         service: &str,
+         cmd: Vec<String>,
+     ) -> Result<SessionChild, Error> {
+-        let mut scheduled_session = Session::new_external()?;
++        let mut scheduled_session = self.new_session(None)?;
+         scheduled_session
+             .initiate(
+                 service,
+@@ -176,25 +346,34 @@
+     }
+ 
+     /// Create a new session for configuration.
+-    pub async fn create_session(&self, username: String) -> Result<(), Error> {
++    pub async fn create_session(&self, owner: &Connection, username: String) -> Result<(), Error> {
++        if owner.canceled() {
++            return Err("authentication owner changed".into());
++        }
++        let mut inner = self.inner.write().await;
++        if inner.current.is_none() {
++            return Err("session not active".into());
++        }
++        if inner.configuring.is_some()
++            || inner.scheduled.is_some()
++            || !self.retiring.borrow().is_empty()
+         {
+-            let inner = self.inner.read().await;
+-            if inner.current.is_none() {
+-                return Err("session not active".into());
+-            }
+-            if inner.configuring.is_some() {
+-                return Err("a session is already being configured".into());
+-            }
+-            if inner.scheduled.is_some() {
+-                return Err("a session is already scheduled".into());
+-            }
+-        }
+-
+-        let mut session_set = SessionSet {
+-            session: Session::new_external()?,
++            return Err("a session is already owned".into());
++        }
++        // Retain the newly admitted child in Context BEFORE any async send.
++        // Dropping the outer protocol future cannot discard a spawned worker.
++        if owner.canceled() {
++            return Err("authentication owner changed".into());
++        }
++        inner.configuring = Some(SessionSet {
++            owner: owner.id,
++            session: self.new_session(Some(owner.id))?,
+             time: Instant::now(),
+-        };
+-        session_set
++        });
++        inner
++            .configuring
++            .as_mut()
++            .expect("owned configuration")
+             .session
+             .initiate(
+                 &self.pam_service,
+@@ -206,57 +385,69 @@
+                 &self.listener_path,
+             )
+             .await?;
+-
+-        let mut session = Some(session_set);
+-        let mut inner = self.inner.write().await;
+-        std::mem::swap(&mut session, &mut inner.configuring);
+-        drop(inner);
+-
+-        // If there was a session under configuration, cancel it.
+-        if let Some(mut s) = session {
+-            s.session.cancel().await?;
+-        }
+-
+         Ok(())
+     }
+ 
+     /// Cancel the session being configured.
+     pub async fn cancel(&self) -> Result<(), Error> {
+-        let mut inner = self.inner.write().await;
+-        if let Some(mut s) = inner.configuring.take() {
+-            s.session.cancel().await?;
++        let owner = self
++            .inner
++            .read()
++            .await
++            .configuring
++            .as_ref()
++            .map(|session| session.owner);
++        if let Some(id) = owner {
++            self.cancel_owned(&Connection::new(id)?).await?;
++        }
++        let owners: Vec<u64> = self.retiring.borrow().keys().copied().collect();
++        for id in owners {
++            self.cancel_owned(&Connection::new(id)?).await?;
+         }
+         Ok(())
+     }
+ 
+     /// Retrieve a question from the session under configuration.
+-    pub async fn get_question(&self) -> Result<Option<(AuthMessageType, String)>, Error> {
++    pub async fn get_question(
++        &self,
++        owner: &Connection,
++    ) -> Result<Option<(AuthMessageType, String)>, Error> {
+         let mut inner = self.inner.write().await;
+         match &mut inner.configuring {
+-            Some(s) => match s.session.get_state().await? {
+-                SessionState::Ready => Ok(None),
+-                SessionState::Question(style, string) => Ok(Some((
+-                    match style {
+-                        SessAuthMessageType::Visible => AuthMessageType::Visible,
+-                        SessAuthMessageType::Secret => AuthMessageType::Secret,
+-                        SessAuthMessageType::Info => AuthMessageType::Info,
+-                        SessAuthMessageType::Error => AuthMessageType::Error,
+-                    },
+-                    string,
+-                ))),
+-            },
++            Some(s) => {
++                Self::owner_live(s, owner)?;
++                match s.session.get_state().await? {
++                    SessionState::Ready => Ok(None),
++                    SessionState::Question(style, string) => Ok(Some((
++                        match style {
++                            SessAuthMessageType::Visible => AuthMessageType::Visible,
++                            SessAuthMessageType::Secret => AuthMessageType::Secret,
++                            SessAuthMessageType::Info => AuthMessageType::Info,
++                            SessAuthMessageType::Error => AuthMessageType::Error,
++                        },
++                        string,
++                    ))),
++                }
++            }
+             None => Err("no session under configuration".into()),
+         }
+     }
+ 
+     /// Answer a question to the session under configuration.
+-    pub async fn post_response(&self, answer: Option<String>) -> Result<(), Error> {
++    pub async fn post_response(
++        &self,
++        owner: &Connection,
++        answer: Option<String>,
++    ) -> Result<(), Error> {
+         let mut inner = self.inner.write().await;
+         match &mut inner.configuring {
+-            Some(s) => match s.session.get_state().await? {
+-                SessionState::Ready => Err("session has no pending questions".into()),
+-                _ => s.session.post_response(answer).await,
+-            },
++            Some(s) => {
++                Self::owner_live(s, owner)?;
++                match s.session.get_state().await? {
++                    SessionState::Ready => Err("session has no pending questions".into()),
++                    _ => s.session.post_response(answer).await,
++                }
++            }
+             None => {
+                 if let Some(mut answer) = answer {
+                     answer.scramble();
+@@ -267,34 +458,32 @@
+     }
+ 
+     /// Schedule the session under configuration with the provided arguments.
+-    pub async fn start(&self, cmd: Vec<String>, env: Vec<String>) -> Result<(), Error> {
+-        let mut session = self.inner.write().await.configuring.take();
+-
+-        match &mut session {
+-            Some(s) => match s.session.get_state().await? {
+-                SessionState::Ready => {
+-                    // Send our arguments to the session.
+-                    s.session.send_args(cmd, env).await?;
+-
+-                    let mut inner = self.inner.write().await;
+-                    std::mem::swap(&mut session, &mut inner.scheduled);
+-                    drop(inner);
+-
+-                    // If there was a scheduled session, cancel it.
+-                    if let Some(mut p) = session {
+-                        p.session.cancel().await?;
+-                    }
+-
+-                    // We give the greeter 5 seconds to prove itself well-behaved before
+-                    // we lose patience and shoot it in the back repeatedly. This is all
+-                    // handled by our alarm handler.
+-                    alarm::set(5);
+-
+-                    Ok(())
++    pub async fn start(
++        &self,
++        owner: &Connection,
++        cmd: Vec<String>,
++        env: Vec<String>,
++    ) -> Result<(), Error> {
++        let mut inner = self.inner.write().await;
++        let session = inner.configuring.as_mut().ok_or("no session active")?;
++        Self::owner_live(session, owner)?;
++        match session.session.get_state().await? {
++            SessionState::Ready => {
++                session.session.send_args(cmd, env).await?;
++                // Successful Start transfers ownership to scheduled/current,
++                // never to authentication cancellation or a foreign client.
++                let pid = session.session.worker().pid();
++                if inner.scheduled.is_some() {
++                    return Err("session already scheduled".into());
+                 }
+-                SessionState::Question(..) => Err("session is not ready".into()),
+-            },
+-            None => Err("no session active".into()),
++                if let Some((_, owned)) = self.workers.borrow_mut().get_mut(&pid) {
++                    *owned = None;
++                }
++                inner.scheduled = inner.configuring.take();
++                alarm::set(5);
++                Ok(())
++            }
++            SessionState::Question(..) => Err("session is not ready".into()),
+         }
+     }
+ 
+@@ -343,6 +532,23 @@
+ 
+                 // We got an exit, see if it's something we need to clean up.
+                 Ok(WaitStatus::Exited(pid, ..)) | Ok(WaitStatus::Signaled(pid, ..)) => {
++                    // Correlated kernel exit is published BEFORE any context
++                    // await, so cancellation never waits behind its own lock.
++                    let observed = self.workers.borrow().get(&pid.as_raw()).cloned();
++                    if let Some((worker, _)) = observed {
++                        // Keep conservative custody if the held identity does
++                        // not corroborate the terminal waitpid observation.
++                        worker.observe_reaped(pid.as_raw())?;
++                        self.workers.borrow_mut().remove(&pid.as_raw());
++                    }
++                    self.retiring.borrow_mut().retain(|_, session| {
++                        // A cancel waiter may hold this mutex until notified;
++                        // it removes its own entry after observing retirement.
++                        session
++                            .try_lock()
++                            .map_or(true, |session| !session.session.worker().reaped())
++                    });
++                    self.close_retired_orphans();
+                     let mut inner = self.inner.write().await;
+                     let (was_greeter, sesion_length) = match &inner.current {
+                         Some(s) if s.child.owns_pid(pid) => {
+@@ -403,10 +609,13 @@
+     /// Notify the Context that we want to terminate. This should be called on
+     /// SIGTERM.
+     pub async fn terminate(&self) -> Result<(), Error> {
++        // Wake each exact handler BEFORE acquiring the context lock. A pending
++        // PAM response future must be dropped so shutdown can cancel its owner.
++        for (owner, _) in self.clients.borrow().values() {
++            owner.cancel();
++        }
++        self.cancel().await?;
+         let mut inner = self.inner.write().await;
+-        if let Some(mut sess) = inner.configuring.take() {
+-            let _ = sess.session.cancel().await;
+-        }
+         if let Some(mut sess) = inner.scheduled.take() {
+             let _ = sess.session.cancel().await;
+         }
+@@ -416,3 +625,180 @@
+         Ok(())
+     }
+ }
++
++impl Drop for Context {
++    fn drop(&mut self) {
++        // LocalSet teardown cannot turn an unconfirmed worker into a receipt.
++        // Deliberately retain its socket descriptor until process death. The
++        // client must still require a fresh positive barrier from the SAME
++        // admitted daemon, so death-generated EOF never settles retirement.
++        for (id, (_, socket)) in std::mem::take(self.clients.get_mut()) {
++            if self
++                .workers
++                .get_mut()
++                .values()
++                .any(|(worker, owner)| *owner == Some(id) && !worker.reaped())
++            {
++                use std::os::unix::io::IntoRawFd;
++                let _ = socket.into_raw_fd();
++            }
++        }
++    }
++}
++
++#[cfg(test)]
++mod retirement_tests {
++    use super::*;
++    use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
++
++    struct BlockedWorker {
++        worker: Arc<Worker>,
++        release: Option<OwnedFd>,
++    }
++    impl BlockedWorker {
++        fn spawn() -> Self {
++            let mut descriptors = [-1; 2];
++            assert_eq!(
++                unsafe { libc::pipe2(descriptors.as_mut_ptr(), libc::O_CLOEXEC) },
++                0
++            );
++            let read = unsafe { OwnedFd::from_raw_fd(descriptors[0]) };
++            let write = unsafe { OwnedFd::from_raw_fd(descriptors[1]) };
++            let worker = match unsafe { Worker::clone_owned() }.expect("required native clone3") {
++                crate::retirement::Spawn::Child => unsafe {
++                    libc::close(write.as_raw_fd());
++                    let mut byte = 0_u8;
++                    libc::read(read.as_raw_fd(), (&mut byte as *mut u8).cast(), 1);
++                    libc::_exit(0);
++                },
++                crate::retirement::Spawn::Parent(worker) => worker,
++            };
++            Self {
++                worker,
++                release: Some(write),
++            }
++        }
++        fn retire(&mut self) {
++            self.release.take();
++            let mut status = 0;
++            loop {
++                let observed = unsafe { libc::waitpid(self.worker.pid(), &mut status, 0) };
++                if observed < 0
++                    && std::io::Error::last_os_error().raw_os_error() == Some(libc::EINTR)
++                {
++                    continue;
++                }
++                assert_eq!(observed, self.worker.pid());
++                assert!(libc::WIFEXITED(status));
++                self.worker.observe_reaped(observed).unwrap();
++                break;
++            }
++        }
++    }
++    impl Drop for BlockedWorker {
++        fn drop(&mut self) {
++            if !self.worker.reaped() {
++                self.retire();
++            }
++        }
++    }
++    fn context() -> Context {
++        Context::new(
++            "unused".into(),
++            "unused".into(),
++            "unused".into(),
++            "unused".into(),
++            TerminalMode::Stdin,
++            false,
++            "unused".into(),
++            "unused".into(),
++        )
++    }
++
++    #[tokio::test(flavor = "current_thread")]
++    async fn fresh_cancel_refuses_unknown_and_foreign_worker_without_canceling_it() {
++        let context = context();
++        let mut child = BlockedWorker::spawn();
++        context
++            .workers
++            .borrow_mut()
++            .insert(child.worker.pid(), (child.worker.clone(), Some(7)));
++        let fresh = Connection::new(8).unwrap();
++        assert!(context.cancel_barrier(&fresh).await.is_err());
++        assert!(!child.worker.reaped());
++        assert!(!fresh.canceled());
++        assert!(context.owned_auth_workers_remain());
++        child.retire();
++        // Even a reaped worker may conservatively remain registered until the
++        // central reaper finishes its bookkeeping; positive barrier is safe.
++        assert!(context.cancel_barrier(&fresh).await.is_ok());
++    }
++
++    #[tokio::test(flavor = "current_thread")]
++    async fn held_socket_survives_protocol_drop_until_exact_reap() {
++        use tokio::io::{AsyncReadExt, AsyncWriteExt};
++        let context = context();
++        let (mut client, stream) = tokio::net::UnixStream::pair().unwrap();
++        let owner = context.connection(&stream).unwrap();
++        let mut child = BlockedWorker::spawn();
++        context
++            .workers
++            .borrow_mut()
++            .insert(child.worker.pid(), (child.worker.clone(), Some(owner.id)));
++        owner.cancel();
++        drop(stream);
++        client.shutdown().await.unwrap();
++        assert!(!context.close_retired_connection(&owner));
++        let mut byte = [0_u8];
++        assert!(
++            tokio::time::timeout(Duration::from_millis(20), client.read(&mut byte))
++                .await
++                .is_err()
++        );
++        child.retire();
++        assert!(context.close_retired_connection(&owner));
++        assert_eq!(
++            tokio::time::timeout(Duration::from_secs(1), client.read(&mut byte))
++                .await
++                .unwrap()
++                .unwrap(),
++            0
++        );
++    }
++
++    #[tokio::test(flavor = "current_thread")]
++    async fn context_teardown_does_not_close_unconfirmed_worker_socket() {
++        use std::os::unix::io::AsRawFd;
++        use tokio::io::{AsyncReadExt, AsyncWriteExt};
++        let context = context();
++        let (mut client, stream) = tokio::net::UnixStream::pair().unwrap();
++        let owner = context.connection(&stream).unwrap();
++        let held = context
++            .clients
++            .borrow()
++            .get(&owner.id)
++            .unwrap()
++            .1
++            .as_raw_fd();
++        let mut child = BlockedWorker::spawn();
++        context
++            .workers
++            .borrow_mut()
++            .insert(child.worker.pid(), (child.worker.clone(), Some(owner.id)));
++        owner.cancel();
++        drop(stream);
++        drop(context);
++        client.shutdown().await.unwrap();
++        let mut byte = [0_u8];
++        assert!(
++            tokio::time::timeout(Duration::from_millis(20), client.read(&mut byte))
++                .await
++                .is_err()
++        );
++        child.retire();
++        // Test-owned descriptor leaked intentionally by production Drop. Only
++        // this fixture, after its physical receipt, releases that exact FD.
++        assert_eq!(unsafe { libc::close(held) }, 0);
++        assert_eq!(client.read(&mut byte).await.unwrap(), 0);
++    }
++}
+--- a/greetd/src/server.rs
++++ b/greetd/src/server.rs
+@@ -56,8 +56,8 @@
+     }
+ }
+ 
+-async fn client_get_question(ctx: &Context) -> Response {
+-    match ctx.get_question().await {
++async fn client_get_question(ctx: &Context, owner: &crate::retirement::Connection) -> Response {
++    match ctx.get_question(owner).await {
+         Ok(Some((auth_message_type, auth_message))) => Response::AuthMessage {
+             auth_message_type,
+             auth_message,
+@@ -66,31 +66,82 @@
+     }
+ }
+ 
+-async fn client_handler(ctx: &Context, mut s: UnixStream) -> Result<(), Error> {
++async fn client_protocol(
++    ctx: &Context,
++    s: &mut UnixStream,
++    owner: &crate::retirement::Connection,
++) -> Result<(), Error> {
+     loop {
+-        let req = match Request::read_from(&mut s).await {
++        let req = match Request::read_from(&mut *s).await {
+             Ok(req) => req,
+             Err(CodecError::Eof) => return Ok(()),
+             Err(e) => return Err(e.into()),
+         };
+ 
+         let resp = match req {
+-            Request::CreateSession { username } => match ctx.create_session(username).await {
+-                Ok(()) => client_get_question(ctx).await,
+-                res => wrap_result(res),
+-            },
+-            Request::PostAuthMessageResponse { response } => {
+-                match ctx.post_response(response).await {
+-                    Ok(()) => client_get_question(ctx).await,
++            Request::CreateSession { username } => {
++                match ctx.create_session(owner, username).await {
++                    Ok(()) => client_get_question(ctx, owner).await,
+                     res => wrap_result(res),
+                 }
+             }
+-            Request::StartSession { cmd, env } => wrap_result(ctx.start(cmd, env).await),
+-            Request::CancelSession => wrap_result(ctx.cancel().await),
++            Request::PostAuthMessageResponse { response } => {
++                match ctx.post_response(owner, response).await {
++                    Ok(()) => client_get_question(ctx, owner).await,
++                    res => wrap_result(res),
++                }
++            }
++            Request::StartSession { cmd, env } => wrap_result(ctx.start(owner, cmd, env).await),
++            Request::CancelSession => wrap_result(ctx.cancel_barrier(owner).await),
+         };
+ 
+-        resp.write_to(&mut s).await?;
+-    }
++        resp.write_to(&mut *s).await?;
++    }
++}
++
++struct ClientGuard<'a> {
++    context: &'a Context,
++    owner: std::sync::Arc<crate::retirement::Connection>,
++}
++impl Drop for ClientGuard<'_> {
++    fn drop(&mut self) {
++        // Unwind/aborted task loses input authority but cannot drop Context's
++        // held socket while its exact authentication worker remains alive.
++        self.owner.cancel();
++        self.context.close_retired_connection(&self.owner);
++    }
++}
++async fn client_handler(ctx: &Rc<Context>, mut stream: UnixStream) -> Result<(), Error> {
++    use std::os::unix::io::AsRawFd;
++    let owner = ctx.connection(&stream)?;
++    // Separate local cleanup custody outlives an aborted/panicking protocol
++    // future. Context's retained socket cannot be dropped by that future.
++    let cleanup_context = ctx.clone();
++    let cleanup_owner = owner.clone();
++    task::spawn_local(async move {
++        cleanup_owner.canceled_wait().await;
++        if let Err(error) = cleanup_context.cancel_owned(&cleanup_owner).await {
++            eprintln!("authentication cleanup retained: {}", error);
++        }
++        cleanup_context.retain_until_reaped(&cleanup_owner).await;
++    });
++    let guard = ClientGuard {
++        context: ctx,
++        owner: owner.clone(),
++    };
++    let loss = crate::retirement::PeerLoss::new(stream.as_raw_fd())?;
++    let result = tokio::select! {
++        result = client_protocol(ctx, &mut stream, &owner) => result,
++        observed = loss.wait() => { owner.cancel(); observed.map_err(Error::from) },
++        _ = owner.canceled_wait() => Ok(()),
++    };
++    // Dropping the selected protocol future releases any get_question lock.
++    owner.cancel();
++    let retirement = ctx.cancel_owned(&owner).await;
++    ctx.close_retired_connection(&owner);
++    drop(guard);
++    retirement?;
++    result
+ }
+ 
+ // Return a TTY path and the TTY/VT number, based on the configured target.
+@@ -269,24 +320,40 @@
+     let mut term = signal(SignalKind::terminate()).expect("unable to listen for SIGTERM");
+     let mut int = signal(SignalKind::interrupt()).expect("unable to listen for SIGINT");
+ 
++    let (reaper_error, mut reaper_errors) = tokio::sync::mpsc::channel(1);
++    let (reaper_progress, mut reaper_progresses) = tokio::sync::mpsc::channel(1);
++    let reaper_context = ctx.clone();
++    let reaper = task::spawn_local(async move {
++        while child.recv().await.is_some() {
++            if let Err(error) = reaper_context.check_children().await {
++                let _ = reaper_error.send(error).await;
++                return;
++            }
++            let _ = reaper_progress.try_send(());
++        }
++        let _ = reaper_error.send("SIGCHLD source closed".into()).await;
++    });
++    let mut stopping = false;
+     loop {
+         tokio::select! {
+-            _ = child.recv() => ctx.check_children().await.map_err(|e| format!("check_children: {}", e))?,
++            _ = reaper_progresses.recv() => { if stopping && !ctx.owned_auth_workers_remain() { break; } },
++            failure = reaper_errors.recv() => return Err(failure.unwrap_or_else(|| "owned reaper closed".into())) ,
+             _ = alarm.recv() => ctx.alarm().await.map_err(|e| format!("alarm: {}", e))?,
+             _ = term.recv() => {
+-                ctx.terminate().await.map_err(|e| format!("terminate: {}", e))?;
+-                break;
++                stopping = true;
++                if let Err(error) = ctx.terminate().await { eprintln!("termination retained pending ownership: {}", error); }
++                if !ctx.owned_auth_workers_remain() { break; }
+             }
+             _ = int.recv() => {
+-                ctx.terminate().await.map_err(|e| format!("terminate: {}", e))?;
+-                break;
+-            }
+-            stream = listener.0.accept() => match stream {
++                stopping = true;
++                if let Err(error) = ctx.terminate().await { eprintln!("termination retained pending ownership: {}", error); }
++                if !ctx.owned_auth_workers_remain() { break; }
++            }
++            stream = listener.0.accept(), if !stopping => match stream {
+                 Ok((stream, _)) => {
+                     let client_ctx = ctx.clone();
+                     task::spawn_local(async move {
+                         if let Err(e) = client_handler(&client_ctx, stream).await {
+-                            client_ctx.cancel().await.expect("unable to cancel session");
+                             eprintln!("client loop failed: {}", e);
+                         }
+                     });
+@@ -296,5 +363,171 @@
+         }
+     }
+ 
++    reaper.abort();
++    let _ = reaper.await;
+     Ok(())
+ }
++
++#[cfg(test)]
++mod retirement_tests {
++    use super::*;
++    use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd};
++    use std::sync::Arc;
++    use std::time::Duration;
++    use tokio::io::AsyncReadExt;
++
++    struct NativeChild {
++        worker: Arc<crate::retirement::Worker>,
++        _release: OwnedFd,
++    }
++    impl NativeChild {
++        fn spawn() -> Self {
++            let mut pipe = [-1; 2];
++            assert_eq!(
++                unsafe { libc::pipe2(pipe.as_mut_ptr(), libc::O_CLOEXEC) },
++                0
++            );
++            let read = unsafe { OwnedFd::from_raw_fd(pipe[0]) };
++            let write = unsafe { OwnedFd::from_raw_fd(pipe[1]) };
++            let worker = match unsafe { crate::retirement::Worker::clone_owned() }
++                .expect("required native clone3")
++            {
++                crate::retirement::Spawn::Parent(worker) => worker,
++                crate::retirement::Spawn::Child => unsafe {
++                    libc::close(write.as_raw_fd());
++                    let mut byte = 0_u8;
++                    libc::read(read.as_raw_fd(), (&mut byte as *mut u8).cast(), 1);
++                    libc::_exit(0);
++                },
++            };
++            Self {
++                worker,
++                _release: write,
++            }
++        }
++    }
++    impl Drop for NativeChild {
++        fn drop(&mut self) {
++            if !self.worker.reaped() {
++                let _ = self.worker.signal(libc::SIGKILL);
++                let mut status = 0;
++                loop {
++                    let result = unsafe { libc::waitpid(self.worker.pid(), &mut status, 0) };
++                    if result >= 0
++                        || std::io::Error::last_os_error().raw_os_error() != Some(libc::EINTR)
++                    {
++                        break;
++                    }
++                }
++            }
++        }
++    }
++    fn context() -> Rc<Context> {
++        Rc::new(Context::new(
++            "unused".into(),
++            "unused".into(),
++            "unused".into(),
++            "unused".into(),
++            TerminalMode::Stdin,
++            false,
++            "unused".into(),
++            "unused".into(),
++        ))
++    }
++    async fn owner(ctx: &Context) -> Arc<crate::retirement::Connection> {
++        let deadline = tokio::time::Instant::now() + Duration::from_secs(1);
++        loop {
++            if let Some(owner) = ctx.test_client_owner() {
++                return owner;
++            }
++            assert!(tokio::time::Instant::now() < deadline);
++            task::yield_now().await;
++        }
++    }
++    async fn finish(ctx: &Context, child: &NativeChild) {
++        let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
++        loop {
++            ctx.check_children().await.unwrap();
++            if child.worker.reaped() {
++                return;
++            }
++            assert!(tokio::time::Instant::now() < deadline);
++            task::yield_now().await;
++        }
++    }
++
++    #[tokio::test(flavor = "current_thread")]
++    async fn aborted_actual_handler_retains_socket_until_central_reap() {
++        task::LocalSet::new()
++            .run_until(async {
++                let ctx = context();
++                let (mut client, stream) = UnixStream::pair().unwrap();
++                let handler_ctx = ctx.clone();
++                let handler =
++                    task::spawn_local(async move { client_handler(&handler_ctx, stream).await });
++                let owner = owner(&ctx).await;
++                let child = NativeChild::spawn();
++                ctx.test_register_unknown_worker(child.worker.clone(), &owner);
++                handler.abort();
++                assert!(handler.await.unwrap_err().is_cancelled());
++                assert!(owner.canceled());
++                let mut byte = [0_u8];
++                assert!(
++                    tokio::time::timeout(Duration::from_millis(20), client.read(&mut byte))
++                        .await
++                        .is_err()
++                );
++                assert!(!child.worker.reaped());
++                finish(&ctx, &child).await;
++                assert_eq!(
++                    tokio::time::timeout(Duration::from_secs(1), client.read(&mut byte))
++                        .await
++                        .unwrap()
++                        .unwrap(),
++                    0
++                );
++            })
++            .await;
++    }
++
++    #[tokio::test(flavor = "current_thread")]
++    async fn guard_unwind_preserves_exact_unreaped_connection() {
++        task::LocalSet::new()
++            .run_until(async {
++                let ctx = context();
++                let (mut client, stream) = UnixStream::pair().unwrap();
++                let owner = ctx.connection(&stream).unwrap();
++                let child = NativeChild::spawn();
++                ctx.test_register_unknown_worker(child.worker.clone(), &owner);
++                let panic_ctx = ctx.clone();
++                let panic_owner = owner.clone();
++                let task = task::spawn_local(async move {
++                    let _stream = stream;
++                    let _guard = ClientGuard {
++                        context: &panic_ctx,
++                        owner: panic_owner,
++                    };
++                    panic!("controlled client guard unwind");
++                });
++                assert!(task.await.unwrap_err().is_panic());
++                assert!(owner.canceled());
++                let mut byte = [0_u8];
++                assert!(
++                    tokio::time::timeout(Duration::from_millis(20), client.read(&mut byte))
++                        .await
++                        .is_err()
++                );
++                assert!(!ctx.close_retired_connection(&owner));
++                let cancellation_ctx = ctx.clone();
++                let cancellation_owner = owner.clone();
++                let cancellation = task::spawn_local(async move {
++                    cancellation_ctx.cancel_owned(&cancellation_owner).await
++                });
++                finish(&ctx, &child).await;
++                cancellation.await.unwrap().unwrap();
++                assert!(ctx.close_retired_connection(&owner));
++                assert_eq!(client.read(&mut byte).await.unwrap(), 0);
++            })
++            .await;
++    }
++}
+--- a/greetd/src/session/interface.rs
++++ b/greetd/src/session/interface.rs
+@@ -6,7 +6,7 @@
+ use nix::{
+     fcntl::{fcntl, FcntlArg, FdFlag},
+     sys::signal::Signal,
+-    unistd::{execv, fork, ForkResult, Pid},
++    unistd::Pid,
+ };
+ 
+ use async_trait::async_trait;
+@@ -16,7 +16,13 @@
+ use super::worker::{
+     AuthMessageType, ParentToSessionChild, SessionChildToParent, SessionClass, TerminalMode,
+ };
+-use crate::{error::Error, scrambler::Scrambler};
++use crate::{
++    error::Error,
++    retirement::{Spawn, Worker},
++    scrambler::Scrambler,
++};
++use std::sync::Arc;
++use std::time::Duration;
+ 
+ #[async_trait]
+ trait AsyncRecv<T: Sized> {
+@@ -88,6 +94,7 @@
+ /// A device to initiate a logged in PAM session.
+ pub struct Session {
+     task: Pid,
++    worker: Arc<Worker>,
+     sock: TokioUnixDatagram,
+     last_msg: Option<SessionChildToParent>,
+ }
+@@ -104,29 +111,38 @@
+         cur_flags.remove(FdFlag::FD_CLOEXEC);
+         fcntl(raw_child, FcntlArg::F_SETFD(cur_flags))?;
+ 
+-        let cur_exe = std::env::current_exe()?;
+-        let bin = CString::new(cur_exe.to_str().expect("unable to get current exe name"))?;
+-
+-        let child = match unsafe { fork() }.map_err(|e| format!("unable to fork: {}", e))? {
+-            ForkResult::Parent { child, .. } => child,
+-            ForkResult::Child => {
+-                execv(
+-                    &bin,
+-                    &[
+-                        &bin,
+-                        &CString::new("--session-worker").unwrap(),
+-                        &CString::new(format!("{}", raw_child as usize)).unwrap(),
+-                    ],
+-                )
+-                .expect("unable to exec");
+-
+-                unreachable!("after exec");
+-            }
+-        };
+-
++        // Every fallible socket setup/allocation precedes atomic child spawn.
++        parentfd.set_nonblocking(true)?;
++        let sock = TokioUnixDatagram::from_std(parentfd)?;
++        let executable = CString::new("/proc/self/exe").unwrap();
++        let name = CString::new("greetd").unwrap();
++        let mode = CString::new("--session-worker").unwrap();
++        let descriptor = CString::new(format!("{}", raw_child as usize)).unwrap();
++        let argv = [
++            name.as_ptr(),
++            mode.as_ptr(),
++            descriptor.as_ptr(),
++            std::ptr::null(),
++        ];
++        let parent = unsafe { libc::getpid() };
++        let worker = match unsafe { Worker::clone_owned() }? {
++            Spawn::Parent(worker) => worker,
++            Spawn::Child => unsafe {
++                // Only async-signal-safe libc operations after clone. No Rust
++                // formatting, allocation, panic/unwind, logging or Tokio here.
++                if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM, 0, 0, 0) != 0
++                    || libc::getppid() != parent
++                {
++                    libc::_exit(127);
++                }
++                libc::execv(executable.as_ptr(), argv.as_ptr());
++                libc::_exit(127);
++            },
++        };
+         Ok(Session {
+-            task: child,
+-            sock: TokioUnixDatagram::from_std(parentfd)?,
++            task: Pid::from_raw(worker.pid()),
++            worker,
++            sock,
+             last_msg: None,
+         })
+     }
+@@ -178,10 +194,28 @@
+     }
+ 
+     /// Cancel the session.
++    pub fn worker(&self) -> Arc<Worker> {
++        self.worker.clone()
++    }
+     pub async fn cancel(&mut self) -> Result<(), Error> {
+         self.last_msg = None;
+-        ParentToSessionChild::Cancel.send(&mut self.sock).await?;
+-        Ok(())
++        let _ = tokio::time::timeout(
++            Duration::from_secs(1),
++            ParentToSessionChild::Cancel.send(&mut self.sock),
++        )
++        .await;
++        if self.worker.wait_for_reap(Duration::from_secs(5)).await {
++            return Ok(());
++        }
++        self.worker.signal(libc::SIGTERM)?;
++        if self.worker.wait_for_reap(Duration::from_secs(1)).await {
++            return Ok(());
++        }
++        self.worker.signal(libc::SIGKILL)?;
++        if self.worker.wait_for_reap(Duration::from_secs(1)).await {
++            return Ok(());
++        }
++        Err("authentication worker retirement unconfirmed".into())
+     }
+ 
+     /// Send a response to an authentication question, or None to cancel the
+--- /dev/null
++++ b/greetd/src/retirement.rs
+@@ -0,0 +1,305 @@
++//! Linux-owned authentication worker and connection cancellation identities.
++//! No remote child-exit claim is inferred from an IPC acknowledgement.
++use std::io;
++use std::os::unix::io::{AsRawFd, FromRawFd, OwnedFd, RawFd};
++use std::sync::atomic::{AtomicBool, Ordering};
++use std::sync::Arc;
++use std::time::Duration;
++use tokio::sync::Notify;
++
++#[repr(C)]
++#[derive(Default)]
++struct CloneArgs {
++    flags: u64,
++    pidfd: u64,
++    child_tid: u64,
++    parent_tid: u64,
++    exit_signal: u64,
++    stack: u64,
++    stack_size: u64,
++    tls: u64,
++    set_tid: u64,
++    set_tid_size: u64,
++    cgroup: u64,
++}
++pub enum Spawn {
++    Child,
++    Parent(Arc<Worker>),
++}
++pub struct Worker {
++    pid: i32,
++    pidfd: OwnedFd,
++    reaped: AtomicBool,
++    changed: Notify,
++}
++impl Worker {
++    /// Called on the existing single-thread daemon creator, with all child
++    /// exec resources prepared first. No fallback can lose post-spawn custody.
++    pub unsafe fn clone_owned() -> io::Result<Spawn> {
++        let mut descriptor: i32 = -1;
++        let args = CloneArgs {
++            flags: libc::CLONE_PIDFD as u64,
++            pidfd: (&mut descriptor as *mut i32) as u64,
++            exit_signal: libc::SIGCHLD as u64,
++            ..CloneArgs::default()
++        };
++        let result = libc::syscall(libc::SYS_clone3, &args, std::mem::size_of::<CloneArgs>());
++        if result < 0 {
++            return Err(io::Error::last_os_error());
++        }
++        if result == 0 {
++            return Ok(Spawn::Child);
++        }
++        // clone3's success contract returns the descriptor atomically with PID.
++        // Kernel contract violation is fatal; never publish unknown ownership.
++        if descriptor < 0 || result > i32::MAX as libc::c_long {
++            libc::abort();
++        }
++        Ok(Spawn::Parent(Arc::new(Self {
++            pid: result as i32,
++            pidfd: OwnedFd::from_raw_fd(descriptor),
++            reaped: AtomicBool::new(false),
++            changed: Notify::new(),
++        })))
++    }
++    pub fn pid(&self) -> i32 {
++        self.pid
++    }
++    /// ONLY central waitpid Exited/Signaled calls this, before any await.
++    pub fn observe_reaped(&self, pid: i32) -> io::Result<()> {
++        if pid != self.pid {
++            return Err(io::ErrorKind::PermissionDenied.into());
++        }
++        let mut poll = libc::pollfd {
++            fd: self.pidfd.as_raw_fd(),
++            events: libc::POLLIN,
++            revents: 0,
++        };
++        let ready = unsafe { libc::poll(&mut poll, 1, 0) };
++        if ready != 1
++            || poll.revents & (libc::POLLIN | libc::POLLHUP) == 0
++            || poll.revents & libc::POLLNVAL != 0
++        {
++            return Err(io::ErrorKind::PermissionDenied.into());
++        }
++        self.reaped.store(true, Ordering::Release);
++        self.changed.notify_waiters();
++        Ok(())
++    }
++    pub fn reaped(&self) -> bool {
++        self.reaped.load(Ordering::Acquire)
++    }
++    pub async fn wait_for_reap(&self, budget: Duration) -> bool {
++        let deadline = tokio::time::Instant::now() + budget;
++        loop {
++            let wake = self.changed.notified();
++            tokio::pin!(wake);
++            wake.as_mut().enable();
++            if self.reaped() {
++                return true;
++            }
++            if tokio::time::timeout_at(deadline, wake).await.is_err() {
++                return self.reaped();
++            }
++        }
++    }
++    pub async fn reaped_wait(&self) {
++        loop {
++            let wake = self.changed.notified();
++            tokio::pin!(wake);
++            wake.as_mut().enable();
++            if self.reaped() {
++                return;
++            }
++            wake.await;
++        }
++    }
++    /// Lost Session custody still retains exact registered kernel ownership.
++    /// Signals never count as completion: ONLY central waitpid can retire it.
++    pub async fn cancel_unknown(&self) -> io::Result<()> {
++        for signal in [libc::SIGTERM, libc::SIGKILL] {
++            if let Err(error) = self.signal(signal) {
++                if error.raw_os_error() != Some(libc::ESRCH) {
++                    return Err(error);
++                }
++            }
++            if self.wait_for_reap(Duration::from_secs(1)).await {
++                return Ok(());
++            }
++        }
++        Err(io::ErrorKind::TimedOut.into())
++    }
++    /// Signals ONLY this held kernel identity, never a rediscovered numeric PID.
++    pub fn signal(&self, signal: i32) -> io::Result<()> {
++        if self.reaped() {
++            return Ok(());
++        }
++        let result = unsafe {
++            libc::syscall(
++                libc::SYS_pidfd_send_signal,
++                self.pidfd.as_raw_fd(),
++                signal,
++                std::ptr::null::<libc::siginfo_t>(),
++                0,
++            )
++        };
++        if result == 0 {
++            Ok(())
++        } else {
++            Err(io::Error::last_os_error())
++        }
++    }
++}
++
++pub struct Connection {
++    pub id: u64,
++    canceled: AtomicBool,
++    wake: Notify,
++}
++impl Connection {
++    pub fn new(id: u64) -> io::Result<Arc<Self>> {
++        if id == 0 || id == u64::MAX {
++            return Err(io::ErrorKind::InvalidInput.into());
++        }
++        Ok(Arc::new(Self {
++            id,
++            canceled: AtomicBool::new(false),
++            wake: Notify::new(),
++        }))
++    }
++    pub fn cancel(&self) {
++        self.canceled.store(true, Ordering::Release);
++        self.wake.notify_waiters();
++    }
++    pub fn canceled(&self) -> bool {
++        self.canceled.load(Ordering::Acquire)
++    }
++    pub async fn canceled_wait(&self) {
++        loop {
++            let wake = self.wake.notified();
++            tokio::pin!(wake);
++            wake.as_mut().enable();
++            if self.canceled() {
++                return;
++            }
++            wake.await;
++        }
++    }
++}
++/// Independent RDHUP readiness, not readable buffered input. Local Tokio only:
++/// no watcher thread may exist before the daemon's next clone/exec.
++pub struct PeerLoss {
++    readiness: tokio::io::unix::AsyncFd<OwnedFd>,
++}
++impl PeerLoss {
++    pub fn new(socket: RawFd) -> io::Result<Self> {
++        let fd = unsafe { libc::epoll_create1(libc::EPOLL_CLOEXEC) };
++        if fd < 0 {
++            return Err(io::Error::last_os_error());
++        }
++        let owned = unsafe { OwnedFd::from_raw_fd(fd) };
++        let mut event = libc::epoll_event {
++            events: (libc::EPOLLRDHUP | libc::EPOLLHUP | libc::EPOLLERR) as u32,
++            u64: 1,
++        };
++        if unsafe { libc::epoll_ctl(fd, libc::EPOLL_CTL_ADD, socket, &mut event) } != 0 {
++            return Err(io::Error::last_os_error());
++        }
++        Ok(Self {
++            readiness: tokio::io::unix::AsyncFd::new(owned)?,
++        })
++    }
++    pub async fn wait(&self) -> io::Result<()> {
++        loop {
++            let mut ready = self.readiness.readable().await?;
++            match ready.try_io(|fd| {
++                let mut event: libc::epoll_event = unsafe { std::mem::zeroed() };
++                let count = unsafe { libc::epoll_wait(fd.as_raw_fd(), &mut event, 1, 0) };
++                if count > 0 {
++                    Ok(())
++                } else if count == 0 {
++                    Err(io::ErrorKind::WouldBlock.into())
++                } else {
++                    Err(io::Error::last_os_error())
++                }
++            }) {
++                Ok(result) => return result,
++                Err(_) => continue,
++            }
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[tokio::test(flavor = "current_thread")]
++    async fn cancel_latch_survives_notification_before_wait() {
++        assert!(Connection::new(0).is_err());
++        assert!(Connection::new(u64::MAX).is_err());
++        let owner = Connection::new(1).unwrap();
++        owner.cancel();
++        owner.cancel();
++        tokio::time::timeout(Duration::from_secs(1), owner.canceled_wait())
++            .await
++            .unwrap();
++        assert!(owner.canceled());
++        assert!(!Connection::new(2).unwrap().canceled());
++    }
++
++    #[tokio::test(flavor = "current_thread")]
++    async fn peer_loss_is_write_half_close_not_buffered_input() {
++        use tokio::io::AsyncWriteExt;
++        let (mut client, server) = tokio::net::UnixStream::pair().unwrap();
++        let loss = PeerLoss::new(server.as_raw_fd()).unwrap();
++        client.write_all(b"buffered request").await.unwrap();
++        assert!(tokio::time::timeout(Duration::from_millis(20), loss.wait())
++            .await
++            .is_err());
++        client.shutdown().await.unwrap();
++        tokio::time::timeout(Duration::from_secs(1), loss.wait())
++            .await
++            .unwrap()
++            .unwrap();
++    }
++
++    // Native-only production clone/pidfd/reap control. Unsupported kernel or
++    // seccomp is a failure, never a skip or a PID-only qualification fallback.
++    #[test]
++    fn atomic_worker_identity_requires_its_terminal_reap() {
++        let mut pipe = [-1; 2];
++        assert_eq!(
++            unsafe { libc::pipe2(pipe.as_mut_ptr(), libc::O_CLOEXEC) },
++            0
++        );
++        let read = unsafe { OwnedFd::from_raw_fd(pipe[0]) };
++        let write = unsafe { OwnedFd::from_raw_fd(pipe[1]) };
++        let worker = match unsafe { Worker::clone_owned() }.expect("required native clone3") {
++            Spawn::Child => unsafe {
++                libc::close(write.as_raw_fd());
++                let mut byte = 0_u8;
++                libc::read(read.as_raw_fd(), (&mut byte as *mut u8).cast(), 1);
++                libc::_exit(0);
++            },
++            Spawn::Parent(worker) => worker,
++        };
++        assert!(!worker.reaped());
++        assert!(worker.observe_reaped(worker.pid() + 1).is_err());
++        assert!(worker.observe_reaped(worker.pid()).is_err());
++        drop(write);
++        let mut status = 0;
++        let observed = loop {
++            let result = unsafe { libc::waitpid(worker.pid(), &mut status, 0) };
++            if result < 0 && io::Error::last_os_error().raw_os_error() == Some(libc::EINTR) {
++                continue;
++            }
++            break result;
++        };
++        assert_eq!(observed, worker.pid());
++        assert!(libc::WIFEXITED(status));
++        worker.observe_reaped(observed).unwrap();
++        assert!(worker.reaped());
++        worker.signal(libc::SIGKILL).unwrap(); // no rediscovered numeric PID
++    }
++}

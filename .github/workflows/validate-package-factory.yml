@@ -41,9 +41,16 @@ on:
       - .github/workflows/build-tideforge-supported.yml
       - .github/workflows/build-tideforge-arch.yml
   workflow_dispatch:
+    inputs:
+      greetd_retirement_candidate:
+        description: 'Run controlled native greetd/PAM candidate tests; no activation or publication'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   validate:
@@ -138,3 +145,62 @@ jobs:
           if grep -qx 'packages/niri/package.yaml' .factory-validation-recipes; then
             python3 scripts/compare-official-package.py packages/niri/package.yaml --strict
           fi
+
+  greetd-retirement:
+    name: greetd-retirement-${{ matrix.architecture }}
+    if: github.event_name == 'workflow_dispatch' && inputs.greetd_retirement_candidate
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x86_64
+            runner: ubuntu-24.04
+          - architecture: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Safe controlled-observer regressions
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python3 -W error::ResourceWarning packages/greetd/tests/test_retirement_peer.py
+          python3 -W error::ResourceWarning packages/greetd/tests/test_ci_admission.py
+          python3 -W error::ResourceWarning packages/greetd/tests/test_native_owner.py
+      - name: Native Linux PAM build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libpam0g-dev pkg-config patch curl
+          rustc -Vv
+          cargo -V
+      - name: Exact-source native daemon/PAM candidate controls
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PYTHONDONTWRITEBYTECODE: '1'
+          CANDIDATE_ARCH: ${{ matrix.architecture }}
+        run: |
+          set -euo pipefail
+          candidate_out="$RUNNER_TEMP/greetd-retirement-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$CANDIDATE_ARCH"
+          candidate_cargo="$(rustup which cargo)"
+          candidate_rustc="$(rustup which rustc)"
+          sudo --preserve-env=GH_TOKEN,GITHUB_SHA,GITHUB_RUN_ID,GITHUB_RUN_ATTEMPT,GITHUB_REF,GITHUB_REPOSITORY,GITHUB_EVENT_NAME,GITHUB_JOB,GITHUB_WORKFLOW_REF,GITHUB_WORKSPACE,PYTHONDONTWRITEBYTECODE \
+            python3 packages/greetd/tests/build_native_candidate.py --architecture "$CANDIDATE_ARCH" --out "$candidate_out" --cargo "$candidate_cargo" --rustc "$candidate_rustc"
+      - name: Retain original bounded control receipts and logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: greetd-retirement-${{ matrix.architecture }}
+          path: |
+            ${{ runner.temp }}/greetd-retirement-*/candidate-receipt.json
+            ${{ runner.temp }}/greetd-retirement-*/*.log
+            ${{ runner.temp }}/greetd-retirement-*/*.txt
+            ${{ runner.temp }}/greetd-retirement-*/cargo-build.jsonl
+            ${{ runner.temp }}/greetd-retirement-*/native/**/*.json
+            ${{ runner.temp }}/greetd-retirement-*/native/**/*.log
+          if-no-files-found: error
+          retention-days: 14
