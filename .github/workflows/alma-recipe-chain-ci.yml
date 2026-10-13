@@ -8,13 +8,15 @@ on:
       - 'scripts/run-alma-rpm.sh'
       - 'tests/test_alma_recipe_chain.py'
       - 'tests/test_alma_candidate_selection.py'
+      - 'scripts/gtk4_candidate.py'
+      - 'tests/test_gtk4_alma_candidate.py'
       - 'tests/test_run_alma_recipe_chain.py'
   workflow_dispatch:
     inputs:
       scope:
         description: Native signed provider canary, bounded Tuna root, or complete declared recipe queue
         type: choice
-        options: [canary, full, tuna]
+        options: [canary, full, tuna, gtk4-provider]
         default: canary
         required: true
 
@@ -37,7 +39,7 @@ jobs:
           python-version: '3.14'
       - run: |
           python -m pip install pytest pyyaml==6.0.3
-          python -m pytest tests/test_alma_recipe_chain.py tests/test_run_alma_recipe_chain.py tests/test_alma_candidate_selection.py
+          python -m pytest tests/test_alma_recipe_chain.py tests/test_run_alma_recipe_chain.py tests/test_alma_candidate_selection.py tests/test_gtk4_alma_candidate.py
   native:
     if: github.event_name == 'workflow_dispatch'
     strategy:

@@ -21,6 +21,7 @@ import time
 from pathlib import Path
 
 import yaml
+import gtk4_candidate
 
 from target_platform import build_context
 
@@ -123,6 +124,8 @@ def select_roots(root, target, scope):
         return ['cosmic-icon-theme']
     if scope == 'tuna':
         return ['tuna-desktop']
+    if scope == gtk4_candidate.SCOPE:
+        return ['gtk4-layer-shell']
     if scope != 'full':
         raise ValueError('unsupported candidate scope')
     names = []
@@ -140,7 +143,7 @@ def select_roots(root, target, scope):
 
 def selection_action_key(target, architecture, scope, source_revision, roots):
     if (target not in {'alma10', 'alma10-kitten'} or architecture not in {'x86_64', 'aarch64'}
-            or scope not in {'canary', 'full', 'tuna'} or not SHA.fullmatch(source_revision)
+            or scope not in {'canary', 'full', 'tuna', gtk4_candidate.SCOPE} or not SHA.fullmatch(source_revision)
             or not roots or len(set(roots)) != len(roots)
             or any(not isinstance(name, str) or not PACKAGE.fullmatch(name) for name in roots)):
         raise ValueError('invalid candidate selection identity')
@@ -149,7 +152,7 @@ def selection_action_key(target, architecture, scope, source_revision, roots):
                    'sourceRevision': source_revision, 'requestedRoots': sorted(roots)})
 
 
-def plan(root, target, architecture, source_revision, action_key, packages):
+def plan(root, target, architecture, source_revision, action_key, packages, *, candidate_scope=None):
     root = Path(root)
     if target not in {'alma10', 'alma10-kitten'} or architecture not in {'x86_64', 'aarch64'}:
         raise ValueError('unsupported native Alma identity')
@@ -159,6 +162,10 @@ def plan(root, target, architecture, source_revision, action_key, packages):
             or any(not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9+_.-]*', name) for name in packages)
             or len(packages) != len(set(packages))):
         raise ValueError('nonempty unique package queue required')
+    if candidate_scope is not None and (candidate_scope != gtk4_candidate.SCOPE or packages != ['gtk4-layer-shell']):
+        raise ValueError('candidate projection requires the narrow GTK4 root')
+    if candidate_scope is not None and action_key != selection_action_key(target, architecture, candidate_scope, source_revision, packages):
+        raise ValueError('GTK4 candidate selection action identity mismatch')
     factory = yaml.safe_load((root / 'manifests/package-factory.yaml').read_text())
     context = build_context(factory['targets'][target], architecture)
     recipes = {}
@@ -171,6 +178,8 @@ def plan(root, target, architecture, source_revision, action_key, packages):
         if (not isinstance(recipe, dict) or not isinstance(recipe.get('name'), str)
                 or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9+_.-]*', recipe['name'])):
             raise ValueError('unsafe recipe identity')
+        if candidate_scope is not None and path.relative_to(root).as_posix() == 'packages/gtk4-layer-shell/package.yaml':
+            recipe = gtk4_candidate.project(recipe, target)
         identities = declared_providers(recipe)
         authored.update(identities)
         if target not in recipe.get('targets', []):
@@ -214,6 +223,8 @@ def plan(root, target, architecture, source_revision, action_key, packages):
         records[name] = {'name': name, 'recipe': path.relative_to(root).as_posix(),
                          'recipeDigest': 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest(),
                          'requirements': requirements}
+        if candidate_scope is not None and name == 'gtk4-layer-shell':
+            records[name]['candidateRecipeDigest'] = digest(recipe)
     waves = []
     remaining = set(selected)
     done = set()
@@ -229,6 +240,9 @@ def plan(root, target, architecture, source_revision, action_key, packages):
                 'baseDigest': context['image'].split('@', 1)[1], 'platform': context['platform'],
                 'cpuBaseline': context['cpu_baseline'], 'recipes': [records[name] for name in sorted(records)],
                 'dependencies': {name: sorted(items) for name, items in sorted(dependencies.items())}}
+    if candidate_scope is not None:
+        material['candidateScope'] = candidate_scope
+        material['published'] = False
     return {'schemaVersion': 1, 'kind': 'alma-recipe-chain', **material,
             'image': context['image'], 'actionKey': action_key, 'queueDigest': digest(material),
             'waves': waves, 'nativeRequirements': native, 'readiness': False,
@@ -256,7 +270,7 @@ def execute(document, *, root, repo, state, meta, work, builder, verifier,
     if not (meta / 'identity.json').is_file() or not (state / 'identity.json').is_file():
         raise ValueError('authenticated same-cell metadata and signing state required')
     expected = plan(root, document['target'], document['architecture'], document['sourceRevision'],
-                    document['actionKey'], document['requestedRoots'])
+                    document['actionKey'], document['requestedRoots'], candidate_scope=document.get('candidateScope'))
     if document != expected:
         raise ValueError('queue differs from exact authored source plan')
     identity = strict_json(meta / 'identity.json')
@@ -336,6 +350,7 @@ def main():
     parser.add_argument('--action-key', required=True)
     parser.add_argument('--package', action='append', required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--candidate-scope', choices=[gtk4_candidate.SCOPE])
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     head = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
@@ -344,7 +359,7 @@ def main():
     if head != args.source_revision or dirty:
         raise ValueError('CLI requires exact clean source checkout')
     result = plan(root, args.target, args.architecture,
-                  args.source_revision, args.action_key, args.package)
+                  args.source_revision, args.action_key, args.package, candidate_scope=args.candidate_scope)
     args.output.write_text(json.dumps(result, sort_keys=True, indent=2) + '\n')
 
 

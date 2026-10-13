@@ -7,7 +7,7 @@ export CHAIN_STARTED_MONOTONIC
 : "${TARGET:?}" "${ARCHITECTURE:?}" "${SCOPE:?}" "${RUNNER_TEMP:?}" "${GITHUB_SHA:?}"
 case "$TARGET" in alma10|alma10-kitten) ;; *) exit 2 ;; esac
 case "$ARCHITECTURE" in x86_64|aarch64) ;; *) exit 2 ;; esac
-case "$SCOPE" in canary|full|tuna) ;; *) exit 2 ;; esac
+case "$SCOPE" in canary|full|tuna|gtk4-provider) ;; *) exit 2 ;; esac
 cell="tideforge-chain-${TARGET}-${ARCHITECTURE}"
 out="$PWD/.factory/$cell"
 meta="$out/candidate-meta"
@@ -35,6 +35,7 @@ PY_ROOTS
 )
 ((${#names[@]} > 0))
 args=()
+if [[ $SCOPE == gtk4-provider ]]; then args+=(--candidate-scope gtk4-provider); fi
 for name in "${names[@]}"; do args+=(--package "$name"); done
 python3 scripts/alma-recipe-chain.py --target "$TARGET" --architecture "$ARCHITECTURE" \
   --source-revision "$GITHUB_SHA" --action-key "$key" "${args[@]}" --output "$out/plan.json"
