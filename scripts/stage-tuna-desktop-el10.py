@@ -47,6 +47,13 @@ RUNTIME = [
     "xdg-desktop-portal",
     "xdg-desktop-portal-gtk",
 ]
+
+def runtime_requirements(native_alma=False):
+    # Official Alma10/Kitten libcanberra RPMs ship/provide this backend
+    # on x86_64_v2 and aarch64; there is no split pulseaudio package.
+    return ["libcanberra-pulse.so()(64bit)" if native_alma and name == "libcanberra-pulseaudio" else name
+            for name in RUNTIME]
+
 PORTAL_DESTINATIONS = {
     "share/xdg-desktop-portal/portals/tuna.portal": (
         "usr/share/xdg-desktop-portal/portals/tuna.portal"
@@ -280,7 +287,7 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
                 candidate['build']['commands'] = [line for line in commands if line != workaround]
                 candidate['build']['require_fat_lto_objects'] = True
         candidate["dependencies"]["build"]["targets"] = {target: BUILD}
-        candidate["dependencies"]["runtime"]["targets"] = {target: RUNTIME}
+        candidate["dependencies"]["runtime"]["targets"] = {target: runtime_requirements(native_alma)}
         # ELF Requires remain RPM-generated; GTK4-layer-shell is a separate GTK4 input.
         candidate.setdefault("verify", {})["smoke"] += (
             " && command -v canberra-gtk-play"
@@ -300,7 +307,7 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
                 {
                     **cell,
                     "build_requires": mapped + BUILD,
-                    "runtime_requires": RUNTIME,
+                    "runtime_requires": runtime_requirements(native_alma),
                     "recipe_sha256": hashlib.sha256(recipe_bytes).hexdigest(),
                     "dependency_status": "unmeasured",
                     "native_install_status": "unmeasured",
@@ -329,7 +336,7 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
         candidate = yaml.safe_load(planned[0][1])
         candidate['targets'] = sorted({cell['target'] for _, _, cell in planned})
         candidate['dependencies']['build']['targets'] = {target: BUILD for target in candidate['targets']}
-        candidate['dependencies']['runtime']['targets'] = {target: RUNTIME for target in candidate['targets']}
+        candidate['dependencies']['runtime']['targets'] = {target: runtime_requirements(native_alma) for target in candidate['targets']}
         recipe_bytes = yaml.safe_dump(candidate, sort_keys=False).encode()
         (out / 'recipe').mkdir()
         (out / 'recipe/package.yaml').write_bytes(recipe_bytes)

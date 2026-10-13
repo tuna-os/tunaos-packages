@@ -35,7 +35,11 @@ def need(value, message):
 
 
 def digest(path):
-    return 'sha256:' + hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    value = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        while chunk := stream.read(1024 * 1024):
+            value.update(chunk)
+    return 'sha256:' + value.hexdigest()
 
 
 def command(args, timeout=180):
@@ -101,6 +105,18 @@ def provider_identity(target, arch, factory):
             'runAttempt': 1, 'cell': f'tideforge-chain-{target}-{arch}', 'actionKey': action, 'target': target,
             'platform': {'os': platform[0], 'architecture': platform[1], 'variant': platform[2] if len(platform) == 3 else None},
             'cpuBaseline': context['cpu_baseline'], 'baseDigest': context['image'].split('@', 1)[1]}
+
+
+def bank_resume(root):
+    spec = importlib.util.spec_from_file_location('tuna_bank_resume', Path(root) / 'scripts/alma-candidate-resume.py')
+    resume = importlib.util.module_from_spec(spec); spec.loader.exec_module(resume)
+    return resume
+
+
+def verify_bank_rpm(root, path, state):
+    spec = importlib.util.spec_from_file_location('tuna_bank_signing', Path(root) / 'scripts/candidate-rpm-repository.py')
+    signing = importlib.util.module_from_spec(spec); spec.loader.exec_module(signing)
+    signing.verify_rpm(path, state)
 
 
 def signed_rpm(result, signature, fingerprint):
@@ -263,6 +279,100 @@ class Inputs:
             if bank.exists(): shutil.rmtree(bank)
             bank.mkdir(parents=True)
             (bank / 'provider-input.json').write_text(json.dumps(self.binding()['provider'], sort_keys=True)+'\n')
+
+
+    def bank_native(self, root, document, repo, state, meta, work, destination):
+        """Fresh resume pool: current verified completions only, no foreign RPMs.
+
+        Provider RPMs remain execution dependencies. They must be freshly
+        re-admitted on each attempt, never relabeled as current queue outputs.
+        The original execution pool is preserved, including failed outputs.
+        """
+        import shutil
+        root, repo, state, meta, work, destination = map(Path, (root, repo, state, meta, work, destination))
+        need(not destination.exists() and not any(parent.is_symlink() for parent in (destination, *destination.parents)),
+             'fresh native bank with safe ancestors required')
+        spec = importlib.util.spec_from_file_location('tuna_bank_chain', root / 'scripts/alma-recipe-chain.py')
+        chain = importlib.util.module_from_spec(spec); spec.loader.exec_module(chain)
+        expected = chain.plan(root, document['target'], document['architecture'], document['sourceRevision'],
+            document['actionKey'], document['requestedRoots'], candidate_scope=SCOPE, native_inputs=self)
+        need(document == expected, 'bank source plan drift')
+        identity = chain.strict_json(meta / 'identity.json')
+        for field in ('cell', 'sourceRevision', 'actionKey', 'target', 'baseDigest', 'cpuBaseline'):
+            need(identity.get(field) == document[field], 'bank source/cell identity drift')
+        platform = document['platform'].split('/')
+        need(identity.get('platform') == {'os':platform[0], 'architecture':platform[1],
+            'variant':platform[2] if len(platform)==3 else None}, 'bank full platform drift')
+        for path in (repo, state, meta, work):
+            need(not any(parent.is_symlink() for parent in (path, *path.parents)), 'unsafe bank input root')
+        resume = bank_resume(root)
+        public = state / 'keys/candidate-public.gpg'
+        need(public.is_file() and not any(path.is_symlink() for path in (public, *public.parents)) and all(
+            path.is_file() and not path.is_symlink() and path.read_bytes() == public.read_bytes()
+            for path in (meta / 'candidate-public.gpg', repo / 'candidate-public.gpg')), 'bank signing key drift')
+        need(chain.strict_json(meta / 'candidate-identity.json') == chain.strict_json(state / 'identity.json'),
+             'bank signing state drift')
+        completed = resume.completed(meta)
+        names = [row['name'] for row in completed]
+        need(names and len(set(names)) == len(names) and set(names) <= {r['name'] for r in document['recipes']},
+             'bank contains foreign or duplicate completion')
+        selected = {}; observations = []; total = 0; files = 0
+        def reserve(path):
+            nonlocal total, files
+            info = path.lstat()
+            need(stat.S_ISREG(info.st_mode) and info.st_nlink == 1 and info.st_size <= resume.snapshot.MAX_FILE,
+                 'bank file shape/size limit exceeded')
+            total += info.st_size; files += 1
+            need(total <= resume.snapshot.MAX_TOTAL and files <= resume.snapshot.MAX_FILES, 'bank total/count limit exceeded')
+        reserve(public)
+        for package in completed:
+            need(package['inputDigest'] == resume.inputs(work / package['name'] / 'rpmbuild', identity),
+                 'bank completed prepared inputs changed')
+            need(package['outputs'], 'bank empty completed outputs')
+            for output in package['outputs']:
+                name = output['path']; path = repo / name
+                need(Path(name).name == name and name.endswith('.rpm') and name not in selected
+                     and path.is_file() and not path.is_symlink() and path.stat().st_nlink == 1
+                     and path.stat().st_size <= resume.snapshot.MAX_FILE and digest(path) == output['digest'], 'bank completed RPM drift')
+                verify_bank_rpm(root, path, state)
+                need(digest(path) == output['digest'], 'bank RPM changed during signature verification')
+                reserve(path)
+                selected[name] = output['digest']
+            observations.append(package['name'])
+        sources = []
+        # Preflight the complete selected observation tree before any copy.
+        for name in [*observations, 'tuna-provider-input']:
+            source = repo / 'buildroots' / name
+            need(source.is_dir() and not any(path.is_symlink() for path in (source, *source.parents)),
+                 'bank public observation ancestor missing/unsafe')
+            for path in source.rglob('*'):
+                info = path.lstat()
+                if stat.S_ISDIR(info.st_mode):
+                    continue
+                reserve(path)
+            sources.append((name, source))
+        need(chain.strict_json(repo / 'buildroots/tuna-provider-input/provider-input.json') == self.binding()['provider'],
+             'bank provider binding drift')
+        destination.mkdir()
+        try:
+            shutil.copyfile(public, destination / 'candidate-public.gpg')
+            for name, expected_digest in selected.items():
+                shutil.copyfile(repo / name, destination / name)
+                need(digest(destination / name) == expected_digest, 'bank copy changed completed RPM')
+            bank = destination / 'buildroots'; bank.mkdir()
+            # Only successful current-package observations plus the explicitly
+            # foreign dependency binding are retained. No failed Tuna bank.
+            for name, source in sources:
+                shutil.copytree(source, bank / name)
+            need(chain.strict_json(bank / 'tuna-provider-input/provider-input.json') == self.binding()['provider'],
+                 'bank provider binding drift')
+            command([sys.executable, str(root / 'scripts/candidate-rpm-repository.py'), 'index',
+                     '--state', str(state), '--repo', str(destination)], timeout=600)
+            need({path.name for path in destination.glob('*.rpm')} == set(selected), 'bank index changed RPM inventory')
+        except BaseException:
+            shutil.rmtree(destination)
+            raise
+        return destination
 
 
 def prepare(options, root, target, arch, work):

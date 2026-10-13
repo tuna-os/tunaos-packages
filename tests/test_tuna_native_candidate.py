@@ -253,3 +253,141 @@ def test_native_stage_refuses_altered_image_platform_or_arch(admitted_fixture,fi
     four[0][field]=value
     with pytest.raises(ValueError):members.assemble(rp,fp,four,archive,output,receipt,native=True)
     assert not output.exists()
+
+
+def test_native_audio_capability_keeps_player_theme_and_backend_smoke(native_fixture):
+    recipe=native_fixture.recipe
+    for target in ['alma10','alma10-kitten']:
+        runtime=recipe['dependencies']['runtime']['targets'][target]
+        assert 'libcanberra-pulse.so()(64bit)' in runtime
+        assert 'libcanberra-pulseaudio' not in runtime
+        assert 'libcanberra-gtk3' in runtime and 'sound-theme-freedesktop' in runtime
+    assert 'canberra-gtk-play' in recipe['verify']['smoke']
+    assert 'libcanberra-pulse.so' in recipe['verify']['smoke']
+    assert 'audio-volume-change.oga' in recipe['verify']['smoke']
+    stage=load_script('native_audio_default_stager','stage-tuna-desktop-el10.py')
+    assert 'libcanberra-pulseaudio' in stage.runtime_requirements(False)
+
+
+@pytest.fixture
+def bank_fixture(native_fixture,tmp_path,monkeypatch):
+    import shutil
+    chain=load_script('native_bank_fixture_chain','alma-recipe-chain.py')
+    resume=load_script('native_bank_fixture_resume','alma-candidate-resume.py')
+    key=chain.native_action_key('alma10','x86_64','a'*40,native_fixture)
+    doc=chain.plan(ROOT,'alma10','x86_64','a'*40,key,['tuna-desktop'],candidate_scope='tuna',native_inputs=native_fixture)
+    repo=tmp_path/'execution';repo.mkdir()
+    state=tmp_path/'signing';(state/'keys').mkdir(parents=True)
+    meta=tmp_path/'meta';meta.mkdir()
+    work=tmp_path/'native-work';work.mkdir()
+    public=b'public current-run key fixture'
+    for path in [repo/'candidate-public.gpg',state/'keys/candidate-public.gpg',meta/'candidate-public.gpg']:path.write_bytes(public)
+    identity={field:doc[field] for field in ['cell','sourceRevision','actionKey','target','baseDigest','cpuBaseline']}
+    identity.update({'repository':native.PACKAGE_REPO,'workflow':native.WORKFLOW,'signerWorkflow':native.WORKFLOW,
+       'sourceRef':'refs/heads/fixture','runId':10,'runAttempt':1,'platform':{'os':'linux','architecture':'amd64','variant':'v2'}})
+    (meta/'identity.json').write_text(json.dumps(identity))
+    signing={'scope':'run-local-unpromoted-candidate','productionReady':False,'fingerprint':'C'*40}
+    for path in [state/'identity.json',meta/'candidate-identity.json']:path.write_text(json.dumps(signing))
+    name='libseat';prepared=work/name/'rpmbuild'
+    shutil.copytree(Path(native_fixture.desktop['assembly']),prepared)
+    (repo/'libseat.rpm').write_bytes(b'current completed output')
+    (repo/'tuna-desktop.rpm').write_bytes(b'current FAILED verification output')
+    (repo/'gtk4-layer-shell.rpm').write_bytes(b'foreign 338 dependency')
+    row={'name':name,'inputDigest':resume.inputs(prepared,identity),
+         'outputs':[{'path':'libseat.rpm','digest':native.digest(repo/'libseat.rpm')}]}
+    (meta/'completed-packages.json').write_text(json.dumps([row]))
+    for package in ['libseat','tuna-desktop','gtk4-layer-shell','tuna-provider-input']:
+        bank=repo/'buildroots'/package;bank.mkdir(parents=True)
+        (bank/'observation.json').write_text('public fixture')
+    (repo/'buildroots/tuna-provider-input/provider-input.json').write_text(json.dumps(native_fixture.binding()['provider']))
+    checks=[]
+    monkeypatch.setattr(native,'verify_bank_rpm',lambda root,path,state:checks.append(path.name))
+    commands=[]
+    monkeypatch.setattr(native,'command',lambda args,**kwargs:commands.append(args) or '')
+    return native_fixture,doc,repo,state,meta,work,tmp_path/'fresh-bank',checks,commands
+
+
+def test_bank_current_outputs_only_preserves_execution_and_strict_inventory(bank_fixture):
+    inputs,doc,repo,state,meta,work,out,checks,commands=bank_fixture
+    before={p.name:p.read_bytes() for p in repo.glob('*.rpm')}
+    inputs.bank_native(ROOT,doc,repo,state,meta,work,out)
+    assert {p.name for p in out.glob('*.rpm')}=={'libseat.rpm'}
+    assert checks==['libseat.rpm'] and commands[0][2]=='index'
+    assert before=={p.name:p.read_bytes() for p in repo.glob('*.rpm')}
+    assert not (out/'buildroots/tuna-desktop').exists()
+    assert not (out/'buildroots/gtk4-layer-shell').exists()
+    assert (out/'buildroots/tuna-provider-input/provider-input.json').is_file()
+    snapshot=load_script('native_bank_strict_snapshot','alma-candidate-snapshot.py')
+    identity=json.loads((meta/'identity.json').read_text())
+    completed=json.loads((meta/'completed-packages.json').read_text())
+    # Actual unchanged production snapshot inventory validator accepts the
+    # selected pool and rejects adding either unverified or foreign RPMs.
+    document=snapshot.create(out,identity,'candidate-public.gpg','C'*40,completed,False)
+    assert {row['name'] for row in document['completedPackages']}=={'libseat'}
+    (out/'tuna-desktop.rpm').write_bytes(before['tuna-desktop.rpm'])
+    with pytest.raises(ValueError,match='RPM inventory'):
+        snapshot.create(out,identity,'candidate-public.gpg','C'*40,completed,False)
+
+
+@pytest.mark.parametrize('change',['output','inputs','foreign','duplicate','key','epoch','provider','symlink','signature','index'])
+def test_bank_rejects_changed_or_unqualified_ownership(bank_fixture,monkeypatch,change):
+    inputs,doc,repo,state,meta,work,out,checks,commands=bank_fixture
+    if change=='output':(repo/'libseat.rpm').write_bytes(b'changed')
+    elif change=='inputs':next((work/'libseat/rpmbuild/SPECS').glob('*.spec')).write_text('changed')
+    elif change in ['foreign','duplicate']:
+        rows=json.loads((meta/'completed-packages.json').read_text())
+        if change=='foreign':rows[0]['name']='gtk4-layer-shell'
+        else:rows.append(rows[0])
+        (meta/'completed-packages.json').write_text(json.dumps(rows))
+    elif change=='key':(repo/'candidate-public.gpg').write_bytes(b'foreign key')
+    elif change=='epoch':
+        identity=json.loads((meta/'identity.json').read_text());identity['actionKey']='sha256:'+'0'*64
+        (meta/'identity.json').write_text(json.dumps(identity))
+    elif change=='provider':(repo/'buildroots/tuna-provider-input/provider-input.json').write_text('{}')
+    elif change=='symlink':(repo/'buildroots/libseat/link').symlink_to(repo/'tuna-desktop.rpm')
+    elif change=='signature':monkeypatch.setattr(native,'verify_bank_rpm',lambda *args:(_ for _ in ()).throw(ValueError('unsigned')))
+    else:monkeypatch.setattr(native,'command',lambda *args,**kwargs:(_ for _ in ()).throw(ValueError('index signing failed')))
+    with pytest.raises(ValueError):inputs.bank_native(ROOT,doc,repo,state,meta,work,out)
+    assert not out.exists()
+    assert (repo/'tuna-desktop.rpm').read_bytes()==b'current FAILED verification output'
+
+
+def test_banking_wrapper_re_admits_provider_and_uses_strict_create():
+    text=(ROOT/'scripts/verify-alma-recipe-chain-ci.sh').read_text()
+    block=text.split("<<'PY_TUNA_BANK'",1)[1].split('\nPY_TUNA_BANK',1)[0]
+    assert 'from_file(' in block and 'bank_native(' in block
+    assert '--repo "$bank_repo"' in text
+    assert 'if [[ $SCOPE == tuna ]]' in text
+
+
+@pytest.mark.parametrize('change',['ancestor','destination','file','total','count'])
+def test_bank_observation_preflight_limits_before_copy(bank_fixture,monkeypatch,change):
+    import shutil
+    inputs,doc,repo,state,meta,work,out,checks,commands=bank_fixture
+    before={p.name:p.read_bytes() for p in repo.glob('*.rpm')}
+    if change=='ancestor':
+        original=repo/'buildroots'; moved=repo.parent/'observations';original.rename(moved);original.symlink_to(moved,target_is_directory=True)
+    elif change=='destination':
+        moved=out.parent/'external';moved.mkdir();link=out.parent/'linked';link.symlink_to(moved,target_is_directory=True);out=link/'new-bank'
+    else:
+        resume=load_script('bank_limits_test_resume','alma-candidate-resume.py')
+        monkeypatch.setattr(native,'bank_resume',lambda root:resume)
+        # Isolate observation-copy budgets from the already validated prepared
+        # input collector, whose separate mutation regression remains real.
+        prepared_digest=json.loads((meta/'completed-packages.json').read_text())[0]['inputDigest']
+        monkeypatch.setattr(resume,'inputs',lambda *args:prepared_digest)
+        if change=='file':
+            monkeypatch.setattr(resume.snapshot,'MAX_FILE',4096)
+            (repo/'buildroots/libseat/oversized').write_bytes(b'x'*4097)
+        elif change=='count':monkeypatch.setattr(resume.snapshot,'MAX_FILES',2)
+        else:monkeypatch.setattr(resume.snapshot,'MAX_TOTAL',len((state/'keys/candidate-public.gpg').read_bytes())+len((repo/'libseat.rpm').read_bytes()))
+    with pytest.raises(ValueError,match='bank'):
+        inputs.bank_native(ROOT,doc,repo,state,meta,work,out)
+    assert not out.exists() and not commands
+    assert before=={p.name:p.read_bytes() for p in repo.glob('*.rpm')}
+
+
+def test_native_digest_streams_without_whole_file_read(tmp_path,monkeypatch):
+    path=tmp_path/'payload';path.write_bytes(b'abc')
+    monkeypatch.setattr(Path,'read_bytes',lambda self:pytest.fail('whole-file allocation'))
+    assert native.digest(path)=='sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'

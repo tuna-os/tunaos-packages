@@ -95,7 +95,19 @@ python3 scripts/run-alma-recipe-chain.py "${native_args[@]}" --plan "$out/plan.j
 if [[ -s "$meta/completed-packages.json" ]] && jq -e 'length > 0' "$meta/completed-packages.json" >/dev/null; then
   complete=()
   if [[ "$status" == 0 ]] && jq -e '.chainComplete == true' "$out/result.json" >/dev/null; then complete=(--chain-complete); fi
-  python3 scripts/alma-candidate-resume.py create --meta "$meta" --repo "$repo" \
+  bank_repo="$repo"
+  if [[ $SCOPE == tuna ]]; then
+    bank_repo="$out/native-bank"
+    python3 - "$TUNA_NATIVE_INPUTS" "$out/plan.json" "$repo" "$state" "$meta" "$out/work" "$bank_repo" <<'PY_TUNA_BANK'
+import pathlib,sys,json
+sys.path.insert(0,'scripts')
+import tuna_native_inputs
+root=pathlib.Path.cwd();document=json.loads(pathlib.Path(sys.argv[2]).read_text())
+inputs=tuna_native_inputs.from_file(sys.argv[1],root,document['target'],document['architecture'])
+inputs.bank_native(root,document,*sys.argv[3:])
+PY_TUNA_BANK
+  fi
+  python3 scripts/alma-candidate-resume.py create --meta "$meta" --repo "$bank_repo" \
     --destination "$out/native-snapshot" "${complete[@]}"
   if [[ -n ${GITHUB_OUTPUT:-} ]]; then echo 'created=true' >> "$GITHUB_OUTPUT"; fi
 fi
