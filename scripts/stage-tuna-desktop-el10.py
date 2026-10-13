@@ -82,7 +82,8 @@ def read_archive(path):
         return members
 
 
-def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive, output, admission=None):
+def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive, output, admission=None, *, native_alma=False):
+    require(type(native_alma) is bool and (not native_alma or admission is not None), "native Alma scope requires admitted candidate inputs")
     recipe_input = Path(recipe_path).read_bytes()
     factory_input = Path(factory_path).read_bytes()
     json_input = Path(inputs_path).read_bytes()
@@ -200,13 +201,13 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
     cells = inputs.get("cells", [])
     expected = {
         (consumer, target, arch)
-        for consumer, target in CELLS.items()
+        for consumer, target in CELLS.items() if not native_alma or target in {"alma10", "alma10-kitten"}
         for arch in ("x86_64", "aarch64")
     }
     require(
-        len(cells) == 6
+        len(cells) == len(expected)
         and {(c.get("consumer"), c.get("target"), c.get("arch")) for c in cells} == expected,
-        "six distinct consumer/base/architecture cells required",
+        "distinct scoped consumer/base/architecture cells required",
     )
     planned = []
     for cell in cells:
@@ -326,7 +327,7 @@ def stage(recipe_path, factory_path, inputs_path, source_archive, vendor_archive
     if admission is not None:
         # One source closure across six native cells, not six duplicate recipe names.
         candidate = yaml.safe_load(planned[0][1])
-        candidate['targets'] = sorted(CELLS.values())
+        candidate['targets'] = sorted({cell['target'] for _, _, cell in planned})
         candidate['dependencies']['build']['targets'] = {target: BUILD for target in candidate['targets']}
         candidate['dependencies']['runtime']['targets'] = {target: RUNTIME for target in candidate['targets']}
         recipe_bytes = yaml.safe_dump(candidate, sort_keys=False).encode()

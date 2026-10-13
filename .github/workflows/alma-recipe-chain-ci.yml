@@ -10,6 +10,10 @@ on:
       - 'tests/test_alma_candidate_selection.py'
       - 'scripts/gtk4_candidate.py'
       - 'tests/test_gtk4_alma_candidate.py'
+      - 'scripts/tuna_native_inputs.py'
+      - 'scripts/tuna_candidate_inputs.py'
+      - 'scripts/stage-tuna-desktop-el10.py'
+      - 'tests/test_tuna_native_candidate.py'
       - 'tests/test_run_alma_recipe_chain.py'
   workflow_dispatch:
     inputs:
@@ -19,6 +23,19 @@ on:
         options: [canary, full, tuna, gtk4-provider]
         default: canary
         required: true
+
+      source_run:
+        description: Reviewed desktop CI run (required only for tuna scope)
+        type: string
+      source_sha:
+        description: Reviewed desktop source SHA (required only for tuna scope)
+        type: string
+      producer_run:
+        description: Exact source/vendor producer run (required only for tuna scope)
+        type: string
+      source_artifact:
+        description: Exact admitted source/vendor artifact ID (required only for tuna scope)
+        type: string
 
 permissions:
   contents: read
@@ -39,7 +56,7 @@ jobs:
           python-version: '3.14'
       - run: |
           python -m pip install pytest pyyaml==6.0.3
-          python -m pytest tests/test_alma_recipe_chain.py tests/test_run_alma_recipe_chain.py tests/test_alma_candidate_selection.py tests/test_gtk4_alma_candidate.py
+          python -m pytest tests/test_alma_recipe_chain.py tests/test_run_alma_recipe_chain.py tests/test_alma_candidate_selection.py tests/test_gtk4_alma_candidate.py tests/test_tuna_native_candidate.py tests/test_tuna_candidate_inputs.py
   native:
     if: github.event_name == 'workflow_dispatch'
     strategy:
@@ -61,6 +78,31 @@ jobs:
           python -m pip install pyyaml==6.0.3
           sudo apt-get update -q
           sudo apt-get install -y -q createrepo-c rpm gnupg
+      - name: Checkout reviewed source admission helper
+        if: inputs.scope == 'tuna'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: tuna-os/tuna-desktop
+          ref: ae78b8981bd3439902d9e6f5b3bbb35abb4377ab
+          path: .candidate-helper/desktop
+      - name: Set explicit desktop candidate options
+        if: inputs.scope == 'tuna'
+        env:
+          SOURCE_RUN: ${{ inputs.source_run }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          PRODUCER_RUN: ${{ inputs.producer_run }}
+          SOURCE_ARTIFACT: ${{ inputs.source_artifact }}
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib
+          path=pathlib.Path(os.environ['RUNNER_TEMP'])/'tuna-native-inputs.json'
+          options={'source_run':int(os.environ['SOURCE_RUN']), 'source_sha':os.environ['SOURCE_SHA'],
+                   'producer_run':int(os.environ['PRODUCER_RUN']), 'artifact':int(os.environ['SOURCE_ARTIFACT']),
+                   'producer_sha':'ae78b8981bd3439902d9e6f5b3bbb35abb4377ab',
+                   'helper_checkout':str(pathlib.Path('.candidate-helper/desktop').resolve())}
+          path.write_text(json.dumps(options)+'\n')
+          with open(os.environ['GITHUB_ENV'],'a') as output:output.write('TUNA_NATIVE_INPUTS='+str(path)+'\n')
+          PY
       - name: Build and verify signed native provider waves
         id: chain
         env:

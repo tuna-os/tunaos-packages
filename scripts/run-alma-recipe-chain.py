@@ -18,6 +18,9 @@ import sys
 
 import yaml
 import gtk4_candidate
+import tuna_native_inputs
+import tuna_candidate_inputs
+import tideforge
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -95,12 +98,18 @@ def package_timeout(signum, frame):
 
 
 class Adapter:
-    def __init__(self, document, root, work, engine='podman', package_seconds=None, chain_started=None):
+    def __init__(self, document, root, work, engine='podman', package_seconds=None, chain_started=None, native_inputs=None):
         if engine not in {'podman', 'docker'}:
             raise ValueError('unsupported container boundary')
         self.document, self.root, self.work, self.engine = document, Path(root), Path(work), engine
         if document.get('architecture') not in {'x86_64', 'aarch64'}:
             raise ValueError('unsupported native architecture')
+        self.native_inputs = native_inputs
+        if document.get('candidateScope') == tuna_native_inputs.SCOPE:
+            if not isinstance(native_inputs, tuna_native_inputs.Inputs) or native_inputs.binding() != document.get('nativeInputs'):
+                raise ValueError('native Tuna inputs do not match source plan')
+        elif native_inputs is not None:
+            raise ValueError('native Tuna inputs require explicit scope')
         self.outputs = {}
         self.package_seconds = package_seconds
         self.chain_started = chain_started
@@ -123,11 +132,21 @@ class Adapter:
                 '--env', 'TZ=UTC', '--env', 'LANG=C.UTF-8', '--env', 'LC_ALL=C.UTF-8',
                 '--env', 'TUNAOS_CANDIDATE_REPO=/candidate-repo']
 
+    def is_tuna(self, record):
+        return self.document.get('candidateScope') == tuna_native_inputs.SCOPE and record.get('name') == 'tuna-desktop'
+
     def is_projected(self, record):
         return ('candidateRecipeDigest' in record or
                 (self.document.get('candidateScope') is not None and record.get('name') == 'gtk4-layer-shell'))
 
     def projected_recipe(self, record):
+        if self.is_tuna(record):
+            if (record.get('recipe') != 'packages/tuna-desktop/package.yaml'
+                    or file_digest(self.root / record['recipe']) != record['recipeDigest']
+                    or self.native_inputs.binding() != self.document['nativeInputs']
+                    or chain.digest(self.native_inputs.recipe) != record.get('candidateRecipeDigest')):
+                raise ValueError('native Tuna projection changed')
+            return self.native_inputs.recipe
         if (self.document.get('candidateScope') != gtk4_candidate.SCOPE or record.get('name') != 'gtk4-layer-shell'
                 or record.get('recipe') != 'packages/gtk4-layer-shell/package.yaml'):
             raise ValueError('GTK4 projection ownership mismatch')
@@ -169,6 +188,27 @@ class Adapter:
         for name in ('BUILD', 'BUILDROOT', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS'):
             (build / name).mkdir(parents=True, exist_ok=True)
         recipe = self.root / record['recipe']
+        if self.is_tuna(record):
+            projected = self.projected_recipe(record)
+            prepared = Path(self.native_inputs.desktop['assembly'])
+            context = {projected['sources'][0]['sha256']: tuna_candidate_inputs.descriptor(self.native_inputs.desktop['source'])}
+            rendered = tideforge.render(projected, self.document['target'], candidate_inputs=context)
+            for filename, contents in rendered.items():
+                source = prepared / 'SPECS' / filename
+                if source.is_symlink() or source.read_text() != contents:
+                    raise ValueError('admitted native spec changed')
+                (build / 'SPECS' / filename).write_text(contents)
+            hashes = {tideforge.source_filename(projected['source'], 0): self.native_inputs.desktop['source']['source_archive_sha256'],
+                      'tuna-desktop-vendor.tar.gz': self.native_inputs.desktop['source']['vendor_archive_sha256']}
+            for filename, expected in hashes.items():
+                source = prepared / 'SOURCES' / filename
+                if source.is_symlink() or not source.is_file() or file_digest(source) != 'sha256:' + expected:
+                    raise ValueError('admitted native source changed')
+                shutil.copyfile(source, build / 'SOURCES' / filename)
+                if file_digest(build / 'SOURCES' / filename) != 'sha256:' + expected:
+                    raise ValueError('native source changed during copy')
+            (work / 'evidence/tuna-inputs.json').write_text(json.dumps(self.native_inputs.binding(), sort_keys=True)+'\n')
+            return build
         if self.is_projected(record):
             projected = self.projected_recipe(record)
             recipe = work / 'candidate-recipe.yaml'
@@ -200,7 +240,7 @@ class Adapter:
         for path in evidence.rglob('*'):
             if path.is_symlink() or (not path.is_file() and not path.is_dir()):
                 raise ValueError('unsafe buildroot observation')
-        if self.is_projected(record):
+        if self.is_projected(record) and not self.is_tuna(record):
             provider = build / 'provider-test-evidence/gtk4-layer-shell'
             admission = self.provider_admission(record, provider)
             retained = evidence / 'gtk4-provider'
@@ -229,19 +269,24 @@ class Adapter:
         if not outputs:
             raise ValueError('signed authored artifacts missing')
         provider_proof = None
-        if self.is_projected(record):
+        if self.is_projected(record) and not self.is_tuna(record):
             bank = Path(repo) / 'buildroots' / record['name']
             provider_proof = self.provider_admission(record, bank / 'gtk4-provider')
             retained = chain.strict_json(bank / 'gtk4-provider-admission.json')
             if retained != provider_proof:
                 raise ValueError('signed provider admission belongs to another source/cell')
+        if self.is_tuna(record):
+            self.projected_recipe(record)
+            bank = Path(repo) / 'buildroots' / record['name']
+            if chain.strict_json(bank / 'tuna-inputs.json') != self.native_inputs.binding():
+                raise ValueError('native Tuna banked inputs belong to another source/cell')
         requirements = sorted(set(record['requirements']['build'] + record['requirements']['runtime']))
         (proof / 'requirements.txt').write_text(''.join(item + '\n' for item in requirements))
         (proof / 'packages.txt').write_text(''.join('/candidate-repo/' + item + '\n' for item in outputs))
         recipe_path = self.root / record['recipe']
         if file_digest(recipe_path) != record['recipeDigest']:
             raise ValueError('native smoke recipe differs from authored digest')
-        recipe = yaml.safe_load(recipe_path.read_text())
+        recipe = self.projected_recipe(record) if self.is_tuna(record) else yaml.safe_load(recipe_path.read_text())
         smoke = recipe.get('verify', {}).get('smoke')
         if not isinstance(smoke, str) or not smoke.strip():
             raise ValueError('authored native smoke command missing')
@@ -256,6 +301,7 @@ class Adapter:
             'actionKey': self.document['actionKey'], 'baseDigest': self.document['baseDigest'],
             'platform': self.document['platform'], 'cpuBaseline': self.document['cpuBaseline'],
             'recipeDigest': record['recipeDigest'], 'readiness': False,
+            **({'candidateTunaInputs': self.native_inputs.binding()} if self.is_tuna(record) else {}),
             **({'candidateProviderTests': provider_proof} if provider_proof is not None else {}),
             'artifacts': [{'name': name, 'digest': file_digest(Path(repo) / name)}
                           for name in outputs],
@@ -271,6 +317,7 @@ def main():
     for name in ('plan', 'repo', 'state', 'meta', 'work', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--engine', choices=['podman', 'docker'], default='podman')
+    parser.add_argument('--tuna-inputs', type=Path)
     args = parser.parse_args()
     document = chain.strict_json(args.plan)
     head = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
@@ -285,8 +332,11 @@ def main():
     elapsed = time.monotonic() - started
     if not math.isfinite(started) or not math.isfinite(elapsed) or elapsed < 0:
         raise ValueError('invalid wrapper chain start time')
+    native_inputs = tuna_native_inputs.from_file(args.tuna_inputs, ROOT, document['target'], document['architecture']) if document.get('candidateScope') == tuna_native_inputs.SCOPE and args.tuna_inputs else None
+    if args.tuna_inputs and document.get('candidateScope') != tuna_native_inputs.SCOPE:
+        raise ValueError('native input file requires explicit Tuna scope')
     adapter = Adapter(document, ROOT, args.work, args.engine, package_seconds=4800,
-                      chain_started=started)
+                      chain_started=started, native_inputs=native_inputs)
     signal.signal(signal.SIGALRM, package_timeout)
     # State is generated locally by the signing utility, never downloaded. Bind
     # the mounted public key to its actual isolated secret-key fingerprint.
@@ -309,7 +359,7 @@ def main():
             meta=args.meta, work=args.work, builder=adapter.build, verifier=adapter.verify,
             prepare=adapter.prepare, resume_outputs=adapter.restored_outputs,
             budget_seconds=int(os.environ.get('CHAIN_BUDGET_SECONDS', '16200')),
-            elapsed_seconds=time.monotonic() - started)
+            elapsed_seconds=time.monotonic() - started, native_inputs=native_inputs)
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
     args.output.write_text(json.dumps(result, sort_keys=True, indent=2) + '\n')
