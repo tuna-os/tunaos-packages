@@ -22,6 +22,7 @@ from pathlib import Path
 
 import yaml
 import gtk4_candidate
+import tuna_native_inputs
 
 from target_platform import build_context
 
@@ -152,7 +153,15 @@ def selection_action_key(target, architecture, scope, source_revision, roots):
                    'sourceRevision': source_revision, 'requestedRoots': sorted(roots)})
 
 
-def plan(root, target, architecture, source_revision, action_key, packages, *, candidate_scope=None):
+
+def native_action_key(target, architecture, source_revision, native_inputs):
+    if not isinstance(native_inputs, tuna_native_inputs.Inputs):
+        raise ValueError('admitted native Tuna material required')
+    base = selection_action_key(target, architecture, tuna_native_inputs.SCOPE, source_revision, ['tuna-desktop'])
+    return digest({'selection': base, 'nativeInputs': native_inputs.binding()})
+
+
+def plan(root, target, architecture, source_revision, action_key, packages, *, candidate_scope=None, native_inputs=None):
     root = Path(root)
     if target not in {'alma10', 'alma10-kitten'} or architecture not in {'x86_64', 'aarch64'}:
         raise ValueError('unsupported native Alma identity')
@@ -162,12 +171,20 @@ def plan(root, target, architecture, source_revision, action_key, packages, *, c
             or any(not isinstance(name, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9+_.-]*', name) for name in packages)
             or len(packages) != len(set(packages))):
         raise ValueError('nonempty unique package queue required')
-    if candidate_scope is not None and (candidate_scope != gtk4_candidate.SCOPE or packages != ['gtk4-layer-shell']):
-        raise ValueError('candidate projection requires the narrow GTK4 root')
-    if candidate_scope is not None and action_key != selection_action_key(target, architecture, candidate_scope, source_revision, packages):
-        raise ValueError('GTK4 candidate selection action identity mismatch')
+    if candidate_scope is not None and not (
+            candidate_scope == gtk4_candidate.SCOPE and packages == ['gtk4-layer-shell'] and native_inputs is None
+            or candidate_scope == tuna_native_inputs.SCOPE and packages == ['tuna-desktop'] and isinstance(native_inputs, tuna_native_inputs.Inputs)):
+        raise ValueError('candidate projection requires a narrow admitted root')
+    if candidate_scope is None and native_inputs is not None:
+        raise ValueError('native inputs require explicit candidate scope')
+    expected_action = (native_action_key(target, architecture, source_revision, native_inputs)
+                       if native_inputs is not None else selection_action_key(target, architecture, candidate_scope, source_revision, packages)) if candidate_scope is not None else None
+    if candidate_scope is not None and action_key != expected_action:
+        raise ValueError('candidate selection action identity mismatch')
     factory = yaml.safe_load((root / 'manifests/package-factory.yaml').read_text())
     context = build_context(factory['targets'][target], architecture)
+    if native_inputs is not None and native_inputs.provider['identity'] != tuna_native_inputs.provider_identity(target, architecture, factory):
+        raise ValueError('native provider belongs to a different pinned cell')
     recipes = {}
     providers = {}
     authored = set()
@@ -178,8 +195,10 @@ def plan(root, target, architecture, source_revision, action_key, packages, *, c
         if (not isinstance(recipe, dict) or not isinstance(recipe.get('name'), str)
                 or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9+_.-]*', recipe['name'])):
             raise ValueError('unsafe recipe identity')
-        if candidate_scope is not None and path.relative_to(root).as_posix() == 'packages/gtk4-layer-shell/package.yaml':
+        if candidate_scope == gtk4_candidate.SCOPE and path.relative_to(root).as_posix() == 'packages/gtk4-layer-shell/package.yaml':
             recipe = gtk4_candidate.project(recipe, target)
+        if candidate_scope == tuna_native_inputs.SCOPE and path.relative_to(root).as_posix() == 'packages/tuna-desktop/package.yaml':
+            recipe = native_inputs.recipe
         identities = declared_providers(recipe)
         authored.update(identities)
         if target not in recipe.get('targets', []):
@@ -190,6 +209,7 @@ def plan(root, target, architecture, source_revision, action_key, packages, *, c
         recipes[name] = (recipe, path)
         for provided in identities:
             providers.setdefault(provided, set()).add(name)
+    external = {'gtk4-layer-shell', 'gtk4-layer-shell-devel', 'pkgconfig(gtk4-layer-shell-0)'} if native_inputs is not None else set()
     if set(packages) - recipes.keys():
         raise ValueError('requested factory recipe missing for target')
     selected = set(packages)
@@ -216,14 +236,14 @@ def plan(root, target, architecture, source_revision, action_key, packages, *, c
                         if provider not in selected:
                             selected.add(provider); pending.append(provider); pending.sort()
                 else:
-                    if match and match[1] in authored:
+                    if match and match[1] in authored and match[1] not in external:
                         raise ValueError('factory provider unavailable for target: ' + expression)
                     native[name].append({'phase': phase, 'nativeExpression': expression,
                                          'status': 'unresolved-native-provider'})
         records[name] = {'name': name, 'recipe': path.relative_to(root).as_posix(),
                          'recipeDigest': 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest(),
                          'requirements': requirements}
-        if candidate_scope is not None and name == 'gtk4-layer-shell':
+        if candidate_scope is not None and name in {'gtk4-layer-shell', 'tuna-desktop'}:
             records[name]['candidateRecipeDigest'] = digest(recipe)
     waves = []
     remaining = set(selected)
@@ -243,6 +263,8 @@ def plan(root, target, architecture, source_revision, action_key, packages, *, c
     if candidate_scope is not None:
         material['candidateScope'] = candidate_scope
         material['published'] = False
+    if native_inputs is not None:
+        material['nativeInputs'] = native_inputs.binding()
     return {'schemaVersion': 1, 'kind': 'alma-recipe-chain', **material,
             'image': context['image'], 'actionKey': action_key, 'queueDigest': digest(material),
             'waves': waves, 'nativeRequirements': native, 'readiness': False,
@@ -251,7 +273,7 @@ def plan(root, target, architecture, source_revision, action_key, packages, *, c
 
 
 def execute(document, *, root, repo, state, meta, work, builder, verifier,
-            prepare=None, resume_outputs=None, budget_seconds=16200, elapsed_seconds=0):
+            prepare=None, resume_outputs=None, budget_seconds=16200, elapsed_seconds=0, native_inputs=None):
     """Run prepared native builds in order, sign/index, then native verify.
 
     Integration callbacks are trusted CI code, not downloaded artifact fields.
@@ -270,7 +292,7 @@ def execute(document, *, root, repo, state, meta, work, builder, verifier,
     if not (meta / 'identity.json').is_file() or not (state / 'identity.json').is_file():
         raise ValueError('authenticated same-cell metadata and signing state required')
     expected = plan(root, document['target'], document['architecture'], document['sourceRevision'],
-                    document['actionKey'], document['requestedRoots'], candidate_scope=document.get('candidateScope'))
+                    document['actionKey'], document['requestedRoots'], candidate_scope=document.get('candidateScope'), native_inputs=native_inputs)
     if document != expected:
         raise ValueError('queue differs from exact authored source plan')
     identity = strict_json(meta / 'identity.json')
@@ -350,7 +372,8 @@ def main():
     parser.add_argument('--action-key', required=True)
     parser.add_argument('--package', action='append', required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--candidate-scope', choices=[gtk4_candidate.SCOPE])
+    parser.add_argument('--candidate-scope', choices=[gtk4_candidate.SCOPE, tuna_native_inputs.SCOPE])
+    parser.add_argument('--tuna-inputs', type=Path)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     head = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
@@ -358,8 +381,11 @@ def main():
                                     'scripts', 'manifests', 'packages'], text=True)
     if head != args.source_revision or dirty:
         raise ValueError('CLI requires exact clean source checkout')
+    native_inputs = tuna_native_inputs.from_file(args.tuna_inputs, root, args.target, args.architecture) if args.candidate_scope == tuna_native_inputs.SCOPE and args.tuna_inputs else None
+    if args.tuna_inputs and args.candidate_scope != tuna_native_inputs.SCOPE:
+        raise ValueError('Tuna input options require explicit scope')
     result = plan(root, args.target, args.architecture,
-                  args.source_revision, args.action_key, args.package, candidate_scope=args.candidate_scope)
+                  args.source_revision, args.action_key, args.package, candidate_scope=args.candidate_scope, native_inputs=native_inputs)
     args.output.write_text(json.dumps(result, sort_keys=True, indent=2) + '\n')
 
 

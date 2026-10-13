@@ -86,10 +86,27 @@ def verified_members(path, receipt):
     return payloads
 
 
-def assemble(recipe, factory, cells, archive_zip, output, admission):
+def rust_requirement(payloads):
+    metadata = json.loads(payloads['cargo-metadata.json'])
+    require(isinstance(metadata.get('packages'), list) and metadata['packages'], 'Cargo package metadata missing')
+    versions = []
+    for package in metadata['packages']:
+        value = package.get('rust_version')
+        if value is None:
+            continue
+        require(isinstance(value, str) and re.fullmatch(r'1\.[0-9]+(?:\.[0-9]+)?', value), 'invalid Cargo MSRV')
+        numbers = tuple(int(number) for number in value.split('.'))
+        versions.append(numbers + (0,) * (3-len(numbers)))
+    require(versions, 'Cargo metadata has no measured minimum Rust version')
+    return '.'.join(str(number) for number in max(versions))
+
+
+def assemble(recipe, factory, cells, archive_zip, output, admission, *, native=False, selected_cell=None):
     """Called after fresh independent admission; output remains local and candidate only."""
     output = Path(output)
+    require(type(native) is bool, 'native assembly mode must be boolean')
     require(not output.exists(), 'fresh assembly output required')
+    require(selected_cell is None or selected_cell in {(c['target'], c['arch']) for c in cells}, 'selected assembly cell missing')
     require(Path(factory).resolve() == tideforge.TARGETS.resolve(), 'renderer must use the admitted factory source')
     factory_bytes = Path(factory).read_bytes()
     payloads = verified_members(archive_zip, admission)
@@ -103,8 +120,18 @@ def assemble(recipe, factory, cells, archive_zip, output, admission):
         source = root / 'source.tar.gz'; vendor = root / MEMBER; inputs = root / 'inputs.json'
         source.write_bytes(payloads['tuna-desktop-source.tar.gz']); vendor.write_bytes(payloads[MEMBER])
         inputs.write_text(json.dumps({**admitted, 'cells': cells}))
-        result = stager.stage(recipe, factory, inputs, source, vendor, root / 'staged', admission=admitted)
+        result = stager.stage(recipe, factory, inputs, source, vendor, root / 'staged', admission=admitted, native_alma=native)
         candidate = yaml.safe_load((root / 'staged/recipe/package.yaml').read_text())
+        if native:
+            minimum = rust_requirement(payloads)
+            build_deps = candidate['dependencies']['build']
+            build_deps['capabilities'] = [name for name in build_deps.get('capabilities', []) if name != 'rust']
+            build_deps['common'] = [*build_deps.get('common', []), 'rust >= '+minimum, 'cargo >= '+minimum]
+            result['minimum_rust_version'] = minimum
+            recipe_digest = digest(yaml.safe_dump(candidate, sort_keys=False).encode())
+            for cell in result['cells']:
+                cell['recipe_sha256'] = recipe_digest
+                cell['build_requires'] = tideforge.target_dependencies(candidate, cell['target'])
         context = {candidate['sources'][0]['sha256']: member}
         rendered = {}
         for target in candidate['targets']:
@@ -116,6 +143,8 @@ def assemble(recipe, factory, cells, archive_zip, output, admission):
         (output / 'recipe/package.yaml').write_text(yaml.safe_dump(candidate, sort_keys=False))
         for cell in result['cells']:
             key = f"{cell['consumer']}-{cell['target']}-{cell['arch']}"
+            if selected_cell is not None and (cell['target'], cell['arch']) != selected_cell:
+                continue
             directory = output / key / 'rpmbuild'
             (directory / 'SPECS').mkdir(parents=True)
             (directory / 'SOURCES').mkdir()

@@ -20,7 +20,12 @@ sys.path.insert(0,str(root/'scripts'))
 spec=importlib.util.spec_from_file_location('alma_selection',root/'scripts/alma-recipe-chain.py')
 chain=importlib.util.module_from_spec(spec);spec.loader.exec_module(chain)
 roots=chain.select_roots(root,sys.argv[1],sys.argv[3])
-key=chain.selection_action_key(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],roots)
+if sys.argv[3]=='tuna':
+    import os,tuna_native_inputs
+    native=tuna_native_inputs.from_file(os.environ['TUNA_NATIVE_INPUTS'],root,sys.argv[1],sys.argv[2])
+    key=chain.native_action_key(sys.argv[1],sys.argv[2],sys.argv[4],native)
+else:
+    key=chain.selection_action_key(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],roots)
 pathlib.Path(sys.argv[5]).write_text(json.dumps({'requestedRoots':roots,'actionKey':key},sort_keys=True)+'\n')
 PY_SELECTION
 key=$(python3 - "$out/selection.json" <<'PY_KEY'
@@ -36,6 +41,7 @@ PY_ROOTS
 ((${#names[@]} > 0))
 args=()
 if [[ $SCOPE == gtk4-provider ]]; then args+=(--candidate-scope gtk4-provider); fi
+if [[ $SCOPE == tuna ]]; then args+=(--candidate-scope tuna --tuna-inputs "${TUNA_NATIVE_INPUTS:?}"); fi
 for name in "${names[@]}"; do args+=(--package "$name"); done
 python3 scripts/alma-recipe-chain.py --target "$TARGET" --architecture "$ARCHITECTURE" \
   --source-revision "$GITHUB_SHA" --action-key "$key" "${args[@]}" --output "$out/plan.json"
@@ -64,20 +70,44 @@ python3 scripts/candidate-rpm-repository.py init --state "$state" --repo "$repo"
 cp "$state/keys/candidate-public.gpg" "$meta/candidate-public.gpg"
 cp "$state/identity.json" "$meta/candidate-identity.json"
 python3 scripts/candidate-rpm-repository.py index --state "$state" --repo "$repo"
+
 python3 scripts/alma-candidate-resume.py restore --meta "$meta" --destination "$out/candidate-resume"
 if [[ -s "$out/candidate-resume/snapshot.json" ]]; then
   python3 scripts/alma-candidate-resume.py admit --meta "$meta" --repo "$repo" \
     --state "$state" --destination "$out/candidate-resume"
 fi
+if [[ $SCOPE == tuna ]]; then
+  python3 - "$TUNA_NATIVE_INPUTS" "$TARGET" "$ARCHITECTURE" "$repo" "$state" <<'PY_TUNA_PROVIDER'
+import pathlib,sys
+sys.path.insert(0,'scripts')
+import tuna_native_inputs
+inputs=tuna_native_inputs.from_file(sys.argv[1],pathlib.Path.cwd(),sys.argv[2],sys.argv[3])
+inputs.admit_into(pathlib.Path.cwd(),sys.argv[4],sys.argv[5])
+PY_TUNA_PROVIDER
+fi
 status=0
-python3 scripts/run-alma-recipe-chain.py --plan "$out/plan.json" --repo "$repo" \
+native_args=()
+if [[ $SCOPE == tuna ]]; then native_args+=(--tuna-inputs "$TUNA_NATIVE_INPUTS"); fi
+python3 scripts/run-alma-recipe-chain.py "${native_args[@]}" --plan "$out/plan.json" --repo "$repo" \
   --state "$state" --meta "$meta" --work "$out/work" --output "$out/result.json" \
   --engine docker || status=$?
 # Bank only genuinely completed signed packages, including a failed later wave.
 if [[ -s "$meta/completed-packages.json" ]] && jq -e 'length > 0' "$meta/completed-packages.json" >/dev/null; then
   complete=()
   if [[ "$status" == 0 ]] && jq -e '.chainComplete == true' "$out/result.json" >/dev/null; then complete=(--chain-complete); fi
-  python3 scripts/alma-candidate-resume.py create --meta "$meta" --repo "$repo" \
+  bank_repo="$repo"
+  if [[ $SCOPE == tuna ]]; then
+    bank_repo="$out/native-bank"
+    python3 - "$TUNA_NATIVE_INPUTS" "$out/plan.json" "$repo" "$state" "$meta" "$out/work" "$bank_repo" <<'PY_TUNA_BANK'
+import pathlib,sys,json
+sys.path.insert(0,'scripts')
+import tuna_native_inputs
+root=pathlib.Path.cwd();document=json.loads(pathlib.Path(sys.argv[2]).read_text())
+inputs=tuna_native_inputs.from_file(sys.argv[1],root,document['target'],document['architecture'])
+inputs.bank_native(root,document,*sys.argv[3:])
+PY_TUNA_BANK
+  fi
+  python3 scripts/alma-candidate-resume.py create --meta "$meta" --repo "$bank_repo" \
     --destination "$out/native-snapshot" "${complete[@]}"
   if [[ -n ${GITHUB_OUTPUT:-} ]]; then echo 'created=true' >> "$GITHUB_OUTPUT"; fi
 fi

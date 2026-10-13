@@ -17,7 +17,8 @@ SHA = 'a'*40
 @pytest.fixture
 def selection_checkout(tmp_path):
     (tmp_path/'scripts').mkdir()
-    for name in ['alma-recipe-chain.py', 'target_platform.py', 'gtk4_candidate.py']:
+    for name in ['alma-recipe-chain.py', 'target_platform.py', 'gtk4_candidate.py', 'tuna_native_inputs.py',
+                 'tuna_candidate_inputs.py', 'github_api.py', 'tideforge.py']:
         shutil.copy2(ROOT/'scripts'/name, tmp_path/'scripts'/name)
     for name, targets in [('cosmic-icon-theme', ['alma10']), ('tuna-desktop', ['alma10', 'alma10-kitten']),
                           ('foreign', ['arch'])]:
@@ -39,7 +40,7 @@ def select(checkout, scope, target='alma10', arch='x86_64'):
 
 @pytest.mark.parametrize(('scope','roots'), [('canary',['cosmic-icon-theme']),
                                            ('full',['cosmic-icon-theme','tuna-desktop']),
-                                           ('tuna',['tuna-desktop'])])
+])
 def test_production_wrapper_selection_keeps_bounded_roots(selection_checkout, scope, roots):
     result,path=select(selection_checkout,scope)
     assert result.returncode == 0,result.stderr
@@ -97,3 +98,9 @@ def test_workflow_dispatch_remains_native_candidate_only():
     assert wrapper.index('alma-recipe-chain.py --target') < wrapper.index('candidate-rpm-repository.py init')
     assert "'signer_workflow':'.github/workflows/alma-recipe-chain-ci.yml'" in wrapper
     assert '/selection.json' in text
+
+
+def test_tuna_wrapper_requires_independent_inputs_before_selection_receipt(selection_checkout):
+    result, path = select(selection_checkout, 'tuna')
+    assert result.returncode != 0
+    assert not path.exists()
