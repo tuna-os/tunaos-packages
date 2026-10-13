@@ -276,7 +276,7 @@
              .session
              .initiate(
                  &self.pam_service,
-@@ -206,57 +385,69 @@
+@@ -206,57 +385,71 @@
                  &self.listener_path,
              )
              .await?;
@@ -307,11 +307,13 @@
 +            .as_ref()
 +            .map(|session| session.owner);
 +        if let Some(id) = owner {
-+            self.cancel_owned(&Connection::new(id)?).await?;
++            let owner = Connection::new(id)?;
++            self.cancel_owned(&owner).await?;
 +        }
 +        let owners: Vec<u64> = self.retiring.borrow().keys().copied().collect();
 +        for id in owners {
-+            self.cancel_owned(&Connection::new(id)?).await?;
++            let owner = Connection::new(id)?;
++            self.cancel_owned(&owner).await?;
          }
          Ok(())
      }
