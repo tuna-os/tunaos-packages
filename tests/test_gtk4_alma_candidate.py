@@ -212,3 +212,52 @@ def test_native_verifier_rejects_bad_banked_provider_before_container(actual_tes
     calls=[];monkeypatch.setattr(adapter,'run',lambda *args,**kwargs:calls.append(args))
     with pytest.raises(ValueError):item.verify(record,repo)
     assert calls==[]
+
+
+
+def test_host_prepares_evidence_owner_before_native_retention(actual_tests,tmp_path,monkeypatch):
+    import os
+    import shutil
+    record,document=record_and_document()
+    work=tmp_path/'native-work';repo=tmp_path/'candidate-repo';repo.mkdir()
+    def run(command,**kwargs):
+        if command[0] not in {'docker','podman'}:
+            return
+        evidence=work/'evidence'
+        if not evidence.exists():
+            # Reproduce root-owned 0755 container output's unwritable host
+            # parent without privileged chown/container execution.
+            evidence.mkdir();(evidence/'build.log').write_text('native log fixture');evidence.chmod(0o555)
+        else:
+            assert evidence.stat().st_uid==os.getuid() and os.access(evidence,os.W_OK)
+            (evidence/'build.log').write_text('native log fixture')
+        shutil.copytree(actual_tests,work/'rpmbuild/provider-test-evidence/gtk4-layer-shell',
+                        ignore=shutil.ignore_patterns('native-work','candidate-repo'))
+        (work/'rpmbuild/RPMS/gtk4.rpm').write_bytes(b'actual unsigned fixture')
+    monkeypatch.setattr(adapter,'run',run)
+    item=adapter.Adapter(document,ROOT,tmp_path)
+    item.prepare(record,work,repo)
+    try:
+        _,outputs=item.build(record,work,repo)
+        assert outputs and (work/'evidence/gtk4-provider-admission.json').is_file()
+        assert (repo/'buildroots/gtk4-layer-shell/gtk4-provider-admission.json').is_file()
+    finally:
+        if (work/'evidence').exists():(work/'evidence').chmod(0o700)
+
+
+@pytest.mark.parametrize('entry',['directory','file','symlink'])
+def test_evidence_parent_is_fresh_and_cannot_follow_preexisting_entry(tmp_path,monkeypatch,entry):
+    record,document=record_and_document();work=tmp_path/'work';calls=[]
+    original=Path.mkdir
+    target=tmp_path/'foreign';target.mkdir()
+    def mkdir(path,*args,**kwargs):
+        original(path,*args,**kwargs)
+        if path==work:
+            evidence=work/'evidence'
+            if entry=='directory':original(evidence)
+            elif entry=='file':evidence.write_text('stale')
+            else:evidence.symlink_to(target,target_is_directory=True)
+    monkeypatch.setattr(Path,'mkdir',mkdir)
+    monkeypatch.setattr(adapter,'run',lambda *args,**kwargs:calls.append(args))
+    with pytest.raises(FileExistsError):adapter.Adapter(document,ROOT,tmp_path).prepare(record,work,tmp_path/'repo')
+    assert calls==[] and list(target.iterdir())==[]

@@ -162,6 +162,9 @@ class Adapter:
                 raise TimeoutError('native chain job reserve reached')
             signal.setitimer(signal.ITIMER_REAL, remaining)
         work = Path(work); work.mkdir(parents=True, exist_ok=False)
+        # The container runs as root. Retention adds authenticated receipts
+        # here on the host before EXIT cleanup, so the host must own the parent.
+        (work / 'evidence').mkdir(mode=0o755)
         build = work / 'rpmbuild'
         for name in ('BUILD', 'BUILDROOT', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS'):
             (build / name).mkdir(parents=True, exist_ok=True)
