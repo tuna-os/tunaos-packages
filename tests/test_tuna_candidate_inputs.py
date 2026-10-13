@@ -21,8 +21,8 @@ import test_tuna_desktop_el10_staging as legacy
 @pytest.fixture
 def admitted_fixture(tmp_path, monkeypatch):
     rp, fp, ip, sp, vp, out = legacy.fixture(tmp_path)
-    # Transport fixture uses policy-compatible commands. The retained real
-    # Arch recipe's CFLAGS command remains an explicit refusal below.
+    # Transport-only fixtures omit the native adapter requirement. Separate
+    # tests restore actual recipe commands and check native flag requirements.
     recipe = yaml.safe_load(rp.read_text())
     recipe['build']['commands'] = [line for line in recipe['build']['commands'] if not line.startswith('export CFLAGS=')]
     rp.write_text(yaml.safe_dump(recipe))
@@ -107,10 +107,10 @@ def test_generic_fetch_refuses_candidate_before_any_network(admitted_fixture, tm
         assert result.returncode != 0 and 'generic' in result.stderr
 
 
-def test_retained_arch_compiler_reset_remains_refused(admitted_fixture):
+def test_nonexact_arch_compiler_reset_remains_refused(admitted_fixture):
     rp, fp, cells, archive, output, receipt = admitted_fixture
     recipe = yaml.safe_load(rp.read_text())
-    recipe['build']['commands'].insert(0, 'export CFLAGS="${CFLAGS:-} -ffat-lto-objects"')
+    recipe['build']['commands'].insert(0, 'export CFLAGS="${CFLAGS:-} -ffat-lto-objects -O2"')
     rp.write_text(yaml.safe_dump(recipe))
     with pytest.raises(SystemExit):
         candidate.assemble(rp, fp, cells, archive, output, receipt)
@@ -194,3 +194,81 @@ def test_dirty_admission_helper_refused_before_invocation(tmp_path, monkeypatch)
     with pytest.raises(ValueError):
         candidate.independently_admit(tmp_path, 'c'*40, 10, 20, 30)
     assert not calls
+
+
+@pytest.mark.parametrize('architecture', ['x86_64', 'aarch64'])
+def test_actual_recipe_workaround_normalized_all_cells_and_checked_without_flag_reset(admitted_fixture, architecture):
+    import os
+    rp, fp, cells, archive, output, receipt = admitted_fixture
+    actual = yaml.safe_load((ROOT/'packages/tuna-desktop/package.yaml').read_text())
+    fixture_recipe = yaml.safe_load(rp.read_text())
+    fixture_recipe['build']['commands'] = actual['build']['commands']
+    rp.write_text(yaml.safe_dump(fixture_recipe))
+    result = candidate.assemble(rp, fp, cells, archive, output, receipt)
+    recipe = yaml.safe_load((output/'recipe/package.yaml').read_text())
+    assert recipe['build']['require_fat_lto_objects'] is True
+    assert len(result['cells']) == 6
+    assert actual['build']['commands'][0] not in recipe['build']['commands']
+    for cell in result['cells']:
+        if cell['arch'] != architecture:
+            continue
+        spec = next((output/f"{cell['consumer']}-{cell['target']}-{cell['arch']}"/'rpmbuild/SPECS').glob('*.spec')).read_text()
+        build = spec.split('\n%build\n',1)[1].split('\n%install\n',1)[0]
+        check = tideforge.fat_lto_requirement(recipe, cell['target'])
+        assert build.index('%set_build_flags') < build.index(check) < build.index('cargo build')
+        if cell['target'] != 'el10':
+            assert build.index('tunaos_alma_compiler_policy %{_target_cpu}') < build.index(check)
+        baseline = '-march=x86-64-v2' if architecture == 'x86_64' else '-march=armv8-a -mbranch-protection=standard'
+        flags = '-O2 -flto=auto -ffat-lto-objects -fstack-protector-strong ' + baseline
+        environment = {'PATH': os.environ['PATH'], 'CFLAGS': flags}
+        assert subprocess.run(['bash', '-c', check], env=environment).returncode == 0
+        assert environment['CFLAGS'] == flags
+
+
+@pytest.mark.parametrize('flags', ['', '-O2 -flto=thin', '-ffat-lto-objects -fno-fat-lto-objects',
+                                  '-fno-fat-lto-objects -ffat-lto-objects', '-ffat-lto-objects-extra', "'unterminated"])
+def test_native_fat_lto_requirement_rejects_absent_disabled_or_malformed(flags):
+    import os
+    check = tideforge.fat_lto_requirement({'build': {'require_fat_lto_objects': True}}, 'el10')
+    result = subprocess.run(['bash','-c',check], env={'PATH':os.environ['PATH'], 'CFLAGS':flags}, capture_output=True)
+    assert result.returncode != 0
+
+
+@pytest.mark.parametrize('value', ['true', 1, None, [], {}])
+def test_fat_lto_requirement_strict_boolean(value):
+    with pytest.raises(SystemExit):
+        tideforge.fat_lto_requirement({'build': {'require_fat_lto_objects': value}}, 'alma10')
+
+
+def test_fat_lto_requirement_unsupported_adapter_refused():
+    with pytest.raises(SystemExit):
+        tideforge.fat_lto_requirement({'build': {'require_fat_lto_objects': True}}, 'archlinux')
+
+
+@pytest.mark.parametrize('architecture,baseline', [('x86_64','x86-64-v2'), ('aarch64','armv8-a')])
+def test_fat_lto_requirement_preserves_actual_policy_effective_flags_receipt(tmp_path, architecture, baseline):
+    import os
+    flags = '-O2 -flto=auto -ffat-lto-objects -fstack-protector-strong -D_FORTIFY_SOURCE=3'
+    if architecture == 'aarch64':
+        flags += ' -mbranch-protection=standard'
+    check = tideforge.fat_lto_requirement({'build': {'require_fat_lto_objects': True}}, 'alma10')
+    script = 'set -euo pipefail; source "$1"; tunaos_alma_compiler_policy "$2"\n' + check
+    environment = {'PATH':os.environ['PATH'], 'CFLAGS':flags,
+                   'TUNAOS_COMPILER_EVIDENCE_DIR':str(tmp_path)}
+    result = subprocess.run(['bash','-c',script,'policy',str(ROOT/'scripts/alma-compiler-policy.sh'),architecture],
+                            env=environment,capture_output=True,text=True)
+    assert result.returncode == 0, result.stderr
+    evidence = json.loads((tmp_path/'effective-flags.json').read_text())
+    assert evidence['flags']['CFLAGS'] == flags + ' -march=' + baseline
+    assert evidence['cpuBaseline'] == baseline and evidence['readiness'] is False
+
+
+def test_duplicate_exact_workaround_is_not_silently_normalized(admitted_fixture):
+    rp, fp, cells, archive, output, receipt = admitted_fixture
+    recipe = yaml.safe_load(rp.read_text())
+    exact = 'export CFLAGS="${CFLAGS:-} -ffat-lto-objects"'
+    recipe['build']['commands'] = [exact, exact, *recipe['build']['commands']]
+    rp.write_text(yaml.safe_dump(recipe))
+    with pytest.raises(ValueError):
+        candidate.assemble(rp, fp, cells, archive, output, receipt)
+    assert not output.exists()
