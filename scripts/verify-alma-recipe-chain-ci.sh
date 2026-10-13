@@ -7,35 +7,35 @@ export CHAIN_STARTED_MONOTONIC
 : "${TARGET:?}" "${ARCHITECTURE:?}" "${SCOPE:?}" "${RUNNER_TEMP:?}" "${GITHUB_SHA:?}"
 case "$TARGET" in alma10|alma10-kitten) ;; *) exit 2 ;; esac
 case "$ARCHITECTURE" in x86_64|aarch64) ;; *) exit 2 ;; esac
-case "$SCOPE" in canary|full) ;; *) exit 2 ;; esac
+case "$SCOPE" in canary|full|tuna) ;; *) exit 2 ;; esac
 cell="tideforge-chain-${TARGET}-${ARCHITECTURE}"
 out="$PWD/.factory/$cell"
 meta="$out/candidate-meta"
 repo="$out/candidate"
 mkdir -p "$out"
-key=$(python3 - "$TARGET" "$ARCHITECTURE" "$SCOPE" "$GITHUB_SHA" <<'PY'
-import hashlib,json,sys
-print('sha256:'+hashlib.sha256(json.dumps({'engine':'alma-recipe-chain-v1','target':sys.argv[1],
- 'architecture':sys.argv[2],'scope':sys.argv[3],'sourceRevision':sys.argv[4]},sort_keys=True).encode()).hexdigest())
-PY
+python3 - "$TARGET" "$ARCHITECTURE" "$SCOPE" "$GITHUB_SHA" "$out/selection.json" <<'PY_SELECTION'
+import importlib.util,json,pathlib,sys
+root=pathlib.Path.cwd()
+sys.path.insert(0,str(root/'scripts'))
+spec=importlib.util.spec_from_file_location('alma_selection',root/'scripts/alma-recipe-chain.py')
+chain=importlib.util.module_from_spec(spec);spec.loader.exec_module(chain)
+roots=chain.select_roots(root,sys.argv[1],sys.argv[3])
+key=chain.selection_action_key(sys.argv[1],sys.argv[2],sys.argv[3],sys.argv[4],roots)
+pathlib.Path(sys.argv[5]).write_text(json.dumps({'requestedRoots':roots,'actionKey':key},sort_keys=True)+'\n')
+PY_SELECTION
+key=$(python3 - "$out/selection.json" <<'PY_KEY'
+import json,sys
+print(json.load(open(sys.argv[1]))['actionKey'])
+PY_KEY
 )
+mapfile -t names < <(python3 - "$out/selection.json" <<'PY_ROOTS'
+import json,sys
+print('\n'.join(json.load(open(sys.argv[1]))['requestedRoots']))
+PY_ROOTS
+)
+((${#names[@]} > 0))
 args=()
-if [[ "$SCOPE" == canary ]]; then
-  args=(--package cosmic-icon-theme)
-else
-  mapfile -t names < <(python3 - "$TARGET" <<'PY'
-from pathlib import Path
-import sys,yaml
-names=[]
-for p in sorted(Path('packages').glob('*/package.yaml')):
- r=yaml.safe_load(p.read_text())
- if sys.argv[1] in r.get('targets',[]):names.append(r['name'])
-print('\n'.join(sorted(names)))
-PY
-)
-  ((${#names[@]} > 0))
-  for name in "${names[@]}"; do args+=(--package "$name"); done
-fi
+for name in "${names[@]}"; do args+=(--package "$name"); done
 python3 scripts/alma-recipe-chain.py --target "$TARGET" --architecture "$ARCHITECTURE" \
   --source-revision "$GITHUB_SHA" --action-key "$key" "${args[@]}" --output "$out/plan.json"
 python3 - "$out/plan.json" "$out/cell.json" <<'PY'

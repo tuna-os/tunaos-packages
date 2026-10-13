@@ -185,3 +185,129 @@ def test_prephase_elapsed_rejects_invalid_clocks(source, tmp_path, elapsed):
         chain.execute(planned(source, ['app']), root=source, repo=tmp_path / 'repo',
             state=tmp_path / 'state', meta=tmp_path / 'meta', work=tmp_path / 'work',
             builder=None, verifier=None, elapsed_seconds=elapsed)
+
+
+def layer_shell_provider(source, name='gtk4-layer-shell', targets=None):
+    # The concrete RPM output shape from PR840 @4f9cff8c (v1.3.0):
+    # runtime .so/typelibs and a devel subpackage with a concrete .pc path.
+    path = recipe(source, name)
+    value = yaml.safe_load(path.read_text())
+    if targets is not None:
+        value['targets'] = targets
+    value['outputs'] = {'rpm': {
+        'files': ['usr/lib64/libgtk4-layer-shell.so.*'],
+        'subpackages': [{'name': 'devel', 'files': [
+            'usr/include/gtk4-layer-shell/gtk4-layer-shell.h',
+            'usr/lib64/pkgconfig/gtk4-layer-shell-0.pc']}],
+    }}
+    path.write_text(yaml.safe_dump(value))
+    return path
+
+
+@pytest.mark.parametrize('requirement', ['gtk4-layer-shell-devel >= 1.1',
+                                       'pkgconfig(gtk4-layer-shell-0) >= 1.1'])
+def test_real_layer_shell_outputs_order_provider_without_guessing_version(source, requirement):
+    layer_shell_provider(source)
+    recipe(source, 'tuna-desktop', build=[requirement])
+    value = planned(source, ['tuna-desktop'])
+    assert value['waves'] == [['gtk4-layer-shell'], ['tuna-desktop']]
+    assert value['dependencies']['tuna-desktop'] == ['gtk4-layer-shell']
+    record = next(r for r in value['recipes'] if r['name'] == 'tuna-desktop')
+    assert record['requirements']['build'] == [requirement]
+    assert value['readiness'] is False and value['status'] == 'blocked'
+    # Planning must not inject fake base-package Provides into authored metadata.
+    authored = yaml.safe_load((source/'packages/gtk4-layer-shell/package.yaml').read_text())
+    assert authored['provides'] == []
+
+
+@pytest.mark.parametrize('requirement', ['gtk4-layer-shell-devel',
+                                       'pkgconfig(gtk4-layer-shell-0) >= 1.1'])
+def test_output_provider_missing_from_target_is_refused(source, requirement):
+    layer_shell_provider(source, targets=['el10'])
+    recipe(source, 'tuna-desktop', build=[requirement])
+    with pytest.raises(ValueError, match='provider unavailable'):
+        planned(source, ['tuna-desktop'])
+
+
+@pytest.mark.parametrize('requirement', ['pkgconfig(gtk4-layer-shell-0) >= 1.1', 'same-devel'])
+def test_output_provider_ambiguity_is_refused(source, requirement):
+    layer_shell_provider(source, 'one')
+    path = layer_shell_provider(source, 'two')
+    if requirement == 'same-devel':
+        for name in ['one', 'two']:
+            p=source/'packages'/name/'package.yaml'
+            v=yaml.safe_load(p.read_text()); v['provides']=['same-devel']; p.write_text(yaml.safe_dump(v))
+    recipe(source, 'tuna-desktop', build=[requirement])
+    with pytest.raises(ValueError, match='ambiguous'):
+        planned(source, ['tuna-desktop'])
+
+
+@pytest.mark.parametrize('output', ['usr/lib64/pkgconfig/*.pc',
+                                   'usr/lib64/pkgconfig/../gtk4-layer-shell-0.pc',
+                                   'usr/lib64/other/gtk4-layer-shell-0.pc',
+                                   '/usr/lib64/pkgconfig/gtk4-layer-shell-0.pc',
+                                   '%{_libdir}/pkgconfig/gtk4-layer-shell-0.pc'])
+def test_nonconcrete_pc_paths_do_not_invent_providers(source, output):
+    path=layer_shell_provider(source)
+    value=yaml.safe_load(path.read_text())
+    value['outputs']['rpm']['subpackages'][0]['files']=[output]
+    assert 'pkgconfig(gtk4-layer-shell-0)' not in chain.declared_providers(value)
+
+
+def test_canary_full_and_fixed_tuna_selection(source):
+    recipe(source, 'one')
+    recipe(source, 'two')
+    assert chain.select_roots(source, 'alma10', 'canary') == ['cosmic-icon-theme']
+    assert chain.select_roots(source, 'alma10', 'full') == ['one', 'two']
+    assert chain.select_roots(source, 'alma10', 'tuna') == ['tuna-desktop']
+    with pytest.raises(ValueError, match='scope'):
+        chain.select_roots(source, 'alma10', 'arbitrary')
+    with pytest.raises(ValueError, match='identity'):
+        chain.select_roots(source, 'el10', 'tuna')
+    with pytest.raises(ValueError, match='missing'):
+        planned(source, chain.select_roots(source, 'alma10', 'tuna'))
+
+
+def test_current_arch_only_tuna_recipe_fails_closed():
+    value = yaml.safe_load((ROOT/'packages/tuna-desktop/package.yaml').read_text())
+    assert value['targets'] == ['arch']
+    for target in ['alma10', 'alma10-kitten']:
+        roots = chain.select_roots(ROOT, target, 'tuna')
+        key = chain.selection_action_key(target, 'x86_64', 'tuna', SHA, roots)
+        with pytest.raises(ValueError, match='recipe missing for target'):
+            chain.plan(ROOT, target, 'x86_64', SHA, key, roots)
+
+
+def test_selection_identity_changes_with_roots_source_and_architecture():
+    key = chain.selection_action_key('alma10', 'x86_64', 'full', SHA, ['one'])
+    assert key != chain.selection_action_key('alma10', 'x86_64', 'full', SHA, ['two'])
+    assert key != chain.selection_action_key('alma10', 'aarch64', 'full', SHA, ['one'])
+    assert key != chain.selection_action_key('alma10', 'x86_64', 'full', 'e'*40, ['one'])
+    assert chain.selection_action_key('alma10', 'x86_64', 'full', SHA, ['two','one']) == chain.selection_action_key('alma10', 'x86_64', 'full', SHA, ['one','two'])
+
+
+def test_output_aware_pkgconfig_cycle_is_refused(source):
+    for name, dependency in [('one', 'two'), ('two', 'one')]:
+        path = layer_shell_provider(source, name)
+        value = yaml.safe_load(path.read_text())
+        value['outputs']['rpm']['subpackages'][0]['files'] = [f'usr/lib64/pkgconfig/{name}.pc']
+        value['dependencies']['build']['common'] = [f'pkgconfig({dependency}) >= 1.0']
+        path.write_text(yaml.safe_dump(value))
+    recipe(source, 'tuna-desktop', build=['pkgconfig(one) >= 1.0'])
+    with pytest.raises(ValueError, match='provider cycle'):
+        planned(source, ['tuna-desktop'])
+
+
+@pytest.mark.parametrize('outputs', [[], {'rpm': []}, {'rpm': {'files': 'usr/lib64/pkgconfig/fake.pc'}},
+                                     {'rpm': {'subpackages': 'devel'}},
+                                     {'rpm': {'subpackages': ['devel']}},
+                                     {'rpm': {'subpackages': [{'name':'devel', 'files':'fake.pc'}]}},
+                                     {'rpm': {'files': [42]}}])
+def test_malformed_rpm_output_shapes_fail_closed(outputs):
+    with pytest.raises(ValueError, match='RPM'):
+        chain.declared_providers({'name':'test', 'outputs':outputs})
+
+
+def test_string_provides_cannot_invent_character_providers():
+    with pytest.raises(ValueError, match='provider declarations'):
+        chain.declared_providers({'name':'test', 'provides':'fake'})

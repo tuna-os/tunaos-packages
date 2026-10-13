@@ -26,7 +26,8 @@ from target_platform import build_context
 
 DIGEST = re.compile(r'sha256:[0-9a-f]{64}\Z')
 SHA = re.compile(r'[0-9a-f]{40}\Z')
-NAME = re.compile(r'([A-Za-z0-9][A-Za-z0-9+_.-]*)(?:\s*(?:>=|<=|=|>|<)\s*\S+)?\Z')
+PACKAGE = re.compile(r'[A-Za-z0-9][A-Za-z0-9+_.-]*\Z')
+NAME = re.compile(r'([A-Za-z0-9][A-Za-z0-9+_.-]*|pkgconfig\([A-Za-z0-9][A-Za-z0-9+_.-]*\))(?:\s*(?:>=|<=|=|>|<)\s*\S+)?\Z')
 
 
 def digest(value):
@@ -61,6 +62,93 @@ def expressions(recipe, phase, target, factory):
     return sorted(set(result))
 
 
+
+def declared_providers(recipe):
+    """Ordering identities, not generated RPM Provides or version qualification.
+
+    Subpackage names follow the existing RPM renderer's name-suffix contract.
+    Only explicit concrete pkgconfig/*.pc output files supply virtual identities;
+    the native signed DNF transaction still checks the actual artifact/comparator.
+    """
+    name = recipe['name']
+    identities = {name}
+    provided_items = recipe.get('provides') or []
+    if not isinstance(provided_items, list):
+        raise ValueError('malformed provider declarations')
+    for provided in provided_items:
+        match = NAME.fullmatch(provided) if isinstance(provided, str) else None
+        if not match:
+            raise ValueError('unsupported provider expression')
+        identities.add(match[1])
+    outputs = recipe.get('outputs', {})
+    common = recipe.get('files', {})
+    if not isinstance(outputs, dict) or not isinstance(common, dict):
+        raise ValueError('malformed RPM outputs')
+    rpm = outputs.get('rpm', {})
+    if not isinstance(rpm, dict):
+        raise ValueError('malformed RPM outputs')
+    files = rpm.get('files', common.get('common', []))
+    subpackages = rpm.get('subpackages', [])
+    if not isinstance(files, list) or not isinstance(subpackages, list):
+        raise ValueError('malformed RPM outputs')
+    files = list(files)
+    seen = set()
+    for subpackage in subpackages:
+        if not isinstance(subpackage, dict) or not isinstance(subpackage.get('files', []), list):
+            raise ValueError('malformed RPM subpackage output')
+        suffix = subpackage.get('name')
+        if not isinstance(suffix, str) or not PACKAGE.fullmatch(suffix) or suffix in seen:
+            raise ValueError('invalid or duplicate RPM subpackage identity')
+        seen.add(suffix)
+        identities.add(name + '-' + suffix)
+        files.extend(subpackage.get('files', []))
+    for output in files:
+        if not isinstance(output, str):
+            raise ValueError('malformed RPM output')
+        parts = output.split('/')
+        if (len(parts) >= 3 and parts[-2] == 'pkgconfig' and parts[-1].endswith('.pc')
+                and output.startswith('usr/') and all(part not in {'', '.', '..'} for part in parts)
+                and not any(char in output for char in '*?[]{}%')):
+            module = parts[-1][:-3]
+            if PACKAGE.fullmatch(module):
+                identities.add('pkgconfig(' + module + ')')
+    return identities
+
+
+def select_roots(root, target, scope):
+    """Fixed bounded Tuna root alongside the unchanged canary/full choices."""
+    if target not in {'alma10', 'alma10-kitten'}:
+        raise ValueError('unsupported native Alma identity')
+    if scope == 'canary':
+        return ['cosmic-icon-theme']
+    if scope == 'tuna':
+        return ['tuna-desktop']
+    if scope != 'full':
+        raise ValueError('unsupported candidate scope')
+    names = []
+    for path in sorted((Path(root) / 'packages').glob('*/package.yaml')):
+        if path.is_symlink() or path.parent.is_symlink():
+            raise ValueError('recipe symlink forbidden')
+        recipe = yaml.safe_load(path.read_text())
+        if target in recipe.get('targets', []):
+            names.append(recipe['name'])
+    if (not names or len(set(names)) != len(names)
+            or any(not isinstance(name, str) or not PACKAGE.fullmatch(name) for name in names)):
+        raise ValueError('nonempty unique package queue required')
+    return sorted(names)
+
+
+def selection_action_key(target, architecture, scope, source_revision, roots):
+    if (target not in {'alma10', 'alma10-kitten'} or architecture not in {'x86_64', 'aarch64'}
+            or scope not in {'canary', 'full', 'tuna'} or not SHA.fullmatch(source_revision)
+            or not roots or len(set(roots)) != len(roots)
+            or any(not isinstance(name, str) or not PACKAGE.fullmatch(name) for name in roots)):
+        raise ValueError('invalid candidate selection identity')
+    return digest({'engine': 'alma-recipe-chain-v1', 'target': target,
+                   'architecture': architecture, 'scope': scope,
+                   'sourceRevision': source_revision, 'requestedRoots': sorted(roots)})
+
+
 def plan(root, target, architecture, source_revision, action_key, packages):
     root = Path(root)
     if target not in {'alma10', 'alma10-kitten'} or architecture not in {'x86_64', 'aarch64'}:
@@ -83,20 +171,16 @@ def plan(root, target, architecture, source_revision, action_key, packages):
         if (not isinstance(recipe, dict) or not isinstance(recipe.get('name'), str)
                 or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9+_.-]*', recipe['name'])):
             raise ValueError('unsafe recipe identity')
-        authored.add(recipe['name'])
+        identities = declared_providers(recipe)
+        authored.update(identities)
         if target not in recipe.get('targets', []):
             continue
         name = recipe['name']
         if name in recipes:
             raise ValueError('duplicate recipe name')
         recipes[name] = (recipe, path)
-        for provided in [name, *(recipe.get('provides') or [])]:
-            if not isinstance(provided, str):
-                raise ValueError('malformed provider expression')
-            match = NAME.fullmatch(provided)
-            if not match:
-                raise ValueError('unsupported provider expression')
-            providers.setdefault(match[1], set()).add(name)
+        for provided in identities:
+            providers.setdefault(provided, set()).add(name)
     if set(packages) - recipes.keys():
         raise ValueError('requested factory recipe missing for target')
     selected = set(packages)
