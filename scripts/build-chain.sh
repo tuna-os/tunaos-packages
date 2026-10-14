@@ -1752,4 +1752,4 @@ main() {
     log "All packages built successfully!"
 }
 
-main
+main "$@"
