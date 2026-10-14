@@ -56,7 +56,7 @@ BUILD_CHAIN="${REPO_ROOT}/scripts/build-chain.sh"
 }
 
 @test "build-chain.sh: _record_result is a no-op when BUILD_RESULTS_FILE is unset" {
-  # Truncated copy (drop the trailing `main "$@"` call) so sourcing it just
+  # Truncated copy (drop the trailing `main` call) so sourcing it just
   # defines functions/vars instead of running a build.
   local tmp_script="${REPO_ROOT}/scripts/.test-build-chain-$$.sh"
   head -n -1 "${BUILD_CHAIN}" > "${tmp_script}"
