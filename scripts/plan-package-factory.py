@@ -183,8 +183,19 @@ def select_cells(
     if not changed:
         return []
     formats = affected_formats(changed)
+    changed_packages = {match.group(1) for path in changed if (match := RECIPE_CHANGE.match(path))}
     if formats is None:
-        return canary_cells(cells) if canary_common else cells
+        if not canary_common:
+            return cells
+        # One canary per contract covers the shared code; a recipe changed in
+        # the same diff still builds every cell of its own.
+        canaries = canary_cells(cells)
+        picked = {cell["id"] for cell in canaries}
+        return canaries + [
+            cell
+            for cell in cells
+            if cell["engine"] == "tideforge" and cell["package"] in changed_packages and cell["id"] not in picked
+        ]
     if "manifests/package-factory.yaml" in changed:
         if changed_targets is None:
             return cells
@@ -214,7 +225,6 @@ def select_cells(
         if changed_graph_ids is None:
             return graph_cells
         return [cell for cell in graph_cells if cell["id"] in changed_graph_ids]
-    changed_packages = {match.group(1) for path in changed if (match := RECIPE_CHANGE.match(path))}
     selected = []
     # Cells pulled in ONLY because a renderer script moved -- build-chain.sh,
     # parse-build-order.py, import-fedora-distgit.py. Nothing about the

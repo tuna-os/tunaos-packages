@@ -159,6 +159,23 @@ def test_explicit_canary_wins_over_alphabetical_order(tmp_path):
     assert {cell["package"] for cell in tideforge} == {"demo"}
 
 
+def test_recipe_changed_with_shared_code_still_builds_its_cells(tmp_path):
+    # The canary for each contract covers the shared code; it does not cover
+    # a recipe that changed in the same diff and is not the canary.
+    root = repo(tmp_path)
+    other = root / "packages" / "aaa" / "package.yaml"
+    other.parent.mkdir()
+    other.write_text("name: aaa\ntargets: [el10, debian]\n")
+    selected = planner.select_cells(
+        planner.all_cells(root),
+        ["scripts/tideforge.py", "packages/aaa/package.yaml"],
+        canary_common=True,
+    )
+    tideforge = [(cell["package"], cell["target"]) for cell in selected if cell["engine"] == "tideforge"]
+    assert sorted(tideforge) == [("aaa", "debian"), ("aaa", "el10"), ("demo", "debian"), ("demo", "el10")]
+    assert len({cell["id"] for cell in selected}) == len(selected)
+
+
 def test_native_canary_scope_has_a_distinct_identity(tmp_path):
     root = repo(tmp_path)
     registry = root / "manifests" / "package-builds.yaml"
