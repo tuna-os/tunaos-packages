@@ -310,11 +310,13 @@ targets:
 # packages.  Native names remain available under dependencies.*.common/targets
 # for exceptional or genuinely target-specific requirements.
 dependency_catalog:
-  rust: {el10: [rust, cargo], eln: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], opensuse-tumbleweed: [rust, cargo], arch: [rust]}
+  # fedora maps only the capabilities a recipe targeting it consumes
+  # (tuna-desktop: rust, c-compiler, pkg-config); same names as eln.
+  rust: {el10: [rust, cargo], eln: [rust, cargo], fedora: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], opensuse-tumbleweed: [rust, cargo], arch: [rust]}
   go: {el10: [golang], eln: [golang], ubuntu: [golang-go], debian: [golang-go], opensuse-tumbleweed: [go], arch: [go]}
-  c-compiler: {el10: [gcc], eln: [gcc], ubuntu: [build-essential], debian: [build-essential], opensuse-tumbleweed: [gcc], arch: [base-devel]}
+  c-compiler: {el10: [gcc], eln: [gcc], fedora: [gcc], ubuntu: [build-essential], debian: [build-essential], opensuse-tumbleweed: [gcc], arch: [base-devel]}
   cpp-compiler: {el10: [gcc-c++], eln: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
-  pkg-config: {el10: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
+  pkg-config: {el10: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], fedora: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
   cmake: {el10: [cmake], eln: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
   ninja: {el10: [ninja-build], eln: [ninja-build], ubuntu: [ninja-build], debian: [ninja-build], opensuse-tumbleweed: [ninja], arch: [ninja]}
   # Wayland-desktop build capabilities (#169). Nothing COSMIC links against

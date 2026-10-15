@@ -69,6 +69,10 @@ build:
     # cargo renderer applies for niri. Upstream's PKGBUILD sets !lto instead,
     # which the recipe schema cannot express.
     - export CFLAGS="${CFLAGS:-} -ffat-lto-objects"
+    # The ELN builder is a bootc image: /root links to a missing
+    # /var/roothome, so cargo cannot create ~/.cargo. Keep its home in the
+    # build tree on every target.
+    - export CARGO_HOME="$PWD/.cargo-home"
     - cargo build --release --locked --offline -p tuna-compositor -p tuna-shell-host -p tuna-shell-gtk -p tuna-greeter
 dependencies:
   build:
@@ -78,6 +82,18 @@ dependencies:
       # build time is listed here, not only in depends (#118). clang is for
       # bindgen (pipewire/libspa, xkbcommon-adjacent sys crates).
       arch: [clang, dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+      # The same Arch list as pkg-config names, which resolve identically on
+      # Fedora 44, ELN and EL10 (mesa -> gbm + egl, seatd -> libseat,
+      # systemd-libs -> libsystemd + libudev, wayland -> client + server).
+      # clang-devel supplies libclang for bindgen. The floors: GTK 4.12,
+      # gtk4-layer-shell 1.1 (gtk4-session-lock-sys v1_1) and Rust 1.92, the
+      # rollout's build floor (no crate declares an MSRV, so cargo cannot
+      # enforce it). On el10, gtk4-layer-shell-devel
+      # and libseat-devel are factory products (packages/gtk4-layer-shell,
+      # packages/libseat) resolved from the target's published_index.
+      fedora: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
+      eln: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
+      el10: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
   runtime:
     targets:
       # Upstream packaging/arch/PKGBUILD depends=(). Optional integrations
@@ -85,6 +101,14 @@ dependencies:
       # optdepends upstream; the recipe schema has no optdepends, so the
       # Marlin image installs them itself.
       arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+      # The same depends in Fedora/EL package names. RPM derives the ELF
+      # library requirements itself; listing them keeps the version floors
+      # and the packages it cannot see: libpam is dlopen()ed by the lock
+      # screen (crates/compositor/src/pam.rs), libsecret is reached over
+      # D-Bus, and the dbus and pipewire daemons are services, not links.
+      fedora: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
+      eln: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
+      el10: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
 install:
   commands:
     - install -Dm0755 target/release/tuna-compositor {destdir}/usr/bin/tuna-compositor
@@ -160,4 +184,4 @@ verify:
     && test -f /etc/pam.d/tuna-lock
     && test -f /etc/pam.d/roost-lock
     && test -f /usr/lib/systemd/user/tuna-session.target
-targets: [arch]
+targets: [arch, fedora, eln, el10]

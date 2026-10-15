@@ -49,5 +49,15 @@ Use `--keep DIR` to keep the downloads and the vendor tar for inspection. Run
 the script again with the same tag to check an existing release: it rebuilds
 the asset and compares it with the published one.
 
-Commit the recipe change. Then let the factory build the `tideforge-tuna-desktop-arch-x86_64`
-cell. Its smoke runs every binary and checks `--version` against `want=`.
+Commit the recipe change. Then let the factory build the `tideforge-tuna-desktop-*`
+cells: `arch-x86_64`, and `fedora`, `eln` and `el10` on `x86_64` and `aarch64`.
+Each smoke runs every binary and checks `--version` against `want=`.
+
+## RPM targets
+
+The `fedora`, `eln` and `el10` lists use `pkgconfig()` names. These names are
+the same on the three targets. Fedora 44 and ELN supply all dependencies.
+On `el10`, the factory supplies `gtk4-layer-shell-devel` from
+`packages/gtk4-layer-shell`. The build gets it from the published index of the
+target, so `publish-tideforge-rpms.yml` must publish that package for `el10`
+before the `tuna-desktop` `el10` cells can build.
