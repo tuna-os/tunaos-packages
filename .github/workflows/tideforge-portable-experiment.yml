@@ -1,5 +1,9 @@
 name: Tideforge portable payload experiment
 
+# Pull requests run this only when they change the experiment itself. Package
+# manifest edits used to trigger it too, which put a ~100-job payload x carrier
+# matrix on every routine package bump; dispatch it by hand to measure a
+# specific package.
 on:
   pull_request:
     paths:
@@ -7,15 +11,6 @@ on:
       - scripts/tideforge-intermediate.py
       - scripts/tideforge.py
       - scripts/validate-built-arch-package.py
-      - packages/_template/package.yaml
-      - packages/wayland-protocols/package.yaml
-      - packages/oversteer-udev/package.yaml
-      - packages/danksearch/package.yaml
-      - packages/dgop/package.yaml
-      - packages/dms-cli/package.yaml
-      - packages/dms-greeter/package.yaml
-      - packages/dms/package.yaml
-      - packages/uupd/package.yaml
       - tests/test_tideforge_intermediate.py
   workflow_dispatch:
 
