@@ -185,6 +185,49 @@ def test_recipe_renders_arch_pkgbuild(recipe: dict) -> None:
     assert "pkgconf" in rendered
 
 
+def _load_script(name: str):
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_prerelease_version_renders_native_form_per_format(recipe: dict) -> None:
+    """One `~` prerelease version: RPM and Debian keep the tilde, pacman drops it."""
+    recipe["version"] = "1.0.0~beta.1"
+    recipe["build_system"] = "cargo"
+    recipe["targets"] = ["el10", "debian", "arch"]
+    tideforge.validate(recipe)
+    spec = tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "Version:        1.0.0~beta.1\n" in spec
+    changelog = tideforge.render(recipe, "debian")["debian/changelog"]
+    assert changelog.startswith("hello-tuna (1.0.0~beta.1-1) debian;")
+    assert "\npkgver=1.0.0beta.1\n" in tideforge.render(recipe, "arch")["PKGBUILD"]
+
+
+@pytest.mark.parametrize(
+    ("older", "newer"),
+    [("0.1.0", "1.0.0~beta.1"), ("1.0.0~beta.1", "1.0.0~beta.2"),
+     ("1.0.0~beta.2", "1.0.0~rc.1"), ("1.0.0~rc.1", "1.0.0")],
+)
+def test_prerelease_versions_sort_identically_in_every_format(older: str, newer: str) -> None:
+    """The upgrade path beta -> rc -> final holds under rpm, dpkg and alpm rules."""
+    rpm = _load_script("rpm_vercmp")
+    deb = _load_script("deb_version")
+    alpm = _load_script("pacman_db")
+    assert rpm.rpmvercmp(older, newer) == -1
+    assert deb.compare(older, newer) == -1
+    assert alpm.vercmp(tideforge.pacman_version(older), tideforge.pacman_version(newer)) == -1
+
+
+@pytest.mark.parametrize("version", ["1.0.0-beta.1", "1.0~1", "1.0_1", "v1.0.0", "1:1.0", "1.0~beta~rc"])
+def test_version_rejects_forms_some_format_cannot_carry(recipe: dict, version: str) -> None:
+    recipe["version"] = version
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
 def test_recipe_renders_pinned_auxiliary_source_closure(recipe: dict) -> None:
     recipe["sources"] = [{
         "url": "https://example.com/vendor-1.0.tar.gz",

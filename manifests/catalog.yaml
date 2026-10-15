@@ -10661,9 +10661,9 @@ packages:
       pkg.tar.zst:
         tideforge: packages/tuna-desktop
     upstream:
-      version: 0.1.0
-      source: https://github.com/tuna-os/tuna-desktop/archive/d4438581a24d2acd7fed21b949d78ed15fb25917.tar.gz
-      sha256: d7b6355f9ec0c421cee05edf6197ede6f27da054c1f59a940cca22c89671e5b9
+      version: 1.0.0~beta.1
+      source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.1.tar.gz
+      sha256: '0000000000000000000000000000000000000000000000000000000000000000'
     targets:
       - arch
     membership: runtime

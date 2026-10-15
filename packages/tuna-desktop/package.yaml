@@ -1,6 +1,10 @@
 schema: 1
 name: tuna-desktop
-version: "0.1.0"
+# The upstream release tag minus its v, with a prerelease's `-` written `~`
+# (tag v1.2.3-beta.4 -> 1.2.3~beta.4). RPM and Debian take this form as-is and
+# sort it before the final release; Tideforge renders pacman's pkgver without
+# the `~` (1.2.3beta.4), the value upstream's packaging/arch/PKGBUILD derives.
+version: "1.0.0~beta.1"
 release: 1
 summary: "Tuna Desktop: GNOME-style Wayland desktop session in Rust (nested developer preview)"
 description: >-
@@ -18,22 +22,27 @@ license: GPL-3.0-or-later
 # models only `provides`, so those two are not rendered yet (see the PR that
 # added this recipe for the proposed schema change).
 provides: [roost]
-# Pinned upstream commit (no release tag yet): the rename merge,
-# tuna-os/tuna-desktop#536. Bump source, the vendor asset below, and
-# `release` together.
+# Upstream release tag. Bump `version`, source, the vendor asset below,
+# TUNA_VERSION and the verify smoke's want= together, and reset `release`,
+# with scripts/prepare-tuna-desktop-release.py
+# (docs/packaging/tuna-desktop-release.md).
+# PLACEHOLDER: the tag does not exist yet. sha256 stays all zeros until the
+# script fills it from the published tag archive; nothing builds before that.
 source:
-  url: https://github.com/tuna-os/tuna-desktop/archive/d4438581a24d2acd7fed21b949d78ed15fb25917.tar.gz
-  sha256: d7b6355f9ec0c421cee05edf6197ede6f27da054c1f59a940cca22c89671e5b9
-  directory: tuna-desktop-d4438581a24d2acd7fed21b949d78ed15fb25917
+  url: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.1.tar.gz
+  sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  directory: tuna-desktop-1.0.0-beta.1
 # Vendored crates.io closure (`cargo vendor --locked --versioned-dirs` from the
-# exact commit above, deterministic tar, verified with `cargo metadata
+# exact tag above, deterministic tar, verified with `cargo metadata
 # --locked --offline`), shipped as an immutable release asset like xfwl4 so
 # the build never fetches crates. Cargo.lock has no git dependencies
 # (third-party/ crates are in-tree path dependencies), so the config needs
 # only the crates-io replacement.
+# PLACEHOLDER: the vendor release for this tag and its sha256 do not exist
+# until the script makes them from the tag.
 sources:
-  - url: https://github.com/tuna-os/tunaos-packages/releases/download/tuna-desktop-vendor-d443858/tuna-desktop-vendor.tar.gz
-    sha256: 27e130432fede3957ae334908b763d84a78359ee8730411866710f6f26c967dc
+  - url: https://github.com/tuna-os/tunaos-packages/releases/download/tuna-desktop-vendor-v1.0.0-beta.1/tuna-desktop-vendor.tar.gz
+    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
     filename: tuna-desktop-vendor.tar.gz
     destination: .
     strip_components: 0
@@ -43,10 +52,11 @@ sources:
 build_system: custom
 build:
   environment:
-    # Every binary reports this (minus the leading v) from --version; it must
-    # equal `version` above, exactly as upstream's PKGBUILD stamps v${pkgver}.
+    # Every binary reports this (minus the leading v) from --version: the
+    # upstream tag, exactly as upstream's PKGBUILD stamps v${_semver}. It is
+    # `version` above with `~` written as the tag's `-`.
     # Read at compile time; the old ROOST_VERSION is no longer consulted.
-    TUNA_VERSION: v0.1.0
+    TUNA_VERSION: v1.0.0-beta.1
   cargo_config: |
     [source.crates-io]
     replace-with = "vendored-sources"
@@ -132,18 +142,20 @@ files:
     - usr/share/doc/tuna-desktop/nested-session.md
 verify:
   # The real session contract, not just "a binary exists": every one of the
-  # six binaries runs and reports the package version, under both its name
+  # six binaries runs and reports the upstream tag minus its v (want=, kept
+  # equal to TUNA_VERSION), under both its name
   # and its roost-* compat link; the visible session entry launches the
   # session supervisor (not the compositor directly) as desktop Tuna; the
   # hidden compat entry launches the same supervisor; both lock-screen PAM
   # services and the session target are installed.
   smoke: >-
+    want=1.0.0-beta.1;
     for b in compositor session shell-host shell-gtk ibus-bridge greeter;
     do v="$(tuna-$b --version | awk '{print $NF}')";
-    if [ "$v" != 0.1.0 ]; then echo "tuna-$b --version reports '$v', expected 0.1.0" >&2; exit 1; fi;
+    if [ "$v" != "$want" ]; then echo "tuna-$b --version reports '$v', expected $want" >&2; exit 1; fi;
     if [ "$(readlink /usr/bin/roost-$b)" != "tuna-$b" ]; then echo "/usr/bin/roost-$b is not a link to tuna-$b" >&2; exit 1; fi;
     v="$(roost-$b --version | awk '{print $NF}')";
-    if [ "$v" != 0.1.0 ]; then echo "roost-$b --version reports '$v', expected 0.1.0" >&2; exit 1; fi;
+    if [ "$v" != "$want" ]; then echo "roost-$b --version reports '$v', expected $want" >&2; exit 1; fi;
     done
     && grep -qx 'Exec=tuna-session' /usr/share/wayland-sessions/tuna.desktop
     && grep -qx 'DesktopNames=Tuna;GNOME;' /usr/share/wayland-sessions/tuna.desktop
