@@ -26,11 +26,9 @@ provides: [roost]
 # TUNA_VERSION and the verify smoke's want= together, and reset `release`,
 # with scripts/prepare-tuna-desktop-release.py
 # (docs/packaging/tuna-desktop-release.md).
-# PLACEHOLDER: the tag does not exist yet. sha256 stays all zeros until the
-# script fills it from the published tag archive; nothing builds before that.
 source:
   url: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.1.tar.gz
-  sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256: "c346c0861da4894fd490a3681a039955a90c0a7aeb04b458a1170fa87a6e1ad2"
   directory: tuna-desktop-1.0.0-beta.1
 # Vendored crates.io closure (`cargo vendor --locked --versioned-dirs` from the
 # exact tag above, deterministic tar, verified with `cargo metadata
@@ -38,11 +36,9 @@ source:
 # the build never fetches crates. Cargo.lock has no git dependencies
 # (third-party/ crates are in-tree path dependencies), so the config needs
 # only the crates-io replacement.
-# PLACEHOLDER: the vendor release for this tag and its sha256 do not exist
-# until the script makes them from the tag.
 sources:
   - url: https://github.com/tuna-os/tunaos-packages/releases/download/tuna-desktop-vendor-v1.0.0-beta.1/tuna-desktop-vendor.tar.gz
-    sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+    sha256: "2ab462cb46fdfd6122c2627ddc2790595690db9c87b5c83d951c2b269a9e62d4"
     filename: tuna-desktop-vendor.tar.gz
     destination: .
     strip_components: 0
