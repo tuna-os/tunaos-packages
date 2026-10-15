@@ -86,18 +86,6 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-  - name: NetworkManager-vpnc
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        distgit: NetworkManager-vpnc
-    upstream:
-      distgit: NetworkManager-vpnc
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
   - name: PackageKit-Qt
     family: hummingbird-desktops
     packaging:
@@ -1230,6 +1218,18 @@ packages:
     referenced_by:
       - .github/workflows/package-factory.yml
   - name: cosmic-osk
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: cosmic-osk
+    upstream:
+      distgit: cosmic-osk
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+  - name: cosmic-osk
     family: queue-cosmic
     packaging:
       rpm:
@@ -1732,6 +1732,18 @@ packages:
         distgit: cups-pk-helper
     upstream:
       distgit: cups-pk-helper
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+  - name: cxx-rust-cssparser
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: cxx-rust-cssparser
+    upstream:
+      distgit: cxx-rust-cssparser
     targets:
       - hummingbird
     membership: runtime
@@ -4211,6 +4223,18 @@ packages:
         distgit: iso-codes
     upstream:
       distgit: iso-codes
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+  - name: iw
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: iw
+    upstream:
+      distgit: iw
     targets:
       - hummingbird
     membership: runtime
@@ -7156,18 +7180,6 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-  - name: libuser
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        distgit: libuser
-    upstream:
-      distgit: libuser
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
   - name: libutempter
     family: hummingbird-desktops
     packaging:
@@ -7461,6 +7473,18 @@ packages:
         distgit: libxklavier
     upstream:
       distgit: libxklavier
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+  - name: libxml2_2.13
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libxml2_2.13
+    upstream:
+      distgit: libxml2_2.13
     targets:
       - hummingbird
     membership: runtime
@@ -8113,6 +8137,18 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+  - name: oo7
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: oo7
+    upstream:
+      distgit: oo7
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
   - name: open-sans-fonts
     family: hummingbird-desktops
     packaging:
@@ -8595,6 +8631,18 @@ packages:
       version: 6.7.3
       source: https://download.kde.org/%{stable_kf6}/plasma/%{version}/%{base_name}-%{version}.tar.xz
       spec: src/hummingbird/plasma-systemsettings/plasma-systemsettings.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+  - name: plasma-union
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: plasma-union
+    upstream:
+      distgit: plasma-union
     targets:
       - hummingbird
     membership: runtime
@@ -9330,18 +9378,6 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-  - name: python-six
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        distgit: python-six
-    upstream:
-      distgit: python-six
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
   - name: python-smartypants
     family: gnome50
     packaging:
@@ -10000,6 +10036,18 @@ packages:
         distgit: rust-matugen
     upstream:
       distgit: rust-matugen
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+  - name: rust-pathrs
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: rust-pathrs
+    upstream:
+      distgit: rust-pathrs
     targets:
       - hummingbird
     membership: runtime
@@ -10781,18 +10829,6 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-  - name: usermode
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        distgit: usermode
-    upstream:
-      distgit: usermode
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
   - name: uupd
     family: tideforge
     packaging:
@@ -10891,18 +10927,6 @@ packages:
         distgit: vo-amrwbenc
     upstream:
       distgit: vo-amrwbenc
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
-  - name: vpnc
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        distgit: vpnc
-    upstream:
-      distgit: vpnc
     targets:
       - hummingbird
     membership: runtime
