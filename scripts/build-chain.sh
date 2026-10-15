@@ -1503,9 +1503,9 @@ build_tier() {
         _tier_failed=()
         log "  ${#retry[@]} package(s) failed but the repo grew during this tier;"
         log "  retrying them once in case they lost an intra-tier race"
-        local path
+        local path _retry_start
         for path in "${retry[@]}"; do
-            local _retry_start=$(date +%s)
+            _retry_start=$(date +%s)
             if build_package "$path" ""; then
                 log "  [retry] ${path} built on the second pass"
                 _record_result "${path}" "${tier_name}" "success" "$(( $(date +%s) - _retry_start ))" "true"
@@ -1636,9 +1636,9 @@ build_stream() {
         _failed=()
         log "  ${#retry[@]} package(s) failed but the repo grew during the stream;"
         log "  retrying them once in case they lost a dependency race"
-        local path
+        local path _retry_start
         for path in "${retry[@]}"; do
-            local _retry_start=$(date +%s)
+            _retry_start=$(date +%s)
             if build_package "$path" ""; then
                 log "  [retry] ${path} built on the second pass"
                 _record_result "${path}" "stream" "success" "$(( $(date +%s) - _retry_start ))" "true"

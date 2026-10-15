@@ -55,12 +55,12 @@ find_home() {
     local home=""
     local i=0
     local args=("$@")
-    while [ "$i" -lt "${#args[@]}" ]; do
+    while [ $i -lt ${#args[@]} ]; do
         case "${args[$i]}" in
             --home-dir=*) home="${args[$i]#*=}" ;;
             -d|--home|--home-dir)
                 i=$((i + 1))
-                [ "$i" -lt "${#args[@]}" ] && home="${args[$i]}"
+                [ $i -lt ${#args[@]} ] && home="${args[$i]}"
                 ;;
         esac
         i=$((i + 1))
@@ -86,9 +86,7 @@ if has_flag "-m" "$@" || has_flag "--create-home" "$@"; then
                 *) FILTERED+=("$arg") ;;
             esac
         done
-        if [ "$add_M" = "true" ]; then
-            FILTERED+=("-M")
-        fi
+        $add_M && FILTERED+=("-M")
         # Run real useradd, then fix ownership if it succeeded
         if "$REAL_USERADD" "${FILTERED[@]}"; then
             if [ -n "$USERNAME" ] && [ -d "$HOME_DIR" ]; then

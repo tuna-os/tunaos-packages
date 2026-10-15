@@ -12,6 +12,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SPEC_FILE=""
 TARGET="${2:-fedora-40-x86_64}"
+# MOCK_CONFIG is defined in target-specific files if needed
+# Use podman if available, fall back to docker
+if command -v podman &>/dev/null; then
+    CONTAINER_RUNTIME="podman"
+elif command -v docker &>/dev/null; then
+    CONTAINER_RUNTIME="docker"
+else
+    echo "Error: Neither podman nor docker found"
+    exit 1
+fi
+
+CONTAINER_IMAGE="mock-builder:fedora-43"
+
+build_container() {
+    echo "=== Building container image ==="
+    $CONTAINER_RUNTIME build -t "$CONTAINER_IMAGE" "$PROJECT_DIR"
+}
+OUTPUT_DIR="$PROJECT_DIR/output/$TARGET"
 
 usage() {
     echo "Usage: $0 <package-name> [target]"
@@ -32,31 +50,6 @@ usage() {
     echo "  almalinux-10-aarch64"
     echo "  centos-stream-10-x86_64"
     echo "  centos-stream-10-aarch64"
-}
-
-if [ -z "${1:-}" ]; then
-    usage
-    exit 1
-fi
-
-# MOCK_CONFIG is defined in target-specific files if needed
-# Use podman if available, fall back to docker
-if command -v podman &>/dev/null; then
-    CONTAINER_RUNTIME="podman"
-elif command -v docker &>/dev/null; then
-    CONTAINER_RUNTIME="docker"
-else
-    echo "Error: Neither podman nor docker found"
-    exit 1
-fi
-
-CONTAINER_IMAGE="mock-builder:fedora-43"
-
-OUTPUT_DIR="$PROJECT_DIR/output/$TARGET"
-
-build_container() {
-    echo "=== Building container image ==="
-    $CONTAINER_RUNTIME build -t "$CONTAINER_IMAGE" "$PROJECT_DIR"
 }
 
 find_spec() {
@@ -158,6 +151,11 @@ build_with_mock() {
 }
 
 main() {
+    if [ -z "${1:-}" ]; then
+        usage
+        exit 1
+    fi
+    
     local pkg="$1"
     
     echo "Building: $pkg for $TARGET"
