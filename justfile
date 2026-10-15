@@ -60,7 +60,7 @@ check: lint-python
 # .github/workflows/lint.yml, which the filing bot cannot push (see #764).
 #
 # E501 is excluded here and not in ruff.toml on purpose: the line-length
-# backlog is 212 violations in 26 files, tracked in #765, and a config-level
+# backlog is 218 violations in 28 files, tracked in #765, and a config-level
 # exclusion would silently retire the rule instead of leaving it to be paid off.
 lint-python:
     python3 -m ruff check --extend-ignore E501 .

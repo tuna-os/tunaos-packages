@@ -1,7 +1,7 @@
 """Exercise the publisher against repo-add's real symlink alias shape."""
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 

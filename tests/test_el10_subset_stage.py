@@ -449,7 +449,6 @@ def test_closure_plan_uses_production_el10_repos(tmp_path):
 
 
 def test_closure_plan_rejects_foreign_cell(tmp_path):
-    receipt = _subset_receipt(tmp_path)
     foreign = {"consumer": "albacore", "target": "alma10", "arch": "x86_64"}
     with pytest.raises(ValueError, match="outside EL10 subset"):
         closure.plan_base_closure(foreign, _el10_cfg(), ["a"], ["b"])

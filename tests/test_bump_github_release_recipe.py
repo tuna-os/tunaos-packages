@@ -14,8 +14,6 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
     "bump_github_release_recipe", ROOT / "scripts" / "bump-github-release-recipe.py")

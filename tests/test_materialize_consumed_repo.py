@@ -23,10 +23,8 @@ import importlib.util
 import io
 import json
 import pathlib
+import sys
 import xml.etree.ElementTree as ET
-
-import pytest
-import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -40,9 +38,7 @@ def load(name: str):
 
 oci = load("oci_repository")
 
-import sys as _sys
-
-_sys.modules["oci_repository"] = oci
+sys.modules["oci_repository"] = oci
 mat = load("materialize-consumed-repo")
 
 REF = "oci://ghcr.io/projectbluefin/utah-packages@sha256:" + "9c" * 32
