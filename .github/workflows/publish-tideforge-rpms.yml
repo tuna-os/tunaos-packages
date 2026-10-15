@@ -30,8 +30,9 @@ on:
       packages:
         description: Comma-separated recipe names under packages/ to build and publish
         # The wave-1 default: every tideforge el10 cell green on BOTH arches
-        # in factory run 32382594650.
-        default: libseat,greetd,gtk-layer-shell,wayland-protocols,ninja-build,libunwind-devel,python3-evdev,evtest,uupd,oversteer-udev,kairpods,dgop,danksearch,xfwm4-themes,cosmic-panel,cosmic-randr
+        # in factory run 32382594650, plus gtk4-layer-shell (dispatch runs
+        # 38731732922 and 38731743857; tuna-desktop el10 BuildRequires it).
+        default: libseat,greetd,gtk-layer-shell,gtk4-layer-shell,wayland-protocols,ninja-build,libunwind-devel,python3-evdev,evtest,uupd,oversteer-udev,kairpods,dgop,danksearch,xfwm4-themes,cosmic-panel,cosmic-randr
         required: true
       arches:
         description: Comma-separated arches; empty means every arch the target declares

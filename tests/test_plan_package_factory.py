@@ -119,6 +119,21 @@ def test_unused_dependency_catalog_change_selects_nothing(tmp_path):
     assert selected == []
 
 
+def test_recipe_changed_with_the_catalog_still_builds_every_target(tmp_path):
+    # A new target lands as a catalog mapping plus the recipe that uses it;
+    # the recipe's other targets must gate too, not only the remapped one.
+    root = repo(tmp_path)
+    selected = planner.select_cells(
+        planner.all_cells(root),
+        ["manifests/package-factory.yaml", "packages/demo/package.yaml"],
+        changed_targets=set(),
+        changed_capabilities={("cmake", "debian")},
+    )
+    assert {(cell["package"], cell["target"]) for cell in selected} == {
+        ("demo", "el10"), ("demo", "debian")
+    }
+
+
 def test_every_matrix_row_has_the_same_schema(tmp_path):
     cells = planner.all_cells(repo(tmp_path))
     assert len({tuple(sorted(cell)) for cell in cells}) == 1

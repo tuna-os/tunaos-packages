@@ -199,10 +199,14 @@ def select_cells(
     if "manifests/package-factory.yaml" in changed:
         if changed_targets is None:
             return cells
+        # A recipe changed in the same diff still builds every target it
+        # declares: a new target needs a contract row or catalog mapping and
+        # the recipe that uses it, and only the contract's targets would gate.
         return [
             cell
             for cell in cells
             if cell["target"] in changed_targets
+            or (cell["engine"] == "tideforge" and cell["package"] in changed_packages)
             or (
                 cell["engine"] == "tideforge"
                 and changed_capabilities is not None
