@@ -408,6 +408,8 @@ def test_cli_end_to_end(tmp_path):
 
     rc = cas_gc.main([
         "--cas-dir", str(cas_dir),
+        # Hermetic: the default factory manifest would fetch live published indexes.
+        "--factory", str(tmp_path / "no-factory.yaml"),
         "--grace-period-seconds", "0",
         "--json", str(json_out),
         "--markdown", str(md_out),
@@ -444,6 +446,7 @@ def test_retained_keys_filter_file(tmp_path):
     json_out = tmp_path / "report.json"
     rc = cas_gc.main([
         "--cas-dir", str(cas_dir),
+        "--factory", str(tmp_path / "no-factory.yaml"),
         "--retained-keys", str(retained_file),
         "--grace-period-seconds", "0",
         "--json", str(json_out),

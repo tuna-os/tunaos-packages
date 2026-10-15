@@ -65,10 +65,19 @@ jobs:
         env:
           BUCKET: ${{ inputs.bucket || 'bluefin' }}
         run: |
-          mkdir -p .cache/inventory
+          set -euo pipefail
+          mkdir -p .cache/inventory .cache/cas/actions
           if [ -f ~/.config/rclone/rclone.conf ]; then
-            echo "Listing CAS objects from r2:${BUCKET}/..."
-            rclone lsf --recursive --format "pst" "r2:${BUCKET}/" > .cache/inventory/r2-lsf.txt || true
+            echo "Listing CAS blobs from r2:${BUCKET}/blobs/..."
+            if ! rclone lsf --recursive --files-only --format "pst" "r2:${BUCKET}/blobs/" > .cache/inventory/r2-blobs.txt; then
+              echo "::warning::could not list r2:${BUCKET}/blobs/; reporting an empty CAS"
+              : > .cache/inventory/r2-blobs.txt
+            fi
+            sed 's|^|blobs/|' .cache/inventory/r2-blobs.txt > .cache/inventory/r2-lsf.txt
+            # ActionResults are the mark roots. Without them every blob past
+            # the grace period would be reported as a sweep candidate.
+            echo "Downloading ActionResults from r2:${BUCKET}/actions/..."
+            rclone copy "r2:${BUCKET}/actions/" .cache/cas/actions/
           fi
 
       - name: Run CAS Mark-and-Sweep Reachability Report
@@ -82,8 +91,8 @@ jobs:
             --tombstones-dir tombstones/
             --summary
           )
-          if [ -f .cache/inventory/r2-lsf.txt ] && [ -s .cache/inventory/r2-lsf.txt ]; then
-            ARGS+=(--inventory-lsf .cache/inventory/r2-lsf.txt)
+          if [ -s .cache/inventory/r2-lsf.txt ]; then
+            ARGS+=(--inventory-lsf .cache/inventory/r2-lsf.txt --actions-dir .cache/cas/actions)
           fi
           python3 scripts/cas_gc.py "${ARGS[@]}"
 
