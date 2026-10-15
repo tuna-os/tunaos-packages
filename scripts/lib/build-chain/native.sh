@@ -61,10 +61,13 @@ build_package_native() {
     local attempt
 
     for ((attempt = 1; attempt <= spectool_attempts; attempt++)); do
-        set +e
-        spectool -g -C "$spectool_dest" "${builddir}/SPECS/${spec_basename}" > "$spectool_log" 2>&1
-        spectool_rc=$?
-        set -e
+        # if-condition, not `set +e`: the ERR trap inherited from
+        # build-chain.sh still fires under `set +e` and would exit.
+        if spectool -g -C "$spectool_dest" "${builddir}/SPECS/${spec_basename}" > "$spectool_log" 2>&1; then
+            spectool_rc=0
+        else
+            spectool_rc=$?
+        fi
 
         if [[ $spectool_rc -eq 0 ]]; then
             if [[ -s "$spectool_log" ]]; then

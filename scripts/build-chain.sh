@@ -664,10 +664,14 @@ prepare_sources() {
     local attempt
 
     for ((attempt = 1; attempt <= spectool_attempts; attempt++)); do
-        set +e
-        _run_spectool > "$spectool_log" 2>&1
-        spectool_rc=$?
-        set -e
+        # Capture the status in an if-condition, not under `set +e`: the
+        # script's ERR trap (set -E) still fires and exits under `set +e`,
+        # which would abort on the first failure and never retry.
+        if _run_spectool > "$spectool_log" 2>&1; then
+            spectool_rc=0
+        else
+            spectool_rc=$?
+        fi
 
         if [[ $spectool_rc -eq 0 ]]; then
             if [[ -s "$spectool_log" ]]; then

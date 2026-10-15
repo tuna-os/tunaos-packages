@@ -88,7 +88,8 @@ def run_spectool_case(
     dispatch = "\n".join(output_scripts)
 
     script = f"""
-set -uo pipefail
+set -eEuo pipefail
+trap 'exit 97' ERR
 builddir="{tmp_path}"
 pkg_name="malcontent"
 CALLS="{calls}"
@@ -210,7 +211,8 @@ def test_native_spectool_retry_distinguishes_errors(tmp_path):
     output_file.write_text(HTTP_404)
 
     script = f"""
-set -uo pipefail
+set -eEuo pipefail
+trap 'exit 97' ERR
 builddir="{tmp_path}"
 pkg_name="demo"
 spec_basename="demo.spec"
@@ -256,7 +258,8 @@ def test_native_spectool_retry_transient_success(tmp_path):
     err_file.write_text(NETWORK_UNREACHABLE)
 
     script = f"""
-set -uo pipefail
+set -eEuo pipefail
+trap 'exit 97' ERR
 builddir="{tmp_path}"
 pkg_name="demo"
 spec_basename="demo.spec"
