@@ -1,6 +1,6 @@
 # Pointing tuna-desktop at a release tag
 
-`packages/tuna-desktop/package.yaml` builds one upstream release tag of
+`packages/tuna-desktop/package.yaml` builds one tag of
 [tuna-os/tuna-desktop](https://github.com/tuna-os/tuna-desktop). Six fields
 move together for each tag: `version`, `release`, `source`, the vendored crate
 asset, `build.environment.TUNA_VERSION` and the verify smoke's `want=`.
@@ -10,7 +10,7 @@ tags.
 
 ## Version forms
 
-Tag `vX.Y.Z-pre.N` (for example `v1.0.0-beta.1`) is written in each format as follows:
+Each format shows tag `vX.Y.Z-pre.N` (for example `v1.0.0-beta.1`) as follows:
 
 | Where | Value | Why |
 | --- | --- | --- |
@@ -42,7 +42,7 @@ The script:
 1. Downloads `archive/refs/tags/<tag>.tar.gz` and records its sha256. It checks that the top-level directory is `tuna-desktop-<tag without v>`.
 2. Runs `cargo vendor --locked --versioned-dirs` in the extracted tag. It packs `vendor/` as a deterministic tar: `--sort=name --format=gnu --owner=0 --group=0 --numeric-owner`, normalized modes, the tag commit's time as `--mtime`, and `gzip -n -9`. It packs twice and stops if the two hashes differ.
 3. Extracts the tag archive again into a fresh directory, unpacks the vendor tar there, and writes the recipe's own `cargo_config` to `.cargo/config.toml`. Then it runs `cargo metadata --locked --offline`.
-4. Looks for release `tuna-desktop-vendor-<tag>` in this repo. With `--publish` it creates the release when it is missing. In either case it downloads the published asset and requires the same sha256 as the local build. Without `--publish`, a missing release stops the script before the recipe changes.
+4. Looks for release `tuna-desktop-vendor-<tag>` in this repo. With `--publish` it creates the release when it is missing. In either case it downloads the published asset and needs the same sha256 as the local build. Without `--publish`, a missing release stops the script before the recipe changes.
 5. Rewrites only the six fields and deletes the `# PLACEHOLDER:` comments. Each edit must match exactly once. Then it validates the result with Tideforge and the tag-consistency check before it writes the file.
 
 Use `--keep DIR` to keep the downloads and the vendor tar for inspection. Run
