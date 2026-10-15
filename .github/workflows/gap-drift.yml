@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install --disable-pip-version-check --quiet PyYAML
       - name: Plan targets from the contract
         id: plan
@@ -142,7 +142,7 @@ jobs:
       - uses: actions/setup-python@v7
         if: steps.drift.outputs.drifted == 'true'
         with:
-          python-version: '3.14'
+          python-version: '3.15'
 
       - if: steps.drift.outputs.drifted == 'true'
         # zstandard: the Fedora Rawhide reference primary.xml is .zst; the

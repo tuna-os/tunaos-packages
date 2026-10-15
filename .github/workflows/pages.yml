@@ -67,7 +67,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: "3.15"
       - name: Install deps
         run: pip install --quiet pyyaml
       # Reads every published_index the contract declares. An index that

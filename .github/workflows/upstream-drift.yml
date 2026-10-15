@@ -75,7 +75,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install --disable-pip-version-check PyYAML
 
       - name: Which targets has upstream moved past
@@ -117,7 +117,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
 
       # zstandard: the Fedora Rawhide reference primary.xml is .zst and
       # measure-target-gap.py imports the decompressor lazily. The first

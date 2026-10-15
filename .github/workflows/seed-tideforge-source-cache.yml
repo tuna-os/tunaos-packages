@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install pyyaml
       - name: Restore the content-addressed source cache
         uses: ./.github/actions/tideforge-source-cache
