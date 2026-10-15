@@ -67,8 +67,8 @@ def fixture(tmp_path, cells, factory_path=None):
 
     The recipe gains the PR818 portal/cursor prerequisites in-fixture
     (as the six-cell test does); the factory defaults to production
-    byte-identical: the subset must pass where Alma definitions are
-    absent.
+    byte-identical: the subset must pass without consulting the Alma
+    definitions.
     """
     recipe = yaml.safe_load((ROOT / "packages/tuna-desktop/package.yaml").read_text())
     recipe["install"]["files"] += [
@@ -280,25 +280,25 @@ def test_full_stager_default_receipt_has_no_subset_marker(tmp_path):
     assert receipt["published"] is False
 
 
-def test_full_stager_fails_adapters_on_production_factory(tmp_path):
+def test_full_stager_stages_six_cells_on_production_factory(tmp_path):
+    receipt = stager.stage(*fixture(tmp_path, full_six_cells()), tmp_path / "out")
+    assert len(receipt["cells"]) == 6
+    assert receipt["candidate_only"] is True
+    assert receipt["release_qualified"] is False
+    assert receipt["published"] is False
+
+
+def test_full_stager_fails_unpinned_alma_base_on_production_factory(tmp_path):
     paths = fixture(tmp_path, six_cells())
-    with pytest.raises(ValueError, match="wrong consumer adapter: skipjack/el10/x86_64"):
+    with pytest.raises(ValueError, match="wrong or unpinned base image: alma10/x86_64"):
         stager.stage(*paths, tmp_path / "out")
 
 
-def test_full_stager_fails_alma_target_with_skipjack_adapter(tmp_path):
-    # Production factory plus the exact skipjack adapter (fat-lto,
-    # consumer_adapters.skipjack): skipjack cells admit, then the first
-    # Alma cell proves the missing native target definition.
+def test_full_stager_fails_alma_cell_without_native_target(tmp_path):
+    # Production factory without the alma10 target definition: skipjack
+    # cells admit, then the first Alma cell proves the missing native target.
     factory = yaml.safe_load((ROOT / "manifests/package-factory.yaml").read_text())
-    factory["consumer_adapters"] = {
-        "skipjack": {
-            "target": "el10",
-            "manager": "dnf",
-            "architectures": {"linux/amd64": "x86_64", "linux/arm64": "aarch64"},
-            "cpuBaselines": ["x86-64-v3", "armv8-a"],
-        }
-    }
+    del factory["targets"]["alma10"]
     factory_path = tmp_path / "factory.yaml"
     factory_path.write_text(yaml.safe_dump(factory))
     recipe_path, _, inputs_path, source_path, vendor_path = fixture(tmp_path, six_cells())

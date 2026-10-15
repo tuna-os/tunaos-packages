@@ -84,8 +84,8 @@ dependencies:
       - wayland-protocols-devel
       - gobject-introspection-devel
       - vala
-    # Alma native cells remain unactivated until the real factory definitions
-    # are reviewed/qualified (PR819). Do not alias either to CentOS Stream.
+    # Alma native cells build natively from their own factory roots.
+    # Do not alias either to CentOS Stream.
     targets:
       el10: []
       alma10: []
@@ -142,5 +142,4 @@ verify:
     "gtk_session_lock_instance_new","gtk_session_lock_instance_lock","gtk_session_lock_instance_unlock",
     "gtk_session_lock_instance_assign_window_to_monitor","gtk_session_lock_instance_is_locked");
     [getattr(lib,symbol) for symbol in symbols]'
-# No target declaration for absent Alma factory roots on current main.
-targets: [el10]
+targets: [el10, alma10, alma10-kitten]

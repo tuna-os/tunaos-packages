@@ -32,7 +32,7 @@ RUST193_CONSUMERS = {
 
 
 def test_tracked_el10_coverage_is_complete():
-    assert len(EL10) == 54
+    assert len(EL10) == 55
     assert 'packages/rwd/package.yaml' not in TRACKED
     for path, recipe in EL10:
         for target in ('alma10', 'alma10-kitten'):

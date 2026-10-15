@@ -61,10 +61,9 @@ It also checks headers, typelibs, license and API symbols. It does not open a di
 
 ## Target scope and open gates
 
-The recipe declares EL10 on x86_64 and aarch64 through the current factory.
-It records Alma10 and Alma10-Kitten inputs but does not activate those targets.
-Their factory definitions need separate review through PR819.
-Each future cell must keep its consumer, architecture, CPU baseline, image digest and repository inputs.
+The recipe declares EL10, Alma10 and Alma10-Kitten on x86_64 and aarch64.
+Each Alma cell builds from its own native factory root.
+Each cell must keep its consumer, architecture, CPU baseline, image digest and repository inputs.
 It must also keep proof from RPM and install checks.
 A CentOS build does not qualify AlmaLinux or an installed Tuna session.
 
