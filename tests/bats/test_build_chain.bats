@@ -30,7 +30,7 @@ BUILD_CHAIN="${REPO_ROOT}/scripts/build-chain.sh"
 }
 
 @test "build-chain.sh: references build-order.yml in default operation" {
-  run bash "${BUILD_CHAIN}" --backend podman --dry-run 2>bash -c "bash '${BUILD_CHAIN}' --backend podman --dry-run 2>&1 || true"1 || true
+  run bash -c "bash '${BUILD_CHAIN}' --backend podman --dry-run 2>&1 || true"
   # Should mention build-order.yml or fail gracefully about missing tools
   [[ "$output" =~ build-order ]] || [[ "$output" =~ manifest ]]
 }
