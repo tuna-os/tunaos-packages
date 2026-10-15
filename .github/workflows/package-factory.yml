@@ -154,6 +154,9 @@ jobs:
           EVENT_ACTION: ${{ github.event.action || '' }}
           SCHEDULE: ${{ github.event.schedule || '' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          RUN_NUMBER: ${{ github.run_number }}
+          # Shared-input cells built per PR push; 0 builds them all.
+          ROUND_ROBIN_SIZE: ${{ vars.PACKAGE_FACTORY_ROUND_ROBIN_SIZE || '3' }}
         run: |
           set -euo pipefail
           # This run's only job is to occupy the refs/pull/N/merge concurrency
@@ -210,6 +213,16 @@ jobs:
           case "$EVENT_NAME" in
             pull_request|merge_group|push) args+=(--canary-common) ;;
           esac
+          # A pull request that touches shared code (scripts/tideforge.py, the
+          # cell workflow, build-chain.sh, a format adapter) selects one canary
+          # per family or target: 12-17 cells per push, each covering the same
+          # diff. Build ROUND_ROBIN_SIZE of them, rotated by run number; cells
+          # whose own recipe, manifest or sources changed always build. The
+          # push to main plans the whole canary set, so a deferred cell still
+          # builds on merge, and the weekly schedule builds every family.
+          if [ "$EVENT_NAME" = pull_request ]; then
+            args+=(--round-robin-size "$ROUND_ROBIN_SIZE" --round-robin-seed "$RUN_NUMBER")
+          fi
           [ -z "$REQUESTED_SELECTOR" ] || args+=(--selector "$REQUESTED_SELECTOR")
           python3 scripts/plan-package-factory.py "${args[@]}"
 

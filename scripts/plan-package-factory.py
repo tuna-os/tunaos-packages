@@ -301,6 +301,75 @@ def canary_cells(cells: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(selected.values(), key=lambda cell: cell["id"])
 
 
+def owns_change(
+    cell: dict[str, Any],
+    changed: set[str],
+    *,
+    changed_native_ids: set[str] | None,
+    changed_graph_ids: set[str] | None,
+) -> bool:
+    """True when the cell's OWN inputs moved, not merely shared code.
+
+    A recipe directory, a build-chain manifest or source path, a changed
+    package-builds row, or a dependency-tree/target-queue edit that resolves
+    to this cell. Anything else selected the cell only because shared code
+    (factory scripts, renderers, format adapters, a target contract) changed,
+    and every cell in that set covers the same diff.
+    """
+    base_id = cell["id"].removesuffix("-canary")
+    if cell["engine"] == "tideforge":
+        prefix = cell["source_paths"][0]
+        if any(path.startswith(prefix) for path in changed):
+            return True
+    elif any(
+        path == cell["manifest"] or any(path.startswith(prefix) for prefix in cell["source_paths"])
+        for path in changed
+    ):
+        return True
+    return base_id in (changed_native_ids or set()) or base_id in (changed_graph_ids or set())
+
+
+def round_robin(
+    selected: list[dict[str, Any]],
+    changed_files: list[str] | None,
+    *,
+    size: int,
+    seed: int,
+    changed_native_ids: set[str] | None = None,
+    changed_graph_ids: set[str] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Keep every own-change cell and a rotating slice of the shared-input cells.
+
+    A pull request that touches shared code (scripts/tideforge.py, the cell
+    workflow, build-chain.sh, a format adapter) selects one canary per family
+    or target, 12-17 cells per push, and each covers the same diff. Building
+    `size` of them per push, rotated by `seed` (the run number), keeps every
+    PR gated while the push to main, the weekly build-chain schedule and any
+    dispatch still plan the whole set. Returns (kept, deferred).
+    """
+    if size <= 0 or changed_files is None:
+        return selected, []
+    changed = {path.strip() for path in changed_files if path.strip()}
+    shared = [
+        cell
+        for cell in selected
+        if not owns_change(
+            cell, changed, changed_native_ids=changed_native_ids, changed_graph_ids=changed_graph_ids
+        )
+    ]
+    if len(shared) <= size:
+        return selected, []
+    # Architecture first so one window spans several families or targets
+    # instead of one family's two architectures.
+    shared.sort(key=lambda cell: (str(cell["architecture"]), cell["id"]))
+    offset = (seed * size) % len(shared)
+    picked = {shared[(offset + index) % len(shared)]["id"] for index in range(size)}
+    deferred_ids = {cell["id"] for cell in shared} - picked
+    kept = [cell for cell in selected if cell["id"] not in deferred_ids]
+    deferred = [cell for cell in selected if cell["id"] in deferred_ids]
+    return kept, deferred
+
+
 def yaml_at_revision(root: pathlib.Path, revision: str, path: str) -> dict[str, Any]:
     completed = subprocess.run(
         ["git", "show", f"{revision}:{path}"],
@@ -426,6 +495,13 @@ def main() -> int:
     parser.add_argument("--cell", help="optional exact cell ID for a manual run")
     parser.add_argument("--selector", help="cell ID or target=/family=/engine=/architecture=")
     parser.add_argument("--canary-common", action="store_true")
+    parser.add_argument(
+        "--round-robin-size",
+        type=int,
+        default=0,
+        help="pull requests: build only this many shared-input cells, rotated by --round-robin-seed",
+    )
+    parser.add_argument("--round-robin-seed", type=int, default=0, help="rotation seed (the run number)")
     parser.add_argument("--github-output", type=pathlib.Path)
     args = parser.parse_args()
     try:
@@ -450,6 +526,22 @@ def main() -> int:
             changed_graph_ids=graph_changes,
             canary_common=args.canary_common,
         )
+        deferred: list[dict[str, Any]] = []
+        if not args.cell and not args.selector:
+            selected, deferred = round_robin(
+                selected,
+                changed,
+                size=args.round_robin_size,
+                seed=args.round_robin_seed,
+                changed_native_ids=native_changes,
+                changed_graph_ids=graph_changes,
+            )
+        if deferred:
+            print(
+                f"round-robin: building {len(selected)} cells, deferring {len(deferred)} shared-input "
+                f"cells to the push to main: {' '.join(cell['id'] for cell in deferred)}",
+                file=sys.stderr,
+            )
         if args.cell:
             selected = select_by(cells, args.cell)
         if args.selector:
