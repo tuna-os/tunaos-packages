@@ -284,7 +284,6 @@ TRACK_DECISIONS = (
 )
 
 TRACK_HISTORY = (
-    ".github/workflows/gap-drift.yml",
     "scripts/gap_engine.py",
     "scripts/summarize-gap-drift.py",
     "scripts/verify-package-factory-cell.sh",
