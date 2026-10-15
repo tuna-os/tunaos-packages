@@ -85,3 +85,12 @@ def test_the_release_specs_do_not_encode_prerelease_tarball_names() -> None:
         assert not re.search(r"(?:alpha|beta|rc)", declarations), (
             f"{package} still selects a prerelease tarball: {declarations}"
         )
+
+
+def test_gsettings_desktop_schemas_does_not_package_the_removed_gconf_files() -> None:
+    # gsettings-desktop-schemas 51.rc dropped the GConf migration files; a
+    # stale %files entry fails the build with "File not found".
+    text = spec_for("gsettings-desktop-schemas").read_text(encoding="utf-8")
+    assert "GConf" not in text, (
+        "gsettings-desktop-schemas 51.0 no longer installs /usr/share/GConf"
+    )

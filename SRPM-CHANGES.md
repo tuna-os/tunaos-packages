@@ -16,6 +16,10 @@ carried as `fix-sassc-requirement-for-tarball-builds.patch`, so that downstream
 patch was removed. All other downstream patches were checked against the final
 release tarballs and still apply.
 
+gsettings-desktop-schemas 51.rc removed the GConf schema migration files
+(`/usr/share/GConf/gsettings/*.convert`), so the 51.0 spec no longer lists
+them in `%files`.
+
 ## 1. Custom GNOME 50 Compatibility Packages
 
 ### `gnome50-el10-compat`
