@@ -1,7 +1,8 @@
 // Tests for the Cloudflare Worker that serves repo.tunaos.org. Every
 // dnf/zypper/apt client that consumes a TunaOS-published repository routes
 // through this Worker, and deploy-worker.yml ships it straight to production
-// on push to main — this suite is the gate that runs before that deploy.
+// on push to main. No workflow runs this suite yet: run `npm test` in
+// workers/ before pushing a change here.
 //
 // It imports the real worker module (not a hand-copied fork) so a change to
 // routing, headers, or the path-decode/rewrite logic is caught here before
