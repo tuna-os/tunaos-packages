@@ -175,10 +175,14 @@ def main():
     binary = Path(candidates[0]['executable']).resolve(strict=True)
     if (output / 'target').resolve() not in binary.parents:
         raise ValueError('actual executable escaped owned target directory')
+    # Fixture workers are clone3 children without CLONE_FILES or exec, so each
+    # inherits every descriptor open in the test binary. Parallel tests would
+    # let one fixture's child hold another fixture's release pipe and deadlock
+    # both waits (run 38468594829 aarch64); run each filter on one thread.
     command([str(cargo), 'test', '--locked', '-p', 'greetd', '--manifest-path', str(manifest),
-             'retirement::tests::', '--', '--nocapture'], 'native-worker-tests.log')
+             'retirement::tests::', '--', '--nocapture', '--test-threads=1'], 'native-worker-tests.log')
     command([str(cargo), 'test', '--locked', '-p', 'greetd', '--manifest-path', str(manifest),
-             'context::retirement_tests::', '--', '--nocapture'], 'native-context-tests.log')
+             'context::retirement_tests::', '--', '--nocapture', '--test-threads=1'], 'native-context-tests.log')
     for filename in ['native-worker-tests.log', 'native-context-tests.log']:
         text = (output / filename).read_text()
         if text.count('test result: ok. 3 passed; 0 failed; 0 ignored;') != 1:
