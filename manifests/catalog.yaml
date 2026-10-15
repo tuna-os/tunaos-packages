@@ -2895,7 +2895,7 @@ packages:
     upstream:
       version: 2.44.5
       source: https://download.gnome.org/sources/gdk-pixbuf/2.44/gdk-pixbuf-%{version}.tar.xz
-      spec: src/deps/gdk-pixbuf2/gdk-pixbuf2.spec
+      spec: src/deps/gdk-pixbuf2/gdk-pixbuf2-bootstrap.spec
     targets:
       - alma10
       - alma10-kitten
@@ -2912,7 +2912,7 @@ packages:
     upstream:
       version: 2.44.5
       source: https://download.gnome.org/sources/gdk-pixbuf/2.44/gdk-pixbuf-%{version}.tar.xz
-      spec: src/deps/gdk-pixbuf2/gdk-pixbuf2.spec
+      spec: src/deps/gdk-pixbuf2/gdk-pixbuf2-bootstrap.spec
     targets:
       - alma10
       - alma10-kitten
@@ -2929,7 +2929,7 @@ packages:
     upstream:
       version: 2.44.5
       source: https://download.gnome.org/sources/gdk-pixbuf/2.44/gdk-pixbuf-%{version}.tar.xz
-      spec: src/deps/gdk-pixbuf2/gdk-pixbuf2.spec
+      spec: src/deps/gdk-pixbuf2/gdk-pixbuf2-bootstrap.spec
     targets:
       - hummingbird
     membership: runtime

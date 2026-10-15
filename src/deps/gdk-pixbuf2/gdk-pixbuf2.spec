@@ -1,3 +1,5 @@
+%bcond glycin 1
+
 %global glib2_version 2.56.0
 %global glycin_version 2.0.1
 
@@ -7,7 +9,7 @@
 
 Name:           gdk-pixbuf2
 Version:        2.44.5
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        An image loading library
 
 License:        LGPL-2.1-or-later
@@ -18,11 +20,7 @@ BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  gettext
 BuildRequires:  pkgconfig(gio-2.0) >= %{glib2_version}
-# glycin is Rust-built and absent from EL10; the loaders it provides
-# (JXL/HEIF/AVIF/WebP/SVG) are a feature loss there, not a build loss --
-# same posture as mutter's disable-glycin.patch and gtk4's %%if !rhel
-# guards for tracker/gstreamer.
-%if !0%{?rhel}
+%if %{with glycin}
 BuildRequires:  pkgconfig(glycin-2) >= %{glycin_version}
 %endif
 BuildRequires:  meson
@@ -30,7 +28,7 @@ BuildRequires:  pkgconfig(gobject-introspection-1.0)
 BuildRequires:  shared-mime-info
 
 Requires: glib2%{?_isa} >= %{glib2_version}
-%if !0%{?rhel}
+%if %{with glycin}
 Requires: glycin-libs%{?_isa} >= %{glycin_version}
 %endif
 Requires: shared-mime-info
@@ -90,7 +88,7 @@ meson setup \
     -Ddocumentation=false \
     -Dman=false \
     -Dintrospection=enabled \
-%if !0%{?rhel}
+%if %{with glycin}
     -Dglycin=enabled \
 %else
     -Dglycin=disabled \
