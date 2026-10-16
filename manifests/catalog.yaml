@@ -8300,7 +8300,7 @@ packages:
       rpm:
         native: src/gnome-51/orca
     upstream:
-      version: 51~beta
+      version: '51.0'
       source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
       spec: src/gnome-51/orca/orca.spec
     targets:
