@@ -90,3 +90,25 @@ a RUNPATH on the binaries that link it. The toolchain is trixie's
 
 Ubuntu noble is not a factory target. It ships no gtk4-layer-shell, and its
 newest rustc is 1.91.
+
+## Hummingbird
+
+Hummingbird is not a Tideforge target for tuna-desktop: Tideforge's
+`hummingbird` stays `scaffold`, and its publish route cannot write the
+build-chain prefix safely (#832). tuna-desktop is built by the Hummingbird
+build chain instead, from the reviewed spec
+`src/hummingbird/tuna-desktop/tuna-desktop.spec`. It builds in the same
+Fedora 44 + public-hummingbird + utah-packages root as the gtk4-layer-shell,
+libseat and libinput it links. The root is the `tuna` entry in
+`manifests/hummingbird-desktops.yaml`. tuna-desktop is not in Fedora, so the
+generated `build-order-hummingbird-desktops.yml` builds it in `local-00`,
+after every layer.
+
+The script does not edit the spec. For each new tag, change `upstream_version`
+and `Version:` (the `~` form), reset `Release:` to 1, add a `%changelog`
+entry, and replace both lines of `sources` with the SHA-512 of the tag
+archive and the vendor asset (`sha512sum`).
+`tests/test_hummingbird_recipe_sync.py` fails while the spec and the recipe
+name different releases. Publish with `publish-build-chain-rpms.yml`,
+`cells: hummingbird-x86_64,hummingbird-aarch64`, which serves it at
+`hummingbird/20251124-{x86_64,aarch64}`.
