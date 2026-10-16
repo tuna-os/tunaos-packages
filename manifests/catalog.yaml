@@ -10674,6 +10674,7 @@ packages:
       - el10
       - eln
       - fedora
+      - rawhide
       - ubuntu
     membership: runtime
     referenced_by:

@@ -39,7 +39,7 @@ on:
         default: x86_64,aarch64
         required: true
       target:
-        description: Which contract target to publish (el10, eln, fedora, opensuse-tumbleweed)
+        description: Which contract target to publish (el10, eln, fedora, rawhide, opensuse-tumbleweed)
         default: el10
         required: true
 

@@ -50,14 +50,17 @@ the script again with the same tag to check an existing release: it rebuilds
 the asset and compares it with the published one.
 
 Commit the recipe change. Then let the factory build the `tideforge-tuna-desktop-*`
-cells: `arch-x86_64`, `fedora`, `eln` and `el10` on `x86_64` and `aarch64`,
+cells: `arch-x86_64`, `fedora`, `rawhide`, `eln` and `el10` on `x86_64` and `aarch64`,
 and `ubuntu` (resolute) and `debian` (sid) on `amd64` and `arm64`.
 Each smoke runs every binary and checks `--version` against `want=`.
 
 ## RPM targets
 
-The `fedora`, `eln` and `el10` lists use `pkgconfig()` names. These names are
-the same on the three targets. Fedora 44 and ELN supply all dependencies.
+The `fedora`, `rawhide`, `eln` and `el10` lists use `pkgconfig()` names. These
+names are the same on the four targets. Fedora 44, Rawhide and ELN supply all
+dependencies. `rawhide` is its own target (buildroot `fedora:rawhide`, served
+at `rpm/rawhide/{arch}`) because `fedora` builds in a Fedora 44 root, whose
+packages cannot qualify bonito-rawhide.
 On `el10`, the factory supplies `gtk4-layer-shell-devel` from
 `packages/gtk4-layer-shell`. The build gets it from the published index of the
 target, so `publish-tideforge-rpms.yml` must publish that package for `el10`

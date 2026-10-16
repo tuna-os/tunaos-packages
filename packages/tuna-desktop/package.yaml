@@ -83,7 +83,7 @@ dependencies:
       # bindgen (pipewire/libspa, xkbcommon-adjacent sys crates).
       arch: [clang, dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
       # The same Arch list as pkg-config names, which resolve identically on
-      # Fedora 44, ELN and EL10 (mesa -> gbm + egl, seatd -> libseat,
+      # Fedora 44, Rawhide, ELN and EL10 (mesa -> gbm + egl, seatd -> libseat,
       # systemd-libs -> libsystemd + libudev, wayland -> client + server).
       # clang-devel supplies libclang for bindgen. The floors: GTK 4.12,
       # gtk4-layer-shell 1.1 (gtk4-session-lock-sys v1_1) and Rust 1.92, the
@@ -92,6 +92,7 @@ dependencies:
       # and libseat-devel are factory products (packages/gtk4-layer-shell,
       # packages/libseat) resolved from the target's published_index.
       fedora: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
+      rawhide: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
       eln: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
       el10: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
       # The same list in Debian/Ubuntu -dev names (identical on resolute and
@@ -114,6 +115,7 @@ dependencies:
       # screen (crates/compositor/src/pam.rs), libsecret is reached over
       # D-Bus, and the dbus and pipewire daemons are services, not links.
       fedora: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
+      rawhide: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
       eln: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
       el10: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
       # Upstream's own .deb Depends (scripts/tuna-release at the tag), beside
@@ -199,4 +201,4 @@ verify:
     && test -f /etc/pam.d/tuna-lock
     && test -f /etc/pam.d/roost-lock
     && test -f /usr/lib/systemd/user/tuna-session.target
-targets: [arch, fedora, eln, el10, ubuntu, debian]
+targets: [arch, fedora, rawhide, eln, el10, ubuntu, debian]
