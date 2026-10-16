@@ -77,6 +77,7 @@ _spec.loader.exec_module(mhg)
 
 sys.path.insert(0, str(ROOT / "scripts"))
 import published_index as pubidx  # noqa: E402  (needs the path above)
+import gentoo_binhost  # noqa: E402
 
 
 def load_yaml(path: pathlib.Path):
@@ -121,6 +122,20 @@ def apt_index_names(baseurl: str, cache: pathlib.Path) -> tuple[set, dict]:
         "package_names": packages,
     }
     return names, provenance
+
+
+def gpkg_index_names(baseurl: str, cache: pathlib.Path) -> tuple[set, dict]:
+    """Read Portage's Packages, retaining atoms and recipe package names."""
+    base = baseurl.rstrip("/") + "/"
+    raw = mhg.fetch(base + "Packages", cache)
+    packages = gentoo_binhost.parse_packages(raw.decode("utf-8"))["packages"]
+    names = set(packages)
+    names.update(atom.split("/", 1)[1] for atom in packages)
+    return names, {
+        "baseurl": base,
+        "packages_sha256": hashlib.sha256(raw).hexdigest(),
+        "package_names": len(packages),
+    }
 
 
 def load_reproducibility(path: pathlib.Path) -> dict | None:
@@ -222,13 +237,13 @@ def measure(
                 "reason": "no published_index declared in package-factory.yaml",
             }
             continue
-        readers = {"rpm": index_names, "deb": apt_index_names}
+        readers = {"rpm": index_names, "deb": apt_index_names, "gpkg": gpkg_index_names}
         reader = readers.get(target.get("format"))
         if reader is None:
             report["unmeasured_targets"][target_id] = {
                 "format": target.get("format"),
                 "catalog_entries": len(wanted),
-                "reason": "only rpm-md and flat apt indexes are readable so far",
+                "reason": "only rpm-md, flat apt and Portage binhost indexes are readable so far",
             }
             continue
         arches = {}
@@ -610,7 +625,7 @@ def main() -> None:
                     if spec.get("published_index")]
         for target_id in measured:
             spec = factory["targets"][target_id]
-            if spec.get("format") not in ("rpm", "deb"):
+            if spec.get("format") not in ("rpm", "deb", "gpkg"):
                 raise SystemExit(
                     f"{target_id}: published_index declared for a format "
                     "this tool cannot read yet"
