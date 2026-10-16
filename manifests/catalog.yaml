@@ -11987,6 +11987,8 @@ packages:
         tideforge: packages/tuna-desktop
       deb:
         tideforge: packages/tuna-desktop
+      gpkg:
+        tideforge: packages/tuna-desktop
     upstream:
       version: 1.0.0~beta.1
       source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.1.tar.gz
@@ -11997,6 +11999,7 @@ packages:
       - el10
       - eln
       - fedora
+      - gentoo
       - opensuse-tumbleweed
       - rawhide
       - trixie

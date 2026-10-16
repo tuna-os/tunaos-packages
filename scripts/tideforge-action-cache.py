@@ -32,6 +32,7 @@ FORMAT_RENDERERS = {
     "deb": ("scripts/assemble-deb-source-tree.py",),
     "rpm": (),
     "pkg.tar.zst": ("scripts/arch-native-policy.sh",),
+    "gpkg": ("scripts/gentoo-build-cell.sh",),
 }
 
 

@@ -313,5 +313,23 @@ case ${FORMAT:?} in
       --volume "$out/smoke.sh:/smoke.sh:ro" --volume "$PWD/scripts:/scripts:ro" \
       "${IMAGE:?}" bash /scripts/arch-clean-install.sh "$install_name" /artifacts bash /smoke.sh
     ;;
+  gpkg)
+    # No overlay in the verify image: the package can only arrive as the
+    # gpkg this cell built, and every path files.common lists must be on
+    # disk afterwards (Portage compresses docs unless the ebuild exempts them).
+    gentoo=$(python3 - "$recipe" <<'PY'
+import json, pathlib, sys
+sys.path.insert(0, "scripts")
+import tideforge
+recipe = tideforge.load_yaml(pathlib.Path(sys.argv[1]))
+print(json.dumps({"atom": f"{tideforge.gentoo_category(recipe)}/{recipe['name']}",
+                  "files": "\n".join(path.lstrip("/") for path in recipe["files"]["common"])}))
+PY
+)
+    docker run --rm --env ATOM="$(jq -r .atom <<<"$gentoo")" --env BINHOST=/artifacts \
+      --env FILES="$(jq -r .files <<<"$gentoo")" \
+      --volume "$artifacts:/artifacts:ro" --volume "$out/smoke.sh:/smoke.sh:ro" \
+      --volume "$PWD/scripts:/scripts:ro" "${IMAGE:?}" bash /scripts/gentoo-clean-install.sh
+    ;;
   *) echo "unsupported package format: $FORMAT" >&2; exit 2 ;;
 esac

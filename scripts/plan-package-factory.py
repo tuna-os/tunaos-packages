@@ -40,6 +40,8 @@ FORMAT_INPUTS = {
     "scripts/arch-clean-install.sh": {"pkg.tar.zst"},
     "scripts/arch-native-policy.sh": {"pkg.tar.zst"},
     "scripts/arch-verify-published.sh": {"pkg.tar.zst"},
+    "scripts/gentoo-build-cell.sh": {"gpkg"},
+    "scripts/gentoo-clean-install.sh": {"gpkg"},
 }
 NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py", "scripts/candidate-rpm-repository.py", "scripts/alma-rpmbuild-guard.py",
                  "scripts/alma-candidate-snapshot.py", "scripts/alma-candidate-resume.py", "scripts/github_api.py"}

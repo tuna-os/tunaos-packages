@@ -51,8 +51,8 @@ the asset and compares it with the published one.
 
 Commit the recipe change. Then let the factory build the `tideforge-tuna-desktop-*`
 cells: `arch-x86_64`, `fedora`, `rawhide`, `eln`, `el10` and `opensuse-tumbleweed`
-on `x86_64` and `aarch64`, and `ubuntu` (resolute), `debian` (sid) and
-`trixie` on `amd64` and `arm64`.
+on `x86_64` and `aarch64`, `ubuntu` (resolute), `debian` (sid) and
+`trixie` on `amd64` and `arm64`, and `gentoo-amd64`.
 Each smoke runs every binary and checks `--version` against `want=`.
 
 ## RPM targets
@@ -90,6 +90,34 @@ a RUNPATH on the binaries that link it. The toolchain is trixie's
 
 Ubuntu noble is not a factory target. It ships no gtk4-layer-shell, and its
 newest rustc is 1.91.
+
+## Gentoo target
+
+`gentoo` renders the recipe into `gui-wm/tuna-desktop/tuna-desktop-<PV>.ebuild`
+in the `tunaos` overlay (`1.0.0~beta.1` becomes PV `1.0.0_beta1`; see ADR
+0002). The ebuild inherits `cargo.eclass` with `RUST_MIN_VER` from
+`build.rust_version`, fetches the same tag archive and vendor asset, and runs
+the recipe's build and install commands. Every dependency is stable on amd64
+in `::gentoo`; the build takes them from Gentoo's binhost, and builds only
+gtk4-layer-shell from source. A version bump needs no Gentoo-specific edit
+beyond `build.rust_version` when the floor moves. Publish with
+`publish-tideforge-gentoo.yml`, `packages: tuna-desktop`. A consumer adds the
+binhost to `binrepos.conf` with `verify-signature = true` and lsigns
+`public.gpg` in `/etc/portage/gnupg`:
+
+```ini
+# /etc/portage/binrepos.conf/tunaos.conf
+[tunaos]
+priority = 10
+sync-uri = https://repo.tunaos.org/gentoo/binpkgs/amd64
+verify-signature = true
+
+# /etc/portage/repos.conf/tunaos.conf (only to rebuild from source)
+[tunaos]
+location = /var/db/repos/tunaos
+sync-type = zipfile
+sync-uri = https://repo.tunaos.org/gentoo/overlay/tunaos-overlay.zip
+```
 
 ## Hummingbird
 

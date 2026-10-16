@@ -47,6 +47,81 @@ def pacman_version(version: str) -> str:
     return str(version).replace("~", "")
 
 
+# A recipe prerelease (`~beta.1`) in Gentoo's own suffix syntax (`_beta1`),
+# which PMS already sorts below the release: _alpha < _beta < _pre < _rc < none.
+GENTOO_PRERELEASE = re.compile(
+    r"(?P<base>[0-9][0-9.]*)~(?P<kind>alpha|beta|pre|rc)\.?(?P<number>[0-9]*)"
+)
+# SPDX expressions recipes use, as Gentoo license names (::gentoo licenses/).
+# Portage checks LICENSE against ACCEPT_LICENSE by these names, so an SPDX id
+# it does not know would mask the package; an unmapped one fails the render.
+GENTOO_LICENSES = {
+    "GPL-2.0-only": "GPL-2",
+    "GPL-2.0-or-later": "GPL-2+",
+    "GPL-3.0-only": "GPL-3",
+    "GPL-3.0-or-later": "GPL-3+",
+    "LGPL-2.1-or-later": "LGPL-2.1+",
+    "MIT": "MIT",
+    "Apache-2.0": "Apache-2.0",
+}
+
+
+def gentoo_version(version: str) -> str:
+    """The ebuild PV for a recipe version (`1.0.0~beta.1` -> `1.0.0_beta1`).
+
+    PMS allows digits and dots plus a fixed set of suffixes; anything else in
+    a recipe version has no faithful Gentoo spelling, so it fails rather than
+    being bent into one that sorts differently.
+    """
+    version = str(version)
+    if re.fullmatch(r"[0-9]+(?:\.[0-9]+)*", version):
+        return version
+    match = GENTOO_PRERELEASE.fullmatch(version)
+    if not match or not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*", match["base"]):
+        fail(f"version {version!r} has no Gentoo PV spelling "
+             "(digits and dots, optionally ~alpha|beta|pre|rc[.]N)")
+    return f"{match['base']}_{match['kind']}{match['number']}"
+
+
+def gentoo_pf(recipe: dict) -> str:
+    """`${PF}`: the PV plus `-rN` for a recipe release above 1."""
+    release = int(recipe.get("release", 1))
+    suffix = f"-r{release - 1}" if release > 1 else ""
+    return f"{recipe['name']}-{gentoo_version(recipe['version'])}{suffix}"
+
+
+def gentoo_category(recipe: dict) -> str:
+    category = recipe.get("outputs", {}).get("gpkg", {}).get("category")
+    if not isinstance(category, str) or not re.fullmatch(r"[a-z0-9]+-[a-z0-9]+", category):
+        fail("outputs.gpkg.category must name a Gentoo category such as gui-wm")
+    return category
+
+
+def gentoo_distfile(recipe: dict, source: dict, index: int) -> str:
+    """A source's DISTDIR name: `${P}-<fetched filename>`.
+
+    DISTDIR is shared by every package and version on a host, and Manifest
+    pins one checksum per name, so an unversioned asset name
+    (tuna-desktop-vendor.tar.gz) must not be reused by the next release.
+    """
+    return f"{recipe['name']}-{gentoo_version(recipe['version'])}-{source_filename(source, index)}"
+
+
+def rust_version(recipe: dict) -> str:
+    """`build.rust_version`: the toolchain floor a recipe asserts.
+
+    The other formats carry the floor in their native relations
+    (`rust >= 1.92`, `rustc (>= 1.92)`); cargo.eclass takes it as RUST_MIN_VER
+    instead, which also picks the Rust slot the build runs with.
+    """
+    value = recipe.get("build", {}).get("rust_version", "")
+    if not isinstance(value, str):
+        fail("build.rust_version must be a version such as 1.92")
+    if value and not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", value):
+        fail("build.rust_version must be a version such as 1.92")
+    return value
+
+
 def load_yaml(path: Path) -> dict:
     data = yaml.safe_load(path.read_text())
     if not isinstance(data, dict):
@@ -690,6 +765,16 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail(f"dependencies.{dependency_kind}.capabilities must be a list of capability names")
         for requested_target in requested:
             resolve_capabilities(capabilities, requested_target)
+    rust_version(recipe)
+    if any(targets[item].get("format") == "gpkg" for item in requested):
+        # Everything the ebuild renderer would otherwise refuse at build time.
+        gentoo_category(recipe)
+        gentoo_version(recipe["version"])
+        if str(recipe["license"]) not in GENTOO_LICENSES:
+            fail(f"license {recipe['license']!r} has no Gentoo mapping in GENTOO_LICENSES")
+        if recipe["build_system"] != "custom":
+            fail("a gpkg target needs build_system: custom "
+                 "(the only one the ebuild renderer supports)")
     if not recipe["files"].get("common"):
         fail("files.common must list installed paths")
     validate_deb_packages(recipe)
@@ -1264,6 +1349,152 @@ package() {{
     return {"PKGBUILD": pkgbuild}
 
 
+GENTOO_REPO_NAME = "tunaos"
+# Directories Portage compresses at install time (FEATURES=docompress). A path
+# a recipe lists under files.common must stay at that exact path, as on every
+# other format, so the ones under these get `docompress -x`.
+GENTOO_DOCOMPRESS_DIRS = ("usr/share/doc/", "usr/share/man/", "usr/share/info/")
+
+
+def ebuild_string(value: str) -> str:
+    """A value for a double-quoted ebuild variable, with no expansion."""
+    return re.sub(r'(["\\$`])', r"\\\1", value)
+
+
+def ebuild_list(values: list[str]) -> str:
+    return "".join(f"\n\t{value}" for value in values) + ("\n" if values else "")
+
+
+def render_ebuild(recipe: dict, target: str) -> dict[str, str]:
+    """Render a one-package Gentoo overlay: the ebuild plus the repo skeleton.
+
+    Only `build_system: custom` is supported, which is what tuna-desktop (the
+    one recipe targeting Gentoo) uses; other build systems fail rather than
+    render an ebuild nothing has exercised. The recipe's own build and install
+    commands run unchanged, as in the PKGBUILD renderer. A recipe that needs
+    the `rust` capability inherits cargo.eclass: its RUST_DEPEND is the Gentoo
+    spelling of that capability (any rust or rust-bin slot at or above
+    build.rust_version, which becomes RUST_MIN_VER), rust_pkg_setup puts that
+    slot's cargo first on PATH, and the build runs under cargo_env (Gentoo's
+    CC, linker and LDFLAGS). `provides` has no Gentoo equivalent and is not
+    rendered.
+    """
+    if recipe["build_system"] != "custom":
+        fail(f"{target}: the ebuild renderer supports build_system: custom only")
+    name = recipe["name"]
+    category = gentoo_category(recipe)
+    pf = gentoo_pf(recipe)
+    license_name = GENTOO_LICENSES.get(str(recipe["license"]))
+    if not license_name:
+        fail(f"license {recipe['license']!r} has no Gentoo license mapping in GENTOO_LICENSES")
+    capabilities = recipe.get("dependencies", {}).get("build", {}).get("capabilities", [])
+    uses_cargo = "rust" in capabilities
+    minimum_rust = rust_version(recipe)
+    if minimum_rust and not uses_cargo:
+        fail("build.rust_version is set but the recipe does not need the rust capability")
+    sources = source_entries(recipe, target)
+    source_url = recipe["source"]["url"]
+    github = re.match(r"https://github\.com/[^/]+/[^/]+", source_url)
+    homepage = github.group(0) if github else source_url
+    source_directory = recipe["source"].get("directory", f"{name}-{recipe['version']}")
+    workdir = "${WORKDIR}" if source_directory == "." else f"${{WORKDIR}}/{source_directory}"
+    src_uri = ebuild_list([
+        f"{item['url']} -> {gentoo_distfile(recipe, item, index)}"
+        for index, item in enumerate(sources)
+    ])
+    unpack_lines = [f'unpack {shlex.quote(gentoo_distfile(recipe, sources[0], 0))}']
+    if len(sources) > 1:
+        unpack_lines.append('cd "${S}" || die')
+    for index, item in enumerate(sources[1:], start=1):
+        destination = shlex.quote(item["destination"])
+        distfile = f'"${{DISTDIR}}"/{shlex.quote(gentoo_distfile(recipe, item, index))}'
+        if item.get("extract", True):
+            unpack_lines.append(f"mkdir -p {destination} || die")
+            unpack_lines.append(
+                f"tar --extract --file {distfile}"
+                f" --strip-components={item.get('strip_components', 1)}"
+                f" --directory {destination} || die"
+            )
+        else:
+            unpack_lines.append(f"install -Dm0644 {distfile} {destination} || die")
+    if uses_cargo:
+        unpack_lines.append("cargo_gen_config")
+    build = "\n".join(filter(None, [
+        prepare_commands(recipe),
+        build_environment_exports(recipe),
+        cargo_config_commands(recipe),
+        custom_commands(recipe, "build", target=target),
+    ]))
+    install = "\n".join(filter(None, [
+        custom_commands(recipe, "install", "${D}", target),
+        install_commands(recipe, "${D}"),
+        install_directories(recipe, "${D}"),
+    ]))
+    for script in (build, install):
+        if re.search(r"^TIDEFORGE_EOF$", script, re.MULTILINE):
+            fail("a build or install command collides with the ebuild heredoc delimiter")
+    keep_uncompressed = [
+        f"/{path.lstrip('/')}"
+        for path in recipe["files"]["common"]
+        if path.lstrip("/").startswith(GENTOO_DOCOMPRESS_DIRS)
+    ]
+    keywords = " ".join(sorted(load_targets()[target]["architectures"]))
+    runner = "cargo_env bash" if uses_cargo else "bash"
+    rust_lines = f'RUST_MIN_VER="{minimum_rust}"\n' if minimum_rust else ""
+    inherit_line = "inherit cargo\n\n" if uses_cargo else ""
+    docompress = f"\n\tdocompress -x {' '.join(keep_uncompressed)}" if keep_uncompressed else ""
+    unpack_body = "\n\t".join(unpack_lines)
+    ebuild = f"""# Generated by Tideforge from packages/{name}/package.yaml.
+# Edit the recipe, not this file.
+
+EAPI=8
+
+{rust_lines}{inherit_line}DESCRIPTION="{ebuild_string(recipe['summary'])}"
+HOMEPAGE="{homepage}"
+SRC_URI="{src_uri}"
+S="{workdir}"
+
+LICENSE="{license_name}"
+SLOT="0"
+KEYWORDS="{keywords}"
+# The sources are pinned release assets, not mirrored on Gentoo's distfiles.
+RESTRICT="mirror"
+
+RDEPEND="{ebuild_list(target_runtime_dependencies(recipe, target))}"
+DEPEND="${{RDEPEND}}"
+BDEPEND="{ebuild_list(target_dependencies(recipe, target))}"
+
+src_unpack() {{
+	{unpack_body}
+}}
+
+src_configure() {{
+	:
+}}
+
+src_compile() {{
+	{runner} -euo pipefail <<'TIDEFORGE_EOF' || die "build commands failed"
+{build}
+TIDEFORGE_EOF
+}}
+
+src_test() {{
+	:
+}}
+
+src_install() {{
+	env D="${{D}}" bash -euo pipefail <<'TIDEFORGE_EOF' || die "install commands failed"
+{install}
+TIDEFORGE_EOF{docompress}
+}}
+"""
+    return {
+        "profiles/repo_name": f"{GENTOO_REPO_NAME}\n",
+        "metadata/layout.conf": "masters = gentoo\nthin-manifests = true\nsign-manifests = false\n",
+        f"{category}/{name}/{pf}.ebuild": ebuild,
+    }
+
+
 def render(recipe: dict, target: str) -> dict[str, str]:
     recipe = target_recipe(recipe, target)
     target_data = load_targets()[target]
@@ -1273,6 +1504,8 @@ def render(recipe: dict, target: str) -> dict[str, str]:
         return render_deb(recipe, target)
     if target_data["format"] == "pkg.tar.zst":
         return render_pkgbuild(recipe, target)
+    if target_data["format"] == "gpkg":
+        return render_ebuild(recipe, target)
     fail(f"{target}: renderer for {target_data['format']} is scaffold-only")
 
 
