@@ -36,11 +36,27 @@ install -m 0600 /dev/null /run/tunaos-gpg-pass
 printf '%s' "${GPG_PASSPHRASE:-}" > /run/tunaos-gpg-pass
 # Portage signs with BINPKG_GPG_SIGNING_BASE_COMMAND; the stock one expects
 # an agent that already holds the passphrase, which a CI container has not.
+#
+# emaint then VERIFIES every signed gpkg it indexes, as an unprivileged
+# user, against BINPKG_GPG_VERIFY_GPG_HOME, and accepts only a fully or
+# ultimately trusted signer. So the public half goes into a keyring laid
+# out the way getuto lays out /etc/portage/gnupg (root's, world-readable),
+# marked ultimate: a package this job cannot verify never reaches the
+# index, and the secret key stays in root's private keyring.
+verify_home=/var/lib/tunaos-binpkg-verify
+install -d -m 0700 "$verify_home"
+gpg --batch --export "$key" | gpg --homedir "$verify_home" --batch --import
+printf '%s:6:\n' "$key" | gpg --homedir "$verify_home" --batch --import-ownertrust
+gpg --homedir "$verify_home" --batch --check-trustdb
+gpgconf --homedir "$verify_home" --kill all
+chmod u=rwx,go=rx "$verify_home"
+chmod ugo+r "$verify_home/pubring.kbx" "$verify_home/trustdb.gpg"
 cat >> /etc/portage/make.conf <<EOF
 FEATURES="binpkg-signing"
 BINPKG_GPG_SIGNING_GPG_HOME="$GNUPGHOME"
 BINPKG_GPG_SIGNING_KEY="$key"
 BINPKG_GPG_SIGNING_BASE_COMMAND="/usr/bin/gpg --sign --armor --batch --pinentry-mode loopback --passphrase-file /run/tunaos-gpg-pass [PORTAGE_CONFIG]"
+BINPKG_GPG_VERIFY_GPG_HOME="$verify_home"
 EOF
 
 for path in "${incoming[@]}"; do

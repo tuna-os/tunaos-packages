@@ -1433,7 +1433,7 @@ src_test() {{
 }}
 
 src_install() {{
-	D="${{D}}" bash -euo pipefail <<'TIDEFORGE_EOF' || die "install commands failed"
+	env D="${{D}}" bash -euo pipefail <<'TIDEFORGE_EOF' || die "install commands failed"
 {install}
 TIDEFORGE_EOF{docompress}
 }}

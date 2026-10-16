@@ -14,7 +14,7 @@
 #
 # Environment:
 #   ATOM      <category>/<name>
-#   BINHOST   a directory of *.gpkg.tar, or an https:// binhost URL
+#   BINHOST   a directory of *.gpkg.tar, or a binhost URL
 #   KEY       (URL binhost) armored public key that signs it; signatures are
 #             then REQUIRED for every binary package, Gentoo's included
 #   OVERLAY   (optional) zip URL of the overlay, checked after the install
@@ -31,11 +31,12 @@ FEATURES="-ipc-sandbox -network-sandbox -pid-sandbox"
 MAKEOPTS="-j$(nproc)"
 EOF
 
-if [[ $binhost == https://* ]]; then
+if [[ ! -d $binhost ]]; then
   # The consumer's trust path: getuto seeds /etc/portage/gnupg with Gentoo's
   # release keys under a local ultimately-trusted key; the TunaOS key gets the
-  # same local signature, because Portage rejects a good signature from a key
-  # it does not trust fully.
+  # same local signature and the same trustdb update and permissions getuto
+  # applies, because Portage (verifying as an unprivileged user) rejects a
+  # good signature from a key it does not trust fully.
   getuto
   gpg --homedir /etc/portage/gnupg --batch --import "${KEY:?a served binhost needs KEY}"
   fingerprint=$(gpg --homedir /etc/portage/gnupg --batch --with-colons --show-keys "$KEY" \
@@ -43,6 +44,9 @@ if [[ $binhost == https://* ]]; then
   gpg --homedir /etc/portage/gnupg --batch --yes --no-tty \
     --passphrase-file /etc/portage/gnupg/pass --pinentry-mode loopback \
     --quick-lsign-key "$fingerprint"
+  gpg --homedir /etc/portage/gnupg --batch --check-trustdb
+  chmod ugo+r /etc/portage/gnupg/trustdb.gpg /etc/portage/gnupg/pubring.kbx
+  gpgconf --homedir /etc/portage/gnupg --kill all
   cat > /etc/portage/binrepos.conf/tunaos.conf <<EOF
 [tunaos]
 priority = 10
