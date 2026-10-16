@@ -273,6 +273,30 @@ jobs:
           UTAH_REPO_DIR: ${{ startsWith(matrix.mock_config, 'hummingbird') && '/tmp/utah-root' || '' }}
         if: steps.verdict.outputs.hit != 'true'
         run: bash scripts/run-package-factory-cell.sh
+      # Fail fast on an empty wave. When every queued package was already
+      # served -- run 38901123271 dispatched tiers=local-00, which queued
+      # only tuna-desktop, and the published index already served that NVR,
+      # so the chain exited 0 having banked 0 RPMs -- the upload below
+      # (warn, not error) uploads nothing, and the publish job then dies at
+      # download-artifact with "Artifact not found", far from the cause.
+      # Refuse here, where the cell id, the tiers slice and the served
+      # state are all visible. The gate admits a failed or cancelled build
+      # untouched, so it cannot mask the build's own failure; a cache hit
+      # is admitted too, because the restored output was already verified.
+      - name: Refuse an empty wave
+        if: steps.verdict.outputs.hit == 'true' || steps.build.outcome == 'success'
+        run: |
+          set -euo pipefail
+          dir='.factory/${{ matrix.id }}/artifacts'
+          count=0
+          if [ -d "$dir" ]; then
+            count=$(find "$dir" -maxdepth 1 -type f -name '*.rpm' | wc -l)
+          fi
+          if [ "$count" -eq 0 ]; then
+            echo "::error::cell '${{ matrix.id }}' banked 0 RPMs in $dir/ after a successful build, so there is nothing for the publish job to download (its download-artifact step would fail with 'Artifact not found'). This usually means every queued package was already served by the published index -- tiers input was '${{ inputs.tiers }}' (empty builds the full order). Re-dispatch with tiers that still have unserved packages, or without 'tiers'."
+            exit 1
+          fi
+          echo "cell '${{ matrix.id }}' banked $count RPM(s)"
       # Stage whatever this leg banked in ORAS, so an independent one-off
       # dispatch (built to fill a single missing package, say) doesn't have
       # to become the one process serialized on the R2 bucket to be useful

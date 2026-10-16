@@ -38,6 +38,10 @@ def cell(cid, r2_path="fam/10-x86_64", publish=None, **kw):
         "id": cid, "target": "el10", "architecture": "x86_64",
         "runner": "ubuntu-24.04", "image": "img", "manifest": "m.yml",
         "mock_config": "mc", "r2_path": r2_path,
+        # The real planner always emits source_paths (plan-package-factory.py
+        # requires the key for native cells); the default keeps the helper
+        # honest, and the no-source_paths tests below override it via kw.
+        "source_paths": ["src/foo/"],
     }
     if publish is not None:
         c["publish"] = publish
@@ -111,6 +115,43 @@ def test_an_unknown_cell_is_refused_and_lists_what_exists() -> None:
     assert selected == []
     assert "not a build-chain cell" in rejections[0]
     assert "real" in rejections[0]
+
+
+# --- cells with nothing to date the build from -------------------------------
+
+
+@pytest.mark.parametrize("empty", [[], None])
+def test_a_cell_without_source_paths_is_refused(empty) -> None:
+    """Without source_paths no SOURCE_DATE_EPOCH can be derived. The plan
+    must refuse the cell here, with the reason, rather than letting the
+    build's identity step fail it after pulling images and cache probes."""
+    selected, rejections = planner.resolve(["x"], avail(cell("x", source_paths=empty)))
+    assert selected == []
+    assert len(rejections) == 1
+    assert "source_paths" in rejections[0]
+
+
+def test_a_cell_missing_the_source_paths_key_is_refused() -> None:
+    c = cell("x")
+    del c["source_paths"]
+    selected, rejections = planner.resolve(["x"], avail(c))
+    assert selected == []
+    assert "source_paths" in rejections[0]
+
+
+def test_selected_cells_carry_their_source_paths() -> None:
+    """The matrix must thread source_paths through: the build's identity
+    step reads them from matrix.source_paths to derive the epoch."""
+    selected, _ = planner.resolve(["x"], avail(cell("x", source_paths=["src/a/", "src/b/"])))
+    assert selected[0]["source_paths"] == ["src/a/", "src/b/"]
+
+
+def test_an_empty_cells_dispatch_names_the_input_it_needs(capsys) -> None:
+    """A dispatch that defaulted to the empty set must say which input to
+    fill, not just that nothing was requested."""
+    rc = planner.main(["--cells", " , "])
+    assert rc == 2
+    assert "'cells'" in capsys.readouterr().err
 
 
 # --- the happy path ---------------------------------------------------------
