@@ -30,8 +30,13 @@ that is not a pattern real RPM naming produces, and see the module
 docstring's incident note for why the collision that actually matters,
 concurrent *publish*, is guarded elsewhere.)
 
-pull-all <dir>: list every tag currently staged and pull each one into
-<dir>, restoring original filenames. Best-effort per tag: one vanished or
+pull-all <dir> --dist D --arch A: pull every staged tag that belongs to one
+cell -- its %{dist} (.bfin1, .el10, ...) and its architecture or noarch --
+into <dir>, restoring original filenames. The ORAS repository is shared by
+every build-chain family, and the publisher signs and places everything it
+pulls, so an unscoped pull put one family's RPMs into another's prefix
+(345 staged .el10 RPMs were one hummingbird publish away from
+hummingbird/20251124-x86_64, tuna-os/tunaos-packages#832). Best-effort per tag: one vanished or
 corrupt entry must not stop the publish job from picking up everything
 else that's staged.
 """
@@ -100,14 +105,27 @@ def list_tags() -> list[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def pull_all(output_dir: Path) -> int:
-    """Pull every currently-staged artifact into output_dir.
+def belongs_to(tag: str, dist: str, arch: str) -> bool:
+    """Whether a staged tag (sanitized `<name>-<version>-<release>.<arch>`)
+    is an RPM of the cell with this %{dist} and architecture."""
+    stem, _, tag_arch = tag.rpartition(".")
+    if tag_arch not in (arch, "noarch"):
+        return False
+    release = stem.rpartition("-")[2]
+    dist = _UNSAFE_TAG_CHARS.sub("_", dist)
+    return release.endswith(dist) or f"{dist}." in release
+
+
+def pull_all(output_dir: Path, dist: str, arch: str) -> int:
+    """Pull every staged artifact of one cell (see belongs_to) into output_dir.
 
     Returns the count of tags successfully pulled.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     pulled = 0
     for tag in list_tags():
+        if not belongs_to(tag, dist, arch):
+            continue
         try:
             subprocess.run(
                 ["oras", "pull", "--plain-http=false", f"{ORAS_REPO}:{tag}",
@@ -130,13 +148,17 @@ def main() -> int:
 
     pull_parser = subparsers.add_parser("pull-all", help="pull every currently-staged artifact")
     pull_parser.add_argument("output_dir", type=Path)
+    pull_parser.add_argument("--dist", required=True,
+                             help="the cell's %%{dist}, e.g. .bfin1")
+    pull_parser.add_argument("--arch", required=True,
+                             help="the cell's architecture; noarch is always included")
 
     args = parser.parse_args()
     if args.command == "push":
         count = push(args.artifacts_dir)
         print(f"staged {count} RPM(s) to {ORAS_REPO}")
     elif args.command == "pull-all":
-        count = pull_all(args.output_dir)
+        count = pull_all(args.output_dir, args.dist, args.arch)
         print(f"pulled {count} staged artifact(s) from {ORAS_REPO}")
     return 0
 

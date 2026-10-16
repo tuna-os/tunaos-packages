@@ -4,18 +4,24 @@ from __future__ import annotations
 import pathlib
 from typing import Any
 
+import factory_contract
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FACTORY = ROOT / "manifests" / "package-factory.yaml"
+FACTORY = factory_contract.FACTORY
 
 
 def split(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
-def target(name: str, expected_format: str, fail: Any) -> dict[str, Any]:
-    targets = (yaml.safe_load(FACTORY.read_text(encoding="utf-8")) or {}).get("targets") or {}
+def target(name: str, expected_format: str, fail: Any,
+           factory: pathlib.Path = FACTORY) -> dict[str, Any]:
+    try:
+        targets = factory_contract.load_targets(factory)
+    except factory_contract.ContractError as error:
+        fail(str(error))
+        raise AssertionError("fail callback returned")
     spec = targets.get(name)
     if not spec:
         fail(f"unknown target {name!r}; the contract declares {sorted(targets)}")

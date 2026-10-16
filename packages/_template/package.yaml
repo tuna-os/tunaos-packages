@@ -3,6 +3,9 @@
 # duplicate a whole spec/control/PKGBUILD just to add one dependency.
 schema: 1
 name: example-tool
+# Valid for RPM, Debian and pacman at once: no `-`, `_` or `:`. Write a
+# prerelease as `1.0.0~beta.1`; RPM and Debian use it as-is and Tideforge
+# renders pacman's pkgver as `1.0.0beta.1`. All three sort it before 1.0.0.
 version: "1.0.0"
 release: 1
 summary: Example command-line tool
