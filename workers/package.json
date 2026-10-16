@@ -6,7 +6,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "0.9.14",
+    "@cloudflare/vitest-pool-workers": "0.23.0",
     "vitest": "3.2.7",
     "wrangler": "4.139.0"
   }
