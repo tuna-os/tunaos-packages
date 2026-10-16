@@ -10674,6 +10674,7 @@ packages:
       - el10
       - eln
       - fedora
+      - opensuse-tumbleweed
       - rawhide
       - ubuntu
     membership: runtime
