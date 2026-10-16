@@ -77,6 +77,12 @@ grep '^CPV: ' "$repo/Packages"
 # zip, byte-stable for identical content so an unchanged overlay keeps its
 # ETag and `emaint sync` reports "not changed". Directory entries precede
 # their files: Portage's zipfile sync creates directories only from those.
+# `ebuild manifest` sources the ebuild, and its `inherit cargo` resolves
+# through the overlay's master, ::gentoo, which the stage3 does not carry:
+# without the tree the depend phase dies on "cargo.eclass could not be found
+# by inherit()" (publish run 38896459570). The same signature-verified
+# snapshot gentoo-build-cell.sh syncs.
+emerge-webrsync --quiet
 while IFS= read -r ebuild; do
   DISTDIR=$distfiles ebuild "$ebuild" manifest
 done < <(find "$overlay" -name '*.ebuild' | sort)
