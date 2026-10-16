@@ -18,6 +18,6 @@ npm test
 ```
 
 `repo-proxy.test.ts` loads the actual Worker module and runs it in a real
-Workers runtime. It uses `@cloudflare/vitest-pool-workers` and Miniflare
+Workers runtime. It uses `@cloudflare/vitest-plugin` and Miniflare
 with a fake R2 binding. This is not a copy of the routing logic. Add a test
 case for each new route, header, or path-decoding change.

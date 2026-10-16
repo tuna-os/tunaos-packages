@@ -6,8 +6,8 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "0.9.14",
-    "vitest": "3.2.7",
+    "@cloudflare/vitest-plugin": "1.4.4",
+    "vitest": "5.0.5",
     "wrangler": "4.151.1"
   }
 }
