@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "packaging/tiny-dfr/input-contract.json"
 SCRIPT = ROOT / "scripts/prepare-tiny-dfr-publication-ci.sh"

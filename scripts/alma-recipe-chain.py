@@ -21,7 +21,6 @@ import time
 from pathlib import Path
 
 import yaml
-
 from target_platform import build_context
 
 DIGEST = re.compile(r'sha256:[0-9a-f]{64}\Z')
@@ -205,7 +204,9 @@ def plan(root, target, architecture, source_revision, action_key, packages):
                     if provider != name:
                         dependencies[name].add(provider)
                         if provider not in selected:
-                            selected.add(provider); pending.append(provider); pending.sort()
+                            selected.add(provider)
+                            pending.append(provider)
+                            pending.sort()
                 else:
                     if match and match[1] in authored:
                         raise ValueError('factory provider unavailable for target: ' + expression)
@@ -221,7 +222,9 @@ def plan(root, target, architecture, source_revision, action_key, packages):
         wave = sorted(name for name in remaining if dependencies[name] <= done)
         if not wave:
             raise ValueError('factory provider cycle: ' + ','.join(sorted(remaining)))
-        waves.append(wave); done.update(wave); remaining.difference_update(wave)
+        waves.append(wave)
+        done.update(wave)
+        remaining.difference_update(wave)
     material = {'cell': f'tideforge-chain-{target}-{architecture}',
                 'target': target, 'architecture': architecture, 'sourceRevision': source_revision,
                 'actionKey': action_key, 'requestedRoots': sorted(packages),

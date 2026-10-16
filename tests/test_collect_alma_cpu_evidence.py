@@ -5,8 +5,8 @@ installed ELF, or an unrestricted CPU control; collection must fail closed.
 These tests are authored for CI. Local build/test execution is not authorized.
 """
 import importlib.util
-from pathlib import Path
 import shutil
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest

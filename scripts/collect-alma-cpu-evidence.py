@@ -11,22 +11,22 @@ missing-note ELF objects remain blocked. No cpio member paths are extracted.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 import gzip
 import hashlib
 import importlib.util
 import json
 import os
-from pathlib import Path, PurePosixPath
 import re
 import resource
 import shlex
 import subprocess
 import tempfile
-import urllib.parse
 import urllib.error
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from datetime import UTC, datetime
+from pathlib import Path, PurePosixPath
 
 ALMA_FINGERPRINT = 'EE6DB7B98F5BF5EDD9DA0DE5DEE5C11CC2A1E572'
 ALMA_KEY = 'https://repo.almalinux.org/almalinux/RPM-GPG-KEY-AlmaLinux-10'
@@ -392,7 +392,7 @@ def collect(args, cpu):
     if not re.fullmatch('[0-9a-f]{40}', args.source_revision) or not re.fullmatch(r'[A-Za-z0-9._:-]{1,160}', args.attempt_identity):
         raise CollectionError('invalid-ci-source-or-attempt-identity')
     observation = {'schemaVersion': 1, 'kind': 'alma-cpu-collection', 'scope': args.scope,
-                   'measuredAt': datetime.now(timezone.utc).isoformat(),
+                   'measuredAt': datetime.now(UTC).isoformat(),
                    'sourceRevision': args.source_revision, 'attemptIdentity': args.attempt_identity,
                    'consumerBaseReference': args.consumer_base_reference,
                    'requiredTrust': ['authenticated-ci-producer', 'authenticated-consumer-base'],

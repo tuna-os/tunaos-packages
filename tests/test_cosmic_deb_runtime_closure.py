@@ -4,15 +4,15 @@ Falsification: restoring an empty Debian Depends or dropping a queue sibling
 must fail even when the session binary itself builds and its smoke test passes.
 Actual signed consumer installation remains a separate CI acceptance gate.
 """
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-import tideforge
+import tideforge  # noqa: E402
 
 SIBLINGS = {
     'cosmic-app-library', 'cosmic-applets', 'cosmic-bg', 'cosmic-comp',

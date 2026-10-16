@@ -4,8 +4,9 @@ Falsification: fill all three shards then add native continuations; the complete
 inventory must remain visible in explicit deterministic batches, never truncated.
 """
 import importlib.util
-import pytest
 from pathlib import Path
+
+import pytest
 
 ROOT=Path(__file__).parents[1]
 SPEC=importlib.util.spec_from_file_location('batch_planner',ROOT/'scripts/plan-package-factory.py')

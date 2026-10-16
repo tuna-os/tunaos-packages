@@ -4,11 +4,11 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
 import stat
 import subprocess
 import sys
 import zipfile
+from pathlib import Path
 
 import pytest
 import yaml
@@ -17,15 +17,20 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / 'scripts/alma-candidate-resume.py'
 sys.path.insert(0, str(ROOT / 'scripts'))
 spec = importlib.util.spec_from_file_location('alma_resume', SCRIPT)
-resume = importlib.util.module_from_spec(spec); spec.loader.exec_module(resume)
+resume = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(resume)
 
 
 @pytest.fixture
 def candidate(tmp_path):
-    meta = tmp_path / 'meta'; meta.mkdir()
-    repo = tmp_path / 'repo'; repo.mkdir()
-    build = tmp_path / 'prepared'; build.mkdir()
-    (build / 'SPECS').mkdir(); (build / 'SOURCES').mkdir()
+    meta = tmp_path / "meta"
+    meta.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    build = tmp_path / "prepared"
+    build.mkdir()
+    (build / "SPECS").mkdir()
+    (build / "SOURCES").mkdir()
     (build / 'SPECS/native.spec').write_bytes(b'Version: 1\n')
     (build / 'SOURCES/source.tar').write_bytes(b'exact source bytes')
     identity = {'repository': 'tuna-os/tunaos-packages', 'sourceRevision': 'a' * 40,
@@ -57,9 +62,12 @@ def test_completion_skip_requires_exact_prepared_sources_and_outputs(candidate):
 def test_completion_mismatch_forces_rebuild(candidate, change):
     meta, repo, build, identity = candidate
     resume.record(meta, repo, 'native', build, ['native.rpm'])
-    if change == 'spec': (build / 'SPECS/native.spec').write_bytes(b'Version: 2\n')
-    elif change == 'rpm': (repo / 'native.rpm').write_bytes(b'tampered')
-    elif change == 'missing': (repo / 'native.rpm').unlink()
+    if change == "spec":
+        (build / "SPECS/native.spec").write_bytes(b"Version: 2\n")
+    elif change == "rpm":
+        (repo / "native.rpm").write_bytes(b"tampered")
+    elif change == "missing":
+        (repo / "native.rpm").unlink()
     else:
         field = {'target': 'target', 'base': 'baseDigest', 'source': 'sourceRevision', 'key': 'actionKey'}[change]
         identity[field] = 'changed'
@@ -70,7 +78,8 @@ def test_completion_mismatch_forces_rebuild(candidate, change):
 def test_prepared_input_identity_is_stable_across_attempts(candidate):
     meta, repo, build, identity = candidate
     resume.record(meta, repo, 'native', build, ['native.rpm'])
-    identity['runId'] = 456; identity['runAttempt'] = 2
+    identity["runId"] = 456
+    identity["runAttempt"] = 2
     (meta / 'identity.json').write_text(json.dumps(identity))
     assert resume.skip(meta, repo, 'native', build) is True
 
@@ -104,18 +113,25 @@ def test_unrecorded_rpm_cannot_enter_snapshot(candidate, tmp_path):
 @pytest.mark.parametrize('name', ['../escape', '/absolute', 'payload/../escape', 'other.json'])
 def test_archive_unsafe_names_are_rejected_before_extraction(tmp_path, name):
     archive = tmp_path / 'snapshot.zip'
-    with zipfile.ZipFile(archive, 'w') as zipped: zipped.writestr(name, b'bytes')
-    destination = tmp_path / 'destination'; destination.mkdir()
-    with pytest.raises(ValueError): resume.extract(archive, destination)
+    with zipfile.ZipFile(archive, "w") as zipped:
+        zipped.writestr(name, b"bytes")
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    with pytest.raises(ValueError):
+        resume.extract(archive, destination)
     assert list(destination.iterdir()) == []
 
 
 def test_archive_link_entries_are_rejected_before_extraction(tmp_path):
     archive = tmp_path / 'snapshot.zip'
-    info = zipfile.ZipInfo('payload/link'); info.external_attr = (stat.S_IFLNK | 0o777) << 16
-    with zipfile.ZipFile(archive, 'w') as zipped: zipped.writestr(info, b'../escape')
-    destination = tmp_path / 'destination'; destination.mkdir()
-    with pytest.raises(ValueError): resume.extract(archive, destination)
+    info = zipfile.ZipInfo("payload/link")
+    info.external_attr = (stat.S_IFLNK | 0o777) << 16
+    with zipfile.ZipFile(archive, "w") as zipped:
+        zipped.writestr(info, b"../escape")
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    with pytest.raises(ValueError):
+        resume.extract(archive, destination)
     assert list(destination.iterdir()) == []
 
 
@@ -123,7 +139,8 @@ def test_admission_verification_failure_cannot_seed_completions(candidate, tmp_p
     meta, repo, _, _ = candidate
     def rejected(command, **kwargs): raise subprocess.CalledProcessError(1, command)
     monkeypatch.setattr(resume.subprocess, 'run', rejected)
-    with pytest.raises(subprocess.CalledProcessError): resume.admit(meta, repo, tmp_path / 'state', tmp_path / 'envelope')
+    with pytest.raises(subprocess.CalledProcessError):
+        resume.admit(meta, repo, tmp_path / "state", tmp_path / "envelope")
     assert not (meta / 'completed-packages.json').exists()
 
 
@@ -153,7 +170,8 @@ def test_workflow_banks_attested_native_partials_without_production_promotion():
     'https://productionresultssa19.blob.core.windows.net:444/archive',
     'https://productionresultssa19.blob.core.windows.net/archive#fragment'])
 def test_signed_artifact_redirect_policy_rejects_unapproved_urls(url):
-    with pytest.raises(ValueError): resume.validate_artifact_url(url)
+    with pytest.raises(ValueError):
+        resume.validate_artifact_url(url)
 
 
 def test_public_artifact_host_is_allowed_without_forwarding_credentials():
@@ -274,9 +292,12 @@ def test_nested_admission_observations_reject_links(candidate, tmp_path, monkeyp
     envelope = tmp_path / 'envelope'
     bank = envelope / 'payload/buildroots/app'
     bank.mkdir(parents=True)
-    outside = tmp_path / 'outside'; outside.write_bytes(b'not authenticated evidence')
-    if kind == 'symlink': (bank / 'observation.txt').symlink_to(outside)
-    else: os.link(outside, bank / 'observation.txt')
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"not authenticated evidence")
+    if kind == "symlink":
+        (bank / "observation.txt").symlink_to(outside)
+    else:
+        os.link(outside, bank / "observation.txt")
     (repo / 'admission-receipt.json').write_text(json.dumps({
         'productionReady': False, 'completedPackages': []}))
     monkeypatch.setattr(resume.subprocess, 'run', lambda *args, **kwargs: None)

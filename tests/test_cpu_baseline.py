@@ -5,6 +5,7 @@ missing execution, or an unrelated digest; every substitution must block.
 """
 import importlib.util
 from pathlib import Path
+
 import pytest
 
 spec = importlib.util.spec_from_file_location('cpu_baseline', Path(__file__).parents[1] / 'scripts/verify-cpu-baseline.py')
@@ -156,7 +157,7 @@ def test_actual_gcc_readelf_linked_library_requires_exact_provider(tmp_path):
             'compiler': {'artifactDigest': identity, 'flags': ['-march=x86-64-v2'], 'evidenceDigest': D},
             'execution': {'artifactDigest': identity, 'baseline': 'x86-64-v2', 'runnerDigest': D,
                           'evidenceDigest': D, 'exitCode': 0, 'elfDigests': [identity]}})
-    extract = lambda path: [(path.name, path.read_bytes())]
+    extract = lambda path: [(path.name, path.read_bytes())]  # noqa: E731
     assert cpu.verify(document, extract=extract)['status'] == 'blocked'
     library_digest = document['artifacts'][1]['digest']
     document['artifacts'][0]['dependencyDigests'] = [library_digest]
@@ -266,7 +267,8 @@ def test_vendor_tampered_native_identity_or_artifact_binding_blocks(tmp_path):
 
 def test_vendor_proof_does_not_waive_execution_or_library_closure(tmp_path):
     document, native, _ = vendor_fixture(tmp_path)
-    inspect = lambda data: {'digest': cpu.digest(data), 'machine': cpu.BASELINES['x86-64-v2'][0],
+    inspect = lambda data: {  # noqa: E731
+        'digest': cpu.digest(data), 'machine': cpu.BASELINES['x86-64-v2'][0],
                             'isaNeeded': None, 'needed': ['libmissing.so'], 'soname': None}
     result = cpu.verify(document, inspect=inspect, extract=lambda path: [('library', b'ELF')],
                         native_identity=lambda path: native)

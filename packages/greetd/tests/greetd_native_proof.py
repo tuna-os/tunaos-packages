@@ -9,7 +9,6 @@ Desktop common-Slot consumer are NOT qualified by this controlled observer.
 import argparse
 import json
 import os
-from pathlib import Path
 import resource
 import select
 import signal
@@ -17,6 +16,7 @@ import socket
 import stat
 import time
 import uuid
+from pathlib import Path
 
 from native_daemon_owner import NativeDaemonOwner
 from retirement_peer import Peer, digest, receive, require_budget, send

@@ -4,9 +4,9 @@ import copy
 import hashlib
 import importlib.util
 import os
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('ci_admission', Path(__file__).with_name('ci_admission.py'))
@@ -50,18 +50,24 @@ class SyntheticAdmission(unittest.TestCase):
                                 'content': base64.b64encode(data).decode()}
 
     def api(self, path):
-        if path == 'actions/runs/11': return copy.deepcopy(self.run)
-        if path == 'actions/runs/11/attempts/1/jobs?per_page=100': return copy.deepcopy(self.jobs)
-        if path == 'git/commits/' + self.head: return {'sha': self.head, 'tree': {'sha': self.tree}}
+        if path == "actions/runs/11":
+            return copy.deepcopy(self.run)
+        if path == "actions/runs/11/attempts/1/jobs?per_page=100":
+            return copy.deepcopy(self.jobs)
+        if path == "git/commits/" + self.head:
+            return {"sha": self.head, "tree": {"sha": self.tree}}
         for name in admission.SOURCES:
             if path == 'contents/' + name + '?ref=' + self.head:
                 return copy.deepcopy(self.blobs[name])
         raise AssertionError('unexpected synthetic API path')
 
     def git(self, root, *args):
-        if args == ('rev-parse', 'HEAD'): return self.head
-        if args == ('rev-parse', 'HEAD^{tree}'): return self.tree
-        if args == ('status', '--porcelain', '--untracked-files=all'): return ''
+        if args == ("rev-parse", "HEAD"):
+            return self.head
+        if args == ("rev-parse", "HEAD^{tree}"):
+            return self.tree
+        if args == ("status", "--porcelain", "--untracked-files=all"):
+            return ""
         raise AssertionError('unexpected synthetic Git command')
 
     def invoke(self):
@@ -90,7 +96,8 @@ class SyntheticAdmission(unittest.TestCase):
         for key, value in mutations:
             self.run = copy.deepcopy(original)
             self.run[key] = value
-            with self.subTest(key=key, value=value), self.assertRaises(ValueError): self.invoke()
+            with self.subTest(key=key, value=value), self.assertRaises(ValueError):
+                self.invoke()
 
     def test_env_ref_head_job_event_and_attempt_drift(self):
         original = self.environment.copy()
@@ -99,41 +106,59 @@ class SyntheticAdmission(unittest.TestCase):
                            ('GITHUB_REF', 'refs/tags/owned'), ('GITHUB_WORKFLOW_REF', 'foreign')]:
             self.environment = original.copy()
             self.environment[key] = value
-            with self.subTest(key=key), self.assertRaises(ValueError): self.invoke()
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                self.invoke()
 
     def test_missing_duplicate_foreign_stopped_job_and_bad_prerequisite(self):
         original = copy.deepcopy(self.jobs)
         variants = []
-        changed = copy.deepcopy(original); changed['total_count'] = 3; variants.append(changed)
-        changed = copy.deepcopy(original); changed['jobs'][0]['name'] = 'foreign'; variants.append(changed)
+        changed = copy.deepcopy(original)
+        changed["total_count"] = 3
+        variants.append(changed)
+        changed = copy.deepcopy(original)
+        changed["jobs"][0]["name"] = "foreign"
+        variants.append(changed)
         for key, value in [('status', 'queued'), ('conclusion', 'failure'), ('head_sha', 'c' * 40), ('run_attempt', True)]:
-            changed = copy.deepcopy(original); changed['jobs'][0][key] = value; variants.append(changed)
-        changed = copy.deepcopy(original); changed['jobs'][1]['conclusion'] = 'failure'; variants.append(changed)
-        changed = copy.deepcopy(original); changed['jobs'].append(copy.deepcopy(changed['jobs'][0])); changed['total_count'] = 3; variants.append(changed)
+            changed = copy.deepcopy(original)
+            changed["jobs"][0][key] = value
+            variants.append(changed)
+        changed = copy.deepcopy(original)
+        changed["jobs"][1]["conclusion"] = "failure"
+        variants.append(changed)
+        changed = copy.deepcopy(original)
+        changed["jobs"].append(copy.deepcopy(changed["jobs"][0]))
+        changed["total_count"] = 3
+        variants.append(changed)
         for index, changed in enumerate(variants):
             self.jobs = changed
-            with self.subTest(index=index), self.assertRaises(ValueError): self.invoke()
+            with self.subTest(index=index), self.assertRaises(ValueError):
+                self.invoke()
 
     def test_remote_blob_byte_hash_encoding_or_path_drift(self):
         name = admission.SOURCES[0]
         original = copy.deepcopy(self.blobs[name])
         for key, value in [('content', base64.b64encode(b'foreign').decode()), ('sha', 'c' * 40),
                            ('encoding', 'foreign'), ('path', 'foreign'), ('size', 0), ('type', 'symlink')]:
-            self.blobs[name] = copy.deepcopy(original); self.blobs[name][key] = value
-            with self.subTest(key=key), self.assertRaises(ValueError): self.invoke()
+            self.blobs[name] = copy.deepcopy(original)
+            self.blobs[name][key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                self.invoke()
 
     def test_local_source_symlink_refused(self):
         name = admission.SOURCES[0]
         path = self.root / name
         data = path.read_bytes()
         path.unlink()
-        foreign = self.root / 'foreign'; foreign.write_bytes(data)
+        foreign = self.root / "foreign"
+        foreign.write_bytes(data)
         path.symlink_to(foreign)
-        with self.assertRaises(ValueError): self.invoke()
+        with self.assertRaises(ValueError):
+            self.invoke()
 
     def test_actual_architecture_must_match_matrix(self):
         with patch.object(admission.platform, 'machine', return_value='aarch64'):
-            with self.assertRaises(ValueError): admission.current(self.root, 'x86_64')
+            with self.assertRaises(ValueError):
+                admission.current(self.root, "x86_64")
 
     def test_admission_keeps_token_but_child_environment_drops_it(self):
         def admit(root, architecture):
@@ -149,4 +174,5 @@ class SyntheticAdmission(unittest.TestCase):
         self.assertNotIn('GH_TOKEN', child_env)
 
 
-if __name__ == '__main__': unittest.main()
+if __name__ == "__main__":
+    unittest.main()

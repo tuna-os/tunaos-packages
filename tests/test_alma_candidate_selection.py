@@ -1,9 +1,9 @@
 """Candidate selection executes production Python, never native build/publication."""
 import json
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 import yaml
@@ -62,7 +62,8 @@ def test_full_roots_change_production_action_key(selection_checkout):
     assert result.returncode == 0
     before=json.loads(path.read_text())
     recipe=selection_checkout/'packages/extra/package.yaml'
-    recipe.parent.mkdir(); recipe.write_text('name: extra\ntargets: [alma10]\n')
+    recipe.parent.mkdir()
+    recipe.write_text("name: extra\ntargets: [alma10]\n")
     result,path=select(selection_checkout,'full')
     assert result.returncode == 0
     after=json.loads(path.read_text())
@@ -72,7 +73,8 @@ def test_full_roots_change_production_action_key(selection_checkout):
 
 def test_duplicate_full_root_is_refused(selection_checkout):
     duplicate=selection_checkout/'packages/duplicate/package.yaml'
-    duplicate.parent.mkdir(); duplicate.write_text('name: tuna-desktop\ntargets: [alma10]\n')
+    duplicate.parent.mkdir()
+    duplicate.write_text("name: tuna-desktop\ntargets: [alma10]\n")
     result,path=select(selection_checkout,'full')
     assert result.returncode != 0
     assert not path.exists()

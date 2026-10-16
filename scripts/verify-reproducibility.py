@@ -11,19 +11,16 @@ from __future__ import annotations
 
 import argparse
 import datetime
-import hashlib
+import importlib.util
 import json
 import pathlib
 import sys
-from typing import Any, Iterable
+from typing import Any
 
 import yaml
 
-import importlib.util
-
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-import factory_contract  # noqa: E402
 
 _planner_spec = importlib.util.spec_from_file_location(
     "factory_planner", ROOT / "scripts" / "plan-package-factory.py"
@@ -112,7 +109,7 @@ def add_to_quarantine(
     if "quarantined_packages" not in quarantine or not isinstance(quarantine["quarantined_packages"], list):
         quarantine["quarantined_packages"] = []
 
-    now = quarantined_at or datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    now = quarantined_at or datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat()
     existing = None
     for entry in quarantine["quarantined_packages"]:
         if (
@@ -353,7 +350,7 @@ def compute_policy_report(
                 (mapping[key]["reproducible"] / mapping[key]["sampled"] * 100.0), 1
             )
 
-    now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    now = datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat()
     history = list((previous_report or {}).get("history") or [])
     if previous_report and previous_report.get("measured_at"):
         entry = {
@@ -397,7 +394,6 @@ def render_policy_markdown(report: dict[str, Any]) -> str:
     rate = summary.get("reproducibility_rate")
     sampled = summary.get("sampled", 0)
     repro = summary.get("reproducible", 0)
-    div = summary.get("divergent", 0)
     quar = summary.get("quarantined", 0)
 
     if rate is None:

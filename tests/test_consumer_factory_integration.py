@@ -1,5 +1,6 @@
 """Consumer bindings scope factory scheduling and cache inputs to exact targets."""
 from __future__ import annotations
+
 import argparse
 import copy
 import importlib.util
@@ -13,7 +14,7 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-import factory_contract
+import factory_contract  # noqa: E402
 
 
 def load(filename, name):

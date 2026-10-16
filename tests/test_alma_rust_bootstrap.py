@@ -1,13 +1,13 @@
 """Source contract regressions; native compiler builds run only in CI."""
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-import tideforge
+import tideforge  # noqa: E402
 
 CONSUMERS = ['cosmic-bg', 'cosmic-panel', 'cosmic-app-library', 'cosmic-files',
     'cosmic-comp', 'cosmic-greeter', 'cosmic-initial-setup', 'cosmic-notifications',

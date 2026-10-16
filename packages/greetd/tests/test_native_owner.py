@@ -1,8 +1,8 @@
 """Safe mocked ownership controls; no child processes/kernel qualification."""
 import importlib.util
-from pathlib import Path
 import types
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location('native_daemon_owner', Path(__file__).with_name('native_daemon_owner.py'))
@@ -83,16 +83,20 @@ class NativeOwnerControls(unittest.TestCase):
         owner = self.owner()
         with patch.object(owner_module.os, 'killpg', side_effect=PermissionError), \
                 patch.object(owner_module.os, 'close') as close:
-            with self.assertRaises(PermissionError): owner.cleanup()
+            with self.assertRaises(PermissionError):
+                owner.cleanup()
         self.assertFalse(owner.cleaned)
         close.assert_not_called()
         owner.libc.prctl.assert_not_called()
 
     def test_cleanup_is_idempotent_after_actual_observation_scope(self):
-        owner = self.owner(); owner.cleaned = True
+        owner = self.owner()
+        owner.cleaned = True
         with patch.object(owner_module.os, 'killpg') as group, patch.object(owner_module, 'direct_children') as children:
             owner.cleanup()
-        group.assert_not_called(); children.assert_not_called()
+        group.assert_not_called()
+        children.assert_not_called()
 
 
-if __name__ == '__main__': unittest.main()
+if __name__ == "__main__":
+    unittest.main()

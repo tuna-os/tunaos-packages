@@ -6,14 +6,14 @@ The caller retains the original owned canceled attempt and physical worker
 observer separately. This module does not grant authentication or unlock.
 """
 import hashlib
+import json
 import os
-from pathlib import Path
 import select
 import socket
 import stat
 import struct
 import time
-import json
+from pathlib import Path
 
 MAX_FRAME = 64 * 1024
 MAX_BINARY = 128 * 1024 * 1024

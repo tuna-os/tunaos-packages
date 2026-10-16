@@ -11,11 +11,10 @@ import hashlib
 import importlib
 import importlib.util
 import json
-from pathlib import Path
 import re
 import subprocess
 import sys
-from typing import Any
+from pathlib import Path
 
 MAX_JSON_BYTES = 32 * 1024 * 1024
 SHA = re.compile(r"[0-9a-f]{40}\Z")

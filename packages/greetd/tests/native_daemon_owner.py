@@ -5,10 +5,10 @@ claim. Kernel/spawn stalls are outside the bounded observation guarantee.
 """
 import ctypes
 import os
-from pathlib import Path
 import signal
 import subprocess
 import time
+from pathlib import Path
 
 
 def direct_children():

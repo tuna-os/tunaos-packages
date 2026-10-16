@@ -16,9 +16,9 @@ from typing import Any
 import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from target_platform import build_context
-import factory_contract  # noqa: E402  (needs the path above)
 import consumer_contract
+import factory_contract  # noqa: E402  (needs the path above)
+from target_platform import build_context
 
 RECIPE_CHANGE = re.compile(r"^packages/([^/]+)/")
 COMMON_INPUTS = {

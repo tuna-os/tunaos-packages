@@ -6,12 +6,12 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path, PurePosixPath
 import re
+import resource
 import stat
 import subprocess
 import tempfile
-import resource
+from pathlib import Path, PurePosixPath
 
 DIGEST = re.compile(r'^sha256:[0-9a-f]{64}$')
 SHA = re.compile(r'^[0-9a-f]{40}$')
@@ -95,7 +95,8 @@ def identity(value):
         reject('invalid signer workflow')
     if not value['sourceRef'].startswith('refs/'):
         reject('invalid source ref')
-    digest(value['actionKey']); digest(value['baseDigest'])
+    digest(value["actionKey"])
+    digest(value["baseDigest"])
     if value['target'] not in {'alma10', 'alma10-kitten'}:
         reject('not a native Alma target')
     fields(value['platform'], {'os', 'architecture', 'variant'})
@@ -144,15 +145,19 @@ def validate_manifest(manifest):
     if type(manifest['chainComplete']) is not bool:
         reject('invalid chain completion')
     identity(manifest['identity'])
-    key = manifest['publicKey']; fields(key, {'path', 'digest', 'fingerprint'})
-    path_name(key['path']); digest(key['digest'])
+    key = manifest["publicKey"]
+    fields(key, {"path", "digest", "fingerprint"})
+    path_name(key["path"])
+    digest(key["digest"])
     if type(key['fingerprint']) is not str or not re.fullmatch(r'[0-9A-F]{40}', key['fingerprint']):
         reject('invalid public key fingerprint')
     if type(manifest['inventory']) is not list or not manifest['inventory']:
         reject('empty inventory')
     entries = {}
     for entry in manifest['inventory']:
-        fields(entry, {'path', 'size', 'digest'}); path_name(entry['path']); digest(entry['digest'])
+        fields(entry, {"path", "size", "digest"})
+        path_name(entry["path"])
+        digest(entry["digest"])
         if type(entry['size']) is not int or entry['size'] < 0 or entry['path'] in entries:
             reject('invalid or duplicate inventory entry')
         entries[entry['path']] = entry
@@ -162,15 +167,19 @@ def validate_manifest(manifest):
         reject('public key bytes missing from inventory')
     if type(manifest['completedPackages']) is not list:
         reject('invalid package completions')
-    names = set(); outputs = set()
+    names = set()
+    outputs = set()
     for package in manifest['completedPackages']:
         fields(package, {'name', 'inputDigest', 'outputs'})
-        text(package['name']); digest(package['inputDigest'])
+        text(package["name"])
+        digest(package["inputDigest"])
         if package['name'] in names or type(package['outputs']) is not list or not package['outputs']:
             reject('invalid or duplicate completed package')
         names.add(package['name'])
         for output in package['outputs']:
-            fields(output, {'path', 'digest'}); path_name(output['path']); digest(output['digest'])
+            fields(output, {"path", "digest"})
+            path_name(output["path"])
+            digest(output["digest"])
             if (output['path'] in outputs or not output['path'].endswith('.rpm') or
                     output['path'] not in entries or entries[output['path']]['digest'] != output['digest']):
                 reject('invalid completed package output')
@@ -213,7 +222,8 @@ def check_provenance(results, snapshot_digest, expected, api_run):
     invocation = uri + '/actions/runs/' + str(expected['runId']) + '/attempts/' + str(expected['runAttempt'])
     for result in results:
         try:
-            verified = result['verificationResult']; certificate = verified['signature']['certificate']
+            verified = result["verificationResult"]
+            certificate = verified["signature"]["certificate"]
             statement = verified['statement']
             if (certificate['issuer'] != 'https://token.actions.githubusercontent.com' or
                     certificate['sourceRepositoryURI'] != uri or

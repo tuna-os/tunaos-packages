@@ -7,16 +7,18 @@ import hashlib
 import io
 import json
 import os
-from pathlib import Path
 import re
 import resource
 import subprocess
 import tempfile
 import zipfile
+from pathlib import Path
+
+from github_api import API_VERSION
 
 REPOSITORY = 'tuna-os/tunaos-packages'
 WORKFLOW = 'package-factory.yml'
-from github_api import API_VERSION
+
 LIMIT = 4 * 1024 * 1024
 
 

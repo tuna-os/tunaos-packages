@@ -3,14 +3,15 @@ from __future__ import annotations
 
 import importlib.util
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('github_api_boundary', ROOT / 'scripts/github_api.py')
-github_api = importlib.util.module_from_spec(spec); spec.loader.exec_module(github_api)
+github_api = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(github_api)
 
 
 @pytest.fixture

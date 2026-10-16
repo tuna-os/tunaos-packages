@@ -36,6 +36,7 @@ ManifestLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, u
 
 def validate_manifest(manifest_path):
     import json
+
     import jsonschema
 
     schema_path = SCHEMA_PATH

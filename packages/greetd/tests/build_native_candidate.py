@@ -5,13 +5,13 @@ import ctypes
 import hashlib
 import json
 import os
-from pathlib import Path
 import platform
 import signal
 import subprocess
 import tarfile
 import time
 import urllib.request
+from pathlib import Path
 
 import ci_admission
 from retirement_peer import digest
@@ -42,24 +42,32 @@ def bounded_command(argv, path, deadline, *, data=None, limit=4*1024*1024, env=N
         return [int(value) for value in Path('/proc/self/task/'+str(os.getpid())+'/children').read_text().split()]
     if len(list(Path('/proc/self/task').iterdir()))!=1 or children():
         raise ValueError('command supervisor requires exclusive single-thread child ownership')
-    if deadline-time.monotonic()<=0:raise TimeoutError('absolute publisher deadline')
-    if data is not None and len(data)>4096:raise ValueError('credential stdin exceeds bound')
+    if deadline - time.monotonic() <= 0:
+        raise TimeoutError("absolute publisher deadline")
+    if data is not None and len(data) > 4096:
+        raise ValueError("credential stdin exceeds bound")
     libc=ctypes.CDLL(None,use_errno=True)
     prior=ctypes.c_int()
     if libc.prctl(37,ctypes.byref(prior),0,0,0)!=0 or libc.prctl(36,1,0,0,0)!=0:
         raise OSError('command subreaper setup failed')
-    proc=None;lingered=False;retired=False;primary=None
+    proc = None
+    lingered = False
+    retired = False
+    primary = None
     try:
         with path.open('wb') as f:
             proc=subprocess.Popen(argv,stdin=subprocess.PIPE if data is not None else subprocess.DEVNULL,
                                   stdout=f,stderr=subprocess.DEVNULL,start_new_session=True,env=env)
             if data is not None:
-                proc.stdin.write(data);proc.stdin.close()
+                proc.stdin.write(data)
+                proc.stdin.close()
             while True:
                 # WNOWAIT preserves the owned leader PID until group retirement.
                 status=os.waitid(os.P_PID,proc.pid,os.WEXITED|os.WNOHANG|os.WNOWAIT)
-                if status is not None:break
-                if time.monotonic()>=deadline or f.tell()>limit:raise TimeoutError('publisher command bound')
+                if status is not None:
+                    break
+                if time.monotonic() >= deadline or f.tell() > limit:
+                    raise TimeoutError("publisher command bound")
                 time.sleep(.02)
             if status.si_code!=os.CLD_EXITED or status.si_status!=0 or f.tell()>limit:
                 raise RuntimeError('publisher command failed: '+Path(argv[0]).name)
@@ -67,7 +75,8 @@ def bounded_command(argv, path, deadline, *, data=None, limit=4*1024*1024, env=N
         primary=error
     finally:
         if proc is not None:
-            if proc.stdin is not None and not proc.stdin.closed:proc.stdin.close()
+            if proc.stdin is not None and not proc.stdin.closed:
+                proc.stdin.close()
             # The unreaped owned leader reserves the PGID even after exit.
             # Always kill the group: a successful leader can leave writers alive.
             try:
@@ -78,9 +87,11 @@ def bounded_command(argv, path, deadline, *, data=None, limit=4*1024*1024, env=N
             while time.monotonic()<cleanup_deadline:
                 direct=children()
                 if not direct:
-                    retired=True;break
+                    retired = True
+                    break
                 for pid in direct:
-                    if pid!=proc.pid:lingered=True
+                    if pid != proc.pid:
+                        lingered = True
                     try:
                         fd=os.pidfd_open(pid)
                     except ProcessLookupError:
@@ -92,12 +103,17 @@ def bounded_command(argv, path, deadline, *, data=None, limit=4*1024*1024, env=N
                     finally:
                         os.close(fd)
                 while True:
-                    try:pid,status=os.waitpid(-1,os.WNOHANG)
-                    except ChildProcessError:break
-                    if pid==0:break
-                    if pid==proc.pid:proc.returncode=os.waitstatus_to_exitcode(status)
+                    try:
+                        pid, status = os.waitpid(-1, os.WNOHANG)
+                    except ChildProcessError:
+                        break
+                    if pid == 0:
+                        break
+                    if pid == proc.pid:
+                        proc.returncode = os.waitstatus_to_exitcode(status)
                 time.sleep(.01)
-            if not retired and not children():retired=True
+            if not retired and not children():
+                retired = True
         else:
             retired=not children()
         if retired:
@@ -107,8 +123,11 @@ def bounded_command(argv, path, deadline, *, data=None, limit=4*1024*1024, env=N
             # Keep ownership while this process lives; an ensuing CLI exit is not
             # physical retirement or persistent quarantine proof.
             raise RuntimeError('command retirement unconfirmed; publisher must abort') from primary
-    if primary is not None:raise primary
-    if lingered:raise RuntimeError('command left adopted descendants; retired and refused')
+    if primary is not None:
+        raise primary
+    if lingered:
+        raise RuntimeError("command left adopted descendants; retired and refused")
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

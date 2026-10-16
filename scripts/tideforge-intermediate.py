@@ -24,7 +24,6 @@ import tideforge
 import yaml
 from target_platform import build_context
 
-
 SCHEMA = 0
 
 

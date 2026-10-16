@@ -5,16 +5,16 @@ from __future__ import annotations
 import argparse
 import contextlib
 import fcntl
-import json
 import hashlib
-import struct
-import sys
+import json
 import os
 import re
-from pathlib import Path
 import shutil
+import struct
 import subprocess
+import sys
 import tempfile
+from pathlib import Path
 
 
 def run(*args, **kwargs):
@@ -208,7 +208,8 @@ def admit_snapshot(root, manifest, expected_identity, bundle, api_run, repo, sta
         # Parse strict JSON again through the snapshot helper, after verifier success.
         import importlib.util
         spec = importlib.util.spec_from_file_location('snapshot', Path(__file__).with_name('alma-candidate-snapshot.py'))
-        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
         document = module.load(manifest)
         module.validate_manifest(document)
         if module.inventory(root, document['publicKey']['path']) != document['inventory']:
@@ -218,7 +219,8 @@ def admit_snapshot(root, manifest, expected_identity, bundle, api_run, repo, sta
         key = root / document['publicKey']['path']
         with tempfile.TemporaryDirectory(prefix='.candidate-admission-', dir=repo) as directory:
             stage = Path(directory)
-            gpg_home = stage / 'old-gpg'; gpg_home.mkdir(mode=0o700)
+            gpg_home = stage / "old-gpg"
+            gpg_home.mkdir(mode=0o700)
             imported = run('gpg', '--homedir', str(gpg_home), '--batch', '--with-colons',
                            '--import-options', 'show-only', '--import', str(key), stdout=subprocess.PIPE).stdout
             fingerprints = [line.split(':')[9] for line in imported.splitlines() if line.startswith('fpr:')]
@@ -233,9 +235,11 @@ def admit_snapshot(root, manifest, expected_identity, bundle, api_run, repo, sta
             if not metadata.is_file() or not signature.is_file():
                 raise ValueError('signed snapshot metadata required')
             run('gpg', '--homedir', str(gpg_home), '--batch', '--verify', str(signature), str(metadata))
-            old_state = stage / 'old-state'; (old_state / 'keys').mkdir(parents=True)
+            old_state = stage / "old-state"
+            (old_state / "keys").mkdir(parents=True)
             shutil.copyfile(key, old_state / 'keys/candidate-public.gpg')
-            output = stage / 'output'; output.mkdir()
+            output = stage / "output"
+            output.mkdir()
             records = []
             for entry in document['inventory']:
                 if not entry['path'].endswith('.rpm'):
@@ -276,12 +280,16 @@ def admit_snapshot(root, manifest, expected_identity, bundle, api_run, repo, sta
             try:
                 for path in sorted(output.iterdir()):
                     destination = repo / path.name
-                    os.replace(path, destination); installed.append(destination)
+                    os.replace(path, destination)
+                    installed.append(destination)
             except BaseException:
                 for path in reversed(installed):
-                    if path.is_dir(): shutil.rmtree(path)
-                    else: path.unlink()
-                if backup.exists(): os.replace(backup, repo / 'repodata')
+                    if path.is_dir():
+                        shutil.rmtree(path)
+                    else:
+                        path.unlink()
+                if backup.exists():
+                    os.replace(backup, repo / "repodata")
                 raise
 
 def main():

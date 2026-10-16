@@ -5,8 +5,8 @@ RPM. DNF accepted the main RPM's self-provider as satisfying Requires. The
 common RPM owns org.gnome.shell.gschema.xml; GDM then repeatedly crashed.
 GNOME 51 carries the same split and must retain the same dependency contract.
 """
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pytest
 

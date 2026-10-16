@@ -30,8 +30,6 @@ import re
 import subprocess
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_CHAIN = ROOT / "scripts" / "build-chain.sh"
 NATIVE = ROOT / "scripts" / "lib" / "build-chain" / "native.sh"

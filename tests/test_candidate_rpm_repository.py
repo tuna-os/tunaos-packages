@@ -8,13 +8,13 @@ from __future__ import annotations
 
 import configparser
 import fcntl
-import json
 import importlib.util
+import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -99,7 +99,8 @@ def test_initial_key_is_private_ephemeral_and_explicitly_unpromoted(candidate):
 
 def test_restored_seed_is_rejected_without_signing_it(candidate):
     state, repo, _, _ = candidate
-    repo.mkdir(); (repo / 'foreign.rpm').write_bytes(b'foreign')
+    repo.mkdir()
+    (repo / "foreign.rpm").write_bytes(b"foreign")
     result = invoke(candidate, 'init')
     assert result.returncode != 0
     assert 'empty candidate repository' in result.stderr
@@ -119,7 +120,8 @@ def test_private_state_cannot_be_published_under_repo(candidate, location):
 
 def test_symlink_repository_is_not_a_bootstrap_destination(candidate, tmp_path):
     state, repo, env, log = candidate
-    destination = tmp_path / 'unrelated'; destination.mkdir()
+    destination = tmp_path / "unrelated"
+    destination.mkdir()
     repo.symlink_to(destination, target_is_directory=True)
     result = invoke(candidate, 'init')
     assert result.returncode != 0
@@ -128,7 +130,8 @@ def test_symlink_repository_is_not_a_bootstrap_destination(candidate, tmp_path):
 
 def test_exact_staged_rpm_is_verified_with_only_candidate_key_before_replace(candidate, tmp_path):
     bootstrap(candidate)
-    source = tmp_path / 'built.rpm'; source.write_bytes(b'original')
+    source = tmp_path / "built.rpm"
+    source.write_bytes(b"original")
     result = invoke(candidate, 'install', source)
     assert result.returncode == 0, result.stderr
     state, repo, _, _ = candidate
@@ -149,7 +152,8 @@ def test_exact_staged_rpm_is_verified_with_only_candidate_key_before_replace(can
 def test_bad_signature_never_replaces_last_candidate(candidate, tmp_path, mode):
     bootstrap(candidate)
     repo = candidate[1]
-    source = tmp_path / 'built.rpm'; source.write_bytes(b'new')
+    source = tmp_path / "built.rpm"
+    source.write_bytes(b"new")
     (repo / source.name).write_bytes(b'last-good-candidate')
     result = invoke(candidate, 'install', source, SIGNATURE_MODE=mode)
     assert result.returncode != 0
@@ -159,8 +163,10 @@ def test_bad_signature_never_replaces_last_candidate(candidate, tmp_path, mode):
 
 def test_symlink_rpm_input_is_not_signed(candidate, tmp_path):
     bootstrap(candidate)
-    source = tmp_path / 'original.rpm'; source.write_bytes(b'unrelated')
-    link = tmp_path / 'link.rpm'; link.symlink_to(source)
+    source = tmp_path / "original.rpm"
+    source.write_bytes(b"unrelated")
+    link = tmp_path / "link.rpm"
+    link.symlink_to(source)
     result = invoke(candidate, 'install', link)
     assert result.returncode != 0
     assert source.read_bytes() == b'unrelated'
@@ -214,7 +220,8 @@ def test_repository_writer_waits_for_existing_reader(candidate):
             assert child.returncode == 0, err
         finally:
             if child.poll() is None:
-                child.kill(); child.communicate()
+                child.kill()
+                child.communicate()
 
 
 def test_mock_policy_executes_chroot_bind_signed_metadata_and_no_cache(candidate):
@@ -233,7 +240,8 @@ def test_mock_policy_executes_chroot_bind_signed_metadata_and_no_cache(candidate
     # by bootstrap DNF even if a copied plugin configuration names that path.
     assert 'bootstrap_plugin_conf' not in config
     assert (candidate[1] / 'candidate-public.gpg').read_bytes() == (candidate[0] / 'keys/candidate-public.gpg').read_bytes()
-    ini = configparser.ConfigParser(); ini.read_string(config['dnf.conf'])
+    ini = configparser.ConfigParser()
+    ini.read_string(config["dnf.conf"])
     assert ini['local-build']['gpgcheck'] == '1'
     assert ini['local-build']['repo_gpgcheck'] == '1'
     assert config['rpmbuild_command'] == '/usr/bin/python3 /keys/alma-rpmbuild-guard.py x86_64'
@@ -255,7 +263,8 @@ def test_observation_script_runs_inventory_macros_and_compiler_inside_its_enviro
 
 
 def test_alma_native_backend_fails_before_using_unbound_keys(tmp_path):
-    manifest = tmp_path / 'build-order.yml'; manifest.write_text('target: almalinux-10\ntiers: []\n')
+    manifest = tmp_path / "build-order.yml"
+    manifest.write_text("target: almalinux-10\ntiers: []\n")
     result = subprocess.run(['bash', str(ROOT / 'scripts/build-chain.sh'), '--manifest', str(manifest),
                              '--mock-config', 'alma10-ci', '--backend', 'native', '--dry-run'],
                             capture_output=True, text=True)
@@ -266,7 +275,8 @@ def test_alma_native_backend_fails_before_using_unbound_keys(tmp_path):
 @pytest.mark.parametrize('condition', ['BAD_METADATA', 'MISSING_METADATA', 'SIGNER_FAILURE'])
 def test_failed_metadata_update_preserves_previous_signed_pair(candidate, condition):
     bootstrap(candidate)
-    live = candidate[1] / 'repodata'; live.mkdir()
+    live = candidate[1] / "repodata"
+    live.mkdir()
     (live / 'repomd.xml').write_bytes(b'<repomd>previous</repomd>')
     (live / 'repomd.xml.asc').write_bytes(b'previous-valid-signature')
     result = invoke(candidate, 'index', **{condition: '1'})
@@ -279,11 +289,13 @@ def test_failed_metadata_update_preserves_previous_signed_pair(candidate, condit
 def test_failed_filesystem_swap_restores_previous_signed_pair(candidate, monkeypatch):
     bootstrap(candidate)
     state, repo, env, _ = candidate
-    live = repo / 'repodata'; live.mkdir()
+    live = repo / "repodata"
+    live.mkdir()
     (live / 'repomd.xml').write_bytes(b'previous-metadata')
     (live / 'repomd.xml.asc').write_bytes(b'previous-signature')
     spec = importlib.util.spec_from_file_location('candidate_repository', SCRIPT)
-    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
     for key in ['PATH', 'BOUNDARY_LOG']:
         monkeypatch.setenv(key, env[key])
     real_replace = os.replace
@@ -314,7 +326,8 @@ def candidate_module():
 
 
 def test_admission_refuses_existing_artifacts_before_verification(candidate_module, tmp_path):
-    repo = tmp_path / 'repo'; repo.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
     (repo / 'foreign.rpm').write_bytes(b'foreign')
     with pytest.raises(ValueError, match='empty candidate repository'):
         candidate_module.admit_snapshot(tmp_path / 'snapshot', tmp_path / 'manifest',
@@ -331,8 +344,10 @@ def test_admission_requires_fresh_initialized_key_state(candidate_module, tmp_pa
 @pytest.mark.parametrize('raw', [b'', b'not an RPM', bytes.fromhex('edabeedb') + bytes(92),
     bytes.fromhex('edabeedb') + bytes(92) + bytes.fromhex('8eade80100000000ffffffffffffffff')])
 def test_payload_identity_rejects_malformed_rpm(candidate_module, tmp_path, raw):
-    rpm = tmp_path / 'malformed.rpm'; rpm.write_bytes(raw)
-    with pytest.raises(ValueError): candidate_module.rpm_content(rpm)
+    rpm = tmp_path / "malformed.rpm"
+    rpm.write_bytes(raw)
+    with pytest.raises(ValueError):
+        candidate_module.rpm_content(rpm)
 
 
 def test_payload_identity_hashes_real_header_and_payload_not_signature(candidate_module, tmp_path, monkeypatch):
@@ -345,8 +360,11 @@ def test_payload_identity_hashes_real_header_and_payload_not_signature(candidate
         signature_header = bytes.fromhex('8eade80100000000') + struct.pack('>II', 0, len(signature)) + signature
         padding = bytes((-len(signature_header)) % 8)
         return lead + signature_header + padding + header + b'payload'
-    first = tmp_path / 'old.rpm'; first.write_bytes(rpm_bytes(b'old signature'))
-    second = tmp_path / 'new.rpm'; second.write_bytes(rpm_bytes(b'new longer signature'))
+
+    first = tmp_path / "old.rpm"
+    first.write_bytes(rpm_bytes(b"old signature"))
+    second = tmp_path / "new.rpm"
+    second.write_bytes(rpm_bytes(b"new longer signature"))
     calls = []
     def rpm_query(command, **kwargs):
         calls.append(command)
@@ -363,10 +381,15 @@ def test_payload_identity_hashes_real_header_and_payload_not_signature(candidate
 
 
 def test_admission_authenticator_failure_leaves_empty_candidate_unchanged(candidate_module, tmp_path, monkeypatch):
-    repo = tmp_path / 'repo'; repo.mkdir()
-    (repo / 'repodata').mkdir(); (repo / 'repodata/repomd.xml').write_text('old empty metadata')
-    state = tmp_path / 'state'; state.mkdir(); (state / 'identity.json').write_text('{}')
-    manifest = tmp_path / 'snapshot.json'; manifest.write_text('{}')
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "repodata").mkdir()
+    (repo / "repodata/repomd.xml").write_text("old empty metadata")
+    state = tmp_path / "state"
+    state.mkdir()
+    (state / "identity.json").write_text("{}")
+    manifest = tmp_path / "snapshot.json"
+    manifest.write_text("{}")
     calls = []
     def failed_verifier(command, **kwargs):
         calls.append(command)
@@ -382,7 +405,8 @@ def test_admission_authenticator_failure_leaves_empty_candidate_unchanged(candid
 
 
 def test_admission_receipt_prevents_double_admission(candidate_module, tmp_path):
-    repo = tmp_path / 'repo'; repo.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
     (repo / 'admission-receipt.json').write_text('{"productionReady":false}')
     with pytest.raises(ValueError, match='empty candidate repository'):
         candidate_module.admit_snapshot(tmp_path / 'snapshot', tmp_path / 'manifest',

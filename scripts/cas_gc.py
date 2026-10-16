@@ -30,8 +30,6 @@ from __future__ import annotations
 
 import argparse
 import collections
-from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 import importlib.util
 import json
 import math
@@ -39,7 +37,10 @@ import os
 import pathlib
 import re
 import sys
-from typing import Any, Iterable
+from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -63,12 +64,12 @@ def parse_timestamp(value: Any) -> datetime | None:
         return None
     if isinstance(value, datetime):
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
     if isinstance(value, (int, float)):
         if math.isnan(value) or value < 0:
             return None
-        return datetime.fromtimestamp(value, tz=timezone.utc)
+        return datetime.fromtimestamp(value, tz=UTC)
     if isinstance(value, str):
         text = value.strip()
         if not text:
@@ -76,7 +77,7 @@ def parse_timestamp(value: Any) -> datetime | None:
         # Support numeric string timestamp
         try:
             num = float(text)
-            return datetime.fromtimestamp(num, tz=timezone.utc)
+            return datetime.fromtimestamp(num, tz=UTC)
         except ValueError:
             pass
         # Support ISO 8601 / RFC 3339 format
@@ -85,15 +86,15 @@ def parse_timestamp(value: Any) -> datetime | None:
             clean = text.replace("Z", "+00:00")
             dt = datetime.fromisoformat(clean)
             if dt.tzinfo is None:
-                return dt.replace(tzinfo=timezone.utc)
-            return dt.astimezone(timezone.utc)
+                return dt.replace(tzinfo=UTC)
+            return dt.astimezone(UTC)
         except ValueError:
             pass
         # Support rclone lsf format "YYYY-MM-DD HH:MM:SS" or with decimals
         for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
             try:
                 dt = datetime.strptime(text, fmt)
-                return dt.replace(tzinfo=timezone.utc)
+                return dt.replace(tzinfo=UTC)
             except ValueError:
                 continue
     return None
@@ -175,7 +176,7 @@ def load_action_result(
                 st = path.stat()
                 mtime = st.st_mtime
                 if created_at is None:
-                    created_at = datetime.fromtimestamp(mtime, tz=timezone.utc)
+                    created_at = datetime.fromtimestamp(mtime, tz=UTC)
             except OSError:
                 pass
     else:
@@ -261,7 +262,7 @@ def scan_local_cas(
                 continue
             st = path.stat()
             rel_path = path.relative_to(cas_dir).as_posix()
-            created_at = datetime.fromtimestamp(st.st_mtime, tz=timezone.utc)
+            created_at = datetime.fromtimestamp(st.st_mtime, tz=UTC)
             blobs[digest] = BlobRecord(
                 digest=digest,
                 size=st.st_size,
@@ -555,9 +556,9 @@ def run_mark_and_sweep(
 ) -> dict[str, Any]:
     """Execute the mark-and-sweep GC evaluation (report-only)."""
     if as_of is None:
-        as_of = datetime.now(timezone.utc)
+        as_of = datetime.now(UTC)
     else:
-        as_of = parse_timestamp(as_of) or datetime.now(timezone.utc)
+        as_of = parse_timestamp(as_of) or datetime.now(UTC)
 
     total_blobs = len(blobs)
     reachable_count = 0
@@ -671,7 +672,7 @@ def run_mark_and_sweep(
     return {
         "schema": SCHEMA,
         "mode": "report-only",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "as_of": as_of.isoformat(),
         "grace_period_seconds": grace_period_seconds,
         "grace_period_human": format_duration(grace_period_seconds),
@@ -801,7 +802,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     grace_seconds = args.grace_period_seconds if args.grace_period_seconds is not None else int(args.grace_period_days * 86400)
-    as_of_dt = parse_timestamp(args.as_of) if args.as_of else datetime.now(timezone.utc)
+    as_of_dt = parse_timestamp(args.as_of) if args.as_of else datetime.now(UTC)
 
     blobs: dict[str, BlobRecord] = {}
     action_results: dict[str, ActionResultRecord] = {}
@@ -833,7 +834,7 @@ def main(argv: list[str] | None = None) -> int:
                         digest=d,
                         size=st.st_size,
                         path=p.as_posix(),
-                        created_at=datetime.fromtimestamp(st.st_mtime, tz=timezone.utc),
+                        created_at=datetime.fromtimestamp(st.st_mtime, tz=UTC),
                         mtime=st.st_mtime,
                     )
                 except ValueError:

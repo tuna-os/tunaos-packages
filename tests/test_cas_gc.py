@@ -11,17 +11,14 @@ Validates #430 step 5 / #485:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-import importlib.util
 import json
 import pathlib
 import sys
-
-import pytest
+from datetime import UTC, datetime
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-import cas_gc
+import cas_gc  # noqa: E402
 
 
 def create_blob(cas_dir: pathlib.Path, hex_hash: str, size: int = 1024, mtime: float | None = None) -> pathlib.Path:
@@ -112,7 +109,7 @@ def test_retained_action_results_mark_all_referenced_blobs(tmp_path):
 
 def test_unreachable_blob_in_grace_period_is_classified_as_grace(tmp_path):
     # Reference evaluation time: 2026-09-01T00:00:00Z (timestamp 1788220800)
-    as_of = datetime(2026, 9, 1, 0, 0, 0, tzinfo=timezone.utc)
+    as_of = datetime(2026, 9, 1, 0, 0, 0, tzinfo=UTC)
     # Blob created 2 days before as_of (2 * 86400 = 172800 s ago)
     blob_time = as_of.timestamp() - (2 * 86400)
 
@@ -156,7 +153,7 @@ def test_unreachable_blob_in_grace_period_is_classified_as_grace(tmp_path):
 
 
 def test_unreachable_blob_past_grace_period_is_candidate_and_generates_tombstone(tmp_path):
-    as_of = datetime(2026, 9, 1, 0, 0, 0, tzinfo=timezone.utc)
+    as_of = datetime(2026, 9, 1, 0, 0, 0, tzinfo=UTC)
     # Blob created 10 days before as_of (10 * 86400 = 864000 s ago)
     blob_time = as_of.timestamp() - (10 * 86400)
 
@@ -196,7 +193,7 @@ def test_unreachable_blob_past_grace_period_is_candidate_and_generates_tombstone
 
 
 def test_last_referencing_action_result_attribution(tmp_path):
-    as_of = datetime(2026, 9, 1, 0, 0, 0, tzinfo=timezone.utc)
+    as_of = datetime(2026, 9, 1, 0, 0, 0, tzinfo=UTC)
     t_old = as_of.timestamp() - (12 * 86400)
     t_new = as_of.timestamp() - (1 * 86400)
 
@@ -354,7 +351,7 @@ def test_markdown_report_formatting(tmp_path):
         reachable,
         attribution,
         grace_period_seconds=0,
-        as_of=datetime(2026, 9, 1, 0, 0, 0, tzinfo=timezone.utc),
+        as_of=datetime(2026, 9, 1, 0, 0, 0, tzinfo=UTC),
     )
 
     md = cas_gc.render_markdown_report(report)
@@ -478,6 +475,6 @@ def test_helpers_formatting():
     assert cas_gc.parse_timestamp(None) is None
     assert cas_gc.parse_timestamp("") is None
     assert cas_gc.parse_timestamp("invalid") is None
-    assert cas_gc.parse_timestamp(1700000000) == datetime(2023, 11, 14, 22, 13, 20, tzinfo=timezone.utc)
-    assert cas_gc.parse_timestamp("2026-09-01T12:30:00Z") == datetime(2026, 9, 1, 12, 30, 0, tzinfo=timezone.utc)
+    assert cas_gc.parse_timestamp(1700000000) == datetime(2023, 11, 14, 22, 13, 20, tzinfo=UTC)
+    assert cas_gc.parse_timestamp("2026-09-01T12:30:00Z") == datetime(2026, 9, 1, 12, 30, 0, tzinfo=UTC)
 

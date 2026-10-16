@@ -1,8 +1,8 @@
 """Authored queue semantics; actual native/signature evidence runs in CI."""
 import importlib.util
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -101,15 +101,18 @@ def test_capabilities_keep_exact_native_floor(source):
 
 def test_recipe_symlink_blocks(source):
     path = recipe(source, 'app')
-    copy = source / 'outside.yaml'; copy.write_text(path.read_text())
-    path.unlink(); path.symlink_to(copy)
+    copy = source / "outside.yaml"
+    copy.write_text(path.read_text())
+    path.unlink()
+    path.symlink_to(copy)
     with pytest.raises(ValueError, match='symlink'):
         planned(source, ['app'])
 
 
 @pytest.mark.parametrize('content', ['{"cell":1,"cell":2}', '{"cell":NaN}'])
 def test_identity_json_rejects_ambiguous_material(tmp_path, content):
-    path = tmp_path / 'identity.json'; path.write_text(content)
+    path = tmp_path / "identity.json"
+    path.write_text(content)
     with pytest.raises(ValueError):
         chain.strict_json(path)
 
@@ -125,9 +128,12 @@ def test_execute_blocks_missing_authenticated_metadata(source, tmp_path):
 
 def test_tampered_queue_blocks_before_builder(source, tmp_path):
     recipe(source, 'app')
-    value = planned(source, ['app']); value['waves'] = []
+    value = planned(source, ["app"])
+    value["waves"] = []
     for name in ['meta', 'state']:
-        path = tmp_path / name; path.mkdir(); (path / 'identity.json').write_text(json.dumps({}))
+        path = tmp_path / name
+        path.mkdir()
+        (path / "identity.json").write_text(json.dumps({}))
     with pytest.raises(ValueError, match='queue differs'):
         chain.execute(value, root=source, repo=tmp_path / 'repo', state=tmp_path / 'state',
             meta=tmp_path / 'meta', work=tmp_path / 'work', builder=lambda *args: pytest.fail('build'),
@@ -137,9 +143,12 @@ def test_tampered_queue_blocks_before_builder(source, tmp_path):
 def test_resume_requires_prepared_inputs_and_fresh_verification(source, tmp_path, monkeypatch):
     recipe(source, 'app')
     value = planned(source, ['app'])
-    meta = tmp_path / 'meta'; meta.mkdir()
-    state = tmp_path / 'state'; state.mkdir()
-    repo = tmp_path / 'repo'; repo.mkdir()
+    meta = tmp_path / "meta"
+    meta.mkdir()
+    state = tmp_path / "state"
+    state.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
     (repo / 'app.rpm').write_bytes(b'authenticated signed bytes')
     identity = {key: value[key] for key in ('cell', 'sourceRevision', 'actionKey', 'target', 'baseDigest', 'cpuBaseline')}
     identity['platform'] = {'os': 'linux', 'architecture': 'amd64', 'variant': 'v2'}
@@ -147,9 +156,13 @@ def test_resume_requires_prepared_inputs_and_fresh_verification(source, tmp_path
     (state / 'identity.json').write_text('{}')
     events = []
     def prepare(*args):
-        events.append('prepare'); return tmp_path / 'prepared'
+        events.append("prepare")
+        return tmp_path / "prepared"
+
     def skip(*args):
-        events.append('input-and-output-check'); return True
+        events.append("input-and-output-check")
+        return True
+
     modules = {'candidate': SimpleNamespace(), 'resume': SimpleNamespace(skip=skip,
         completed=lambda _: [{'name': 'app', 'outputs': [{'path': 'app.rpm'}]}])}
     monkeypatch.setattr(chain.importlib.util, 'spec_from_file_location',
@@ -158,7 +171,9 @@ def test_resume_requires_prepared_inputs_and_fresh_verification(source, tmp_path
     monkeypatch.setattr(chain.importlib.util, 'module_from_spec', lambda spec: spec.module)
     monkeypatch.setattr(chain.subprocess, 'run', lambda *args, **kwargs: events.append('index-or-record'))
     def verify(*args):
-        events.append('fresh-native-verification'); return [ACTION]
+        events.append("fresh-native-verification")
+        return [ACTION]
+
     result = chain.execute(value, root=source, repo=repo, meta=meta, state=state,
         work=tmp_path / 'work', prepare=prepare,
         resume_outputs=lambda *args: events.append('restore-exact-output-names'),
@@ -232,11 +247,13 @@ def test_output_provider_missing_from_target_is_refused(source, requirement):
 @pytest.mark.parametrize('requirement', ['pkgconfig(gtk4-layer-shell-0) >= 1.1', 'same-devel'])
 def test_output_provider_ambiguity_is_refused(source, requirement):
     layer_shell_provider(source, 'one')
-    path = layer_shell_provider(source, 'two')
+    layer_shell_provider(source, 'two')
     if requirement == 'same-devel':
         for name in ['one', 'two']:
             p=source/'packages'/name/'package.yaml'
-            v=yaml.safe_load(p.read_text()); v['provides']=['same-devel']; p.write_text(yaml.safe_dump(v))
+            v = yaml.safe_load(p.read_text())
+            v["provides"] = ["same-devel"]
+            p.write_text(yaml.safe_dump(v))
     recipe(source, 'tuna-desktop', build=[requirement])
     with pytest.raises(ValueError, match='ambiguous'):
         planned(source, ['tuna-desktop'])

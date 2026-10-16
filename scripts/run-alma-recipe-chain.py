@@ -7,17 +7,16 @@ import hashlib
 import importlib.util
 import json
 import math
-import time
 import os
 import shutil
 import signal
-import uuid
-from pathlib import Path
 import subprocess
 import sys
+import time
+import uuid
+from pathlib import Path
 
 import yaml
-
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('alma_recipe_chain_adapter_core', ROOT / 'scripts/alma-recipe-chain.py')
@@ -134,7 +133,8 @@ class Adapter:
             if remaining <= 0:
                 raise TimeoutError('native chain job reserve reached')
             signal.setitimer(signal.ITIMER_REAL, remaining)
-        work = Path(work); work.mkdir(parents=True, exist_ok=False)
+        work = Path(work)
+        work.mkdir(parents=True, exist_ok=False)
         build = work / 'rpmbuild'
         for name in ('BUILD', 'BUILDROOT', 'RPMS', 'SOURCES', 'SPECS', 'SRPMS'):
             (build / name).mkdir(parents=True, exist_ok=True)

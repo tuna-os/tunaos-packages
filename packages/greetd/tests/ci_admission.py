@@ -4,10 +4,10 @@ import hashlib
 import json
 import os
 import platform
-from pathlib import Path
 import re
 import subprocess
 import urllib.request
+from pathlib import Path
 
 REPO = 'tuna-os/tunaos-packages'
 WORKFLOW = '.github/workflows/validate-package-factory.yml'

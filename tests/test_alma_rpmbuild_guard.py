@@ -6,8 +6,8 @@ the real rpmbuild process, while measured vendor hardening survives unchanged.
 """
 import importlib.util
 import json
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest

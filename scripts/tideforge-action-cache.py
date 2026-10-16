@@ -16,8 +16,8 @@ from typing import Any
 import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import factory_contract  # noqa: E402  (needs the path above)
 import consumer_contract
+import factory_contract  # noqa: E402  (needs the path above)
 
 SCHEMA = 1
 DEFAULT_LEASE_TTL = 2400

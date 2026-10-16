@@ -1,8 +1,8 @@
 """Safe parser/absolute-budget controls; no daemon/kernel/PAM qualification."""
 import importlib.util
-from pathlib import Path
 import struct
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('retirement_peer', Path(__file__).with_name('retirement_peer.py'))

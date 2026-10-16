@@ -46,10 +46,10 @@ table must move in the same commit.
 """
 from __future__ import annotations
 
-import pathlib
-from typing import Any
 import json
+import pathlib
 import re
+from typing import Any
 
 import yaml
 

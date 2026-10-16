@@ -16,15 +16,16 @@ Output contains artifact/ELF hashes and explicit blockers. RPM extraction parses
 bounded newc bytes itself and never materializes archive paths or symlinks.
 """
 from __future__ import annotations
+
 import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import resource
 import subprocess
 import tempfile
+from pathlib import Path
 
 LIMIT = 128 * 1024 * 1024
 DIGEST = re.compile(r'sha256:[0-9a-f]{64}\Z')
@@ -195,7 +196,7 @@ def verify(document, inspect=inspect_elf, extract=rpm_elfs, native_identity=rpm_
                 try:
                     row['elfs'] = [{'path': name, **inspect(data)} for name, data in extract(path)]
                     row['payloadKind'] = 'elf' if row['elfs'] else 'inspected-no-elf-payload'
-                except (BaselineError, UnicodeError) as exc:
+                except (BaselineError, UnicodeError):
                     gap('unsupported-artifact-inspection')
         vendor = artifact.get('vendorProof')
         if vendor is not None:

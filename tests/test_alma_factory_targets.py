@@ -8,9 +8,9 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
-import shutil
 from pathlib import Path
 
 import pytest
@@ -18,7 +18,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from target_platform import build_context
+from target_platform import build_context  # noqa: E402
 
 
 def load_module(name, path):

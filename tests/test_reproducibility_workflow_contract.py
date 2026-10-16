@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]

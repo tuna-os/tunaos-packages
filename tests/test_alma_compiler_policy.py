@@ -7,8 +7,9 @@ These tests establish policy behavior, not production package ISA compatibility.
 import importlib.util
 import json
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
+
 import pytest
 
 ROOT = Path(__file__).parents[1]

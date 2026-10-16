@@ -11,10 +11,10 @@ import hashlib
 import io
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import zipfile
+from pathlib import Path
 
 import pytest
 import yaml
@@ -45,7 +45,8 @@ def plan():
 
 @pytest.fixture
 def controller(tmp_path):
-    binq = tmp_path / 'bin'; binq.mkdir()
+    binq = tmp_path / "bin"
+    binq.mkdir()
     executable = binq / 'gh'
     executable.write_text('''#!/usr/bin/env python3
 import base64,json,os,pathlib,sys
@@ -61,7 +62,8 @@ if isinstance(value,dict) and '_zip' in value: sys.stdout.buffer.write(base64.b6
 else: print(json.dumps(value))
 ''')
     executable.chmod(0o755)
-    selected = plan(); digest = selected['selection_digest']
+    selected = plan()
+    digest = selected["selection_digest"]
     receipt = {'schemaVersion': 1, 'sourceRevision': SHA, 'selectionDigest': digest,
                'batchIndex': 1, 'batchCount': 2, 'parentRunId': 100, 'parentAttempt': 2,
                'runId': 200, 'runAttempt': 3, 'status': 'success', 'readiness': False}
@@ -96,7 +98,8 @@ def invoke(controller, operation, **changes):
     Path(c['env']['API_RESPONSES']).write_text(json.dumps(c['responses']))
     command=[sys.executable,str(SCRIPT),operation]
     if operation=='dispatch':
-        file=c['directory']/'plan.json';file.write_text(json.dumps(c['plan']))
+        file = c["directory"] / "plan.json"
+        file.write_text(json.dumps(c["plan"]))
         command+=['--plan',str(file)]
     return subprocess.run(command,cwd=c['directory'],env={**c['env'],**changes},capture_output=True,text=True)
 
@@ -137,22 +140,32 @@ def test_boolean_schema_version_is_not_integer_version_one(controller):
 @pytest.mark.parametrize('condition',['missing','expired','duplicate','wrong_attempt','fork_metadata'])
 def test_missing_expired_ambiguous_or_untrusted_artifact_blocks(controller,condition):
     rows=controller['responses'][PREFIX+'runs/200/artifacts?per_page=100&page=1']['artifacts']
-    if condition=='missing': rows.clear()
-    elif condition=='expired': rows[0]['expired']=True
-    elif condition=='duplicate': rows.append(copy.deepcopy(rows[0]))
-    elif condition=='wrong_attempt': rows[0]['name']='factory-batch-result-1-attempt2'
-    else: rows[0]['workflow_run']={'id':999,'head_sha':'b'*40,'head_branch':'evil'}
+    if condition == "missing":
+        rows.clear()
+    elif condition == "expired":
+        rows[0]["expired"] = True
+    elif condition == "duplicate":
+        rows.append(copy.deepcopy(rows[0]))
+    elif condition == "wrong_attempt":
+        rows[0]["name"] = "factory-batch-result-1-attempt2"
+    else:
+        rows[0]["workflow_run"] = {"id": 999, "head_sha": "b" * 40, "head_branch": "evil"}
     assert invoke(controller,'verify').returncode!=0
 
 
 @pytest.mark.parametrize('mutation',['hash','missing_cell','duplicate_cell','source','index'])
 def test_dispatch_rejects_noncanonical_or_incomplete_partition_before_api(controller,mutation):
     document=controller['plan']
-    if mutation=='hash': document['selection_digest']='sha256:'+'0'*64
-    elif mutation=='missing_cell': document['planned_batches'][1]['cells']=[]
-    elif mutation=='duplicate_cell': document['planned_batches'][1]['cells']=['cell-a']
-    elif mutation=='source': document['source_revision']='b'*40
-    else: document['planned_batches'][1]['batch_index']=2
+    if mutation == "hash":
+        document["selection_digest"] = "sha256:" + "0" * 64
+    elif mutation == "missing_cell":
+        document["planned_batches"][1]["cells"] = []
+    elif mutation == "duplicate_cell":
+        document["planned_batches"][1]["cells"] = ["cell-a"]
+    elif mutation == "source":
+        document["source_revision"] = "b" * 40
+    else:
+        document["planned_batches"][1]["batch_index"] = 2
     result=invoke(controller,'dispatch')
     assert result.returncode!=0
     assert not Path(controller['env']['API_LOG']).exists()

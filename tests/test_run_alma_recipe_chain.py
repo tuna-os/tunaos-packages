@@ -1,7 +1,7 @@
 """Real adapter command boundaries; cryptographic/native execution occurs in CI."""
 import importlib.util
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -42,14 +42,17 @@ def test_container_unknown_engine_rejected(document, tmp_path):
 
 
 def test_verifier_does_not_guess_artifacts_by_package_prefix(document, tmp_path):
-    repo = tmp_path / 'repo'; repo.mkdir(); (repo / 'app-old.rpm').write_bytes(b'unrelated')
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app-old.rpm").write_bytes(b"unrelated")
     item = adapter.Adapter(document, ROOT, tmp_path)
     with pytest.raises(ValueError, match='missing'):
         item.verify({'name': 'app', 'requirements': {'build': [], 'runtime': []}}, repo)
 
 
 def test_native_verifier_preserves_floors_exact_outputs_and_observation(document, tmp_path, monkeypatch):
-    repo = tmp_path / 'repo'; repo.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
     for name in ('app-1.rpm', 'app-libs-1.rpm'):
         (repo / name).write_bytes(b'signed artifact')
     recipe = tmp_path / 'packages/app/package.yaml'
@@ -163,7 +166,8 @@ def test_smoke_cannot_be_substituted_by_changed_recipe(document, tmp_path):
     recipe = tmp_path / 'packages/app/package.yaml'
     recipe.parent.mkdir(parents=True)
     recipe.write_text('verify:\n  smoke: true\n')
-    repo = tmp_path / 'repo'; repo.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
     item = adapter.Adapter(document, tmp_path, tmp_path)
     item.outputs['app'] = ['app-1.rpm']
     with pytest.raises(ValueError, match='authored digest'):

@@ -14,7 +14,8 @@ MAX_METADATA = 4 * 1024 * 1024
 def pairs(items):
     result = {}
     for key, value in items:
-        if key in result: raise ValueError('duplicate API JSON field')
+        if key in result:
+            raise ValueError("duplicate API JSON field")
         result[key] = value
     return result
 
@@ -32,8 +33,11 @@ def api(endpoint):
                 timeout=120, preexec_fn=limits)
         except (OSError, subprocess.SubprocessError) as error:
             raise ValueError('GitHub API request failed') from error
-        if result.returncode: raise ValueError('GitHub API request failed')
-        output.seek(0); raw = output.read(MAX_METADATA + 1)
-    if len(raw) > MAX_METADATA: raise ValueError('GitHub API response exceeds limit')
+        if result.returncode:
+            raise ValueError("GitHub API request failed")
+        output.seek(0)
+        raw = output.read(MAX_METADATA + 1)
+    if len(raw) > MAX_METADATA:
+        raise ValueError("GitHub API response exceeds limit")
     return json.loads(raw, object_pairs_hook=pairs,
                       parse_constant=lambda value: (_ for _ in ()).throw(ValueError('nonfinite API JSON')))

@@ -4,8 +4,8 @@ Falsification: `go --version` is not a valid Go command. Recording installed
 compiler identity must use the native command and must retain genuine errors.
 """
 import os
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 import pytest
 
