@@ -39,7 +39,7 @@ concurrency:
 
 jobs:
   plan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       matrix: ${{ steps.sample.outputs.matrix }}
       count: ${{ steps.sample.outputs.count }}
@@ -170,7 +170,7 @@ jobs:
     needs: [plan, rebuild]
     # Nothing sampled means nothing measured: do not publish an empty report.
     if: ${{ always() && github.event_name != 'pull_request' && fromJSON(needs.plan.outputs.count || '0') > 0 }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
       pull-requests: write
