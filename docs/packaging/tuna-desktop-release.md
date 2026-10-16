@@ -93,22 +93,24 @@ newest rustc is 1.91.
 
 ## Hummingbird
 
-Hummingbird is not a Tideforge target for tuna-desktop: Tideforge's
-`hummingbird` stays `scaffold`, and its publish route cannot write the
-build-chain prefix safely (#832). tuna-desktop is built by the Hummingbird
-build chain instead, from the reviewed spec
-`src/hummingbird/tuna-desktop/tuna-desktop.spec`. It builds in the same
-Fedora 44 + public-hummingbird + utah-packages root as the gtk4-layer-shell,
-libseat and libinput it links. The root is the `tuna` entry in
-`manifests/hummingbird-desktops.yaml`. tuna-desktop is not in Fedora, so the
-generated `build-order-hummingbird-desktops.yml` builds it in `local-00`,
-after every layer.
+Tideforge does not build tuna-desktop for Hummingbird. Its `hummingbird`
+target stays `scaffold`, and its publisher cannot write the build-chain prefix
+safely (#832). The Hummingbird build chain builds it from the reviewed spec
+`src/hummingbird/tuna-desktop/tuna-desktop.spec`. The root is the Fedora 44 +
+public-hummingbird + utah-packages root, which also builds gtk4-layer-shell,
+libseat and libinput. The `tuna` entry in `manifests/hummingbird-desktops.yaml`
+declares the roots. Fedora does not ship tuna-desktop, so the generated
+`build-order-hummingbird-desktops.yml` builds it in `local-00`, the last tier.
 
-The script does not edit the spec. For each new tag, change `upstream_version`
-and `Version:` (the `~` form), reset `Release:` to 1, add a `%changelog`
-entry, and replace both lines of `sources` with the SHA-512 of the tag
-archive and the vendor asset (`sha512sum`).
-`tests/test_hummingbird_recipe_sync.py` fails while the spec and the recipe
-name different releases. Publish with `publish-build-chain-rpms.yml`,
-`cells: hummingbird-x86_64,hummingbird-aarch64`, which serves it at
-`hummingbird/20251124-{x86_64,aarch64}`.
+The script does not edit the spec. For each new tag, do these steps:
+
+1. Set `upstream_version` to the tag without the `v`.
+2. Set `Version:` to the `~` form and reset `Release:` to 1.
+3. Add a `%changelog` entry.
+4. Replace the two lines of `sources` with the SHA-512 values of the tag archive and of the vendor asset (`sha512sum`).
+
+When the spec and the recipe have different versions,
+`tests/test_hummingbird_recipe_sync.py` fails. To publish, run
+`publish-build-chain-rpms.yml` with
+`cells: hummingbird-x86_64,hummingbird-aarch64` and `tiers: local-00`.
+The packages go to `hummingbird/20251124-{x86_64,aarch64}`.
