@@ -37,6 +37,13 @@ This document tracks all manual modifications made to SRPM specifications and so
 *   **Modifications**:
     *   Retained EL10-specific schema compilation triggers and `gio` module query triggers.
 
+### `gdk-pixbuf2`
+*   **Origin**: Custom / Backport from Rawhide.
+*   **Modifications**:
+    *   Added `%bcond glycin` support to gate glycin BuildRequires, Requires, and `-Dglycin` meson setup flag.
+    *   Added `gdk-pixbuf2-bootstrap.spec` with glycin disabled to break the `gdk-pixbuf2 -> glycin -> gtk4 -> gdk-pixbuf2` build cycle.
+
+
 ### `gnome-shell` (GNOME 49)
 *   **Origin**: Backport from F43 Dist-Git (`src/gnome-49/gnome-shell/`).
 *   **Modifications**:

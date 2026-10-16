@@ -112,3 +112,45 @@ def test_cycle_members_are_marked_bootstrap_true(gap, tmp_path):
                  cycles=[["glib2", "gobject-introspection"]])
     layer = order["tiers"][-1]
     assert all(p.get("bootstrap") is True for p in layer["packages"]), layer
+
+
+def test_a_local_spec_fedora_lacks_builds_after_every_layer(gap, tmp_path):
+    """tuna-desktop is not in Fedora, so no layer can carry it (#832).
+
+    The measurement reports it under roots_absent_from_reference; its reviewed
+    spec directory is emitted in `local-00`, after the layers that build its
+    dependencies. A `local:` that is a tree of specs (src/xfce-wayland) is not
+    one package and is not emitted, and a local spec a layer already builds
+    is not emitted twice.
+    """
+    root = tmp_path / "repo"
+    (root / "src/hummingbird/tuna-desktop").mkdir(parents=True)
+    (root / "src/hummingbird/tuna-desktop/tuna-desktop.spec").write_text("")
+    (root / "src/hummingbird/greetd").mkdir(parents=True)
+    (root / "src/hummingbird/greetd/greetd.spec").write_text("")
+    (root / "src/xfce-wayland/xfwl4").mkdir(parents=True)
+    (root / "src/xfce-wayland/xfwl4/xfwl4.spec").write_text("")
+    catalog = {
+        **CATALOG,
+        "desktops": {
+            "tuna": {"sources": [{"local": "src/hummingbird/tuna-desktop"},
+                                 {"local": "src/hummingbird/greetd"}]},
+            "xfce": {"sources": [{"local": "src/xfce-wayland"}]},
+            "kde": {"sources": [{"fedora_distgit": "plasma-desktop"}]},
+        },
+    }
+    report = {**REPORT, "desktops": {"tuna": {}, "xfce": {}, "kde": {}}}
+    out = tmp_path / "order.yml"
+    gap.emit_build_order(out, catalog, [["gtk4-layer-shell"], ["greetd"]], [],
+                         report, root)
+    order = yaml.safe_load(out.read_text())
+    assert tier_names(order)[-1] == "local-00"
+    assert order["tiers"][-1]["packages"] == [{"path": "src/hummingbird/tuna-desktop"}]
+    everywhere = [n for t in order["tiers"] for n in packages(t)]
+    assert everywhere.count("greetd") == 1
+    assert "xfce-wayland" not in everywhere
+
+
+def test_no_local_spec_means_no_local_tier(gap, tmp_path):
+    order = emit(gap, tmp_path, [["gtk4"]])
+    assert "local-00" not in tier_names(order)

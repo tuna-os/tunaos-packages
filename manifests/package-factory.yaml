@@ -109,6 +109,20 @@ targets:
       arm64: https://repo.tunaos.org/tideforge/debian-sid/
     repository: apt
     probe_image: docker.io/library/debian:sid
+  trixie:
+    # Debian 13, flounder's base. Its own target, not a second `debian`
+    # suite: the planner gives a target one image, and sid's would build sid
+    # bytes. Packages publish to the flat repo tideforge/debian-trixie
+    # (plan-deb-publish.py label debian-trixie), which does not exist until
+    # the first publish, so both arches are pending until it resolves.
+    status: supported
+    format: deb
+    suites: [trixie]
+    architectures: [amd64, arm64]
+    r2_path: apt/debian/{suite}/{arch}
+    published_index_pending: [amd64, arm64]
+    repository: apt
+    probe_image: docker.io/library/debian:trixie
   fedora:
     status: supported
     format: rpm
@@ -170,6 +184,24 @@ targets:
     repository: rpm-md
     probe_image: registry.fedoraproject.org/eln-bootc:latest
     build_repositories: [eln]
+
+  rawhide:
+    # Fedora Rawhide, its own target because `fedora` builds in a fedora-44
+    # root (#831): an F44 build links F44's sonames and carries .fc44, so it
+    # cannot qualify bonito-rawhide. The buildroot is the rolling
+    # fedora:rawhide image itself, the base bonito-rawhide builds from.
+    status: supported
+    format: rpm
+    buildroot: fedora-rawhide
+    architectures: [x86_64, aarch64]
+    r2_path: rpm/rawhide/{arch}
+    # Nothing is served yet: publish-tideforge-rpms.yml creates
+    # rpm/rawhide/{arch} on its first run. Declare published_index per arch
+    # once each resolves (the el10 aarch64 rule).
+    published_index_pending: [x86_64, aarch64]
+    repository: rpm-md
+    probe_image: registry.fedoraproject.org/fedora:rawhide
+    build_repositories: [fedora-rawhide]
 
   hummingbird:
     # Hummingbird is a target of a different shape from the rest, and the
@@ -310,11 +342,16 @@ targets:
 # packages.  Native names remain available under dependencies.*.common/targets
 # for exceptional or genuinely target-specific requirements.
 dependency_catalog:
-  rust: {el10: [rust, cargo], eln: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], opensuse-tumbleweed: [rust, cargo], arch: [rust]}
+  # fedora and rawhide map only the capabilities a recipe targeting them
+  # consumes (tuna-desktop: rust, c-compiler, pkg-config); same names as eln.
+  # trixie's `rustc` is 1.85; rustc-web/cargo-web 1.96 in trixie main are its
+  # current toolchain (Provides: rustc, cargo). Mapped only for the
+  # capabilities a trixie recipe consumes (tuna-desktop).
+  rust: {el10: [rust, cargo], eln: [rust, cargo], fedora: [rust, cargo], rawhide: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], trixie: [rustc-web, cargo-web], opensuse-tumbleweed: [rust, cargo], arch: [rust]}
   go: {el10: [golang], eln: [golang], ubuntu: [golang-go], debian: [golang-go], opensuse-tumbleweed: [go], arch: [go]}
-  c-compiler: {el10: [gcc], eln: [gcc], ubuntu: [build-essential], debian: [build-essential], opensuse-tumbleweed: [gcc], arch: [base-devel]}
+  c-compiler: {el10: [gcc], eln: [gcc], fedora: [gcc], rawhide: [gcc], ubuntu: [build-essential], debian: [build-essential], trixie: [build-essential], opensuse-tumbleweed: [gcc], arch: [base-devel]}
   cpp-compiler: {el10: [gcc-c++], eln: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
-  pkg-config: {el10: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
+  pkg-config: {el10: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], fedora: [pkgconf-pkg-config], rawhide: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], trixie: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
   cmake: {el10: [cmake], eln: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
   ninja: {el10: [ninja-build], eln: [ninja-build], ubuntu: [ninja-build], debian: [ninja-build], opensuse-tumbleweed: [ninja], arch: [ninja]}
   # Wayland-desktop build capabilities (#169). Nothing COSMIC links against

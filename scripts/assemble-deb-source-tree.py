@@ -7,7 +7,11 @@ copies of this logic would drift, and drift in source assembly is how a
 publisher ships something the gate never tested. The gate's deb jobs call
 this script too, so there is exactly one copy of the assembly logic.
 
-Usage: assemble-deb-source-tree.py <recipe> <root>
+Usage: assemble-deb-source-tree.py <recipe> <root> [<target>]
+
+With a target, an auxiliary source that declares `targets` is assembled only
+for those targets, as the RPM and PKGBUILD renderers do
+(tideforge.source_entries).
 """
 import sys
 import tarfile
@@ -32,6 +36,7 @@ def materialise(source, destination, label):
     print(f"source cache miss, downloaded: {label}")
 recipe = yaml.safe_load(Path(sys.argv[1]).read_text())
 root = Path(sys.argv[2])
+target = sys.argv[3] if len(sys.argv) > 3 else None
 archive = root / "source.tar.gz"
 materialise(recipe["source"], archive, "primary source")
 with tarfile.open(archive) as tar:
@@ -42,6 +47,8 @@ if not source.is_dir():
 # Reconstruct checksum-locked source closures (for example upstream
 # submodules) in the same paths used by the RPM/Pacman renderers.
 for index, extra in enumerate(recipe.get("sources", []), start=1):
+    if target and "targets" in extra and target not in extra["targets"]:
+        continue
     extra_archive = root / f"source-{index}.tar"
     materialise(extra, extra_archive, f"auxiliary source {index}")
     destination = source / extra["destination"]

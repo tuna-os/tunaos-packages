@@ -21,11 +21,29 @@ ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
 VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom", "python"}
 DIST_GIT_RAW_REF = re.compile(r"https://src\.fedoraproject\.org/rpms/[^/]+/raw/([^/]+)/f/")
+# One upstream version, rendered verbatim as RPM `Version:` and Debian
+# upstream_version. A prerelease is written the way both of those already
+# sort it below the final release: a `~` before an alphabetic identifier
+# (`1.0.0~beta.1 < 1.0.0`). No `-` (RPM/Debian revision separator), `_`
+# (invalid in Debian) or `:` (epoch).
+RECIPE_VERSION = re.compile(r"[0-9][0-9A-Za-z.+]*(?:~[A-Za-z][0-9A-Za-z.+]*)?")
 
 
 def fail(message: str) -> None:
     print(f"ERROR: {message}", file=sys.stderr)
     raise SystemExit(1)
+
+
+def pacman_version(version: str) -> str:
+    """The Arch `pkgver` for a recipe version.
+
+    pkgver may not contain `~`, and libalpm has no tilde rule anyway; it
+    already sorts a trailing alphabetic segment older than nothing
+    (`1.0.0beta.1 < 1.0.0`). Dropping the `~` keeps the same order, which is
+    why RECIPE_VERSION requires a letter after it (`1.0~1` would become
+    `1.01`, newer than `1.0`).
+    """
+    return str(version).replace("~", "")
 
 
 def load_yaml(path: Path) -> dict:
@@ -273,18 +291,47 @@ def prepare_commands(recipe: dict) -> str:
     return "\n".join(commands)
 
 
-def custom_commands(recipe: dict, key: str, destination_root: str = "") -> str:
+def custom_commands(recipe: dict, key: str, destination_root: str = "", target: str | None = None) -> str:
     """Render reviewed commands for source projects with nonstandard tooling.
 
     Tideforge still owns source provenance, dependencies, and native package
     metadata. This narrow escape hatch is for upstream projects whose install
     contract is legitimately `just`/`make`, rather than pretending they are a
     simple one-binary Cargo package. `{destdir}` is expanded by each renderer.
+
+    `build.targets.<target>.commands` run BEFORE the common build commands
+    and `install.targets.<target>.commands` AFTER the common install
+    commands, in the same shell, for the one target that needs a step the
+    others must not run (tuna-desktop's private gtk4-layer-shell on trixie).
     """
-    commands = recipe.get("build" if key == "build" else "install", {}).get("commands", [])
+    block = recipe.get("build" if key == "build" else "install", {})
+    commands = block.get("commands", [])
     if not isinstance(commands, list) or not commands or not all(isinstance(command, str) and command.strip() for command in commands):
         fail(f"{key}.commands must be a non-empty list of commands")
-    return "\n".join(command.replace("{destdir}", destination_root) for command in commands)
+    extra = target_custom_commands(recipe, key).get(target, []) if target else []
+    ordered = [*extra, *commands] if key == "build" else [*commands, *extra]
+    return "\n".join(command.replace("{destdir}", destination_root) for command in ordered)
+
+
+def target_custom_commands(recipe: dict, key: str) -> dict[str, list[str]]:
+    """Validate and return `<build|install>.targets`: target -> commands."""
+    section = "build" if key == "build" else "install"
+    overrides = recipe.get(section, {}).get("targets", {})
+    if not isinstance(overrides, dict):
+        fail(f"{section}.targets must be a mapping of target to commands")
+    if overrides and recipe.get("build_system") != "custom":
+        fail(f"{section}.targets is only rendered for build_system: custom")
+    resolved: dict[str, list[str]] = {}
+    for name, override in overrides.items():
+        if name not in (recipe.get("targets") or []):
+            fail(f"{section}.targets names {name!r}, which the recipe does not enable")
+        if not isinstance(override, dict) or set(override) != {"commands"}:
+            fail(f"{section}.targets.{name} must be a mapping with only `commands`")
+        commands = override["commands"]
+        if not isinstance(commands, list) or not commands or not all(isinstance(command, str) and command.strip() for command in commands):
+            fail(f"{section}.targets.{name}.commands must be a non-empty list of commands")
+        resolved[name] = commands
+    return resolved
 
 
 def go_options(recipe: dict) -> tuple[str, str]:
@@ -365,18 +412,25 @@ def make_environment_exports(recipe: dict) -> str:
     return "\n".join(f"export {name} := {value.replace('$', '$$')}" for name, value in environment.items())
 
 
-def source_entries(recipe: dict) -> list[dict]:
+def source_entries(recipe: dict, target: str | None = None) -> list[dict]:
     """Return the primary source followed by pinned auxiliary source trees.
 
     ``source`` remains the build root for compatibility.  ``sources`` is for
     source closures such as upstream git submodules: every entry is an archive
-    with a checksum and an explicit destination below that build root.
+    with a checksum and an explicit destination below that build root.  An
+    entry with ``targets`` belongs to those targets' builds only; a renderer
+    passes its target to drop it everywhere else.  Without a target (fetch,
+    verification) every entry is returned.
     """
     entries = [dict(recipe["source"])]
     extras = recipe.get("sources", [])
     if not isinstance(extras, list):
         fail("sources must be a list")
-    entries.extend(dict(item) if isinstance(item, dict) else item for item in extras)
+    entries.extend(
+        dict(item) if isinstance(item, dict) else item
+        for item in extras
+        if target is None or not isinstance(item, dict) or "targets" not in item or target in item["targets"]
+    )
     return entries
 
 
@@ -429,6 +483,9 @@ def validate_source(source: dict, *, auxiliary: bool) -> None:
         strip_components = source.get("strip_components", 1)
         if not isinstance(strip_components, int) or strip_components < 0:
             fail("auxiliary source.strip_components must be a non-negative integer")
+        targets = source.get("targets", ["any"])
+        if not isinstance(targets, list) or not targets or not all(isinstance(item, str) and item for item in targets):
+            fail("auxiliary source.targets must be a non-empty list of targets")
 
 
 def validate_deb_packages(recipe: dict) -> None:
@@ -560,6 +617,8 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail(f"{field} is required")
     if not re.fullmatch(r"[a-z0-9][a-z0-9+._-]*", str(recipe["name"])):
         fail("name must be a lowercase package identifier")
+    if not RECIPE_VERSION.fullmatch(str(recipe["version"])):
+        fail("version must be digits/letters/./+, with an optional ~<letter>... prerelease suffix")
     for index, source in enumerate(source_entries(recipe)):
         validate_source(source, auxiliary=index > 0)
     if recipe["build_system"] not in VALID_BUILD_SYSTEMS:
@@ -576,6 +635,8 @@ def validate(recipe: dict, target: str | None = None) -> None:
     if recipe["build_system"] == "go":
         go_options(recipe)
         go_module_mode(recipe)
+    target_custom_commands(recipe, "build")
+    target_custom_commands(recipe, "install")
     if recipe["build_system"] == "custom":
         custom_commands(recipe, "build")
         custom_commands(recipe, "install", "{destdir}")
@@ -595,6 +656,10 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail(f"unknown target: {item}")
     if target and target not in requested:
         fail(f"recipe does not enable target: {target}")
+    for source in source_entries(recipe)[1:]:
+        unknown_targets = sorted(set(source.get("targets", [])) - set(requested))
+        if unknown_targets:
+            fail(f"auxiliary source {source_filename(source, 0)} names target(s) {unknown_targets} the recipe does not enable")
     for dependency_kind in ("build", "runtime"):
         dependency_data = recipe.get("dependencies", {}).get(dependency_kind, {})
         capabilities = dependency_data.get("capabilities", [])
@@ -747,8 +812,8 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         build = f"cd {workdir}\n{prelude + chr(10) if prelude else ''}{environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     elif recipe["build_system"] == "custom":
-        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
-        install = custom_commands(recipe, "install", "%{buildroot}")
+        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
+        install = custom_commands(recipe, "install", "%{buildroot}", target)
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
     provides = "\n".join(f"Provides:       {dep}" for dep in provides_entries(recipe))
@@ -772,7 +837,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         if source_directory == "."
         else f"%autosetup -n {source_directory}"
     )
-    auxiliary_sources = source_entries(recipe)[1:]
+    auxiliary_sources = source_entries(recipe, target)[1:]
     if auxiliary_sources:
         unpack_auxiliary = "\n".join(
             (
@@ -874,6 +939,7 @@ def render_deb(recipe: dict, target: str) -> dict[str, str]:
     binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
     recipe_runtime_dependencies = target_runtime_dependencies(recipe, target)
     provides_field = "".join(f"Provides: {provided}\n" for provided in provides_entries(recipe))
+    step_scripts: dict[str, str] = {}
     package_stanzas = "\n".join(
         f"""Package: {package['name']}
 Architecture: any
@@ -919,9 +985,16 @@ Rules-Requires-Root: no
             prelude += "\n"
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tcd {workdir} && :\n{prelude}\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
     elif recipe["build_system"] == "custom":
-        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
-        install = custom_commands(recipe, "install", f"debian/{recipe['name']}")
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\t{build.replace(chr(10), chr(10) + chr(9))}\n\noverride_dh_auto_install:\n\t{install.replace(chr(10), chr(10) + chr(9))}\n"
+        # Each step runs as ONE shell script, not as make recipe lines. Make
+        # gives every recipe line its own shell and expands `$` itself, so the
+        # inlined form lost build.environment's exports before the build ran,
+        # split cargo_config's multi-line printf into unterminated quotes, and
+        # turned `$PWD`/`${CFLAGS:-}` into make variables. The RPM %build and
+        # the PKGBUILD build() already run each step as one shell.
+        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
+        install = custom_commands(recipe, "install", f"debian/{recipe['name']}", target)
+        step_scripts = {"debian/tideforge-build.sh": f"set -e\n{build}\n", "debian/tideforge-install.sh": f"set -e\n{install}\n"}
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tsh debian/tideforge-build.sh\n\noverride_dh_auto_install:\n\tsh debian/tideforge-install.sh\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -1004,6 +1077,7 @@ License: {recipe['license']}
         "debian/changelog": changelog,
         "debian/copyright": copyright_file,
         "debian/source/format": "3.0 (quilt)\n",
+        **step_scripts,
     }
     # Tideforge's Go, Cargo, and data renderers install directly into
     # debian/<binary-package>.  A .install file would make dh_install search
@@ -1044,7 +1118,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     makedepends = " ".join(f"'{dependency}'" for dependency in target_dependencies(recipe, target))
     depends = " ".join(f"'{dependency}'" for dependency in target_runtime_dependencies(recipe, target))
     provides = " ".join(f"'{dependency}'" for dependency in provides_entries(recipe))
-    sources = source_entries(recipe)
+    sources = source_entries(recipe, target)
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
@@ -1075,8 +1149,8 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         build = "python -m build --wheel --no-isolation"
         install = 'python -m installer --destdir="$pkgdir" dist/*.whl'
     elif recipe["build_system"] == "custom":
-        build = "\n  ".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
-        install = custom_commands(recipe, "install", "$pkgdir")
+        build = "\n  ".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
+        install = custom_commands(recipe, "install", "$pkgdir", target)
     elif recipe["build_system"] == "meson":
         build = f"arch-meson build {meson_options(recipe)}\n  meson compile -C build".rstrip()
         install = "DESTDIR=\"$pkgdir\" meson install -C build"
@@ -1110,7 +1184,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     )
     pkgbuild = f"""# Generated by Tideforge; target-specific dependencies remain in package.yaml.
 pkgname={recipe['name']}
-pkgver={recipe['version']}
+pkgver={pacman_version(recipe['version'])}
 pkgrel={recipe.get('release', 1)}
 pkgdesc={recipe['summary']!r}
 arch=('x86_64' 'aarch64')
