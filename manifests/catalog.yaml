@@ -3824,6 +3824,7 @@ packages:
       sha256: e5c70219da191a60e2e009412603e05c36cee15bbbf7657dbbeaa1d21a692873
     targets:
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml

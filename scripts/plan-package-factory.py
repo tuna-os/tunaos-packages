@@ -563,13 +563,6 @@ def main() -> int:
     except (OSError, ValueError, yaml.YAMLError) as exc:
         print(f"package-factory planner failed closed: {exc}", file=sys.stderr)
         return 2
-    shards = [selected[index:index + 200] for index in range(0, len(selected), 200)] or [[]]
-    while len(shards) < 3:
-        shards.append([])
-    if len(shards) > 3:
-        print("package-factory planner exceeded three 200-cell shards", file=sys.stderr)
-        return 2
-
     # Continuation shards for full-chain build-chain cells.
     #
     # A whole desktop family (1,248 packages for hummingbird) does not fit one
@@ -602,20 +595,28 @@ def main() -> int:
         cont["id"] = f"{cell['id']}-{suffix}"
         return cont
 
+    # Shard 0 takes the first 200 cells; its full-chain cells are the ones
+    # that continue. The >200 overflow is independent work, so it fills
+    # shards 1 and 2 AROUND their continuations instead of claiming shard 1
+    # first: 191 overflow + 8 continuations left shard 1 one cell from full,
+    # and the next two cells any recipe added (gtkgreet eln) made the planner
+    # refuse the whole run although shard 2 held 8.
+    shards: list[list[dict]] = [selected[:200], [], []]
+    overflow = selected[200:]
     full_chain = [
         cell for cell in shards[0]
         if cell.get("engine") == "build-chain"
         and not cell.get("tiers")
         and not cell.get("canary")
     ]
+    # Shard 0 holds at most 200 cells, so its continuations always fit.
+    room = 200 - len(full_chain)
     for shard_index, suffix in ((1, "c1"), (2, "c2")):
-        for cell in full_chain:
-            if len(shards[shard_index]) >= 200:
-                print("package-factory planner: continuation shard is full; "
-                      "dropping would silently halve chain throughput",
-                      file=sys.stderr)
-                return 2
-            shards[shard_index].append(_continuation(cell, suffix))
+        shards[shard_index] = overflow[:room] + [_continuation(cell, suffix) for cell in full_chain]
+        overflow = overflow[room:]
+    if overflow:
+        print("package-factory planner exceeded three 200-cell shards", file=sys.stderr)
+        return 2
 
     matrices = [json.dumps({"include": shard}, separators=(",", ":")) for shard in shards]
     print(json.dumps({"count": len(selected), "matrices": matrices}))
