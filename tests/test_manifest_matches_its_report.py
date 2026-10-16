@@ -89,7 +89,21 @@ def test_every_manifest_package_is_in_the_report():
         if tier["name"].startswith("bootstrap-")
         for p in tier["packages"]
     }
-    orphans = sorted(in_manifest - in_report - bootstrap)
+    # local-00 builds roots the reference lacks (tuna-desktop); the report
+    # lists those under roots_absent_from_reference, not in a tier.
+    local = {
+        p["path"].rsplit("/", 1)[-1]
+        for tier in manifest["tiers"]
+        if tier["name"] == "local-00"
+        for p in tier["packages"]
+    }
+    absent = {
+        name
+        for desktop in r["desktops"].values()
+        for name in desktop["roots_absent_from_reference"]
+    }
+    assert local <= absent, f"local-00 builds roots the reference carries: {sorted(local - absent)}"
+    orphans = sorted(in_manifest - in_report - bootstrap - local)
     assert not orphans, (
         f"{len(orphans)} package(s) are in the manifest but in no tier of the "
         f"report, so the two disagree about what is being built: "

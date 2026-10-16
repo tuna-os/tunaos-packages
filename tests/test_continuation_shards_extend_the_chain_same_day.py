@@ -85,6 +85,27 @@ def test_bounded_cells_do_not_continue():
     )
 
 
+def test_overflow_packs_around_the_continuations():
+    """The full nightly plan fits while shards 1+2 have room for it.
+
+    Overflow claimed shard 1 before its continuations were added: 191
+    overflow + 8 continuations left it at 199/200 with shard 2 holding 8,
+    and the next recipe to add two cells (gtkgreet eln) made the planner
+    refuse the entire run. Every planned cell must land exactly once, no
+    shard may exceed 200, and shards 1 and 2 must still carry a
+    continuation for every full-chain cell of shard 0.
+    """
+    shards = plan_args()
+    assert all(len(shard) <= 200 for shard in shards)
+    base = [c for c in shards[0] if c["engine"] == "build-chain"
+            and not c.get("tiers") and not c.get("canary")]
+    for index, suffix in ((1, "-c1"), (2, "-c2")):
+        ids = {c["id"] for c in shards[index]}
+        assert {f"{c['id']}{suffix}" for c in base} <= ids
+    planned = [c["id"] for shard in shards for c in shard if "base_id" not in c]
+    assert len(planned) == len(set(planned))
+
+
 def test_canary_cells_do_not_continue():
     """Canaries are bounded by construction: canary_cells() rewrites the id
     to -canary and sets tiers=canary_tiers, and a cell with TIERS set asked
