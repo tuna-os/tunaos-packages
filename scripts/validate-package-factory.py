@@ -105,7 +105,7 @@ def main() -> None:
                 fail(f"{target_id}: {field} is required")
         if "/" not in target["probe_image"]:
             fail(f"{target_id}: probe_image must be a fully-qualified container image")
-        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/", "hummingbird/", "xfce/")):
+        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/", "gentoo/", "hummingbird/", "xfce/")):
             fail(f"{target_id}: r2_path has an unsupported namespace")
         if not all(arch in {"x86_64", "aarch64", "amd64", "arm64"} for arch in target["architectures"]):
             fail(f"{target_id}: unsupported architecture")

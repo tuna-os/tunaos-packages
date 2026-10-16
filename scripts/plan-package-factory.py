@@ -30,6 +30,8 @@ COMMON_INPUTS = {
 FORMAT_INPUTS = {
     "scripts/assemble-deb-source-tree.py": {"deb"},
     "scripts/arch-clean-install.sh": {"pkg.tar.zst"},
+    "scripts/gentoo-build-cell.sh": {"gpkg"},
+    "scripts/gentoo-clean-install.sh": {"gpkg"},
 }
 NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py"}
 DISTGIT_INPUTS = {"scripts/import-fedora-distgit.py"}

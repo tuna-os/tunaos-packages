@@ -285,7 +285,7 @@ jobs:
           artifacts=()
           while IFS= read -r -d '' path; do artifacts+=(--artifact "$path"); done \
             < <(find '.factory/${{ matrix.id }}/artifacts' -type f \
-              \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' \) -print0)
+              \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' -o -name '*.gpkg.tar' \) -print0)
           python3 scripts/tideforge-action-cache.py result \
             --action-key '${{ steps.identity.outputs.key }}' "${artifacts[@]}" \
             > '.factory/${{ matrix.id }}/action-result.json'

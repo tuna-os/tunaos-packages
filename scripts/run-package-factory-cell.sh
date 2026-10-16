@@ -333,6 +333,35 @@ case ${FORMAT:?} in
     cp "$root"/artifacts/*.pkg.tar.* "$out/artifacts/"
     cp "$root/package-info.txt" "$out/package-info.txt"
     ;;
+  gpkg)
+    # Gentoo (ADR 0002): the recipe renders to an ebuild in a one-package
+    # overlay, which emerge builds into a gpkg inside the stage3. Portage
+    # fetches nothing: the sources the fetch above verified against the
+    # recipe's sha256 are staged under the names the ebuild's SRC_URI gives
+    # them, and the Manifest is written from those bytes.
+    root="$out/gentoo"
+    python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root/overlay"
+    python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/sources" \
+      --cache-dir "$HOME/.cache/tideforge/sources"
+    mkdir -p "$root/distfiles" "$root/artifacts"
+    atom=$(python3 - "$recipe" "$target" "$root/sources" "$root/distfiles" <<'PY'
+import pathlib, shutil, sys
+sys.path.insert(0, "scripts")
+import tideforge
+recipe = tideforge.load_yaml(pathlib.Path(sys.argv[1]))
+sources, distfiles = pathlib.Path(sys.argv[3]), pathlib.Path(sys.argv[4])
+for index, source in enumerate(tideforge.source_entries(recipe, sys.argv[2])):
+    shutil.copyfile(sources / tideforge.source_filename(source, index),
+                    distfiles / tideforge.gentoo_distfile(recipe, source, index))
+print(f"{tideforge.gentoo_category(recipe)}/{recipe['name']}")
+PY
+)
+    docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
+      --env ATOM="$atom" \
+      --volume "$root:/work" --volume "$PWD/scripts:/scripts:ro" "$image" \
+      bash /scripts/gentoo-build-cell.sh
+    cp "$root"/artifacts/*.gpkg.tar "$out/artifacts/"
+    ;;
   *) echo "unsupported package format: $FORMAT" >&2; exit 2 ;;
 esac
 

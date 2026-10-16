@@ -20,12 +20,17 @@ Format semantics are native, not approximated:
     Provides, never a bare virtual (Debian policy 7.5).
   * pacman — the .db carries one version per name; depends compare
     with libalpm's vercmp (scripts/pacman_db.py).
+  * gpkg — a Portage binhost `Packages` index, highest version per
+    category/name; RDEPEND atoms compare with PMS ordering
+    (scripts/gentoo_binhost.py), and `|| ( )` groups are not judged.
 
 Usage (both run inside the publisher, entirely locally):
     scripts/check-index-regression.py --format deb \\
         --old repo/Packages.old --new repo/Packages
     scripts/check-index-regression.py --format pacman \\
         --old /work/old-tunaos.db --new /work/repo/tunaos.db
+    scripts/check-index-regression.py --format gpkg \\
+        --old old/Packages --new repo/Packages
 
 Exits 1 on a regression; a missing --old file means a first publish —
 nothing served, nothing to regress, exit 0.
@@ -122,7 +127,7 @@ def regressions(old: dict, new: dict, fmt: str) -> dict:
         version = load("deb_version")
     else:
         judge = _pacman_unresolved
-        version = load("pacman_db")
+        version = load("gentoo_binhost" if fmt == "gpkg" else "pacman_db")
     old_caps, old_evr = _caps(old)
     new_caps, new_evr = _caps(new)
 
@@ -152,6 +157,10 @@ def load_indexes(fmt: str, old_path: pathlib.Path, new_path: pathlib.Path):
             return deb_candidates(apt.decompress(
                 path.name, path.read_bytes()).decode("utf-8", "replace"))
         return read(old_path), read(new_path)
+    if fmt == "gpkg":
+        binhost = load("gentoo_binhost")
+        return (binhost.parse_packages(old_path.read_text(encoding="utf-8")),
+                binhost.parse_packages(new_path.read_text(encoding="utf-8")))
     pacman = load("pacman_db")
     return (pacman.parse_db(old_path.read_bytes()),
             pacman.parse_db(new_path.read_bytes()))
@@ -161,7 +170,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="old-vs-new index regression gate")
     parser.add_argument("--format", required=True,
-                        choices=["deb", "pacman", "pkg.tar.zst"])
+                        choices=["deb", "pacman", "pkg.tar.zst", "gpkg"])
     parser.add_argument("--old", type=pathlib.Path, required=True)
     parser.add_argument("--new", type=pathlib.Path, required=True)
     parser.add_argument("--json", type=pathlib.Path)

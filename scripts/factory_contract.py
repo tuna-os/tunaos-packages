@@ -109,12 +109,14 @@ BUILD_INERT_KEYS = frozenset({
 # for rpm and /etc/apt/sources.list.d/tunaos-published-N.list for deb -- so
 # for both it is a live build input that must keep re-keying.
 #
-# Arch is the only format left here: its pkg.tar.zst path has no equivalent
-# source and resolves everything from the distro. Adding one would make this
-# entry wrong, and the deb entry that used to sit beside it is exactly the
-# precedent for noticing.
+# Arch's pkg.tar.zst path has no equivalent source and resolves everything
+# from the distro. Adding one would make this entry wrong, and the deb entry
+# that used to sit beside it is exactly the precedent for noticing. Gentoo's
+# gpkg path is the same: ::gentoo and Gentoo's binhost supply every
+# dependency, and its own binhost is never configured in a build or verify.
 FORMAT_INERT_KEYS: dict[str, frozenset[str]] = {
     "pkg.tar.zst": frozenset({"published_index"}),
+    "gpkg": frozenset({"published_index"}),
 }
 
 

@@ -53,6 +53,8 @@ ADD_REPO = {
     "deb": ("echo 'deb [trusted=yes] {url} ./' | "
             "sudo tee /etc/apt/sources.list.d/tunaos.list"),
     "pkg.tar.zst": "# add to /etc/pacman.conf:\n[{name}]\nServer = {url}",
+    "gpkg": ("# /etc/portage/binrepos.conf/tunaos.conf (lsign public.gpg in "
+             "/etc/portage/gnupg):\n[tunaos]\nsync-uri = {url}\nverify-signature = true"),
 }
 
 # How old a measurement may be before the page stops presenting it as current.
@@ -154,6 +156,7 @@ INDEX_FILE = {
     "rpm": "repodata/repomd.xml",
     "deb": "InRelease",
     "pkg.tar.zst": "tunaos.db",
+    "gpkg": "Packages",
 }
 
 

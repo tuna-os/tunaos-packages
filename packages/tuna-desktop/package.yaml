@@ -66,6 +66,9 @@ build:
     # `version` above with `~` written as the tag's `-`.
     # Read at compile time; the old ROOST_VERSION is no longer consulted.
     TUNA_VERSION: v1.0.0-beta.1
+  # The toolchain floor (see dependencies.build). The rpm/deb lists spell it
+  # in their own relations; the gentoo ebuild takes it as RUST_MIN_VER.
+  rust_version: "1.92"
   cargo_config: |
     [source.crates-io]
     replace-with = "vendored-sources"
@@ -146,6 +149,11 @@ dependencies:
       # rust capability names rustc-web/cargo-web 1.96 (trixie main), as
       # trixie's own rustc is 1.85.
       trixie: [clang, libclang-dev, "rustc-web (>= 1.92)", "cargo-web (>= 1.92)", meson, ninja-build, wayland-protocols, patchelf, libdbus-1-dev, libglib2.0-dev, "libgtk-4-dev (>= 4.12)", libadwaita-1-dev, libdrm-dev, libinput-dev, libsecret-1-dev, libxkbcommon-dev, libxkbcommon-x11-dev, libgbm-dev, libegl-dev, libpipewire-0.3-dev, libseat-dev, libsystemd-dev, libudev-dev, libwayland-dev]
+      # Gentoo atoms for the same list. The rust capability is cargo.eclass's
+      # RUST_DEPEND at build.rust_version; clang is bindgen's libclang. gtk
+      # needs its wayland backend (gtk4-layer-shell does too), and
+      # xkbcommon-x11 is libxkbcommon[X]. libudev comes from systemd here.
+      gentoo: [llvm-core/clang, sys-apps/dbus, "dev-libs/glib:2", ">=gui-libs/gtk-4.12:4[wayland]", ">=gui-libs/gtk4-layer-shell-1.1", "gui-libs/libadwaita:1", x11-libs/libdrm, dev-libs/libinput, app-crypt/libsecret, "x11-libs/libxkbcommon[X]", media-libs/mesa, media-video/pipewire, sys-auth/seatd, virtual/libudev, dev-libs/wayland]
   runtime:
     targets:
       # Upstream packaging/arch/PKGBUILD depends=(). Optional integrations
@@ -179,6 +187,9 @@ dependencies:
       # this package, and its own ELF needs (libgtk-4-1, libwayland-client0)
       # come through ${shlibs:Depends}.
       trixie: [gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64, dbus-bin]
+      # The Fedora list in Gentoo atoms, with the same floors and the
+      # dlopen()ed pam.
+      gentoo: [sys-apps/dbus, "dev-libs/glib:2", ">=gui-libs/gtk-4.12:4[wayland]", ">=gui-libs/gtk4-layer-shell-1.1", "gui-libs/libadwaita:1", x11-libs/libdrm, dev-libs/libinput, app-crypt/libsecret, "x11-libs/libxkbcommon[X]", media-libs/mesa, media-video/pipewire, sys-auth/seatd, virtual/libudev, dev-libs/wayland, sys-libs/pam]
 install:
   commands:
     - install -Dm0755 target/release/tuna-compositor {destdir}/usr/bin/tuna-compositor
@@ -275,4 +286,8 @@ verify:
     && test -f /etc/pam.d/tuna-lock
     && test -f /etc/pam.d/roost-lock
     && test -f /usr/lib/systemd/user/tuna-session.target
-targets: [arch, fedora, rawhide, eln, el10, ubuntu, debian, trixie, opensuse-tumbleweed]
+# The ebuild's category in the tunaos overlay: gui-wm/tuna-desktop.
+outputs:
+  gpkg:
+    category: gui-wm
+targets: [arch, fedora, rawhide, eln, el10, ubuntu, debian, trixie, opensuse-tumbleweed, gentoo]
