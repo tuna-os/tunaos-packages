@@ -90,6 +90,17 @@ def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dic
     r2_path = target.get("r2_path")
     if not r2_path:
         fail(f"target {target_name} declares no r2_path to publish into")
+    if "{arch}" not in r2_path:
+        # One prefix for every arch would mix them in one repository. Such a
+        # path belongs to the arch whose published_index serves it (fedora:
+        # xfce/44-x86_64).
+        served = f"{SERVED_ROOT}{r2_path}/"
+        index = target.get("published_index") or {}
+        owners = [arch for arch, urls in index.items() if served in ([urls] if isinstance(urls, str) else urls)]
+        foreign = sorted(set(selected) - set(owners))
+        if foreign:
+            fail(f"target {target_name} r2_path {r2_path} has no {{arch}} and serves only {owners}; "
+                 f"refusing to publish {foreign} into it")
 
     build = []
     for package in packages:
