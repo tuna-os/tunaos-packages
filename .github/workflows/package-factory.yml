@@ -264,7 +264,7 @@ jobs:
           cat factory-plan.json
       - name: Retain complete batch inventory
         if: steps.plan.outputs.count != '0'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: factory-plan-${{ steps.plan.outputs.batch_index }}-attempt${{ github.run_attempt }}
           path: factory-plan.json
@@ -277,7 +277,7 @@ jobs:
         run: python3 scripts/factory-batches.py dispatch --plan factory-plan.json
       - name: Retain dispatched batch identities
         if: always() && steps.plan.outputs.batch_count != '1' && steps.plan.outputs.batch_index == '0' && steps.plan.outputs.count != '0'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: factory-batch-dispatch-attempt${{ github.run_attempt }}
           path: factory-batch-dispatch.json
@@ -383,7 +383,7 @@ jobs:
         run: python3 scripts/factory-batches.py result
       - name: Upload batch result
         if: always() && needs.plan.result == 'success' && needs.plan.outputs.count != '0'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: factory-batch-result-${{ needs.plan.outputs.batch_index }}-attempt${{ github.run_attempt }}
           path: factory-batch-result.json

@@ -97,7 +97,7 @@ jobs:
           python3 scripts/cas_gc.py "${ARGS[@]}"
 
       - name: Upload CAS GC artifacts
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1  # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
         with:
           name: cas-gc-report
           path: |
