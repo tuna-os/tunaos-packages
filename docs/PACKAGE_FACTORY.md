@@ -330,6 +330,14 @@ as native RPM/Pacman sources and extracts them before the build. This keeps a
 complex source closure reviewable and reproducible; a recipe is not eligible
 for promotion until its target CI builds the complete closure.
 
+A `custom` recipe can add a step for one target only. An auxiliary source
+with `targets: [<target>]` is unpacked only for that target.
+`build.targets.<target>.commands` run before `build.commands`, and
+`install.targets.<target>.commands` run after `install.commands`, in the same
+shell. Tideforge rejects a target the recipe does not enable. Use this only
+when one target lacks something the others have. Example: `tuna-desktop`
+builds a private gtk4-layer-shell on trixie, because trixie's own is too old.
+
 Cargo recipes build with `--locked` by default.  An upstream release with a
 demonstrably stale *root-package* entry in an otherwise pinned `Cargo.lock` may
 set `build.cargo_locked: false`, but it must include a specific

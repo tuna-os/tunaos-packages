@@ -291,18 +291,47 @@ def prepare_commands(recipe: dict) -> str:
     return "\n".join(commands)
 
 
-def custom_commands(recipe: dict, key: str, destination_root: str = "") -> str:
+def custom_commands(recipe: dict, key: str, destination_root: str = "", target: str | None = None) -> str:
     """Render reviewed commands for source projects with nonstandard tooling.
 
     Tideforge still owns source provenance, dependencies, and native package
     metadata. This narrow escape hatch is for upstream projects whose install
     contract is legitimately `just`/`make`, rather than pretending they are a
     simple one-binary Cargo package. `{destdir}` is expanded by each renderer.
+
+    `build.targets.<target>.commands` run BEFORE the common build commands
+    and `install.targets.<target>.commands` AFTER the common install
+    commands, in the same shell, for the one target that needs a step the
+    others must not run (tuna-desktop's private gtk4-layer-shell on trixie).
     """
-    commands = recipe.get("build" if key == "build" else "install", {}).get("commands", [])
+    block = recipe.get("build" if key == "build" else "install", {})
+    commands = block.get("commands", [])
     if not isinstance(commands, list) or not commands or not all(isinstance(command, str) and command.strip() for command in commands):
         fail(f"{key}.commands must be a non-empty list of commands")
-    return "\n".join(command.replace("{destdir}", destination_root) for command in commands)
+    extra = target_custom_commands(recipe, key).get(target, []) if target else []
+    ordered = [*extra, *commands] if key == "build" else [*commands, *extra]
+    return "\n".join(command.replace("{destdir}", destination_root) for command in ordered)
+
+
+def target_custom_commands(recipe: dict, key: str) -> dict[str, list[str]]:
+    """Validate and return `<build|install>.targets`: target -> commands."""
+    section = "build" if key == "build" else "install"
+    overrides = recipe.get(section, {}).get("targets", {})
+    if not isinstance(overrides, dict):
+        fail(f"{section}.targets must be a mapping of target to commands")
+    if overrides and recipe.get("build_system") != "custom":
+        fail(f"{section}.targets is only rendered for build_system: custom")
+    resolved: dict[str, list[str]] = {}
+    for name, override in overrides.items():
+        if name not in (recipe.get("targets") or []):
+            fail(f"{section}.targets names {name!r}, which the recipe does not enable")
+        if not isinstance(override, dict) or set(override) != {"commands"}:
+            fail(f"{section}.targets.{name} must be a mapping with only `commands`")
+        commands = override["commands"]
+        if not isinstance(commands, list) or not commands or not all(isinstance(command, str) and command.strip() for command in commands):
+            fail(f"{section}.targets.{name}.commands must be a non-empty list of commands")
+        resolved[name] = commands
+    return resolved
 
 
 def go_options(recipe: dict) -> tuple[str, str]:
@@ -383,18 +412,25 @@ def make_environment_exports(recipe: dict) -> str:
     return "\n".join(f"export {name} := {value.replace('$', '$$')}" for name, value in environment.items())
 
 
-def source_entries(recipe: dict) -> list[dict]:
+def source_entries(recipe: dict, target: str | None = None) -> list[dict]:
     """Return the primary source followed by pinned auxiliary source trees.
 
     ``source`` remains the build root for compatibility.  ``sources`` is for
     source closures such as upstream git submodules: every entry is an archive
-    with a checksum and an explicit destination below that build root.
+    with a checksum and an explicit destination below that build root.  An
+    entry with ``targets`` belongs to those targets' builds only; a renderer
+    passes its target to drop it everywhere else.  Without a target (fetch,
+    verification) every entry is returned.
     """
     entries = [dict(recipe["source"])]
     extras = recipe.get("sources", [])
     if not isinstance(extras, list):
         fail("sources must be a list")
-    entries.extend(dict(item) if isinstance(item, dict) else item for item in extras)
+    entries.extend(
+        dict(item) if isinstance(item, dict) else item
+        for item in extras
+        if target is None or not isinstance(item, dict) or "targets" not in item or target in item["targets"]
+    )
     return entries
 
 
@@ -447,6 +483,9 @@ def validate_source(source: dict, *, auxiliary: bool) -> None:
         strip_components = source.get("strip_components", 1)
         if not isinstance(strip_components, int) or strip_components < 0:
             fail("auxiliary source.strip_components must be a non-negative integer")
+        targets = source.get("targets", ["any"])
+        if not isinstance(targets, list) or not targets or not all(isinstance(item, str) and item for item in targets):
+            fail("auxiliary source.targets must be a non-empty list of targets")
 
 
 def validate_deb_packages(recipe: dict) -> None:
@@ -596,6 +635,8 @@ def validate(recipe: dict, target: str | None = None) -> None:
     if recipe["build_system"] == "go":
         go_options(recipe)
         go_module_mode(recipe)
+    target_custom_commands(recipe, "build")
+    target_custom_commands(recipe, "install")
     if recipe["build_system"] == "custom":
         custom_commands(recipe, "build")
         custom_commands(recipe, "install", "{destdir}")
@@ -615,6 +656,10 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail(f"unknown target: {item}")
     if target and target not in requested:
         fail(f"recipe does not enable target: {target}")
+    for source in source_entries(recipe)[1:]:
+        unknown_targets = sorted(set(source.get("targets", [])) - set(requested))
+        if unknown_targets:
+            fail(f"auxiliary source {source_filename(source, 0)} names target(s) {unknown_targets} the recipe does not enable")
     for dependency_kind in ("build", "runtime"):
         dependency_data = recipe.get("dependencies", {}).get(dependency_kind, {})
         capabilities = dependency_data.get("capabilities", [])
@@ -767,8 +812,8 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         build = f"cd {workdir}\n{prelude + chr(10) if prelude else ''}{environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     elif recipe["build_system"] == "custom":
-        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
-        install = custom_commands(recipe, "install", "%{buildroot}")
+        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
+        install = custom_commands(recipe, "install", "%{buildroot}", target)
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
     provides = "\n".join(f"Provides:       {dep}" for dep in provides_entries(recipe))
@@ -792,7 +837,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         if source_directory == "."
         else f"%autosetup -n {source_directory}"
     )
-    auxiliary_sources = source_entries(recipe)[1:]
+    auxiliary_sources = source_entries(recipe, target)[1:]
     if auxiliary_sources:
         unpack_auxiliary = "\n".join(
             (
@@ -946,8 +991,8 @@ Rules-Requires-Root: no
         # split cargo_config's multi-line printf into unterminated quotes, and
         # turned `$PWD`/`${CFLAGS:-}` into make variables. The RPM %build and
         # the PKGBUILD build() already run each step as one shell.
-        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
-        install = custom_commands(recipe, "install", f"debian/{recipe['name']}")
+        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
+        install = custom_commands(recipe, "install", f"debian/{recipe['name']}", target)
         step_scripts = {"debian/tideforge-build.sh": f"set -e\n{build}\n", "debian/tideforge-install.sh": f"set -e\n{install}\n"}
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tsh debian/tideforge-build.sh\n\noverride_dh_auto_install:\n\tsh debian/tideforge-install.sh\n"
     elif recipe["build_system"] == "go":
@@ -1073,7 +1118,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     makedepends = " ".join(f"'{dependency}'" for dependency in target_dependencies(recipe, target))
     depends = " ".join(f"'{dependency}'" for dependency in target_runtime_dependencies(recipe, target))
     provides = " ".join(f"'{dependency}'" for dependency in provides_entries(recipe))
-    sources = source_entries(recipe)
+    sources = source_entries(recipe, target)
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
@@ -1104,8 +1149,8 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         build = "python -m build --wheel --no-isolation"
         install = 'python -m installer --destdir="$pkgdir" dist/*.whl'
     elif recipe["build_system"] == "custom":
-        build = "\n  ".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
-        install = custom_commands(recipe, "install", "$pkgdir")
+        build = "\n  ".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
+        install = custom_commands(recipe, "install", "$pkgdir", target)
     elif recipe["build_system"] == "meson":
         build = f"arch-meson build {meson_options(recipe)}\n  meson compile -C build".rstrip()
         install = "DESTDIR=\"$pkgdir\" meson install -C build"

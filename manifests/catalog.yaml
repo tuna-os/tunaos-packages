@@ -10676,6 +10676,7 @@ packages:
       - fedora
       - opensuse-tumbleweed
       - rawhide
+      - trixie
       - ubuntu
     membership: runtime
     referenced_by:

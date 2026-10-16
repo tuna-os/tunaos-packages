@@ -29,8 +29,8 @@ explicit act with an explicit default wave -- "nothing gets published that a
 gate cell has not exercised" is a judgement a human makes, and turning it
 into "every recipe that targets deb" would silently widen what ships.
 
-The distro LABELS are also not derived. `ubuntu` and `debian-sid` are live
-R2 prefixes (r2:bluefin/tideforge/<distro>/, served at
+The distro LABELS are also not derived. `ubuntu`, `debian-sid` and
+`debian-trixie` are R2 prefixes (r2:bluefin/tideforge/<distro>/, served at
 repo.tunaos.org/tideforge/<distro>/); renaming one would orphan a published
 repository, so the label->target mapping is explicit and pinned by a test.
 """
@@ -44,6 +44,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
 import publisher_contract  # noqa: E402
+import tideforge  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -53,6 +54,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DISTRO_TARGETS = {
     "ubuntu": "ubuntu",
     "debian-sid": "debian",
+    "debian-trixie": "trixie",
 }
 
 # Native runners. A cross-built deb is not what these targets install, so
@@ -87,10 +89,15 @@ def plan(packages: list[str], distros: list[str], arches: list[str] | None) -> l
         selected = publisher_contract.architectures(target_name, target, arches, RUNNERS, fail)
 
         for package in packages:
-            publisher_contract.recipe(package, target_name, fail)
+            recipe = publisher_contract.recipe(package, target_name, fail)
+            # The binary package verify installs: the recipe's install_name
+            # for this target, not always its name (cpptrace-devel ships
+            # libcpptrace-dev on deb targets).
+            install_name = tideforge.verify_metadata(recipe, target_name)["install_name"]
             for arch in selected:
                 include.append({
                     "package": package,
+                    "install_name": install_name,
                     "distro": distro,
                     "target": target_name,
                     "image": image,
@@ -134,16 +141,19 @@ def main() -> None:
     # repo-wipe shape -- and verifying an unpublished arch fails a wave that
     # did exactly what it was asked to. Both now follow what was actually
     # built.
-    verify_rows = []
+    verify_rows: list[dict] = []
     for row in include:
-        key = (row["distro"], row["arch"])
-        if key not in {(r["distro"], r["arch"]) for r in verify_rows}:
-            verify_rows.append({
+        verify = next((r for r in verify_rows if (r["distro"], r["arch"]) == (row["distro"], row["arch"])), None)
+        if verify is None:
+            verify = {
                 "distro": row["distro"],
                 "arch": row["arch"],
                 "image": row["image"],
                 "runner": row["runner"],
-            })
+                "install": "",
+            }
+            verify_rows.append(verify)
+        verify["install"] = " ".join(filter(None, [verify["install"], row["install_name"]]))
     verify_matrix = json.dumps({"include": verify_rows})
 
     if args.github_output:

@@ -51,8 +51,8 @@ the asset and compares it with the published one.
 
 Commit the recipe change. Then let the factory build the `tideforge-tuna-desktop-*`
 cells: `arch-x86_64`, `fedora`, `rawhide`, `eln`, `el10` and `opensuse-tumbleweed`
-on `x86_64` and `aarch64`, and `ubuntu` (resolute) and `debian` (sid) on
-`amd64` and `arm64`.
+on `x86_64` and `aarch64`, and `ubuntu` (resolute), `debian` (sid) and
+`trixie` on `amd64` and `arm64`.
 Each smoke runs every binary and checks `--version` against `want=`.
 
 ## RPM targets
@@ -80,6 +80,13 @@ and sid ship every build dependency, including `libgtk4-layer-shell-dev` and a
 `dbus-bin` for `dbus-update-activation-environment`. Publish with
 `publish-tideforge-debs.yml`, `packages: tuna-desktop`.
 
-Debian trixie and Ubuntu noble are not factory targets. Trixie ships
-gtk4-layer-shell 1.0.4 and rustc 1.85; noble ships no gtk4-layer-shell and
-rustc 1.91 at most.
+`trixie` (Debian 13) ships gtk4-layer-shell 1.0.4, below the 1.1 floor.
+The factory does not replace that system library, because every consumer on
+the image would then get the new one. Instead, the `trixie` build compiles a
+private gtk4-layer-shell 1.3.0 (the `sources` entry with `targets: [trixie]`).
+The library goes in `/usr/lib/<multiarch>/tuna-desktop/`, and `patchelf` sets
+a RUNPATH on the binaries that link it. The toolchain is trixie's
+`rustc-web` 1.96, not its `rustc` 1.85. Publish with `distros: debian-trixie`.
+
+Ubuntu noble is not a factory target. It ships no gtk4-layer-shell, and its
+newest rustc is 1.91.
