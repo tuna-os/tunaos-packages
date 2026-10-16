@@ -72,6 +72,10 @@ def test_manifest_tiers_are_the_bootstrap_sequence_then_the_layers(manifest, cat
         f"{tier_names[:len(declared)]} != {declared}"
     )
     layers = tier_names[len(declared):]
+    # local-00 (reviewed specs Fedora does not carry, e.g. tuna-desktop)
+    # may close the order; it is the only non-layer tier allowed.
+    if layers and layers[-1] == "local-00":
+        layers = layers[:-1]
     assert layers == sorted(layers), "layers are out of order"
     assert all(n.startswith("layer-") for n in layers), (
         f"non-layer tiers after the bootstrap sequence: "
@@ -88,7 +92,13 @@ def test_every_layer_the_report_computed_reached_the_manifest(manifest, report, 
     computed = {s for layer in report["build_order"]["tiers"] for s in layer["sources"]}
     missing = sorted(computed - in_manifest)
     assert not missing, f"{len(missing)} measured packages are in no tier: {missing[:10]}"
-    extra = sorted(in_manifest - computed - boot)
+    # local-00 holds roots the reference lacks, which the measurement reports
+    # rather than computes; nothing else may appear uncomputed.
+    absent = {n for d in report["desktops"].values()
+              for n in d["roots_absent_from_reference"]}
+    local = {n for t in manifest["tiers"] if t["name"] == "local-00" for n in names(t)}
+    assert local <= absent, f"local-00 builds roots the reference carries: {sorted(local - absent)}"
+    extra = sorted(in_manifest - computed - boot - local)
     assert not extra, f"tiers contain packages the measurement never produced: {extra[:10]}"
 
 

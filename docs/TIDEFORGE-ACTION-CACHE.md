@@ -43,3 +43,21 @@ the blobs first and the ActionResult last.
 4. **Promotion behind the factory boundary**:
    - Publication reads the ActionResults, verifies the digests and copies the bytes into the repository indexes.
    - Builds on the protected main branch publish ActionResults and blobs to R2.
+
+## Reproducibility verification and quarantine
+
+The cache-reuse contract ("identical semantic inputs restore an exact verified result
+and skip compilation") is monitored by the reproducibility verifier
+(`scripts/verify-reproducibility.py` and `.github/workflows/reproducibility-verifier.yml`).
+Each sampled tideforge cell (one per format and architecture) is built twice
+from its canonical inputs in one job, and the two builds' artifact digests are
+compared. Build-chain cells are not sampled: a chain can use the full 6-hour job
+limit, so two builds in one job cannot complete.
+
+The report job adds each divergent cell to `manifests/reproducibility-quarantine.yaml`.
+On a cache hit, `package-factory-cell.yml` runs
+`tideforge-action-cache.py quarantine-check`. A quarantined cell discards the
+cached result and builds again. Aggregate rates (% reproducible per engine and
+format) are recorded in `docs/reproducibility-status.json`. `scripts/factory-status.py`
+shows them in `docs/FACTORY-STATUS.md`.
+
