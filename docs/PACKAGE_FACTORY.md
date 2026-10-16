@@ -14,6 +14,7 @@ targets, and publishes only validated repositories to Cloudflare R2.
 | Debian Sid | DEB | APT | supported foundation |
 | openSUSE Tumbleweed | RPM | rpm-md | supported foundation |
 | Arch | pkg.tar.zst | pacman | scaffold |
+| Gentoo | gpkg | Portage binhost + overlay | supported foundation |
 
 The authoritative target and R2-path contract is
 [`manifests/package-factory.yaml`](https://github.com/tuna-os/tunaos-packages/blob/main/manifests/package-factory.yaml).
@@ -131,6 +132,12 @@ is the enforcement, in two workflows:
   computes the affected coordinates `(package | native family, target,
   architecture, release track, engine)` from the changed paths — or the full
   ~300-cell matrix on `main` and on schedule — and emits only those cells.
+  On a pull request, cells selected only because shared code changed
+  (factory scripts, the cell workflow, `build-chain.sh`, a format adapter, a
+  target contract) are rotated: each push builds
+  `PACKAGE_FACTORY_ROUND_ROBIN_SIZE` of them (repository variable, default 3,
+  `0` builds all), chosen by run number. Cells whose own recipe, manifest or
+  sources changed always build. The push to `main` builds the whole set.
 - **`package-factory-cell.yml`** is the single reusable build boundary every
   cell runs through. It derives a content-addressed action key from the
   cell's exact inputs, restores only an exact cached result (and re-verifies
@@ -241,7 +248,8 @@ factory executes to have a catalog entry whose payload exists on disk.
 `promote-gnome49-to-prod.yml` were removed from `main` after the GNOME repo
 wipe — see `INCIDENT-repo-wipe-gnome.md`. The publishers that exist today
 (`publish-tideforge-rpms.yml`, `publish-tideforge-debs.yml`,
-`publish-tideforge-arch.yml`, `publish-build-chain-rpms.yml`) are
+`publish-tideforge-arch.yml`, `publish-tideforge-gentoo.yml`,
+`publish-build-chain-rpms.yml`) are
 `workflow_dispatch`-only curated waves: a human names the wave, the publisher
 rebuilds or promotes only cells the factory gate has covered, and each
 publisher ends with a verify job that installs the wave from the *served*
@@ -323,6 +331,25 @@ source tree, and optional `strip_components`. Tideforge renders those archives
 as native RPM/Pacman sources and extracts them before the build. This keeps a
 complex source closure reviewable and reproducible; a recipe is not eligible
 for promotion until its target CI builds the complete closure.
+
+A `custom` recipe can add a step for one target only. An auxiliary source
+with `targets: [<target>]` is unpacked only for that target.
+`build.targets.<target>.commands` run before `build.commands`, and
+`install.targets.<target>.commands` run after `install.commands`, in the same
+shell. Tideforge rejects a target the recipe does not enable. Use this only
+when one target lacks something the others have. Example: `tuna-desktop`
+builds a private gtk4-layer-shell on trixie, because trixie's own is too old.
+
+The `gentoo` target (format `gpkg`, [ADR 0002](adr/0002-gentoo-overlay-and-gpkg-binhost.md))
+renders a recipe into an ebuild in a one-package overlay named `tunaos`. The
+recipe must use `build_system: custom` and declare `outputs.gpkg.category`
+(the ebuild's category, e.g. `gui-wm`). A recipe that needs the `rust`
+capability inherits `cargo.eclass`; `build.rust_version` sets its
+`RUST_MIN_VER`. The cell emerges the ebuild inside the target's stage3 into a
+gpkg, and its verify installs that gpkg into a fresh stage3 with no overlay.
+`publish-tideforge-gentoo.yml` signs the gpkgs into the binhost at
+`https://repo.tunaos.org/gentoo/binpkgs/<arch>/` and serves the overlay as
+`https://repo.tunaos.org/gentoo/overlay/tunaos-overlay.zip`.
 
 Cargo recipes build with `--locked` by default.  An upstream release with a
 demonstrably stale *root-package* entry in an otherwise pinned `Cargo.lock` may

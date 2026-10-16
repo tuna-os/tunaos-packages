@@ -5,7 +5,7 @@
 %global geoclue_version 2.6.0
 %global gnome_desktop_version 44.0-7
 
-%global tarball_version 51.beta
+%global tarball_version 51.0
 %global major_version 51
 
 %if 0%{?rhel}
@@ -15,7 +15,7 @@
 %endif
 
 Name:           gnome-initial-setup
-Version:        51~beta
+Version:        51.0
 Release:        1%{?dist}
 Summary:        Bootstrapping your OS
 

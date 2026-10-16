@@ -1,0 +1,224 @@
+name: Reproducibility Verifier
+
+on:
+  schedule:
+    # Daily at 07:00 UTC: verify sampled ActionResults across engines/formats/architectures
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      sample_size:
+        description: 'Number of recipes to sample per coordinate'
+        required: false
+        default: '1'
+        type: string
+      format:
+        description: 'Optional format filter (rpm, deb, pkg.tar.zst)'
+        required: false
+        type: string
+      target:
+        description: 'Optional target filter'
+        required: false
+        type: string
+      arch:
+        description: 'Optional architecture filter (x86_64, aarch64)'
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - 'scripts/verify-reproducibility.py'
+      - 'scripts/tideforge-action-cache.py'
+      - 'manifests/reproducibility-quarantine.yaml'
+      - '.github/workflows/reproducibility-verifier.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reproducibility-verifier
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.sample.outputs.matrix }}
+      count: ${{ steps.sample.outputs.count }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - id: sample
+        name: Sample ActionResults across coordinates
+        env:
+          SAMPLE_SIZE: ${{ inputs.sample_size || '1' }}
+          FORMAT: ${{ inputs.format || '' }}
+          TARGET: ${{ inputs.target || '' }}
+          ARCH: ${{ inputs.arch || '' }}
+        run: |
+          set -euo pipefail
+          # Tideforge cells only. A build-chain cell builds a whole chain and
+          # can exceed the 6-hour job ceiling once (#412, #480), so two
+          # sequential builds in one job cannot finish.
+          args=(--github-output "$GITHUB_OUTPUT" --sample-size "$SAMPLE_SIZE" --engine tideforge)
+          [ -z "$FORMAT" ] || args+=(--format "$FORMAT")
+          [ -z "$TARGET" ] || args+=(--target "$TARGET")
+          [ -z "$ARCH" ] || args+=(--arch "$ARCH")
+          python3 scripts/verify-reproducibility.py sample "${args[@]}"
+
+  rebuild:
+    needs: plan
+    if: ${{ github.event_name != 'pull_request' && fromJSON(needs.plan.outputs.count || '0') > 0 }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Install planner dependency
+        run: pip install pyyaml==6.0.3
+      - name: Restore source downloads
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: ${{ matrix.recipe }}
+      - name: Pull the declared build image
+        run: scripts/pull-container-image.sh "${{ matrix.image }}" "${{ matrix.verify_image }}"
+      - id: identity
+        name: Derive action key and source epoch
+        run: |
+          set -euo pipefail
+          image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          # Same derivation as package-factory-cell.yml, so the key matches
+          # the ActionResult the nightly recorded for this cell.
+          epoch=$(git log -1 --format=%at -- "$(dirname '${{ matrix.recipe }}')")
+          payload=$(python3 scripts/tideforge-action-cache.py key \
+            --recipe '${{ matrix.recipe }}' --target '${{ matrix.target }}' \
+            --arch '${{ matrix.architecture }}' --image "$image" \
+            --source-date-epoch "$epoch")
+          echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
+          echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
+      - name: Build run A
+        env:
+          CELL_ID: ${{ matrix.id }}-a
+          ENGINE: ${{ matrix.engine }}
+          PACKAGE: ${{ matrix.package }}
+          RECIPE: ${{ matrix.recipe }}
+          TARGET: ${{ matrix.target }}
+          FORMAT: ${{ matrix.format }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          IMAGE: ${{ matrix.image }}
+          MANIFEST: ${{ matrix.manifest }}
+          MOCK_CONFIG: ${{ matrix.mock_config }}
+          TIERS: ${{ matrix.canary_tiers || matrix.tiers }}
+          OUT_DIR: .verifier/${{ matrix.id }}/build-a
+          SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
+        run: |
+          mkdir -p "$OUT_DIR"
+          bash scripts/run-package-factory-cell.sh
+      - name: Build run B (independent rebuild)
+        env:
+          CELL_ID: ${{ matrix.id }}-b
+          ENGINE: ${{ matrix.engine }}
+          PACKAGE: ${{ matrix.package }}
+          RECIPE: ${{ matrix.recipe }}
+          TARGET: ${{ matrix.target }}
+          FORMAT: ${{ matrix.format }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+          IMAGE: ${{ matrix.image }}
+          MANIFEST: ${{ matrix.manifest }}
+          MOCK_CONFIG: ${{ matrix.mock_config }}
+          TIERS: ${{ matrix.canary_tiers || matrix.tiers }}
+          OUT_DIR: .verifier/${{ matrix.id }}/build-b
+          SOURCE_DATE_EPOCH: ${{ steps.identity.outputs.epoch }}
+        run: |
+          mkdir -p "$OUT_DIR"
+          bash scripts/run-package-factory-cell.sh
+      - name: Compare artifact digests
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-reproducibility.py compare-dirs \
+            --dir-a ".verifier/${{ matrix.id }}/build-a/artifacts" \
+            --dir-b ".verifier/${{ matrix.id }}/build-b/artifacts" \
+            --action-key "${{ steps.identity.outputs.key }}" \
+            --cell-id "${{ matrix.id }}" \
+            --package "${{ matrix.package }}" \
+            --target "${{ matrix.target }}" \
+            --arch "${{ matrix.architecture }}" \
+            --engine "${{ matrix.engine }}" \
+            --format "${{ matrix.format }}" \
+            --output-json ".verifier/${{ matrix.id }}/verification.json"
+          cat ".verifier/${{ matrix.id }}/verification.json"
+      # always(): a divergent rebuild fails the compare step, and that verdict
+      # is exactly the one the report must not lose.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: verifier-${{ matrix.id }}
+          path: .verifier/${{ matrix.id }}/verification.json
+          if-no-files-found: ignore
+
+  report:
+    needs: [plan, rebuild]
+    # Nothing sampled means nothing measured: do not publish an empty report.
+    if: ${{ always() && github.event_name != 'pull_request' && fromJSON(needs.plan.outputs.count || '0') > 0 }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - run: pip install pyyaml==6.0.3
+      - uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
+        with:
+          pattern: verifier-*
+          path: .verifier/downloaded
+          merge-multiple: true
+      - name: Collect results and update policy report
+        run: |
+          set -euo pipefail
+          python3 scripts/verify-reproducibility.py collect \
+            --results-dir .verifier/downloaded \
+            --out-json docs/reproducibility-status.json \
+            --quarantine-file manifests/reproducibility-quarantine.yaml \
+            --record-quarantine
+          # FACTORY-STATUS.md renders docs/reproducibility-status.json on its
+          # own schedule (factory-status.yml); regenerating it here would race
+          # that workflow's PR on the same two files.
+      - name: Open a PR with the refreshed reproducibility status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: automation/reproducibility-status
+        run: |
+          set -euo pipefail
+          git add -N docs/reproducibility-status.json
+          if git diff --quiet -- docs/reproducibility-status.json manifests/reproducibility-quarantine.yaml; then
+            echo "No change in reproducibility status."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add docs/reproducibility-status.json manifests/reproducibility-quarantine.yaml
+          git commit -m "docs: update reproducibility verification status ($(date -u +%Y-%m-%d))"
+          git push --force origin "$BRANCH"
+          if [[ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]]; then
+            gh pr create --base main --head "$BRANCH" \
+              --title "docs: update reproducibility verification status" \
+              --body "Sampled reproducibility rebuild results updated by \`Reproducibility Verifier\` workflow."
+          fi
+          pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [[ -n "$pr" ]]; then
+            gh pr merge --auto --merge "$pr" || true
+          fi

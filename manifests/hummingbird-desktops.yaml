@@ -112,6 +112,21 @@ desktops:
     # audit (#228) and are part of the desktop's contract surface.
     required_packages: [xfconf, libxfce4ui, xfwl4, greetd, gtkgreet, cage]
     install_packages: [gdm, greetd, gtkgreet, cage, xfwl4, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, thunar, mousepad, ristretto, xfce4-whiskermenu-plugin, xfce4-terminal, xfce4-session, xfce4-panel, xfce4-settings, xfdesktop, xfwm4, xfwm4-themes, xfconf, libxfce4ui]
+  # Tuna Desktop (tuna-os/tunaos-packages#832, tunaOS#3200). Built here, in
+  # the same Fedora 44 + public-hummingbird + utah root as the
+  # gtk4-layer-shell, libseat and libinput it links, and published with them
+  # (x86_64 and aarch64, OCI index included) -- not through Tideforge, whose
+  # hummingbird target stays `scaffold`. tuna-desktop is not in Fedora, so
+  # the measurement reports it under roots_absent_from_reference and the
+  # generated order builds its reviewed spec in `local-00`, after every
+  # layer. install_packages is the session set of tunaOS's
+  # manifests/desktops/tuna.yaml (`fedora:` section), so the closure covers
+  # what a hummingbird:tuna image installs, not only the session package.
+  tuna:
+    release: latest
+    sources: [{local: src/hummingbird/tuna-desktop}]
+    required_packages: [tuna-desktop]
+    install_packages: [tuna-desktop, dbus-tools, orca, greetd, gtkgreet, cage, xorg-x11-server-Xwayland, ibus, gnome-shell, gnome-settings-daemon, gnome-control-center, gnome-keyring, evolution-data-server, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, xdg-user-dirs, gvfs, nautilus, ptyxis, NetworkManager, libsecret, pipewire, wireplumber, pipewire-gstreamer, gstreamer1-plugins-good, tuned-ppd, upower, flatpak, plymouth, adwaita-icon-theme, google-noto-sans-fonts, google-noto-color-emoji-fonts, dejavu-sans-fonts, liberation-fonts]
   # Bluefin's own package contract, layered on top of any desktop by
   # hanthor/utah's "Bluefin on Hummingbird" build (`dnf install` of
   # packages/bluefin.toml's [fedora] + [multimedia_overrides] + [fedora_v43]

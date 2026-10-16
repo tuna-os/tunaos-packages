@@ -55,7 +55,7 @@ def test_every_format_has_its_own_version_comparator():
     modules = {fmt: repo_index.version_module(fmt).__name__
                for fmt in repo_index.FORMATS}
     assert modules == {"rpm": "rpm_vercmp", "deb": "deb_version",
-                       "pkg.tar.zst": "pacman_db"}
+                       "pkg.tar.zst": "pacman_db", "gpkg": "gentoo_binhost"}
     assert len(set(modules.values())) == len(modules), (
         "two formats share a comparator; their version orderings differ")
 
@@ -76,6 +76,9 @@ def test_every_publish_path_gates_reverse_dependencies():
     ).read_text()
     assert "check-index-regression.py --format pacman" in (
         ROOT / ".github" / "workflows" / "publish-tideforge-arch.yml"
+    ).read_text()
+    assert "check-index-regression.py --format gpkg" in (
+        ROOT / ".github" / "workflows" / "publish-tideforge-gentoo.yml"
     ).read_text()
 
 

@@ -26,7 +26,7 @@
 %global tarball_version %%(echo %{version} | tr '~' '.')
 
 Name:          mutter
-Version:       51~beta
+Version:       51.0
 Release:       1%{?dist}
 Summary:       Window and compositing manager based on Clutter
 
@@ -241,6 +241,9 @@ DESTDIR=%{buildroot} meson install -C build
 %{_libexecdir}/mutter-devkit
 
 %changelog
+* Sat Oct 03 2026 unknown <unknown@users.noreply.github.com> - 51.0-1
+- Update to the GNOME 51 stable release
+
 * Tue Aug 25 2026 James Reilly <jreilly1821@gmail.com> - 51~beta-1
 - Update to 51.beta (GNOME 51 beta cycle)
 

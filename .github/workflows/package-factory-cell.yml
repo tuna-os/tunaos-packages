@@ -174,11 +174,23 @@ jobs:
           set -euo pipefail
           hit=false
           if [ '${{ steps.restore.outputs.cache-hit }}' = true ]; then
-            python3 scripts/tideforge-action-cache.py verify \
-              --result '.factory/${{ matrix.id }}/action-result.json' \
-              --artifact-dir '.factory/${{ matrix.id }}/artifacts' \
-              --expected-action-key '${{ steps.identity.outputs.key }}'
-            hit=true
+            # A quarantined recipe diverged on a sampled rebuild
+            # (reproducibility-verifier.yml), so a cached result for it is not
+            # evidence of what these inputs build: discard it and rebuild.
+            if python3 scripts/tideforge-action-cache.py quarantine-check \
+                --package '${{ matrix.package }}' --target '${{ matrix.target }}' \
+                --arch '${{ matrix.architecture }}' >/dev/null; then
+              echo "::warning title=action-cache::${{ matrix.id }} is quarantined for reproducibility divergence; rebuilding"
+              rm -rf '.factory/${{ matrix.id }}/artifacts' \
+                '.factory/${{ matrix.id }}/action-result.json' \
+                '.factory/${{ matrix.id }}/package-info.txt'
+            else
+              python3 scripts/tideforge-action-cache.py verify \
+                --result '.factory/${{ matrix.id }}/action-result.json' \
+                --artifact-dir '.factory/${{ matrix.id }}/artifacts' \
+                --expected-action-key '${{ steps.identity.outputs.key }}'
+              hit=true
+            fi
           fi
           echo "hit=$hit" >> "$GITHUB_OUTPUT"
           # Say so where it can be counted (#472). Nothing in a run's output
@@ -285,7 +297,7 @@ jobs:
           artifacts=()
           while IFS= read -r -d '' path; do artifacts+=(--artifact "$path"); done \
             < <(find '.factory/${{ matrix.id }}/artifacts' -type f \
-              \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' \) -print0)
+              \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' -o -name '*.gpkg.tar' \) -print0)
           python3 scripts/tideforge-action-cache.py result \
             --action-key '${{ steps.identity.outputs.key }}' "${artifacts[@]}" \
             > '.factory/${{ matrix.id }}/action-result.json'

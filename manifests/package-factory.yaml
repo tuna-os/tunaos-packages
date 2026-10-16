@@ -109,6 +109,20 @@ targets:
       arm64: https://repo.tunaos.org/tideforge/debian-sid/
     repository: apt
     probe_image: docker.io/library/debian:sid
+  trixie:
+    # Debian 13, flounder's base. Its own target, not a second `debian`
+    # suite: the planner gives a target one image, and sid's would build sid
+    # bytes. Packages publish to the flat repo tideforge/debian-trixie
+    # (plan-deb-publish.py label debian-trixie), which does not exist until
+    # the first publish, so both arches are pending until it resolves.
+    status: supported
+    format: deb
+    suites: [trixie]
+    architectures: [amd64, arm64]
+    r2_path: apt/debian/{suite}/{arch}
+    published_index_pending: [amd64, arm64]
+    repository: apt
+    probe_image: docker.io/library/debian:trixie
   fedora:
     status: supported
     format: rpm
@@ -170,6 +184,24 @@ targets:
     repository: rpm-md
     probe_image: registry.fedoraproject.org/eln-bootc:latest
     build_repositories: [eln]
+
+  rawhide:
+    # Fedora Rawhide, its own target because `fedora` builds in a fedora-44
+    # root (#831): an F44 build links F44's sonames and carries .fc44, so it
+    # cannot qualify bonito-rawhide. The buildroot is the rolling
+    # fedora:rawhide image itself, the base bonito-rawhide builds from.
+    status: supported
+    format: rpm
+    buildroot: fedora-rawhide
+    architectures: [x86_64, aarch64]
+    r2_path: rpm/rawhide/{arch}
+    # Nothing is served yet: publish-tideforge-rpms.yml creates
+    # rpm/rawhide/{arch} on its first run. Declare published_index per arch
+    # once each resolves (the el10 aarch64 rule).
+    published_index_pending: [x86_64, aarch64]
+    repository: rpm-md
+    probe_image: registry.fedoraproject.org/fedora:rawhide
+    build_repositories: [fedora-rawhide]
 
   hummingbird:
     # Hummingbird is a target of a different shape from the rest, and the
@@ -288,6 +320,31 @@ targets:
       aarch64: https://repo.tunaos.org/rpm/opensuse-tumbleweed/aarch64/
     repository: rpm-md
     probe_image: registry.opensuse.org/opensuse/tumbleweed:latest
+  gentoo:
+    # Gentoo, guppy's base (#838). Not an rpm/deb-style repository of
+    # prebuilt bytes from one recipe file: Tideforge renders the recipe into
+    # an ebuild in a one-package overlay (repo name `tunaos`), the cell
+    # emerges it inside the stage3 into a gpkg, and the publisher signs that
+    # gpkg into a Portage binhost (`Packages` index) beside the overlay. ADR
+    # 0002 records the shape. Dependencies come from ::gentoo and Gentoo's
+    # official binhost, never from this target's own index, so
+    # published_index is inert for gpkg (scripts/factory_contract.py).
+    status: supported
+    format: gpkg
+    # Gentoo's own keyword spelling; it is also the ebuild's KEYWORDS.
+    # guppy is amd64-only.
+    architectures: [amd64]
+    r2_path: gentoo/binpkgs/{arch}
+    # Nothing is served until publish-tideforge-gentoo.yml first writes
+    # gentoo/binpkgs/amd64.
+    published_index_pending: [amd64]
+    repository: binhost
+    # The desktop/systemd stage3, not guppy's openrc base_image: guppy's
+    # first step selects the desktop/systemd profile and rebuilds @world into
+    # it (tunaOS Containerfile.gentoo), and this image is that profile as
+    # Gentoo releases it, so the build and the install check run where guppy
+    # ends up without converting @world in every cell.
+    probe_image: docker.io/gentoo/stage3:amd64-desktop-systemd-20261012@sha256:2884ba1d435667853572fc9db864a0ca0065e639dbb1f31b6362c4e44fd4c81a
   arch:
     status: scaffold
     format: pkg.tar.zst
@@ -310,11 +367,20 @@ targets:
 # packages.  Native names remain available under dependencies.*.common/targets
 # for exceptional or genuinely target-specific requirements.
 dependency_catalog:
-  rust: {el10: [rust, cargo], eln: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], opensuse-tumbleweed: [rust, cargo], arch: [rust]}
+  # fedora and rawhide map only the capabilities a recipe targeting them
+  # consumes (tuna-desktop: rust, c-compiler, pkg-config); same names as eln.
+  # trixie's `rustc` is 1.85; rustc-web/cargo-web 1.96 in trixie main are its
+  # current toolchain (Provides: rustc, cargo). Mapped only for the
+  # capabilities a trixie recipe consumes (tuna-desktop).
+  # gentoo, likewise only what tuna-desktop consumes: the rust capability is
+  # cargo.eclass's own RUST_DEPEND (any dev-lang/rust or rust-bin slot at or
+  # above the recipe's build.rust_version), which the ebuild renderer
+  # inherits; the C compiler is @system's gcc.
+  rust: {el10: [rust, cargo], eln: [rust, cargo], fedora: [rust, cargo], rawhide: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], trixie: [rustc-web, cargo-web], opensuse-tumbleweed: [rust, cargo], gentoo: ["${RUST_DEPEND}"], arch: [rust]}
   go: {el10: [golang], eln: [golang], ubuntu: [golang-go], debian: [golang-go], opensuse-tumbleweed: [go], arch: [go]}
-  c-compiler: {el10: [gcc], eln: [gcc], ubuntu: [build-essential], debian: [build-essential], opensuse-tumbleweed: [gcc], arch: [base-devel]}
+  c-compiler: {el10: [gcc], eln: [gcc], fedora: [gcc], rawhide: [gcc], ubuntu: [build-essential], debian: [build-essential], trixie: [build-essential], opensuse-tumbleweed: [gcc], gentoo: [sys-devel/gcc], arch: [base-devel]}
   cpp-compiler: {el10: [gcc-c++], eln: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
-  pkg-config: {el10: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], arch: [pkgconf]}
+  pkg-config: {el10: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], fedora: [pkgconf-pkg-config], rawhide: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], trixie: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], gentoo: [virtual/pkgconfig], arch: [pkgconf]}
   cmake: {el10: [cmake], eln: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
   ninja: {el10: [ninja-build], eln: [ninja-build], ubuntu: [ninja-build], debian: [ninja-build], opensuse-tumbleweed: [ninja], arch: [ninja]}
   # Wayland-desktop build capabilities (#169). Nothing COSMIC links against
