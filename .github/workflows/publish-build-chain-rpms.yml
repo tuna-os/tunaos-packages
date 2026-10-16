@@ -31,6 +31,16 @@ on:
         required: false
         default: false
         type: boolean
+      tiers:
+        # Empty (the default) builds the whole order, exactly as before. A
+        # comma-separated list of the order's tier names builds only those,
+        # for a one-off leg that fills a package whose dependencies are
+        # already served: `local-00` builds tuna-desktop on hummingbird
+        # (#832) without first rebuilding every layer Rawhide has moved.
+        description: "Only these tiers of the build order (comma-separated); empty builds all"
+        required: false
+        default: ""
+        type: string
       runner:
         # `hosted` is the default so an input-less dispatch (and every
         # existing caller) behaves exactly as before. `runs-on` routes the
@@ -219,6 +229,24 @@ jobs:
           python3 scripts/list-served-nvrs.py \
             "https://repo.tunaos.org/${R2_PATH}/" > /tmp/served-nvrs-${{ matrix.id }}.txt
           echo "served NVRs for ${{ matrix.id }}: $(wc -l < /tmp/served-nvrs-${{ matrix.id }}.txt)"
+      # Hummingbird's mock config resolves utah-shipped BuildRequires (gtk4,
+      # libadwaita) from a file:// [utah] repo, and build-chain.sh refuses a
+      # hummingbird-ci* config without UTAH_REPO_DIR. Materialise the pinned
+      # OCI digest the same way package-factory-cell.yml does; aarch64 gets a
+      # valid EMPTY repo (utah publishes x86_64 only).
+      - name: Materialise the consumed utah-packages repo
+        if: startsWith(matrix.mock_config, 'hummingbird') && steps.verdict.outputs.hit != 'true'
+        env:
+          UTAH_ARCH: ${{ matrix.architecture == 'aarch64' && 'aarch64' || 'x86_64' }}
+          ALLOW_EMPTY: ${{ matrix.architecture == 'aarch64' }}
+        run: |
+          set -euo pipefail
+          pip install -q pyyaml
+          pin=$(python3 -c 'import yaml; print(yaml.safe_load(open("manifests/package-factory.yaml"))["targets"]["hummingbird"]["gap_measurement"]["consumed_indexes"][0]["index"])')
+          echo "utah pin: $pin arch: $UTAH_ARCH"
+          args=(--ref "$pin" --arch "$UTAH_ARCH" --out /tmp/utah-root --cache-dir /tmp/oci-cache)
+          [ "$ALLOW_EMPTY" = "true" ] && args+=(--allow-empty)
+          python3 scripts/materialize-consumed-repo.py "${args[@]}"
       - name: Build the cell
         id: build
         env:
@@ -239,6 +267,10 @@ jobs:
           # 9.5h of building and the same ~1.5h to drain the longest
           # in-flight package and run validate/checksum/SBOM/upload.
           CHAIN_BUDGET_SECONDS: ${{ inputs.runner != 'runs-on' && 16200 || 34200 }}
+          # Empty unless the dispatch named tiers; run-package-factory-cell.sh
+          # then imports and builds only those.
+          TIERS: ${{ inputs.tiers }}
+          UTAH_REPO_DIR: ${{ startsWith(matrix.mock_config, 'hummingbird') && '/tmp/utah-root' || '' }}
         if: steps.verdict.outputs.hit != 'true'
         run: bash scripts/run-package-factory-cell.sh
       # Stage whatever this leg banked in ORAS, so an independent one-off
@@ -320,8 +352,11 @@ jobs:
       # `${{ matrix.base_id || matrix.id }}-partial` and reads the same. The
       # publish planner emits no base_id and its cell id IS the base, so both
       # sides land on one shared name per family cell.
+      #
+      # Not for a tiers-limited leg: its output is a slice of the chain, and
+      # overwriting the shared partial with it would hide the nightly's.
       - uses: actions/upload-artifact@v7
-        if: always() && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
+        if: always() && inputs.tiers == '' && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
         with:
           name: ${{ matrix.id }}-partial
           overwrite: true
@@ -441,8 +476,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
-      - name: Pull everything staged in ORAS
-        run: python3 scripts/oras-stage-artifacts.py pull-all staged/oras
+      #
+      # Only this cell's %{dist} and architecture (or noarch). The ORAS repo
+      # is shared by every family, and everything pulled here is signed and
+      # placed in THIS prefix: unscoped, 345 staged .el10 RPMs were one
+      # hummingbird publish away from hummingbird/20251124-x86_64 (#832).
+      - name: Pull this cell's RPMs staged in ORAS
+        run: |
+          set -euo pipefail
+          dist=$(bash scripts/build-chain.sh --manifest '${{ matrix.manifest }}' --print-dist)
+          python3 scripts/oras-stage-artifacts.py pull-all staged/oras \
+            --dist "$dist" --arch '${{ matrix.architecture }}'
       # --evict-foreign: a family prefix carries only what this factory
       # built and signed. gnome50/10-stream-x86_64 held a COPR mirror
       # (refresh-gnome50-r2.yml, 2026-08-04, signed by the COPR project key)

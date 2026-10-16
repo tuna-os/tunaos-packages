@@ -1,6 +1,6 @@
 """Pin the dual-maintained hummingbird specs to their Tideforge recipes.
 
-Seven packages exist twice while the native EL10 pipeline and Tideforge run
+Eight packages exist twice while the native EL10 pipeline and Tideforge run
 in parallel (docs/PACKAGE_FACTORY.md): a hand-written spec under
 src/hummingbird/<p>/ and a recipe under packages/<p>/. Nothing kept the two
 at the same upstream release, so a version bump could land on one side and
@@ -29,6 +29,7 @@ DUAL_MAINTAINED = [
     "xdg-desktop-portal-cosmic",
     "greetd",
     "niri",
+    "tuna-desktop",
 ]
 
 
@@ -47,13 +48,11 @@ def spec_field(text: str, field: str) -> str:
 
 
 def expand_source0(text: str, package: str, version: str) -> str:
-    """Expand the macros Source0 actually uses in these seven specs."""
+    """Expand the macros Source0 actually uses in these specs."""
     macros = {
         "name": package,
         "version": version,
-        # No tilde versions among the dual-maintained seven; if one appears,
-        # the equality assertions below will fail and force a revisit.
-        "version_no_tilde": version,
+        "version_no_tilde": version.replace("~", ""),
     }
     url = re.search(r"^URL:\s*(\S+)", text, re.MULTILINE)
     if url:
@@ -92,9 +91,12 @@ def test_spec_source_matches_recipe_upstream(package: str) -> None:
         f"{package}: spec Source0 ({source0}) does not fetch from the recipe's "
         f"upstream repository ({repo_base})."
     )
-    assert str(data["version"]) in source0, (
-        f"{package}: spec Source0 ({source0}) does not reference version "
-        f"{data['version']}."
+    # A prerelease's Version writes the tag's `-` as `~` (tuna-desktop
+    # 1.0.0~beta.1 is tag v1.0.0-beta.1); the URL carries the tag form.
+    upstream = str(data["version"]).replace("~", "-")
+    assert upstream in source0, (
+        f"{package}: spec Source0 ({source0}) does not reference upstream "
+        f"release {upstream}."
     )
 
 
