@@ -50,7 +50,8 @@ the script again with the same tag to check an existing release: it rebuilds
 the asset and compares it with the published one.
 
 Commit the recipe change. Then let the factory build the `tideforge-tuna-desktop-*`
-cells: `arch-x86_64`, and `fedora`, `eln` and `el10` on `x86_64` and `aarch64`.
+cells: `arch-x86_64`, `fedora`, `eln` and `el10` on `x86_64` and `aarch64`,
+and `ubuntu` (resolute) and `debian` (sid) on `amd64` and `arm64`.
 Each smoke runs every binary and checks `--version` against `want=`.
 
 ## RPM targets
@@ -61,3 +62,16 @@ On `el10`, the factory supplies `gtk4-layer-shell-devel` from
 `packages/gtk4-layer-shell`. The build gets it from the published index of the
 target, so `publish-tideforge-rpms.yml` must publish that package for `el10`
 before the `tuna-desktop` `el10` cells can build.
+
+## Deb targets
+
+The `ubuntu` and `debian` lists use the same Debian package names: resolute
+and sid ship every build dependency, including `libgtk4-layer-shell-dev` and a
+`rustc` newer than 1.92. The runtime `Depends` repeat upstream's own `.deb`
+(`scripts/tuna-release` in tuna-desktop) next to `${shlibs:Depends}`, plus
+`dbus-bin` for `dbus-update-activation-environment`. Publish with
+`publish-tideforge-debs.yml`, `packages: tuna-desktop`.
+
+Debian trixie and Ubuntu noble are not factory targets. Trixie ships
+gtk4-layer-shell 1.0.4 and rustc 1.85; noble ships no gtk4-layer-shell and
+rustc 1.91 at most.

@@ -894,6 +894,7 @@ def render_deb(recipe: dict, target: str) -> dict[str, str]:
     binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
     recipe_runtime_dependencies = target_runtime_dependencies(recipe, target)
     provides_field = "".join(f"Provides: {provided}\n" for provided in provides_entries(recipe))
+    step_scripts: dict[str, str] = {}
     package_stanzas = "\n".join(
         f"""Package: {package['name']}
 Architecture: any
@@ -939,9 +940,16 @@ Rules-Requires-Root: no
             prelude += "\n"
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tcd {workdir} && :\n{prelude}\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
     elif recipe["build_system"] == "custom":
+        # Each step runs as ONE shell script, not as make recipe lines. Make
+        # gives every recipe line its own shell and expands `$` itself, so the
+        # inlined form lost build.environment's exports before the build ran,
+        # split cargo_config's multi-line printf into unterminated quotes, and
+        # turned `$PWD`/`${CFLAGS:-}` into make variables. The RPM %build and
+        # the PKGBUILD build() already run each step as one shell.
         build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
         install = custom_commands(recipe, "install", f"debian/{recipe['name']}")
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\t{build.replace(chr(10), chr(10) + chr(9))}\n\noverride_dh_auto_install:\n\t{install.replace(chr(10), chr(10) + chr(9))}\n"
+        step_scripts = {"debian/tideforge-build.sh": f"set -e\n{build}\n", "debian/tideforge-install.sh": f"set -e\n{install}\n"}
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tsh debian/tideforge-build.sh\n\noverride_dh_auto_install:\n\tsh debian/tideforge-install.sh\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -1024,6 +1032,7 @@ License: {recipe['license']}
         "debian/changelog": changelog,
         "debian/copyright": copyright_file,
         "debian/source/format": "3.0 (quilt)\n",
+        **step_scripts,
     }
     # Tideforge's Go, Cargo, and data renderers install directly into
     # debian/<binary-package>.  A .install file would make dh_install search

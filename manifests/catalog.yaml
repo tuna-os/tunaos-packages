@@ -10662,15 +10662,19 @@ packages:
         tideforge: packages/tuna-desktop
       rpm:
         tideforge: packages/tuna-desktop
+      deb:
+        tideforge: packages/tuna-desktop
     upstream:
       version: 1.0.0~beta.1
       source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.1.tar.gz
       sha256: c346c0861da4894fd490a3681a039955a90c0a7aeb04b458a1170fa87a6e1ad2
     targets:
       - arch
+      - debian
       - el10
       - eln
       - fedora
+      - ubuntu
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml

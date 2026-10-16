@@ -481,12 +481,40 @@ def test_custom_recipe_renders_native_install_contract(recipe: dict) -> None:
     recipe["build"] = {"commands": ["cargo build --release --offline"], "environment": {"RUSTFLAGS": "-C relocation-model=pic"}}
     recipe["install"] = {"commands": ["just rootdir={destdir} install"]}
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
-    deb = tideforge.render(recipe, "debian")["debian/rules"]
+    deb = tideforge.render(recipe, "debian")["debian/tideforge-install.sh"]
     arch = tideforge.render(recipe, "arch")["PKGBUILD"]
     assert "just rootdir=%{buildroot} install" in rpm
     assert "export RUSTFLAGS='-C relocation-model=pic'" in rpm
     assert "just rootdir=debian/hello-tuna install" in deb
     assert "just rootdir=$pkgdir install" in arch
+
+
+def test_custom_deb_runs_each_step_as_one_shell(recipe: dict) -> None:
+    """A custom deb build must keep its exports, cargo config and `$` intact.
+
+    Inlined into debian/rules, every line ran in its own make shell: the
+    environment exports were gone before the build command, cargo_config's
+    multi-line printf split into unterminated quotes, and make expanded `$PWD`
+    itself. tuna-desktop's first deb cells needed all three.
+    """
+    recipe["build_system"] = "custom"
+    recipe["build"] = {
+        "environment": {"TUNA_VERSION": "v1.0.0-beta.1"},
+        "cargo_config": "[net]\noffline = true\n",
+        "commands": ['export CARGO_HOME="$PWD/.cargo-home"', "cargo build --release"],
+    }
+    recipe["install"] = {"commands": ["install -Dm0755 target/release/x {destdir}/usr/bin/x"]}
+    rendered = tideforge.render(recipe, "ubuntu")
+    rules = rendered["debian/rules"]
+    assert "override_dh_auto_build:\n\tsh debian/tideforge-build.sh\n" in rules
+    assert "override_dh_auto_install:\n\tsh debian/tideforge-install.sh\n" in rules
+    assert "TUNA_VERSION" not in rules
+    script = rendered["debian/tideforge-build.sh"]
+    assert script.startswith("set -e\n")
+    assert script.index("export TUNA_VERSION=v1.0.0-beta.1") < script.index("cargo build --release")
+    assert "printf %s '[net]\noffline = true\n' > .cargo/config.toml" in script
+    assert 'export CARGO_HOME="$PWD/.cargo-home"' in script
+    assert rendered["debian/tideforge-install.sh"] == "set -e\ninstall -Dm0755 target/release/x debian/hello-tuna/usr/bin/x\n"
 
 
 def test_custom_recipe_requires_build_and_install_commands(recipe: dict) -> None:
