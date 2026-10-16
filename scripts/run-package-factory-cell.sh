@@ -217,7 +217,7 @@ case ${FORMAT:?} in
     # construction.
     published_index="$(python3 scripts/published_index.py "$target" "${ARCHITECTURE:-}" --join)"
     python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root/rendered"
-    python3 scripts/assemble-deb-source-tree.py "$recipe" "$root"
+    python3 scripts/assemble-deb-source-tree.py "$recipe" "$root" "$target"
     docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
       --env PUBLISHED_INDEX="$published_index" \
       --volume "$root:/work" "$image" bash -lc '

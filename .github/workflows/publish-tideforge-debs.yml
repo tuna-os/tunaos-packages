@@ -24,7 +24,7 @@ on:
         default: cpptrace-devel,pop-icon-theme,cosmic-randr,cosmic-panel,cosmic-icon-theme
         required: true
       distros:
-        description: Comma-separated distro labels (ubuntu, debian-sid)
+        description: Comma-separated distro labels (ubuntu, debian-sid, debian-trixie)
         default: ubuntu,debian-sid
         required: true
       arches:
@@ -239,8 +239,10 @@ jobs:
   # The anti-#179 job: exists from the FIRST publish, so a repo that was
   # never actually published can never sit behind a green workflow. Installs
   # with ZERO third-party repos — the tunaOS#964 definition of done at
-  # package level. Today it asserts the two published packages; it graduates
-  # to cosmic-session (the closure root) when the widening reaches it.
+  # package level. It installs the wave it was asked to publish, as the rpm
+  # publisher's verify does: a fixed cosmic list proved nothing about a
+  # tuna-desktop-only wave, and cannot install at all from a repo that does
+  # not carry it (debian-trixie's first publish).
   verify:
     needs: [plan, publish]
     # Both arches, for the reason this job exists at all: publishing an
@@ -254,9 +256,13 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.verify_matrix) }}
     steps:
       - name: Install from the published repo with no third-party sources
+        env:
+          # The wave's binary package names for this distro, from the plan
+          # (each recipe's verify install_name for the target).
+          INSTALL: ${{ matrix.install }}
         run: |
           set -euo pipefail
-          docker run --rm "${{ matrix.image }}" bash -lc '
+          docker run --rm --env INSTALL "${{ matrix.image }}" bash -lc '
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
@@ -264,10 +270,6 @@ jobs:
             curl -fsSL https://repo.tunaos.org/tideforge/${{ matrix.distro }}/tideforge.gpg -o /usr/share/keyrings/tideforge.gpg
             echo "deb [signed-by=/usr/share/keyrings/tideforge.gpg] https://repo.tunaos.org/tideforge/${{ matrix.distro }} ./" > /etc/apt/sources.list.d/tideforge.list
             apt-get update
-            apt-get install -y pop-icon-theme cosmic-randr cosmic-panel cosmic-icon-theme
-            dpkg-query -W pop-icon-theme cosmic-randr cosmic-panel cosmic-icon-theme
-            test -d /usr/share/icons/Pop
-            cosmic-randr --help
-            test -x /usr/bin/cosmic-panel
-            test -d /usr/share/icons/Cosmic
+            apt-get install -y $INSTALL
+            dpkg-query -W $INSTALL
           '

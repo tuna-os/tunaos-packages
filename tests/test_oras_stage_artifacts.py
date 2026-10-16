@@ -98,7 +98,7 @@ def test_list_tags_empty_on_failure(monkeypatch):
 
 
 def test_pull_all_pulls_every_tag(tmp_path, monkeypatch):
-    monkeypatch.setattr(oras_stage, "list_tags", lambda: ["tag-one", "tag-two"])
+    monkeypatch.setattr(oras_stage, "list_tags", lambda: ["a-1-1.bfin1.x86_64", "b-1-1.bfin1.noarch"])
     calls = []
 
     def fake_run(cmd, **kwargs):
@@ -106,27 +106,53 @@ def test_pull_all_pulls_every_tag(tmp_path, monkeypatch):
         return subprocess.CompletedProcess(cmd, 0)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-    assert oras_stage.pull_all(tmp_path) == 2
+    assert oras_stage.pull_all(tmp_path, ".bfin1", "x86_64") == 2
     assert len(calls) == 2
     assert calls[0][:3] == ["oras", "pull", "--plain-http=false"]
-    assert calls[0][3] == f"{oras_stage.ORAS_REPO}:tag-one"
+    assert calls[0][3] == f"{oras_stage.ORAS_REPO}:a-1-1.bfin1.x86_64"
     assert str(tmp_path) in calls[0]
 
 
 def test_pull_all_continues_after_one_failure(tmp_path, monkeypatch):
-    monkeypatch.setattr(oras_stage, "list_tags", lambda: ["good", "bad"])
+    monkeypatch.setattr(oras_stage, "list_tags", lambda: ["good-1-1.bfin1.x86_64", "bad-1-1.bfin1.x86_64"])
 
     def fake_run(cmd, **kwargs):
-        if "bad" in cmd[3]:
+        if "bad-" in cmd[3]:
             raise subprocess.TimeoutExpired(cmd, 120)
         return subprocess.CompletedProcess(cmd, 0)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-    assert oras_stage.pull_all(tmp_path) == 1
+    assert oras_stage.pull_all(tmp_path, ".bfin1", "x86_64") == 1
 
 
 def test_pull_all_creates_output_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(oras_stage, "list_tags", lambda: [])
     target = tmp_path / "nested" / "output"
-    assert oras_stage.pull_all(target) == 0
+    assert oras_stage.pull_all(target, ".bfin1", "x86_64") == 0
     assert target.is_dir()
+
+
+def test_pull_all_takes_only_the_cells_dist_and_arch(tmp_path, monkeypatch):
+    """The ORAS repo is shared by every family; a hummingbird publish must not
+    sign .el10 RPMs into its prefix, nor x86_64 ones into aarch64 (#832)."""
+    monkeypatch.setattr(oras_stage, "list_tags", lambda: [
+        "tuna-desktop-1.0.0_beta.1-1.bfin1.x86_64",
+        "tuna-desktop-1.0.0_beta.1-1.bfin1.aarch64",
+        "adwaita-fonts-50.0-1.bfin1.noarch",
+        "gtk4-4.20.0-1.el10.x86_64",
+        "libfoo-1.0-2.bfin1.1.x86_64",
+        "libbar-1.0-2.bfin10.x86_64",
+    ])
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd[3].rpartition(":")[2])
+        return subprocess.CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert oras_stage.pull_all(tmp_path, ".bfin1", "x86_64") == 3
+    assert calls == [
+        "tuna-desktop-1.0.0_beta.1-1.bfin1.x86_64",
+        "adwaita-fonts-50.0-1.bfin1.noarch",
+        "libfoo-1.0-2.bfin1.1.x86_64",
+    ]

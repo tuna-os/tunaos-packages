@@ -32,13 +32,9 @@ ROOT = Path(__file__).resolve().parents[1]
 # Packages intentionally present in src/gnome-51/ but not wired into any
 # build-order*.yml manifest. Every entry must map the package path to a
 # non-empty explanation of why it is unwired.
-UNWIRED_GNOME51_SPECS: dict[str, str] = {
-    "src/gnome-51/orca": (
-        "Already shipped by the hummingbird base image (not a gap in "
-        "build-order-hummingbird-desktops.yml) and not yet wired into "
-        "build-order-gnome51.yml; spec is maintained (#598) for future builds."
-    ),
-}
+# src/gnome-51/orca was listed here until the tuna desktop's session set
+# (#832) put orca into build-order-hummingbird-desktops.yml.
+UNWIRED_GNOME51_SPECS: dict[str, str] = {}
 
 
 def gnome51_spec_dirs() -> list[Path]:
@@ -161,7 +157,6 @@ def test_wired_package_in_allowlist_is_rejected() -> None:
     """Allowlisting a package that is actually wired into a build-order manifest is an error."""
     with pytest.raises(AssertionError, match=r"is now wired into a build-order manifest"):
         validate_allowlist({
-            "src/gnome-51/orca": UNWIRED_GNOME51_SPECS["src/gnome-51/orca"],
             "src/gnome-51/gtk4": "already wired",
         })
 
