@@ -133,6 +133,27 @@ def test_the_publish_plan_targets_the_contract_paths():
     assert result["overlay_url"] == "https://repo.tunaos.org/gentoo/overlay/tunaos-overlay.zip"
 
 
+def test_overlay_sync_identifies_the_verifier_without_changing_emaint_args(tmp_path, monkeypatch):
+    import os
+
+    emaint = tmp_path / "emaint"
+    emaint.write_text(
+        "import json, sys, urllib.request\n"
+        "print(json.dumps([sys.argv[1:], urllib.request._opener.addheaders]))\n",
+        encoding="utf-8",
+    )
+    emaint.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
+    script = (ROOT / "scripts/gentoo-clean-install.sh").read_text(encoding="utf-8")
+    wrapper = script.split("  python3 - <<'PY'\n", 1)[1].split("\nPY\n", 1)[0]
+    result = subprocess.run(
+        [sys.executable, "-c", wrapper], check=True, capture_output=True, text=True,
+    )
+    args, headers = json.loads(result.stdout)
+    assert args == ["sync", "--repo", "tunaos"]
+    assert headers == [["User-Agent", "TunaOS-Package-Verifier/1.0"]]
+
+
 binhost = importlib.util.module_from_spec(
     spec := importlib.util.spec_from_file_location("gentoo_binhost", ROOT / "scripts" / "gentoo_binhost.py"))
 spec.loader.exec_module(binhost)

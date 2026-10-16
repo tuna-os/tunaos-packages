@@ -42,9 +42,9 @@ DISTDIR=/work/distfiles ebuild "$ebuild_path" manifest
 
 # Dependencies first, from the binhost where it has a build for the
 # profile's USE and from source where it does not (gtk4-layer-shell, for
-# one). Not guppy's --binpkg-respect-use=n: in this stage3 it takes
-# abi_x86_32 and elogind builds that then cannot resolve against the
-# installed systemd world.
+# one). Keep respect-use enabled, like guppy's desktop stage (its base
+# bootstrap alone disables it): otherwise this stage3 takes abi_x86_32 and
+# elogind builds that cannot resolve against the installed systemd world.
 emerge --quiet-build --getbinpkg --jobs="$jobs" \
   --load-average="$jobs" --onlydeps --with-bdeps=y "$atom::tunaos"
 

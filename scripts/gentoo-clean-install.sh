@@ -95,7 +95,20 @@ location = /var/db/repos/tunaos
 sync-type = zipfile
 sync-uri = ${OVERLAY}
 EOF
-  emaint sync --repo tunaos
+  # Portage's zipfile sync uses urllib's generic Python user agent (unlike
+  # its binpkg downloader). Identify this verifier to the repository edge.
+  python3 - <<'PY'
+import runpy
+import shutil
+import sys
+import urllib.request
+
+opener = urllib.request.build_opener()
+opener.addheaders = [("User-Agent", "TunaOS-Package-Verifier/1.0")]
+urllib.request.install_opener(opener)
+sys.argv = ["emaint", "sync", "--repo", "tunaos"]
+runpy.run_path(shutil.which("emaint"), run_name="__main__")
+PY
   installed=$(portageq match / "$atom")
   emerge --pretend --nodeps --usepkg=n --getbinpkg=n "=${installed}::tunaos"
 fi

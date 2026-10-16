@@ -285,14 +285,17 @@ targets:
     # Debian 13, flounder's base. Its own target, not a second `debian`
     # suite: the planner gives a target one image, and sid's would build sid
     # bytes. Packages publish to the flat repo tideforge/debian-trixie
-    # (plan-deb-publish.py label debian-trixie), which does not exist until
-    # the first publish, so both arches are pending until it resolves.
+    # (plan-deb-publish.py label debian-trixie). Like ubuntu's, one flat repo
+    # serves both arches (Packages carries amd64 and arm64 stanzas, measured
+    # 2026-10-16).
     status: supported
     format: deb
     suites: [trixie]
     architectures: [amd64, arm64]
     r2_path: apt/debian/{suite}/{arch}
-    published_index_pending: [amd64, arm64]
+    published_index:
+      amd64: https://repo.tunaos.org/tideforge/debian-trixie/
+      arm64: https://repo.tunaos.org/tideforge/debian-trixie/
     repository: apt
     probe_image: docker.io/library/debian:trixie
   fedora:
@@ -352,7 +355,10 @@ targets:
     buildroot: fedora-eln
     architectures: [x86_64, aarch64]
     r2_path: rpm/eln/{arch}
-    published_index_pending: [x86_64, aarch64]
+    # Served rpm-md read URLs (repomd.xml HTTP 200 on both, 2026-10-16).
+    published_index:
+      x86_64: https://repo.tunaos.org/rpm/eln/x86_64/
+      aarch64: https://repo.tunaos.org/rpm/eln/aarch64/
     repository: rpm-md
     probe_image: registry.fedoraproject.org/eln-bootc:latest
     build_repositories: [eln]
@@ -367,10 +373,11 @@ targets:
     buildroot: fedora-rawhide
     architectures: [x86_64, aarch64]
     r2_path: rpm/rawhide/{arch}
-    # Nothing is served yet: publish-tideforge-rpms.yml creates
-    # rpm/rawhide/{arch} on its first run. Declare published_index per arch
-    # once each resolves (the el10 aarch64 rule).
-    published_index_pending: [x86_64, aarch64]
+    # publish-tideforge-rpms.yml wrote rpm/rawhide/{arch}; both serve
+    # repomd.xml (HTTP 200, 2026-10-16).
+    published_index:
+      x86_64: https://repo.tunaos.org/rpm/rawhide/x86_64/
+      aarch64: https://repo.tunaos.org/rpm/rawhide/aarch64/
     repository: rpm-md
     probe_image: registry.fedoraproject.org/fedora:rawhide
     build_repositories: [fedora-rawhide]
@@ -507,9 +514,9 @@ targets:
     # guppy is amd64-only.
     architectures: [amd64]
     r2_path: gentoo/binpkgs/{arch}
-    # Nothing is served until publish-tideforge-gentoo.yml first writes
-    # gentoo/binpkgs/amd64.
-    published_index_pending: [amd64]
+    # Packages serves gui-wm/tuna-desktop-1.0.0_beta1 (2026-10-16).
+    published_index:
+      amd64: https://repo.tunaos.org/gentoo/binpkgs/amd64/
     repository: binhost
     # The desktop/systemd stage3, not guppy's openrc base_image: guppy's
     # first step selects the desktop/systemd profile and rebuilds @world into
