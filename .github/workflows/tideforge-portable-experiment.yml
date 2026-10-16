@@ -1,5 +1,9 @@
 name: Tideforge portable payload experiment
 
+# Pull requests run this only when they change the experiment itself. Package
+# manifest edits used to trigger it too, which put a ~100-job payload x carrier
+# matrix on every routine package bump; dispatch it by hand to measure a
+# specific package.
 on:
   pull_request:
     paths:
@@ -7,15 +11,6 @@ on:
       - scripts/tideforge-intermediate.py
       - scripts/tideforge.py
       - scripts/validate-built-arch-package.py
-      - packages/_template/package.yaml
-      - packages/wayland-protocols/package.yaml
-      - packages/oversteer-udev/package.yaml
-      - packages/danksearch/package.yaml
-      - packages/dgop/package.yaml
-      - packages/dms-cli/package.yaml
-      - packages/dms-greeter/package.yaml
-      - packages/dms/package.yaml
-      - packages/uupd/package.yaml
       - tests/test_tideforge_intermediate.py
   workflow_dispatch:
 
@@ -28,7 +23,7 @@ concurrency:
 
 jobs:
   plan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       payload_matrix: ${{ steps.plan.outputs.payload_matrix }}
       carrier_matrix: ${{ steps.plan.outputs.carrier_matrix }}
@@ -46,7 +41,7 @@ jobs:
   payload:
     name: Build once / ${{ matrix.package }} / x86_64
     needs: plan
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.payload_matrix) }}
@@ -100,7 +95,7 @@ jobs:
   native-package:
     name: Repackage / ${{ matrix.package }} / ${{ matrix.target }}
     needs: [plan, payload]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.carrier_matrix) }}
@@ -196,7 +191,7 @@ jobs:
   native-baseline:
     name: Existing native / ${{ matrix.package }} / ${{ matrix.target }}
     needs: plan
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.carrier_matrix) }}
@@ -283,7 +278,7 @@ jobs:
     name: Build-time benchmark
     if: always()
     needs: [payload, native-package, native-baseline]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -365,7 +360,7 @@ jobs:
     name: Portable payload experiment
     if: always()
     needs: [plan, payload, native-package, native-baseline, benchmark]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Require every experiment cell
         env:

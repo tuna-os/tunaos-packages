@@ -411,13 +411,14 @@ def package_arch(recipe: dict, target: str, manifest: dict, payload: Path, outpu
     copy_directory(payload, root)
     installed_size = sum(row.get("size", 0) for row in manifest["files"])
     dependencies = "".join(f"depend = {dep}\n" for dep in tideforge.target_runtime_dependencies(recipe, target))
+    pkgver = f"{tideforge.pacman_version(recipe['version'])}-{recipe.get('release', 1)}"
     (root / ".PKGINFO").write_text(
-        f"pkgname = {name}\npkgbase = {name}\npkgver = {recipe['version']}-{recipe.get('release', 1)}\n"
+        f"pkgname = {name}\npkgbase = {name}\npkgver = {pkgver}\n"
         f"pkgdesc = {recipe['summary']}\nurl = {recipe['source']['url']}\nbuilddate = {os.environ.get('SOURCE_DATE_EPOCH', '0')}\n"
         f"packager = TunaOS Package Factory <packages@tunaos.org>\nsize = {installed_size}\n"
         f"arch = {architecture}\nlicense = {recipe['license']}\n{dependencies}"
     )
-    artifact = output / f"{name}-{recipe['version']}-{recipe.get('release', 1)}-{architecture}.pkg.tar.zst"
+    artifact = output / f"{name}-{pkgver}-{architecture}.pkg.tar.zst"
     members = " ".join(shlex.quote(path.name) for path in sorted(root.iterdir()))
     command = f"tar --sort=name --mtime=@${{SOURCE_DATE_EPOCH:-0}} --owner=0 --group=0 --numeric-owner -C {shlex.quote(str(root))} -cf - {members} | zstd -19 -T0 -o {shlex.quote(str(artifact))}"
     subprocess.run(["bash", "-euo", "pipefail", "-c", command], check=True)
