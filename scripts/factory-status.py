@@ -76,8 +76,8 @@ mhg = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mhg)
 
 sys.path.insert(0, str(ROOT / "scripts"))
-import published_index as pubidx  # noqa: E402  (needs the path above)
 import gentoo_binhost  # noqa: E402
+import published_index as pubidx  # noqa: E402  (needs the path above)
 
 
 def load_yaml(path: pathlib.Path):

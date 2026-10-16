@@ -128,7 +128,7 @@ not its desktop install. Keep the desktop policy: otherwise Gentoo's binhost
 can select incompatible elogind/multilib dependency builds. This package's
 only IUSE is cargo.eclass's `debug`, disabled in both profiles.
 
-The edge rejects HTTP requests with `User-Agent: Python-urllib/*`.
+The edge blocks requests with `User-Agent: Python-urllib/*`.
 For binary downloads, Portage supplies its own HTTP identification.
 For overlay sync, Portage's `zipfile` module uses the generic agent.
 The verifier supplies `User-Agent: TunaOS-Package-Verifier/1.0` to `emaint`.
