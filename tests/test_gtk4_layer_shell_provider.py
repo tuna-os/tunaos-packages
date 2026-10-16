@@ -28,11 +28,11 @@ def test_official_source_pin_and_native_target_are_explicit():
         "directory": "gtk4-layer-shell-1.3.0",
     }
     assert data["version"] == "1.3.0" and data["license"] == "MIT"
-    assert data["targets"] == ["el10"]
+    assert data["targets"] == ["el10", "alma10", "alma10-kitten"]
     assert {"alma10", "alma10-kitten"} <= data["dependencies"]["build"]["targets"].keys()
     assert tideforge.portable_payload_contract(data) is None
-    with pytest.raises(SystemExit):
-        tideforge.validate(data, "alma10")
+    for target in ("alma10", "alma10-kitten"):
+        tideforge.validate(data, target)
 
 
 def test_rpm_owns_both_apis_and_keeps_runtime_devel_matched():

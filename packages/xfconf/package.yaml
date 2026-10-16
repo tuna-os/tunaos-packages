@@ -15,6 +15,8 @@ dependencies:
     common: [meson, ninja-build, pkg-config, intltool, gettext]
     targets:
       el10: [gcc, glib2-devel, dbus-devel, libxfce4util-devel, gobject-introspection-devel, vala]
+      alma10: [gcc, glib2-devel, dbus-devel, libxfce4util-devel, gobject-introspection-devel, vala]
+      alma10-kitten: [gcc, glib2-devel, dbus-devel, libxfce4util-devel, gobject-introspection-devel, vala]
       ubuntu: [debhelper-compat, libglib2.0-dev, libdbus-1-dev, libxfce4util-dev, gobject-introspection, libgirepository1.0-dev]
       debian: [debhelper-compat, libglib2.0-dev, libdbus-1-dev, libxfce4util-dev, gobject-introspection, libgirepository1.0-dev]
 files:
@@ -27,7 +29,7 @@ verify:
       install_name: libxfconf-0-4
     ubuntu:
       install_name: libxfconf-0-4
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]
 outputs:
   rpm:
     files:

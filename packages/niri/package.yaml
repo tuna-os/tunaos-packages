@@ -18,6 +18,8 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [gcc, clang-devel, pkgconfig, glib2-devel, cairo-devel, cairo-gobject-devel, pango-devel, pipewire-devel, libdrm-devel, mesa-libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
+      alma10: [gcc, clang-devel, pkgconfig, glib2-devel, cairo-devel, cairo-gobject-devel, pango-devel, pipewire-devel, libdrm-devel, mesa-libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
+      alma10-kitten: [gcc, clang-devel, pkgconfig, glib2-devel, cairo-devel, cairo-gobject-devel, pango-devel, pipewire-devel, libdrm-devel, mesa-libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
       # Upstream's documented Ubuntu build dependencies (Getting-Started wiki),
       # plus debhelper-compat and pkg-config for the generated packaging. The
       # previous list had never been exercised and was missing the pango,
@@ -40,6 +42,8 @@ dependencies:
   runtime:
     targets:
       el10: [libseat]
+      alma10: [libseat]
+      alma10-kitten: [libseat]
       ubuntu: [libseat1]
       debian: [libseat1]
       opensuse-tumbleweed: [libseat1]
@@ -78,4 +82,4 @@ verify:
     # (it is held by #156 right now).
     arch:
       smoke: niri --help
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

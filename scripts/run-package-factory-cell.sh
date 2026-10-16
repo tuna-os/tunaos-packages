@@ -129,6 +129,14 @@ case ${FORMAT:?} in
           ((${#requirements[@]} == 0)) || zypper --non-interactive install "${requirements[@]}"
           rpmbuild -ba --define "_topdir /work/rpmbuild" /work/rpmbuild/SPECS/*.spec
         '
+    elif [[ $target == alma10 || $target == alma10-kitten ]]; then
+      docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
+        --env TARGET="$target" --env ARCHITECTURE="$ARCHITECTURE" --env BUILD_IMAGE="$image" \
+        --env PUBLISHED_INDEX="$published_index" \
+        --volume "$PWD:/factory:ro" --volume "$PWD/scripts:/scripts:ro" \
+        --volume "$root:/work" "$image" bash /scripts/run-alma-rpm.sh
+      mkdir -p "$out/artifacts/buildroots"
+      cp -a "$root/evidence" "$out/artifacts/buildroots/alma"
     else
       docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
         --env TARGET="$target" --env PUBLISHED_INDEX="$published_index" \
@@ -217,7 +225,7 @@ case ${FORMAT:?} in
     # construction.
     published_index="$(python3 scripts/published_index.py "$target" "${ARCHITECTURE:-}" --join)"
     python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root/rendered"
-    python3 scripts/assemble-deb-source-tree.py "$recipe" "$root"
+    python3 scripts/assemble-deb-source-tree.py "$recipe" "$root" "$target"
     docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
       --env PUBLISHED_INDEX="$published_index" \
       --volume "$root:/work" "$image" bash -lc '
@@ -318,9 +326,11 @@ case ${FORMAT:?} in
     root="$out/arch"
     python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root"
     docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
+      --env TUNAOS_ARCHITECTURE="$ARCHITECTURE" \
+      --volume "$PWD/scripts:/scripts:ro" \
       --volume "$root:/work" --workdir /work "$image" bash -lc '
         set -euo pipefail
-        echo "Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist
+        bash /scripts/arch-native-policy.sh configure "$TUNAOS_ARCHITECTURE"
         pacman -Syu --noconfirm
         pacman -S --needed --noconfirm base-devel sudo
         useradd --create-home builder
@@ -332,6 +342,35 @@ case ${FORMAT:?} in
       '
     cp "$root"/artifacts/*.pkg.tar.* "$out/artifacts/"
     cp "$root/package-info.txt" "$out/package-info.txt"
+    ;;
+  gpkg)
+    # Gentoo (ADR 0002): the recipe renders to an ebuild in a one-package
+    # overlay, which emerge builds into a gpkg inside the stage3. Portage
+    # fetches nothing: the sources the fetch above verified against the
+    # recipe's sha256 are staged under the names the ebuild's SRC_URI gives
+    # them, and the Manifest is written from those bytes.
+    root="$out/gentoo"
+    python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root/overlay"
+    python3 scripts/fetch-tideforge-sources.py "$recipe" "$root/sources" \
+      --cache-dir "$HOME/.cache/tideforge/sources"
+    mkdir -p "$root/distfiles" "$root/artifacts"
+    atom=$(python3 - "$recipe" "$target" "$root/sources" "$root/distfiles" <<'PY'
+import pathlib, shutil, sys
+sys.path.insert(0, "scripts")
+import tideforge
+recipe = tideforge.load_yaml(pathlib.Path(sys.argv[1]))
+sources, distfiles = pathlib.Path(sys.argv[3]), pathlib.Path(sys.argv[4])
+for index, source in enumerate(tideforge.source_entries(recipe, sys.argv[2])):
+    shutil.copyfile(sources / tideforge.source_filename(source, index),
+                    distfiles / tideforge.gentoo_distfile(recipe, source, index))
+print(f"{tideforge.gentoo_category(recipe)}/{recipe['name']}")
+PY
+)
+    docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
+      --env ATOM="$atom" \
+      --volume "$root:/work" --volume "$PWD/scripts:/scripts:ro" "$image" \
+      bash /scripts/gentoo-build-cell.sh
+    cp "$root"/artifacts/*.gpkg.tar "$out/artifacts/"
     ;;
   *) echo "unsupported package format: $FORMAT" >&2; exit 2 ;;
 esac

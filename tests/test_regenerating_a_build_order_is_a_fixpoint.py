@@ -116,14 +116,20 @@ def test_regeneration_would_not_move_any_package(target, roots, order):
 def test_a_declared_desktop_source_is_a_prefix_the_resolver_searches(
         target, roots, order):
     """`desktops.<d>.sources` naming a local dir outside `source_paths` is a
-    track the manifest claims to build and the resolver can never reach."""
+    track the manifest claims to build and the resolver can never reach.
+
+    A local source is either a searched tree (src/xfce-wayland) or one
+    package's spec directory directly inside one (src/hummingbird/
+    tuna-desktop, built in local-00)."""
     catalog = yaml.safe_load((ROOT / roots).read_text(encoding="utf-8"))
     search = [p.rstrip("/") for p in catalog["source_paths"]]
     unreachable = sorted(
         (desktop, source["local"].rstrip("/"))
         for desktop, spec in (catalog.get("desktops") or {}).items()
         for source in spec.get("sources", [])
-        if "local" in source and source["local"].rstrip("/") not in search
+        if "local" in source
+        and source["local"].rstrip("/") not in search
+        and source["local"].rstrip("/").rsplit("/", 1)[0] not in search
     )
     assert not unreachable, (
         f"{target}: these desktops declare a local source directory that "

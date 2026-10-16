@@ -74,6 +74,8 @@ dependencies:
     common: [gettext]
     targets:
       el10: [python3-devel, python3-setuptools]
+      alma10: [python3-devel, python3-setuptools]
+      alma10-kitten: [python3-devel, python3-setuptools]
       # python-pip, not just python: install/module.py runs
       # `python3 -m pip install . --target <site-packages> --no-deps` for the
       # python module component, and Arch keeps pip out of the `python`
@@ -91,6 +93,28 @@ dependencies:
       # python3-packaging → BaseOS
       # python3-pydantic, gtksourceview4 → EPEL 10
       el10:
+        - python3
+        - python3-evdev
+        - python3-dasbus
+        - python3-gobject
+        - python3-cairo
+        - python3-pydantic
+        - python3-packaging
+        - python3-psutil
+        - gtk3
+        - gtksourceview4
+      alma10:
+        - python3
+        - python3-evdev
+        - python3-dasbus
+        - python3-gobject
+        - python3-cairo
+        - python3-pydantic
+        - python3-packaging
+        - python3-psutil
+        - gtk3
+        - gtksourceview4
+      alma10-kitten:
         - python3
         - python3-evdev
         - python3-dasbus
@@ -145,4 +169,4 @@ files:
 verify:
   install_name: input-remapper
   smoke: test -x /usr/bin/input-remapper-gtk && test -x /usr/bin/input-remapper-service && test -x /usr/bin/input-remapper-control && test -f /usr/lib/udev/rules.d/99-input-remapper.rules && test -f /usr/lib/systemd/system/input-remapper.service && test -f /usr/share/polkit-1/actions/input-remapper.policy && test -f /usr/share/dbus-1/system.d/inputremapper.Control.conf
-targets: [el10, arch]
+targets: [el10, arch, alma10, alma10-kitten]

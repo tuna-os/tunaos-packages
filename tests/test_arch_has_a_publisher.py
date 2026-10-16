@@ -24,6 +24,7 @@ scripts/arch-clean-install.sh:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -87,9 +88,17 @@ def test_our_repository_is_configured_before_core_and_extra():
     exists upstream would be installed from Arch and the verify would assert
     nothing about what we published."""
     text = VERIFY.read_text(encoding="utf-8")
-    ours = text.index('echo "[${REPO_NAME}]"')
-    assert ours < text.index("echo '[core]'")
-    assert ours < text.index("echo '[extra]'")
+    # Execute only the config renderer, with already validated native repo
+    # identities. No package/key/network command executes in this fixture.
+    block = text.split("\n{\n", 1)[1].split("\n} > /tmp/tunaos-pacman.conf", 1)[0]
+    emitted = subprocess.check_output(
+        ["bash", "-c", "{\n" + block + "\n}"], text=True,
+        env=dict(os.environ, REPO_NAME="tunaos", URL="https://repo.tunaos.org/pacman/arch/aarch64/",
+                 native_repositories="core\nextra\nalarm\naur"),
+    )
+    sections = [line[1:-1] for line in emitted.splitlines() if line.startswith("[") and line.endswith("]")]
+    assert sections == ["options", "tunaos", "core", "extra", "alarm", "aur"]
+    assert sections.index("tunaos") < sections.index("core") < sections.index("extra")
 
 
 def test_the_verify_asserts_each_package_came_from_our_repository():
@@ -158,7 +167,9 @@ def test_indexing_happens_inside_the_arch_container():
         run = step["run"]
         where = step.get("name", "<unnamed>")
         assert "docker run" in run, f"{where}: wave script must run in the Arch container"
-        assert "needs.plan.outputs.image" in run, f"{where}: must use the planned Arch image"
+        assert "matrix.image" in run, f"{where}: must use the exact planned native Arch image"
+        assert "needs.plan.outputs.image" not in run, f"{where}: cannot use one image for both architectures"
+        assert "--env TUNAOS_ARCHITECTURE" in run, f"{where}: must bind the requested native architecture"
         # The container path proves the mount, and a host-relative path would
         # not resolve inside the image.
         assert "/scripts/publish-arch-wave.sh" in run, f"{where}: must use the mounted path"

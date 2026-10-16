@@ -22,6 +22,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: d1f0af78e64f9e8ddb52c486913d53a234ce3cf2
     VERGEN_GIT_COMMIT_DATE: 2026-09-23 10:44:56 -0600
@@ -34,6 +39,18 @@ dependencies:
       - libxkbcommon-dev
     targets:
       el10:
+        - cargo
+        - lld
+        - just
+        - glib2-devel
+      alma10:
+        - tunaos-rust193 >= 1.93.0
+        - cargo
+        - lld
+        - just
+        - glib2-devel
+      alma10-kitten:
+        - tunaos-rust193 >= 1.93.0
         - cargo
         - lld
         - just
@@ -51,6 +68,16 @@ dependencies:
   runtime:
     targets:
       el10:
+        - gvfs
+        - gvfs-fuse
+        - xdg-utils
+        - cosmic-icon-theme >= 1.9.0
+      alma10:
+        - gvfs
+        - gvfs-fuse
+        - xdg-utils
+        - cosmic-icon-theme >= 1.9.0
+      alma10-kitten:
         - gvfs
         - gvfs-fuse
         - xdg-utils
@@ -73,5 +100,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-files && test -x /usr/bin/cosmic-files-applet
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

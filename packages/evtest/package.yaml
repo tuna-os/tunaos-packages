@@ -61,9 +61,37 @@ dependencies:
         - libxml2-devel
         - xmlto
         - asciidoc
+      alma10:
+        - autoconf
+        - automake
+        - libtool
+        - make
+        - libevdev-devel
+        - ncurses-devel
+        - libxml2-devel
+        - xmlto
+        - asciidoc
+      alma10-kitten:
+        - autoconf
+        - automake
+        - libtool
+        - make
+        - libevdev-devel
+        - ncurses-devel
+        - libxml2-devel
+        - xmlto
+        - asciidoc
   runtime:
     targets:
       el10:
+        - libevdev
+        - ncurses-libs
+        - libxml2
+      alma10:
+        - libevdev
+        - ncurses-libs
+        - libxml2
+      alma10-kitten:
         - libevdev
         - ncurses-libs
         - libxml2
@@ -73,4 +101,4 @@ files:
     - usr/share/man/man1/evtest.1*
 verify:
   smoke: test -x /usr/bin/evtest && test -f /usr/share/man/man1/evtest.1.gz
-targets: [el10]
+targets: [el10, alma10, alma10-kitten]

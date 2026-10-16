@@ -1,7 +1,7 @@
 """The format-neutral index layer: one way to read any served repository.
 
-`manifests/package-factory.yaml` declares three package formats — rpm,
-deb, pkg.tar.zst — and every one of them is a first-class target. Yet
+`manifests/package-factory.yaml` declares four package formats — rpm,
+deb, pkg.tar.zst, gpkg — and every one of them is a first-class target. Yet
 the de-facto library for reading repositories grew inside the gap
 engine (scripts/gap_engine.py, which was literally named
 measure-hummingbird-gap.py until the pipeline was de-hardcoded), and
@@ -20,7 +20,8 @@ SAME index shape, so the checks built on it are format-blind:
 
 and every format names a version module with the same three calls
 (`compare`-equivalent, `satisfies`, parsing) — rpm_vercmp for rpm,
-deb_version for deb, pacman_db for pkg.tar.zst. Judging a Debian
+deb_version for deb, pacman_db for pkg.tar.zst, gentoo_binhost for gpkg.
+Judging a Debian
 constraint with the RPM comparator gives wrong answers on real
 versions (tests/test_deb_version.py holds a proven disagreement), so
 the dispatch is by declared format, never by assumption.
@@ -38,7 +39,7 @@ import xml.etree.ElementTree as ET
 
 HERE = pathlib.Path(__file__).resolve().parent
 
-FORMATS = ("rpm", "deb", "pkg.tar.zst")
+FORMATS = ("rpm", "deb", "pkg.tar.zst", "gpkg")
 
 _MODULES: dict[str, object] = {}
 
@@ -62,6 +63,8 @@ def version_module(fmt: str):
         return load("deb_version")
     if fmt == "pkg.tar.zst":
         return load("pacman_db")
+    if fmt == "gpkg":
+        return load("gentoo_binhost")
     raise ValueError(f"no version comparator for format {fmt!r}")
 
 
@@ -101,6 +104,9 @@ def load_index(url: str, fmt: str, cache: pathlib.Path,
         db = f"{repo_name}.db" if repo_name else "tunaos.db"
         _, blob = _fetch_first(url, [db], cache)
         return pacman.parse_db(blob)
+    if fmt == "gpkg":
+        _, blob = _fetch_first(url, ["Packages"], cache)
+        return load("gentoo_binhost").parse_packages(blob.decode("utf-8", "replace"))
     raise ValueError(f"no index reader for format {fmt!r}")
 
 
@@ -128,6 +134,10 @@ def iter_rows(url: str, fmt: str, cache: pathlib.Path,
         db = f"{repo_name}.db" if repo_name else "tunaos.db"
         _, blob = _fetch_first(url, [db], cache)
         yield from pacman.iter_rows(blob)
+        return
+    if fmt == "gpkg":
+        _, blob = _fetch_first(url, ["Packages"], cache)
+        yield from load("gentoo_binhost").iter_rows(blob.decode("utf-8", "replace"))
         return
     raise ValueError(f"no index reader for format {fmt!r}")
 

@@ -22,6 +22,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: 7421ff0ab482c942eef23fbe9280edacfbeb35cc
     VERGEN_GIT_COMMIT_DATE: "2026-09-22 14:38:57 -0600"
@@ -31,11 +36,15 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [cargo, lld, just, libinput-devel, wayland-devel, libxkbcommon-devel, systemd-devel, desktop-file-utils, pipewire-devel, clang, libdav1d-devel]
+      alma10: [tunaos-rust193 >= 1.93.0, cargo, lld, just, libinput-devel, wayland-devel, libxkbcommon-devel, systemd-devel, desktop-file-utils, pipewire-devel, clang, libdav1d-devel]
+      alma10-kitten: [tunaos-rust193 >= 1.93.0, cargo, lld, just, libinput-devel, wayland-devel, libxkbcommon-devel, systemd-devel, desktop-file-utils, pipewire-devel, clang, libdav1d-devel]
       ubuntu: [cargo, lld, just, libinput-dev, libwayland-dev, libxkbcommon-dev, libsystemd-dev, desktop-file-utils, libpipewire-0.3-dev, clang, libdav1d-dev]
       debian: [cargo, lld, just, libinput-dev, libwayland-dev, libxkbcommon-dev, libsystemd-dev, desktop-file-utils, libpipewire-0.3-dev, clang, libdav1d-dev]
   runtime:
     targets:
       el10: [cosmic-icon-theme >= 1.9.0, nm-connection-editor, accountsservice, cosmic-settings-daemon >= 1.9.0, cosmic-randr >= 1.9.0, gettext, iso-codes, NetworkManager, ppd-service]
+      alma10: [cosmic-icon-theme >= 1.9.0, nm-connection-editor, accountsservice, cosmic-settings-daemon >= 1.9.0, cosmic-randr >= 1.9.0, gettext, iso-codes, NetworkManager, ppd-service]
+      alma10-kitten: [cosmic-icon-theme >= 1.9.0, nm-connection-editor, accountsservice, cosmic-settings-daemon >= 1.9.0, cosmic-randr >= 1.9.0, gettext, iso-codes, NetworkManager, ppd-service]
       # cosmic-icon-theme is dropped on the deb targets on purpose: it ships in
       # neither the Debian nor the Ubuntu archive, and the gate's clean-install
       # repo only holds the deb built by that cell, so naming it renders an
@@ -56,4 +65,4 @@ install:
   commands: ["just rootdir={destdir} install"]
 verify:
   smoke: "test -x /usr/bin/cosmic-settings && test -f /usr/share/polkit-1/rules.d/cosmic-settings.rules"
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

@@ -24,6 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -242,3 +243,41 @@ def test_the_target_is_a_dispatch_input_defaulting_to_el10():
     triggers = spec[True] if True in spec else spec["on"]
     target = triggers["workflow_dispatch"]["inputs"]["target"]
     assert target["default"] == "el10"
+
+
+@pytest.mark.parametrize("target", ["alma10", "alma10-kitten"])
+@pytest.mark.parametrize("arch", ["x86_64", "aarch64"])
+def test_candidate_target_cannot_emit_production_matrix(target, arch, tmp_path):
+    output = tmp_path / "github-output"
+    result = run("--target", target, "--packages", "cosmic-icon-theme",
+                 "--arches", arch, "--github-output", str(output))
+    assert result.returncode != 0
+    assert "candidate-only" in result.stderr
+    assert result.stdout == ""
+    assert not output.exists()
+
+
+def test_rpm_secret_job_cannot_run_after_refused_plan():
+    jobs = workflow()["jobs"]
+    assert "plan" in jobs["publish"]["needs"]
+    # Default dependency success admission; an always()/failure() override
+    # would let this job acquire production credentials after plan refusal.
+    assert jobs["publish"].get("if", "success()") == "success()"
+    assert "secrets.GPG_PRIVATE_KEY" not in str(jobs["plan"])
+    assert "secrets.R2_ACCESS_KEY_ID" not in str(jobs["plan"])
+    assert "scripts/plan-rpm-publish.py" in str(jobs["plan"])
+
+
+@pytest.mark.parametrize("destination", ["rpm/alma10/{arch}", "rpm/alma10-kitten/{arch}"])
+def test_rpm_target_alias_cannot_publish_into_candidate_namespace(monkeypatch, destination):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("rpm_alias_guard", PLANNER)
+    planner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(planner)
+    monkeypatch.setattr(planner.publisher_contract, "target", lambda *_: {
+        "probe_image": "qualified-image", "architectures": ["x86_64"],
+        "r2_path": destination,
+    })
+    with pytest.raises(SystemExit, match="candidate-only"):
+        planner.plan("el10", ["libunwind-devel"], ["x86_64"])

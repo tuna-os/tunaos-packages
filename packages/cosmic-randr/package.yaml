@@ -33,6 +33,8 @@ dependencies:
     capabilities: [rust, wayland-dev]
     targets:
       el10: [lld, just]
+      alma10: [lld, just]
+      alma10-kitten: [lld, just]
       ubuntu: [lld, just]
       debian: [lld, just]
 files:
@@ -41,4 +43,4 @@ install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
 verify:
   smoke: cosmic-randr --help
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

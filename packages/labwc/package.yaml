@@ -65,9 +65,69 @@ dependencies:
         - pixman-devel
         - libpng-devel
         - librsvg2-devel
+      alma10:
+        # wlroots-devel and libsfdo-devel are EPEL 10, verified against the
+        # repository metadata rather than assumed: wlroots 0.18.2-1.el10_0 and
+        # libsfdo 0.1.3-1.el10_0. labwc requires libsfdo >=0.1.3, so EL10 sits
+        # exactly on the minimum — a libsfdo downgrade breaks this build.
+        - wlroots-devel
+        - libsfdo-devel
+        - wayland-devel
+        - wayland-protocols-devel
+        - libxkbcommon-devel
+        - libxcb-devel
+        - xcb-util-wm-devel
+        - libdrm-devel
+        - libxml2-devel
+        - glib2-devel
+        - cairo-devel
+        - pango-devel
+        - libinput-devel
+        - pixman-devel
+        - libpng-devel
+        - librsvg2-devel
+      alma10-kitten:
+        # wlroots-devel and libsfdo-devel are EPEL 10, verified against the
+        # repository metadata rather than assumed: wlroots 0.18.2-1.el10_0 and
+        # libsfdo 0.1.3-1.el10_0. labwc requires libsfdo >=0.1.3, so EL10 sits
+        # exactly on the minimum — a libsfdo downgrade breaks this build.
+        - wlroots-devel
+        - libsfdo-devel
+        - wayland-devel
+        - wayland-protocols-devel
+        - libxkbcommon-devel
+        - libxcb-devel
+        - xcb-util-wm-devel
+        - libdrm-devel
+        - libxml2-devel
+        - glib2-devel
+        - cairo-devel
+        - pango-devel
+        - libinput-devel
+        - pixman-devel
+        - libpng-devel
+        - librsvg2-devel
   runtime:
     targets:
       el10:
+        # labwc links wlroots statically only when meson falls back to a
+        # subproject; against the system wlroots-0.18 pkg-config module it
+        # links dynamically, so the runtime library is a real dependency.
+        # The generated RPM also derives these automatically; listing them
+        # keeps the recipe honest about what it needs and is what the DEB and
+        # Pacman renderers would use if this recipe is fanned out (#111).
+        - wlroots
+        - libsfdo
+      alma10:
+        # labwc links wlroots statically only when meson falls back to a
+        # subproject; against the system wlroots-0.18 pkg-config module it
+        # links dynamically, so the runtime library is a real dependency.
+        # The generated RPM also derives these automatically; listing them
+        # keeps the recipe honest about what it needs and is what the DEB and
+        # Pacman renderers would use if this recipe is fanned out (#111).
+        - wlroots
+        - libsfdo
+      alma10-kitten:
         # labwc links wlroots statically only when meson falls back to a
         # subproject; against the system wlroots-0.18 pkg-config module it
         # links dynamically, so the runtime library is a real dependency.
@@ -103,4 +163,4 @@ files:
 # a distribution's own package.
 verify:
   smoke: labwc --help
-targets: [el10]
+targets: [el10, alma10, alma10-kitten]

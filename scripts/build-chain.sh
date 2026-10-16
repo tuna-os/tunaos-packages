@@ -193,6 +193,7 @@ DRY_RUN=false
 FORCE=false
 WITH_CHECKS=false
 STREAM=false
+PRINT_DIST=false
 
 # --- Soft deadline -----------------------------------------------------------
 # CHAIN_BUDGET_SECONDS, when set, is a clean stopping point INSIDE the job's
@@ -238,6 +239,7 @@ usage() {
     echo "  --with-checks        Run the RPM %check section"
     echo "  --dry-run            Print what would be built without building"
     echo "  --force              Force rebuild even if package exists in repo"
+    echo "  --print-dist         Print the manifest's %{dist} and exit"
     echo "  -h, --help           Show this help message"
 }
 
@@ -264,6 +266,7 @@ while [[ $# -gt 0 ]]; do
         --dry-run)     DRY_RUN=true;     shift ;;
         --force)       FORCE=true;       shift ;;
         --stream)      STREAM=true;      shift ;;
+        --print-dist)  PRINT_DIST=true;  shift ;;
         *)
             echo "Unknown option: $1" >&2
             exit 1
@@ -285,6 +288,22 @@ if [[ -n "$FILTER_PACKAGES_FILE" ]]; then
         echo "ERROR: --packages-file '$FILTER_PACKAGES_FILE' lists no packages" >&2
         exit 1
     fi
+fi
+
+ALMA_CANDIDATE=false
+ALMA_CANDIDATE_STATE=""
+ALMA_KEY_MOUNT_ARGS=()
+if [[ "$MOCK_CONFIG" == alma10-* ]]; then
+    ALMA_CANDIDATE=true
+    if [[ "$BACKEND" != podman ]]; then
+        echo 'ERROR: signed Alma bootstrap currently requires the podman mock backend' >&2
+        exit 1
+    fi
+    # Neither restored roots nor an NVR from another publication proves this
+    # target's baseline. Initial supply is built from signed native inputs.
+    SERVED_NVRS_FILE=""
+    MOCK_CACHE_DIR=""
+    export BUILDROOT_MANIFESTS="${BUILDROOT_MANIFESTS:-${LOCAL_REPO}/buildroots}"
 fi
 
 if [[ -n "$SERVED_NVRS_FILE" ]]; then
@@ -367,6 +386,43 @@ fi
 # --- Helpers ---
 log() { echo "==> $*"; }
 err() { echo "ERROR: $*" >&2; }
+
+# --- Structured per-package result recording ---
+#
+# Every outcome this script knows about -- which package, which tier, how
+# long it ran, pass or fail -- already exists transiently inside wait_one:
+# started_at[i] and `now` compute elapsed, and the wait/err branch knows
+# pass or fail. All of that was previously only ever echoed as prose
+# (`log`/`err`), which is exactly what the _on_error narrative above
+# documents as unreadable after the fact once a log is hundreds of MB and
+# every retrieval path only serves the tail.
+#
+# BUILD_RESULTS_FILE, when set by the caller, gets one JSON object per
+# line per package outcome (JSONL, so a crash mid-run still leaves prior
+# lines parseable). Unset = no behavior change, same convention as
+# CHAIN_DEFERRED_MARKER and FAILURE_LOGS above. Fields are fixed and
+# bounded (package path, tier, backend, outcome, duration, retry flag,
+# timestamp) -- no free-form text, so this cannot grow unbounded labels
+# the way a raw log tail already can.
+_record_result() {
+    local pkg_path="$1" tier_name="$2" outcome="$3" duration_s="$4" is_retry="$5"
+    [[ -n "${BUILD_RESULTS_FILE:-}" ]] || return 0
+    python3 - "$pkg_path" "$tier_name" "$outcome" "$duration_s" "$is_retry" "$BACKEND" \
+        >> "${BUILD_RESULTS_FILE}" 2>/dev/null <<'PYEOF' || true
+import json, sys, datetime
+pkg_path, tier_name, outcome, duration_s, is_retry, backend = sys.argv[1:7]
+print(json.dumps({
+    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "package": pkg_path,
+    "tier": tier_name,
+    "backend": backend,
+    "outcome": outcome,
+    "duration_s": int(duration_s),
+    "retry": is_retry == "true",
+}))
+PYEOF
+}
+
 # Used by update_local_repo()'s retry path but never defined, so a
 # createrepo_c hiccup became "warn: command not found" (exit 127) and buried
 # whatever actually went wrong.
@@ -430,9 +486,44 @@ derive_dist() {
 if [[ -z "$DIST" ]]; then
     DIST="$(derive_dist)"
 fi
+# The publisher scopes what it pulls from the shared ORAS staging repo to
+# this %{dist} (publish-build-chain-rpms.yml), from this one derivation.
+if $PRINT_DIST; then
+    echo "$DIST"
+    exit 0
+fi
 
 ensure_local_repo() {
     mkdir -p "${LOCAL_REPO}"
+    if $ALMA_CANDIDATE; then
+        if [[ -z "${ALMA_CANDIDATE_STATE:-}" ]]; then
+            ALMA_CANDIDATE_PARENT=$(mktemp -d "${TMPDIR:-/tmp}/tunaos-candidate.XXXXXXXX")
+            ALMA_CANDIDATE_STATE="${ALMA_CANDIDATE_PARENT}/state"
+            cleanup_alma_candidate() {
+                gpgconf --homedir "$ALMA_CANDIDATE_STATE/gnupg" --kill gpg-agent || true
+                rm -rf -- "$ALMA_CANDIDATE_PARENT"
+            }
+            trap cleanup_alma_candidate EXIT
+            trap 'exit 143' TERM
+            trap 'exit 130' INT
+            python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" init \
+                --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO"
+            if [[ -n "${ALMA_RESUME_DIR:-}" && -d "$ALMA_RESUME_DIR" ]]; then
+                python3 "${SCRIPT_DIR}/alma-candidate-resume.py" admit \
+                    --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO" \
+                    --meta "${ALMA_CANDIDATE_META:?}" --destination "$ALMA_RESUME_DIR"
+            fi
+            if [[ -n "${ALMA_CANDIDATE_META:-}" ]]; then
+                cp "$ALMA_CANDIDATE_STATE/keys/candidate-public.gpg" "$ALMA_CANDIDATE_META/candidate-public.gpg"
+                cp "$ALMA_CANDIDATE_STATE/identity.json" "$ALMA_CANDIDATE_META/candidate-identity.json"
+            fi
+            ALMA_KEY_MOUNT_ARGS=(-v "${ALMA_CANDIDATE_STATE}/keys:/keys:ro,Z")
+            echo 'Alma bootstrap scope: run-local candidate, unpromoted; not production readiness'
+        fi
+        python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" index \
+            --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO"
+        return
+    fi
     if [[ ! -f "${LOCAL_REPO}/repodata/repomd.xml" ]]; then
         log "Initializing local repo at ${LOCAL_REPO}"
         createrepo_c "${LOCAL_REPO}"
@@ -448,6 +539,18 @@ ensure_local_repo() {
 record_buildroot_manifest() {
     local resultdir="$1" pkg_name="$2"
     [[ -n "${BUILDROOT_MANIFESTS:-}" ]] || return 0
+    if $ALMA_CANDIDATE; then
+        # Actual chroot observations are retained separately from declarations
+        # and the legacy log-derived inventory. They do not prove CPU readiness.
+        test -s "$resultdir/candidate-buildroot-observed.txt"
+        mkdir -p "$BUILDROOT_MANIFESTS"
+        cp "$resultdir/candidate-buildroot-observed.txt" \
+            "$BUILDROOT_MANIFESTS/${pkg_name}.candidate-observed.txt"
+        cp "$ALMA_CANDIDATE_STATE/identity.json" \
+            "$BUILDROOT_MANIFESTS/${pkg_name}.candidate-scope.json"
+        cp "$ALMA_CANDIDATE_STATE/keys/candidate-public.gpg" \
+            "$BUILDROOT_MANIFESTS/${pkg_name}.candidate-public.gpg"
+    fi
     python3 "${REPO_ROOT}/scripts/extract-buildroot-manifest.py" "$resultdir" \
         --output "${BUILDROOT_MANIFESTS}/${pkg_name}.buildroot.txt" \
         || echo "==> [${pkg_name}] buildroot manifest not recorded (non-fatal)"
@@ -455,6 +558,11 @@ record_buildroot_manifest() {
 
 update_local_repo() {
     log "Updating local repo metadata"
+    if $ALMA_CANDIDATE; then
+        python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" index \
+            --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO"
+        return
+    fi
     # createrepo_c stages into `.repodata/` and renames it to `repodata/` when
     # it finishes, and it REFUSES to start if that temp directory is already
     # there:
@@ -640,19 +748,71 @@ prepare_sources() {
         spectool_dest_host="$sources_cache"
         spectool_dest_container="/sources-cache"
     fi
-    if command -v spectool &>/dev/null; then
-        spectool -g -C "${spectool_dest_host}" "$spec"
-    else
-        podman run --rm \
-            --pull=always \
-            -v "${builddir}:/builddir:Z" \
-            ${sources_cache:+-v "${sources_cache}:/sources-cache:Z"} \
-            "${BUILD_IMAGE}" \
-            spectool -g -C "${spectool_dest_container}" "/builddir/SPECS/$(basename "$spec")"
-    fi || {
-        echo "ERROR: spectool failed for ${pkg_name}" >&2
-        return 1
+    # Retry with backoff on transient connection failures (#683). A network
+    # unreachable blip or connection reset must not sink the chain leg, while
+    # a 404 or unresolvable hostname indicates a spec URL that needs updating
+    # and fails immediately without wasteful retries.
+    _run_spectool() {
+        if command -v spectool &>/dev/null; then
+            spectool -g -C "${spectool_dest_host}" "$spec"
+        else
+            podman run --rm \
+                --pull=always \
+                -v "${builddir}:/builddir:Z" \
+                ${sources_cache:+-v "${sources_cache}:/sources-cache:Z"} \
+                "${BUILD_IMAGE}" \
+                spectool -g -C "${spectool_dest_container}" "/builddir/SPECS/$(basename "$spec")"
+        fi
     }
+
+    local spectool_attempts="${SPECTOOL_ATTEMPTS:-4}"
+    local spectool_delay="${SPECTOOL_DELAY:-5}"
+    local spectool_log="${builddir}/spectool.log"
+    local spectool_rc=0
+    local attempt
+
+    for ((attempt = 1; attempt <= spectool_attempts; attempt++)); do
+        # Capture the status in an if-condition, not under `set +e`: the
+        # script's ERR trap (set -E) still fires and exits under `set +e`,
+        # which would abort on the first failure and never retry.
+        if _run_spectool > "$spectool_log" 2>&1; then
+            spectool_rc=0
+        else
+            spectool_rc=$?
+        fi
+
+        if [[ $spectool_rc -eq 0 ]]; then
+            if [[ -s "$spectool_log" ]]; then
+                cat "$spectool_log"
+            fi
+            if [[ $attempt -gt 1 ]]; then
+                echo "==> [${pkg_name}] spectool download succeeded on attempt ${attempt}"
+            fi
+            break
+        fi
+
+        if [[ -s "$spectool_log" ]]; then
+            cat "$spectool_log" >&2
+        fi
+
+        # Check for permanent errors (404 or name resolution failure) vs retryable connection errors.
+        if grep -Eqi "(404 (Client Error|Not Found)|HTTP.*404|404:\ Not Found|status.*404|error:? 404|[Nn]ot [Ff]ound for url)" "$spectool_log"; then
+            echo "ERROR: spectool failed for ${pkg_name}: source not found (HTTP 404); spec URL needs updating" >&2
+            return 1
+        elif grep -Eqi "(name or service not known|could not resolve host|nodename nor servname|nameresolutionerror|getaddrinfo failed|cannot resolve host|unknown host|failed to resolve)" "$spectool_log"; then
+            echo "ERROR: spectool failed for ${pkg_name}: host name does not resolve; spec URL needs updating" >&2
+            return 1
+        fi
+
+        if [[ $attempt -lt $spectool_attempts ]]; then
+            echo "==> [${pkg_name}] spectool download failed with connection error (attempt ${attempt}/${spectool_attempts}); retrying in ${spectool_delay}s..." >&2
+            sleep "$spectool_delay"
+            spectool_delay=$((spectool_delay * 2))
+        else
+            echo "ERROR: spectool failed for ${pkg_name} after ${spectool_attempts} attempts (connection error)" >&2
+            return 1
+        fi
+    done
     if [[ -n "$sources_cache" ]]; then
         # Never let a cached download land on top of a file that came out of
         # the package directory. Those files are what Fedora committed to
@@ -783,6 +943,17 @@ prepare_sources() {
 
 # Check if the package already exists in the local repo with the same NVR
 check_package_exists() {
+    # Only the run-local signature gate can accept Alma candidates; no
+    # restored RPM or served NVR may suppress a required compatible rebuild.
+    if $ALMA_CANDIDATE; then
+        [[ -n "${ALMA_CANDIDATE_META:-}" && -n "${3:-}" ]] || return 1
+        if python3 "${SCRIPT_DIR}/alma-candidate-resume.py" skip \
+            --meta "$ALMA_CANDIDATE_META" --repo "$LOCAL_REPO" --name "$1" --builddir "$3"; then
+            echo "==> [$1] Skipping authenticated completion with identical prepared inputs"
+            return 0
+        fi
+        return 1
+    fi
     local pkg_name="$1"
     local spec="$2"
     local spec_basename
@@ -862,6 +1033,9 @@ build_package_podman() {
     trap "rm -rf '${builddir}'" RETURN
 
     prepare_sources "$builddir" "$spec" "$abs_pkg_dir"
+    if $ALMA_CANDIDATE && ! $FORCE && check_package_exists "$pkg_name" "$spec" "$builddir"; then
+        return 0
+    fi
 
     # Build SRPM inside the container (to ensure macros like %autorelease are available)
     local spec_basename
@@ -897,7 +1071,11 @@ build_package_podman() {
 
     # Ensure the local repo metadata is up-to-date before mock starts,
     # locked to prevent parallel jobs from corrupting it.
-    flock "${LOCAL_REPO}/repo.lock" -c "createrepo_c --update \"${LOCAL_REPO}\""
+    if $ALMA_CANDIDATE; then
+        update_local_repo
+    else
+        flock "${LOCAL_REPO}/repo.lock" -c "createrepo_c --update \"${LOCAL_REPO}\""
+    fi
 
     echo "==> [${pkg_name}] Running mock inside podman (${BUILD_IMAGE})..."
 
@@ -1013,6 +1191,7 @@ build_package_podman() {
             -v "${LOCAL_REPO}:/local-repo:Z" \
             -v "${REPO_ROOT}/mock:/repo-mock:ro,Z" \
             "${UTAH_MOUNT_ARGS[@]}" \
+            "${ALMA_KEY_MOUNT_ARGS[@]}" \
             "${MOCK_CACHE_ARGS[@]}" \
             "${BUILD_IMAGE}" \
             bash -exc "
@@ -1095,6 +1274,12 @@ build_package_podman() {
                 # against a 39.0m no-cache baseline (31265993115). The mount
                 # was right; this one flag was what made it worthless.
                 cp -p /repo-mock/*.cfg /tmp/mock-configdir/
+                if ${ALMA_CANDIDATE}; then
+                    test -s /keys/candidate-public.gpg
+                    # Policy binds keys into mock's real chroot and rejects
+                    # unsigned metadata; its key is only a run-local candidate.
+                    cat /keys/mock-candidate-policy.cfg >> /tmp/mock-configdir/${MOCK_CONFIG}.cfg
+                fi
                 chmod -R a+rX /tmp/mock-configdir
                 # SHARED lock: mock only READS /local-repo as a dnf repo, so
                 # any number of builds can hold it at once. The exclusive half
@@ -1154,6 +1339,13 @@ build_package_podman() {
                             exit 1;
                         }
                 \"
+                if ${ALMA_CANDIDATE}; then
+                    setpriv --reuid=builder --regid=mock --init-groups \\
+                    mock --configdir /tmp/mock-configdir -r '${MOCK_CONFIG}' \\
+                        --uniqueext='${pkg_name}' --chroot -- \\
+                        /bin/sh /keys/measure-buildroot.sh \\
+                        > /builddir/results/candidate-buildroot-observed.txt
+                fi
             "
     }
 
@@ -1200,10 +1392,17 @@ build_package_podman() {
 
     # Collect RPMs from results
     local rpm_count=0
+    local alma_completed_outputs=()
     while IFS= read -r -d '' rpm; do
-        cp "$rpm" "${LOCAL_REPO}/"
+        if $ALMA_CANDIDATE; then
+            python3 "${SCRIPT_DIR}/candidate-rpm-repository.py" install \
+                --state "$ALMA_CANDIDATE_STATE" --repo "$LOCAL_REPO" --rpm "$rpm"
+        else
+            cp "$rpm" "${LOCAL_REPO}/"
+        fi
         echo "==> [${pkg_name}] -> $(basename "$rpm")"
         rpm_count=$(( rpm_count + 1 ))
+        alma_completed_outputs+=(--output "$(basename "$rpm")")
     done < <(find "$resultdir" -name "*.rpm" ! -name "*.src.rpm" -print0)
 
     record_buildroot_manifest "$resultdir" "$pkg_name"
@@ -1213,6 +1412,11 @@ build_package_podman() {
         return 1
     fi
 
+    if $ALMA_CANDIDATE && [[ -n "${ALMA_CANDIDATE_META:-}" ]]; then
+        python3 "${SCRIPT_DIR}/alma-candidate-resume.py" record \
+            --meta "$ALMA_CANDIDATE_META" --repo "$LOCAL_REPO" --name "$pkg_name" \
+            --builddir "$builddir" "${alma_completed_outputs[@]}"
+    fi
     echo "==> [${pkg_name}] Built ${rpm_count} RPM(s)"
 }
 
@@ -1372,10 +1576,12 @@ build_tier() {
                     local logfile
                     logfile="${logdir}/$(basename "$path").log"
                     cat "$logfile"
+                    local _dur=$(( now - started_at[i] ))
                     if wait "$pid"; then
-                        : # success
+                        _record_result "${path}" "${tier_name}" "success" "${_dur}" "false"
                     else
                         err "Failed: ${path}"
+                        _record_result "${path}" "${tier_name}" "failure" "${_dur}" "false"
                         _tier_failed+=("${path}")
                     fi
                     unset 'pids[$i]' 'pkg_paths[$i]' 'started_at[$i]' 'last_heartbeat[$i]'
@@ -1464,12 +1670,15 @@ build_tier() {
         _tier_failed=()
         log "  ${#retry[@]} package(s) failed but the repo grew during this tier;"
         log "  retrying them once in case they lost an intra-tier race"
-        local path
+        local path _retry_start
         for path in "${retry[@]}"; do
+            _retry_start=$(date +%s)
             if build_package "$path" ""; then
                 log "  [retry] ${path} built on the second pass"
+                _record_result "${path}" "${tier_name}" "success" "$(( $(date +%s) - _retry_start ))" "true"
             else
                 err "Failed: ${path}"
+                _record_result "${path}" "${tier_name}" "failure" "$(( $(date +%s) - _retry_start ))" "true"
                 _tier_failed+=("${path}")
             fi
         done
@@ -1512,10 +1721,12 @@ build_stream() {
                     local logfile
                     logfile="${logdir}/$(basename "$path").log"
                     cat "$logfile"
+                    local _dur=$(( now - started_at[i] ))
                     if wait "$pid"; then
-                        : # success
+                        _record_result "${path}" "stream" "success" "${_dur}" "false"
                     else
                         err "Failed: ${path}"
+                        _record_result "${path}" "stream" "failure" "${_dur}" "false"
                         _failed+=("${path}")
                     fi
                     unset 'pids[$i]' 'pkg_paths[$i]' 'started_at[$i]' 'last_heartbeat[$i]'
@@ -1592,12 +1803,15 @@ build_stream() {
         _failed=()
         log "  ${#retry[@]} package(s) failed but the repo grew during the stream;"
         log "  retrying them once in case they lost a dependency race"
-        local path
+        local path _retry_start
         for path in "${retry[@]}"; do
+            _retry_start=$(date +%s)
             if build_package "$path" ""; then
                 log "  [retry] ${path} built on the second pass"
+                _record_result "${path}" "stream" "success" "$(( $(date +%s) - _retry_start ))" "true"
             else
                 err "Failed: ${path}"
+                _record_result "${path}" "stream" "failure" "$(( $(date +%s) - _retry_start ))" "true"
                 _failed+=("${path}")
             fi
         done

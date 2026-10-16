@@ -18,6 +18,8 @@ dependencies:
   build:
     targets:
       el10: [gcc, meson, ninja-build, pkgconf-pkg-config, systemd-devel]
+      alma10: [gcc, meson, ninja-build, pkgconf-pkg-config, systemd-devel]
+      alma10-kitten: [gcc, meson, ninja-build, pkgconf-pkg-config, systemd-devel]
       ubuntu: [gcc, meson, ninja-build, pkg-config, libsystemd-dev]
       debian: [gcc, meson, ninja-build, pkg-config, libsystemd-dev]
       opensuse-tumbleweed: [gcc, meson, ninja, pkgconf-pkg-config, systemd-devel]
@@ -63,4 +65,4 @@ verify:
     # is not a target pacman can find: "error: target not found:
     # libseat-devel" (tideforge-libseat-arch-x86_64, run 33618510747).
     arch: {install_name: libseat}
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

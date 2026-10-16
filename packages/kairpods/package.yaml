@@ -36,4 +36,4 @@ install:
       destination: usr/share/plasma/plasmoids/org.kairpods.plasma
 verify:
   smoke: "test -x /usr/bin/kairpodsd && test -f /usr/lib/systemd/user/kairpodsd.service"
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

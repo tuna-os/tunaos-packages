@@ -22,6 +22,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: 3faadf56bdaea4b088ea8dc5e808b167cec86de3
     VERGEN_GIT_COMMIT_DATE: "2026-09-15 21:57:05 +0200"
@@ -31,6 +36,8 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [cargo, clang, clang-devel, just, libinput-devel, libxkbcommon-devel, lld, pipewire-devel, pulseaudio-libs-devel, systemd-devel, wayland-devel]
+      alma10: [tunaos-rust193 >= 1.93.0, cargo, clang, clang-devel, just, libinput-devel, libxkbcommon-devel, lld, pipewire-devel, pulseaudio-libs-devel, systemd-devel, wayland-devel]
+      alma10-kitten: [tunaos-rust193 >= 1.93.0, cargo, clang, clang-devel, just, libinput-devel, libxkbcommon-devel, lld, pipewire-devel, pulseaudio-libs-devel, systemd-devel, wayland-devel]
       ubuntu: [cargo, clang, just, libinput-dev, libxkbcommon-dev, lld, libpipewire-0.3-dev, libpulse-dev, libsystemd-dev, libwayland-dev]
       debian: [cargo, clang, just, libinput-dev, libxkbcommon-dev, lld, libpipewire-0.3-dev, libpulse-dev, libsystemd-dev, libwayland-dev]
   runtime:
@@ -39,6 +46,8 @@ dependencies:
       # the gate's clean-install repo only holds the cell's own artifact
       # (same call as cosmic-settings, #225). pulseaudio-utils is stock.
       el10: [cosmic-icon-theme >= 1.9.0, pulseaudio-utils]
+      alma10: [cosmic-icon-theme >= 1.9.0, pulseaudio-utils]
+      alma10-kitten: [cosmic-icon-theme >= 1.9.0, pulseaudio-utils]
       ubuntu: [pulseaudio-utils]
       debian: [pulseaudio-utils]
 files:
@@ -47,4 +56,4 @@ install:
   commands: ["just rootdir={destdir} prefix=/usr install"]
 verify:
   smoke: test -x /usr/bin/cosmic-osd
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

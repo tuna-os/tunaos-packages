@@ -1,6 +1,24 @@
 # Local SRPM Modification Changelog
 
-This document tracks all manual modifications made to SRPM specifications and sources to enable GNOME 50 on CentOS Stream 10.
+This document tracks all manual modifications made to SRPM specifications and sources to enable GNOME 50 and GNOME 51 on CentOS Stream 10.
+
+## GNOME 51.0 release set
+
+The GNOME 51 tier moved from development snapshots to the coordinated
+GNOME 51 stable release for issue #673. The core GNOME modules are at 51.0
+(Nautilus starts the stable series at 51.0.1), with the matching GLib 2.90.0,
+GTK 4.24.0, libadwaita 1.10.0, and GJS 1.90.0 releases. Both GLib bootstrap
+and full specs move together; the full build retains a higher release so it
+supersedes the bootstrap RPM.
+
+The libadwaita 1.10.0 tarball includes the stylesheet/sassc fix previously
+carried as `fix-sassc-requirement-for-tarball-builds.patch`, so that downstream
+patch was removed. All other downstream patches were checked against the final
+release tarballs and still apply.
+
+gsettings-desktop-schemas 51.rc removed the GConf schema migration files
+(`/usr/share/GConf/gsettings/*.convert`), so the 51.0 spec no longer lists
+them in `%files`.
 
 ## 1. Custom GNOME 50 Compatibility Packages
 
@@ -12,6 +30,19 @@ This document tracks all manual modifications made to SRPM specifications and so
     *   Spec file provides override at `/etc/pam.d/systemd-user`.
 
 ## 2. Modified Rawhide Backports
+
+### `gnome-shell` (GNOME 50 and 51, issue #747)
+
+* **Cause**: the main RPM provided `gnome-shell-common` while `%files common`
+  owned the GSettings XML. DNF satisfied the dependency without the real common
+  RPM. Yellowfin's GDM then crashed with a missing `org.gnome.shell` schema.
+* **Change**: remove the false provider and obsolete rule. Retain the exact
+  dependency on the common RPM. Increase releases to `50.0-4` and `51~beta-2`.
+* **Evidence**: the published `50.0-3` RPM headers and file lists confirm the
+  split. Installing only the matching common RPM restored the schema in a
+  chroot of a separate VM disk; composefs still hid the change on boot.
+  CentOS Stream 10 parsed both new specs with the correct
+  dependency and no self-provider. See [the experiment record](docs/gnome-shell-common-2026-09-26.md).
 
 ### `gi-docgen`
 *   **Origin**: Backport from Rawhide.

@@ -23,6 +23,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "plan-build-chain-publish.py"
@@ -70,11 +71,12 @@ def test_the_tideforge_mirror_prefix_stays_refused() -> None:
     assert "repo/10-x86_64" in planner.TIDEFORGE_DESTINATIONS
 
 
-def test_no_real_build_chain_cell_is_refused_for_its_prefix() -> None:
+def test_qualified_real_build_chain_cells_keep_their_accepted_prefixes() -> None:
     """Every published family must own a prefix the planner accepts; a cell
     that trips the collision guard is a family that can never publish."""
     cells = planner.build_chain_cells()
-    publishable = [c for c in cells.values() if c.get("publish") is not False and c.get("r2_path")]
+    publishable = [c for c in cells.values() if c.get("publish") is not False and c.get("r2_path")
+                   and c.get("target") not in {"alma10", "alma10-kitten"}]
     selected, rejections = planner.resolve([c["id"] for c in publishable], cells)
     assert rejections == [], rejections
     assert {c["id"] for c in selected} == {c["id"] for c in publishable}
@@ -152,3 +154,67 @@ def test_every_rejection_is_reported_not_just_the_first() -> None:
     )
     _, rejections = planner.resolve(["a", "b", "c"], available)
     assert len(rejections) == 3
+
+
+@pytest.mark.parametrize("target", ["alma10", "alma10-kitten"])
+def test_candidate_cells_cannot_opt_in_to_production(target):
+    available = avail(cell("candidate", target=target, publish=True,
+                           r2_path=f"gnome51/{target}-x86_64"))
+    selected, rejections = planner.resolve(["candidate"], available)
+    assert selected == []
+    assert len(rejections) == 1
+    assert "candidate-only" in rejections[0]
+
+
+def test_all_real_alma_cells_are_refused_before_any_matrix_is_written(tmp_path):
+    cells = planner.build_chain_cells()
+    candidates = [c["id"] for c in cells.values()
+                  if c.get("target") in {"alma10", "alma10-kitten"}]
+    assert candidates
+    selected, rejections = planner.resolve(candidates, cells)
+    assert not selected
+    assert len(rejections) == len(candidates)
+    assert all("candidate-only" in rejection for rejection in rejections)
+    output = tmp_path / "github-output"
+    assert planner.main(["--cells", ",".join(candidates),
+                         "--github-output", str(output)]) != 0
+    assert not output.exists()
+
+
+def test_mixed_candidate_and_qualified_wave_fails_without_outputs(tmp_path):
+    cells = planner.build_chain_cells()
+    candidate = next(c["id"] for c in cells.values() if c.get("target") == "alma10")
+    qualified = next(c["id"] for c in cells.values()
+                     if c.get("target") == "el10" and c.get("r2_path")
+                     and c.get("publish") is not False
+                     and c["r2_path"] not in planner.TIDEFORGE_DESTINATIONS)
+    output = tmp_path / "github-output"
+    assert planner.main(["--cells", f"{qualified},{candidate}",
+                         "--github-output", str(output)]) != 0
+    assert not output.exists()
+
+
+def test_production_secret_job_requires_successful_plan():
+    workflow = yaml.safe_load((ROOT / ".github/workflows/publish-build-chain-rpms.yml").read_text())
+    job = workflow["jobs"]["publish"]
+    assert "plan" in job["needs"]
+    # This publisher intentionally runs after a failed build; its explicit
+    # plan-success guard must still prevent credentials after candidate refusal.
+    assert "needs.plan.result == 'success'" in job["if"]
+    plan = workflow["jobs"]["plan"]
+    assert "secrets.GPG_PRIVATE_KEY" not in str(plan)
+    assert "secrets.R2_ACCESS_KEY_ID" not in str(plan)
+    assert "scripts/plan-build-chain-publish.py" in str(plan)
+
+
+@pytest.mark.parametrize("target", [None, "", "el10", "alma-alias"])
+@pytest.mark.parametrize("destination", ["rpm/alma10/x86_64", "rpm/alma10-kitten/aarch64",
+                                         "/gnome51/alma10-x86_64/", "xfce/alma10-kitten-aarch64"])
+def test_alma_destination_cannot_bypass_candidate_fence(target, destination):
+    candidate = cell("candidate", target=target, r2_path=destination)
+    if target is None:
+        del candidate["target"]
+    selected, rejections = planner.resolve(["candidate"], avail(candidate))
+    assert not selected
+    assert len(rejections) == 1
+    assert "candidate-only" in rejections[0]

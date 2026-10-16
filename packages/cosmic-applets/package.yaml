@@ -27,6 +27,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: 82e7cd814addb0641959b634227fe550374e195b
     VERGEN_GIT_COMMIT_DATE: 2026-09-23 12:48:55 -0600
@@ -44,6 +49,26 @@ dependencies:
       - pipewire-dev
     targets:
       el10:
+        - cargo
+        - lld
+        - just
+        - libudev-devel
+        - libxkbcommon-devel
+        - pulseaudio-libs-devel
+        - libglvnd-devel
+        - clang-devel
+      alma10:
+        - tunaos-rust193 >= 1.93.0
+        - cargo
+        - lld
+        - just
+        - libudev-devel
+        - libxkbcommon-devel
+        - pulseaudio-libs-devel
+        - libglvnd-devel
+        - clang-devel
+      alma10-kitten:
+        - tunaos-rust193 >= 1.93.0
         - cargo
         - lld
         - just
@@ -71,6 +96,12 @@ dependencies:
   runtime:
     targets:
       el10:
+        - cosmic-icon-theme >= 1.9.0
+        - cosmic-panel >= 1.9.0
+      alma10:
+        - cosmic-icon-theme >= 1.9.0
+        - cosmic-panel >= 1.9.0
+      alma10-kitten:
         - cosmic-icon-theme >= 1.9.0
         - cosmic-panel >= 1.9.0
       ubuntu: []
@@ -111,5 +142,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-applets && test -x /usr/bin/cosmic-app-list
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

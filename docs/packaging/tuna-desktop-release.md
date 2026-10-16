@@ -50,14 +50,95 @@ the script again with the same tag to check an existing release: it rebuilds
 the asset and compares it with the published one.
 
 Commit the recipe change. Then let the factory build the `tideforge-tuna-desktop-*`
-cells: `arch-x86_64`, and `fedora`, `eln` and `el10` on `x86_64` and `aarch64`.
+cells: `arch-x86_64`, `fedora`, `rawhide`, `eln`, `el10` and `opensuse-tumbleweed`
+on `x86_64` and `aarch64`, `ubuntu` (resolute), `debian` (sid) and
+`trixie` on `amd64` and `arm64`, and `gentoo-amd64`.
 Each smoke runs every binary and checks `--version` against `want=`.
 
 ## RPM targets
 
-The `fedora`, `eln` and `el10` lists use `pkgconfig()` names. These names are
-the same on the three targets. Fedora 44 and ELN supply all dependencies.
+The `fedora`, `rawhide`, `eln`, `el10` and `opensuse-tumbleweed` build lists use
+`pkgconfig()` names, which resolve the same way on all five (zypper installs
+by capability as dnf does). Fedora 44, Rawhide, ELN and Tumbleweed supply all
+dependencies. `rawhide` is its own target (buildroot `fedora:rawhide`, served
+at `rpm/rawhide/{arch}`) because `fedora` builds in a Fedora 44 root, whose
+packages cannot qualify bonito-rawhide.
 On `el10`, the factory supplies `gtk4-layer-shell-devel` from
 `packages/gtk4-layer-shell`. The build gets it from the published index of the
 target, so `publish-tideforge-rpms.yml` must publish that package for `el10`
-before the `tuna-desktop` `el10` cells can build.
+before the `tuna-desktop` `el10` cells can build. Tumbleweed's runtime
+`Requires` use its shared-library package names (`libgtk-4-1`,
+`libgtk4-layer-shell0`, `Mesa-libEGL1`, ...). Publish each target with
+`publish-tideforge-rpms.yml`, `packages: tuna-desktop`, `target: <target>`.
+
+## Deb targets
+
+The `ubuntu` and `debian` lists use the same Debian package names: resolute
+and sid ship every build dependency, including `libgtk4-layer-shell-dev` and a
+`rustc` newer than 1.92. The runtime `Depends` repeat upstream's own `.deb`
+(`scripts/tuna-release` in tuna-desktop) next to `${shlibs:Depends}`, plus
+`dbus-bin` for `dbus-update-activation-environment`. Publish with
+`publish-tideforge-debs.yml`, `packages: tuna-desktop`.
+
+`trixie` (Debian 13) ships gtk4-layer-shell 1.0.4, below the 1.1 floor.
+The factory does not replace that system library, because every consumer on
+the image would then get the new one. Instead, the `trixie` build compiles a
+private gtk4-layer-shell 1.3.0 (the `sources` entry with `targets: [trixie]`).
+The library goes in `/usr/lib/<multiarch>/tuna-desktop/`, and `patchelf` sets
+a RUNPATH on the binaries that link it. The toolchain is trixie's
+`rustc-web` 1.96, not its `rustc` 1.85. Publish with `distros: debian-trixie`.
+
+Ubuntu noble is not a factory target. It ships no gtk4-layer-shell, and its
+newest rustc is 1.91.
+
+## Gentoo target
+
+`gentoo` renders the recipe into `gui-wm/tuna-desktop/tuna-desktop-<PV>.ebuild`
+in the `tunaos` overlay (`1.0.0~beta.1` becomes PV `1.0.0_beta1`; see ADR
+0002). The ebuild inherits `cargo.eclass` with `RUST_MIN_VER` from
+`build.rust_version`, fetches the same tag archive and vendor asset, and runs
+the recipe's build and install commands. Every dependency is stable on amd64
+in `::gentoo`; the build takes them from Gentoo's binhost, and builds only
+gtk4-layer-shell from source. A version bump needs no Gentoo-specific edit
+beyond `build.rust_version` when the floor moves. Publish with
+`publish-tideforge-gentoo.yml`, `packages: tuna-desktop`. A consumer adds the
+binhost to `binrepos.conf` with `verify-signature = true` and lsigns
+`public.gpg` in `/etc/portage/gnupg`:
+
+```ini
+# /etc/portage/binrepos.conf/tunaos.conf
+[tunaos]
+priority = 10
+sync-uri = https://repo.tunaos.org/gentoo/binpkgs/amd64
+verify-signature = true
+
+# /etc/portage/repos.conf/tunaos.conf (only to rebuild from source)
+[tunaos]
+location = /var/db/repos/tunaos
+sync-type = zipfile
+sync-uri = https://repo.tunaos.org/gentoo/overlay/tunaos-overlay.zip
+```
+
+## Hummingbird
+
+Tideforge does not build tuna-desktop for Hummingbird. Its `hummingbird`
+target stays `scaffold`, and its publisher cannot write the build-chain prefix
+safely (#832). The Hummingbird build chain builds it from the reviewed spec
+`src/hummingbird/tuna-desktop/tuna-desktop.spec`. The root is the Fedora 44 +
+public-hummingbird + utah-packages root, which also builds gtk4-layer-shell,
+libseat and libinput. The `tuna` entry in `manifests/hummingbird-desktops.yaml`
+declares the roots. Fedora does not ship tuna-desktop, so the generated
+`build-order-hummingbird-desktops.yml` builds it in `local-00`, the last tier.
+
+The script does not edit the spec. For each new tag, do these steps:
+
+1. Set `upstream_version` to the tag without the `v`.
+2. Set `Version:` to the `~` form and reset `Release:` to 1.
+3. Add a `%changelog` entry.
+4. Replace the two lines of `sources` with the SHA-512 values of the tag archive and of the vendor asset (`sha512sum`).
+
+When the spec and the recipe have different versions,
+`tests/test_hummingbird_recipe_sync.py` fails. To publish, run
+`publish-build-chain-rpms.yml` with
+`cells: hummingbird-x86_64,hummingbird-aarch64` and `tiers: local-00`.
+The packages go to `hummingbird/20251124-{x86_64,aarch64}`.

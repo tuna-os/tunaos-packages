@@ -17,12 +17,14 @@ dependencies:
     common: [meson, ninja-build, pkg-config]
     targets:
       el10: [gcc, gtk3-devel, wayland-devel, wayland-protocols-devel, gobject-introspection-devel, vala]
+      alma10: [gcc, gtk3-devel, wayland-devel, wayland-protocols-devel, gobject-introspection-devel, vala]
+      alma10-kitten: [gcc, gtk3-devel, wayland-devel, wayland-protocols-devel, gobject-introspection-devel, vala]
 files:
   common: [usr/lib64/libgtk-layer-shell.so.*]
 verify:
   smoke: "pkg-config --modversion gtk-layer-shell-0 && test -f /usr/include/gtk-layer-shell/gtk-layer-shell.h"
   install_name: gtk-layer-shell-devel
-targets: [el10]
+targets: [el10, alma10, alma10-kitten]
 outputs:
   rpm:
     files: [usr/lib64/libgtk-layer-shell.so.*]

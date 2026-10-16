@@ -27,7 +27,9 @@ pacman-key --lsign-key "$expected_fingerprint"
 # 2026-08-18 fastly served a core.db naming a package every pool 404'd, so any
 # sync that takes fastly's db resolves packages no mirror still carries. One
 # mirror keeps db and pool in step.
-echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' > /etc/pacman.d/mirrorlist
+policy="$(dirname "$0")/arch-native-policy.sh"
+bash "$policy" configure "${TUNAOS_ARCHITECTURE:-$(uname -m)}"
+native_repositories=$(bash "$policy" repositories)
 
 # [tunaos] MUST come before [core] and [extra]. pacman resolves `-S <name>` by
 # walking the sync repositories in configuration order and taking the FIRST
@@ -49,11 +51,12 @@ echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' > /etc/pacman.d/m
     echo 'SigLevel = Required DatabaseOptional'
     echo "Server = ${URL%/}"
     echo
-    echo '[core]'
-    echo 'Include = /etc/pacman.d/mirrorlist'
-    echo
-    echo '[extra]'
-    echo 'Include = /etc/pacman.d/mirrorlist'
+    while IFS= read -r native_repo; do
+        printf '[%s]\n' "$native_repo"
+        echo 'SigLevel = Required DatabaseOptional'
+        echo 'Include = /etc/pacman.d/mirrorlist'
+        echo
+    done <<< "$native_repositories"
 } > /tmp/tunaos-pacman.conf
 
 pacman --config /tmp/tunaos-pacman.conf -Sy --noconfirm

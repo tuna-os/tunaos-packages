@@ -9,14 +9,12 @@
 # same 4.23.1 floor, so this fork now inherits it directly instead of
 # needing a standing correction -- comment kept for the institutional memory.
 %global gtk_version 4.23.1
-# 2.84.0, not 2.80.0: matches Rawhide's current floor, and gtk4.spec's own
-# glib2_version in this tree (see gtk4.spec's comment for why that one was
-# bumped) -- the stale 2.80.0 here was satisfiable by an older glib2 than
-# what actually gets built alongside it.
-%global glib_version 2.84.0
+# Keep this aligned with the packaged release's meson.build. A lower floor can
+# let dependency resolution select an older GLib than libadwaita 1.10.0 accepts.
+%global glib_version 2.89.3
 
 Name:           libadwaita
-Version:        1.10~beta.1
+Version:        1.10.0
 Release:        %autorelease
 Summary:        Building blocks for modern GNOME applications
 
@@ -25,14 +23,9 @@ License:        LGPL-2.1-or-later AND MIT
 URL:            https://gitlab.gnome.org/GNOME/libadwaita
 Source0:        https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{gnome_tarball_version}.tar.xz
 
-# https://gitlab.gnome.org/GNOME/libadwaita/-/merge_requests/1802
-# Fixes stylesheet/meson.build to check for gtk.css (what tarball releases
-# actually ship) instead of base.css (only present in git checkouts), so
-# tarball builds stop being told they need sassc at all -- verified against
-# the 1.10.beta.1 tarball, which does ship src/stylesheet/gtk.css. With this
-# applied the sassc BuildRequires below is no longer needed; Rawhide's
-# current spec has already dropped it for the same reason.
-Patch0:         fix-sassc-requirement-for-tarball-builds.patch
+# The sassc tarball-build fix carried for 1.10.beta.1 is included in 1.10.0:
+# src/stylesheet/meson.build checks for the gtk.css shipped in release tarballs.
+# Keep sassc out of BuildRequires; it is only needed for git checkouts.
 
 %gnome_check_version
 

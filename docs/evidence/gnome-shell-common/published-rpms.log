@@ -1,0 +1,18 @@
+PolicyKit-authentication-agent = 50.0-3.el10
+application()
+application(org.gnome.Shell.Extensions.desktop)
+bundled(gvc)
+bundled(libcroco) = 0.6.13
+desktop-notification-daemon = 50.0-3.el10
+gnome-shell = 50.0-3.el10
+gnome-shell(api) = 50
+gnome-shell(x86-64) = 50.0-3.el10
+gnome-shell-common = 50.0-3.el10
+libgnome-shell-menu.so()(64bit)
+libgvc.so()(64bit)
+libshell-18.so()(64bit)
+libshew-0.so()(64bit)
+libst-18.so()(64bit)
+/usr/share/glib-2.0/schemas/org.gnome.shell.gschema.xml
+gnome-shell-50.0-3.el10.src.rpm
+gnome-shell-50.0-3.el10.src.rpm

@@ -8,6 +8,7 @@ toolchain availability are real compatibility constraints.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import re
 import shlex
@@ -43,6 +44,81 @@ def pacman_version(version: str) -> str:
     `1.01`, newer than `1.0`).
     """
     return str(version).replace("~", "")
+
+
+# A recipe prerelease (`~beta.1`) in Gentoo's own suffix syntax (`_beta1`),
+# which PMS already sorts below the release: _alpha < _beta < _pre < _rc < none.
+GENTOO_PRERELEASE = re.compile(
+    r"(?P<base>[0-9][0-9.]*)~(?P<kind>alpha|beta|pre|rc)\.?(?P<number>[0-9]*)"
+)
+# SPDX expressions recipes use, as Gentoo license names (::gentoo licenses/).
+# Portage checks LICENSE against ACCEPT_LICENSE by these names, so an SPDX id
+# it does not know would mask the package; an unmapped one fails the render.
+GENTOO_LICENSES = {
+    "GPL-2.0-only": "GPL-2",
+    "GPL-2.0-or-later": "GPL-2+",
+    "GPL-3.0-only": "GPL-3",
+    "GPL-3.0-or-later": "GPL-3+",
+    "LGPL-2.1-or-later": "LGPL-2.1+",
+    "MIT": "MIT",
+    "Apache-2.0": "Apache-2.0",
+}
+
+
+def gentoo_version(version: str) -> str:
+    """The ebuild PV for a recipe version (`1.0.0~beta.1` -> `1.0.0_beta1`).
+
+    PMS allows digits and dots plus a fixed set of suffixes; anything else in
+    a recipe version has no faithful Gentoo spelling, so it fails rather than
+    being bent into one that sorts differently.
+    """
+    version = str(version)
+    if re.fullmatch(r"[0-9]+(?:\.[0-9]+)*", version):
+        return version
+    match = GENTOO_PRERELEASE.fullmatch(version)
+    if not match or not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*", match["base"]):
+        fail(f"version {version!r} has no Gentoo PV spelling "
+             "(digits and dots, optionally ~alpha|beta|pre|rc[.]N)")
+    return f"{match['base']}_{match['kind']}{match['number']}"
+
+
+def gentoo_pf(recipe: dict) -> str:
+    """`${PF}`: the PV plus `-rN` for a recipe release above 1."""
+    release = int(recipe.get("release", 1))
+    suffix = f"-r{release - 1}" if release > 1 else ""
+    return f"{recipe['name']}-{gentoo_version(recipe['version'])}{suffix}"
+
+
+def gentoo_category(recipe: dict) -> str:
+    category = recipe.get("outputs", {}).get("gpkg", {}).get("category")
+    if not isinstance(category, str) or not re.fullmatch(r"[a-z0-9]+-[a-z0-9]+", category):
+        fail("outputs.gpkg.category must name a Gentoo category such as gui-wm")
+    return category
+
+
+def gentoo_distfile(recipe: dict, source: dict, index: int) -> str:
+    """A source's DISTDIR name: `${P}-<fetched filename>`.
+
+    DISTDIR is shared by every package and version on a host, and Manifest
+    pins one checksum per name, so an unversioned asset name
+    (tuna-desktop-vendor.tar.gz) must not be reused by the next release.
+    """
+    return f"{recipe['name']}-{gentoo_version(recipe['version'])}-{source_filename(source, index)}"
+
+
+def rust_version(recipe: dict) -> str:
+    """`build.rust_version`: the toolchain floor a recipe asserts.
+
+    The other formats carry the floor in their native relations
+    (`rust >= 1.92`, `rustc (>= 1.92)`); cargo.eclass takes it as RUST_MIN_VER
+    instead, which also picks the Rust slot the build runs with.
+    """
+    value = recipe.get("build", {}).get("rust_version", "")
+    if not isinstance(value, str):
+        fail("build.rust_version must be a version such as 1.92")
+    if value and not re.fullmatch(r"[0-9]+\.[0-9]+(?:\.[0-9]+)?", value):
+        fail("build.rust_version must be a version such as 1.92")
+    return value
 
 
 def load_yaml(path: Path) -> dict:
@@ -290,18 +366,47 @@ def prepare_commands(recipe: dict) -> str:
     return "\n".join(commands)
 
 
-def custom_commands(recipe: dict, key: str, destination_root: str = "") -> str:
+def custom_commands(recipe: dict, key: str, destination_root: str = "", target: str | None = None) -> str:
     """Render reviewed commands for source projects with nonstandard tooling.
 
     Tideforge still owns source provenance, dependencies, and native package
     metadata. This narrow escape hatch is for upstream projects whose install
     contract is legitimately `just`/`make`, rather than pretending they are a
     simple one-binary Cargo package. `{destdir}` is expanded by each renderer.
+
+    `build.targets.<target>.commands` run BEFORE the common build commands
+    and `install.targets.<target>.commands` AFTER the common install
+    commands, in the same shell, for the one target that needs a step the
+    others must not run (tuna-desktop's private gtk4-layer-shell on trixie).
     """
-    commands = recipe.get("build" if key == "build" else "install", {}).get("commands", [])
+    block = recipe.get("build" if key == "build" else "install", {})
+    commands = block.get("commands", [])
     if not isinstance(commands, list) or not commands or not all(isinstance(command, str) and command.strip() for command in commands):
         fail(f"{key}.commands must be a non-empty list of commands")
-    return "\n".join(command.replace("{destdir}", destination_root) for command in commands)
+    extra = target_custom_commands(recipe, key).get(target, []) if target else []
+    ordered = [*extra, *commands] if key == "build" else [*commands, *extra]
+    return "\n".join(command.replace("{destdir}", destination_root) for command in ordered)
+
+
+def target_custom_commands(recipe: dict, key: str) -> dict[str, list[str]]:
+    """Validate and return `<build|install>.targets`: target -> commands."""
+    section = "build" if key == "build" else "install"
+    overrides = recipe.get(section, {}).get("targets", {})
+    if not isinstance(overrides, dict):
+        fail(f"{section}.targets must be a mapping of target to commands")
+    if overrides and recipe.get("build_system") != "custom":
+        fail(f"{section}.targets is only rendered for build_system: custom")
+    resolved: dict[str, list[str]] = {}
+    for name, override in overrides.items():
+        if name not in (recipe.get("targets") or []):
+            fail(f"{section}.targets names {name!r}, which the recipe does not enable")
+        if not isinstance(override, dict) or set(override) != {"commands"}:
+            fail(f"{section}.targets.{name} must be a mapping with only `commands`")
+        commands = override["commands"]
+        if not isinstance(commands, list) or not commands or not all(isinstance(command, str) and command.strip() for command in commands):
+            fail(f"{section}.targets.{name}.commands must be a non-empty list of commands")
+        resolved[name] = commands
+    return resolved
 
 
 def go_options(recipe: dict) -> tuple[str, str]:
@@ -363,6 +468,27 @@ def build_environment_exports(recipe: dict) -> str:
     return "\n".join(f"export {name}={shlex.quote(value)}" for name, value in environment.items())
 
 
+def target_recipe(recipe: dict, target: str | None) -> dict:
+    """Merge authored target environment before native compiler policy."""
+    mapping = recipe.get("build", {}).get("environment_by_target", {})
+    if not isinstance(mapping, dict):
+        fail("build.environment_by_target must be a mapping")
+    known = load_targets()
+    for name, environment in mapping.items():
+        if not isinstance(name, str) or name not in known or name not in recipe.get("targets", []):
+            fail("build.environment_by_target declares an unknown or unsupported target")
+        build_environment({"build": {"environment": environment}})
+    if not mapping:
+        return recipe
+    result = copy.deepcopy(recipe)
+    build = result.setdefault("build", {})
+    build.pop("environment_by_target", None)
+    environment = dict(build.get("environment", {}))
+    environment.update(mapping.get(target, {}))
+    build["environment"] = environment
+    return result
+
+
 def make_environment_exports(recipe: dict) -> str:
     """Render make `export` directives for debian/rules.
 
@@ -382,18 +508,25 @@ def make_environment_exports(recipe: dict) -> str:
     return "\n".join(f"export {name} := {value.replace('$', '$$')}" for name, value in environment.items())
 
 
-def source_entries(recipe: dict) -> list[dict]:
+def source_entries(recipe: dict, target: str | None = None) -> list[dict]:
     """Return the primary source followed by pinned auxiliary source trees.
 
     ``source`` remains the build root for compatibility.  ``sources`` is for
     source closures such as upstream git submodules: every entry is an archive
-    with a checksum and an explicit destination below that build root.
+    with a checksum and an explicit destination below that build root.  An
+    entry with ``targets`` belongs to those targets' builds only; a renderer
+    passes its target to drop it everywhere else.  Without a target (fetch,
+    verification) every entry is returned.
     """
     entries = [dict(recipe["source"])]
     extras = recipe.get("sources", [])
     if not isinstance(extras, list):
         fail("sources must be a list")
-    entries.extend(dict(item) if isinstance(item, dict) else item for item in extras)
+    entries.extend(
+        dict(item) if isinstance(item, dict) else item
+        for item in extras
+        if target is None or not isinstance(item, dict) or "targets" not in item or target in item["targets"]
+    )
     return entries
 
 
@@ -446,6 +579,9 @@ def validate_source(source: dict, *, auxiliary: bool) -> None:
         strip_components = source.get("strip_components", 1)
         if not isinstance(strip_components, int) or strip_components < 0:
             fail("auxiliary source.strip_components must be a non-negative integer")
+        targets = source.get("targets", ["any"])
+        if not isinstance(targets, list) or not targets or not all(isinstance(item, str) and item for item in targets):
+            fail("auxiliary source.targets must be a non-empty list of targets")
 
 
 def validate_deb_packages(recipe: dict) -> None:
@@ -595,12 +731,15 @@ def validate(recipe: dict, target: str | None = None) -> None:
     if recipe["build_system"] == "go":
         go_options(recipe)
         go_module_mode(recipe)
+    target_custom_commands(recipe, "build")
+    target_custom_commands(recipe, "install")
     if recipe["build_system"] == "custom":
         custom_commands(recipe, "build")
         custom_commands(recipe, "install", "{destdir}")
         cargo_config_commands(recipe)
     prepare_commands(recipe)
     build_environment(recipe)
+    target_recipe(recipe, target)
     validate_verify(recipe)
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
@@ -614,6 +753,10 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail(f"unknown target: {item}")
     if target and target not in requested:
         fail(f"recipe does not enable target: {target}")
+    for source in source_entries(recipe)[1:]:
+        unknown_targets = sorted(set(source.get("targets", [])) - set(requested))
+        if unknown_targets:
+            fail(f"auxiliary source {source_filename(source, 0)} names target(s) {unknown_targets} the recipe does not enable")
     for dependency_kind in ("build", "runtime"):
         dependency_data = recipe.get("dependencies", {}).get(dependency_kind, {})
         capabilities = dependency_data.get("capabilities", [])
@@ -621,6 +764,16 @@ def validate(recipe: dict, target: str | None = None) -> None:
             fail(f"dependencies.{dependency_kind}.capabilities must be a list of capability names")
         for requested_target in requested:
             resolve_capabilities(capabilities, requested_target)
+    rust_version(recipe)
+    if any(targets[item].get("format") == "gpkg" for item in requested):
+        # Everything the ebuild renderer would otherwise refuse at build time.
+        gentoo_category(recipe)
+        gentoo_version(recipe["version"])
+        if str(recipe["license"]) not in GENTOO_LICENSES:
+            fail(f"license {recipe['license']!r} has no Gentoo mapping in GENTOO_LICENSES")
+        if recipe["build_system"] != "custom":
+            fail("a gpkg target needs build_system: custom "
+                 "(the only one the ebuild renderer supports)")
     if not recipe["files"].get("common"):
         fail("files.common must list installed paths")
     validate_deb_packages(recipe)
@@ -747,7 +900,29 @@ def rpm_subpackage_block(subpackage: dict) -> str:
     return "\n".join(header)
 
 
+def alma_compiler_recipe_guard(recipe: dict) -> None:
+    """Reject authored compiler resets; upstream build behavior still needs proof."""
+    build = recipe.get("build", {})
+    environment = build.get("environment", {})
+    for name, value in environment.items():
+        if name == "CARGO_ENCODED_RUSTFLAGS":
+            fail("Alma encoded Rust flags require measured compiler adapter")
+        if re.search(r"(?:-march=|-mcpu=|target-cpu=|target-feature=|GOAMD64=)", value):
+            fail("Alma recipe CPU overrides must be expressed by compiler policy")
+    material = json.dumps({key: value for key, value in build.items() if key != "environment"}, sort_keys=True)
+    material = re.sub(r'-mtls-dialect=gnu2(?=\s|["\\]|$)', '', material)
+    if re.search(r"(?:-march=|-mcpu=|target-cpu=|target-feature=|GOAMD64=|(?:CFLAGS|CXXFLAGS|RUSTFLAGS|CPPFLAGS|FCFLAGS|FFLAGS|CC|CXX|FC|CMAKE_C_FLAGS|CMAKE_CXX_FLAGS)\s*=|\s-m(?!no-|tune=|64)[a-zA-Z])", material):
+        fail("Alma build commands/options may not override CPU policy")
+
+
 def render_rpm(recipe: dict, target: str) -> dict[str, str]:
+    recipe = target_recipe(recipe, target)
+    alma_environment = None
+    if target in {"alma10", "alma10-kitten"}:
+        alma_compiler_recipe_guard(recipe)
+        alma_environment = build_environment_exports(recipe)
+        recipe = copy.deepcopy(recipe)
+        recipe.setdefault("build", {})["environment"] = {}
     build, install = rpm_build_lines(recipe["build_system"], recipe)
     prepare = prepare_commands(recipe)
     if prepare:
@@ -766,8 +941,13 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         build = f"cd {workdir}\n{prelude + chr(10) if prelude else ''}{environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}"
         install = f"install -Dm0755 {workdir}/target/release/{binary} %{{buildroot}}%{{_bindir}}/{binary}"
     elif recipe["build_system"] == "custom":
-        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
-        install = custom_commands(recipe, "install", "%{buildroot}")
+        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
+        install = custom_commands(recipe, "install", "%{buildroot}", target)
+    if alma_environment is not None:
+        policy = (ROOT / "scripts/alma-compiler-policy.sh").read_text().replace("%", "%%")
+        build = "\n".join(filter(None, ["%set_build_flags", alma_environment,
+            "export TUNAOS_COMPILER_EVIDENCE_DIR=\"${TUNAOS_COMPILER_EVIDENCE_DIR:-%{_builddir}/tunaos-compiler-evidence}\"",
+            policy, "tunaos_alma_compiler_policy %{_target_cpu}", build]))
     requires = "\n".join(f"BuildRequires: {dep}" for dep in target_dependencies(recipe, target))
     runtime_requires = "\n".join(f"Requires:       {dep}" for dep in target_runtime_dependencies(recipe, target))
     provides = "\n".join(f"Provides:       {dep}" for dep in provides_entries(recipe))
@@ -791,7 +971,7 @@ def render_rpm(recipe: dict, target: str) -> dict[str, str]:
         if source_directory == "."
         else f"%autosetup -n {source_directory}"
     )
-    auxiliary_sources = source_entries(recipe)[1:]
+    auxiliary_sources = source_entries(recipe, target)[1:]
     if auxiliary_sources:
         unpack_auxiliary = "\n".join(
             (
@@ -893,6 +1073,7 @@ def render_deb(recipe: dict, target: str) -> dict[str, str]:
     binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
     recipe_runtime_dependencies = target_runtime_dependencies(recipe, target)
     provides_field = "".join(f"Provides: {provided}\n" for provided in provides_entries(recipe))
+    step_scripts: dict[str, str] = {}
     package_stanzas = "\n".join(
         f"""Package: {package['name']}
 Architecture: any
@@ -938,9 +1119,16 @@ Rules-Requires-Root: no
             prelude += "\n"
         rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tcd {workdir} && :\n{prelude}\tcd {workdir} && {environment} cargo build --release{cargo_lock_flag(recipe)}{cargo_build_flags(recipe)}{selector}\n\noverride_dh_auto_install:\n\tinstall -Dm0755 {workdir}/target/release/{binary} debian/{recipe['name']}/usr/bin/{binary}\n\noverride_dh_dwz:\n\t:\n"
     elif recipe["build_system"] == "custom":
-        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
-        install = custom_commands(recipe, "install", f"debian/{recipe['name']}")
-        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\t{build.replace(chr(10), chr(10) + chr(9))}\n\noverride_dh_auto_install:\n\t{install.replace(chr(10), chr(10) + chr(9))}\n"
+        # Each step runs as ONE shell script, not as make recipe lines. Make
+        # gives every recipe line its own shell and expands `$` itself, so the
+        # inlined form lost build.environment's exports before the build ran,
+        # split cargo_config's multi-line printf into unterminated quotes, and
+        # turned `$PWD`/`${CFLAGS:-}` into make variables. The RPM %build and
+        # the PKGBUILD build() already run each step as one shell.
+        build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
+        install = custom_commands(recipe, "install", f"debian/{recipe['name']}", target)
+        step_scripts = {"debian/tideforge-build.sh": f"set -e\n{build}\n", "debian/tideforge-install.sh": f"set -e\n{install}\n"}
+        rules = f"#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tsh debian/tideforge-build.sh\n\noverride_dh_auto_install:\n\tsh debian/tideforge-install.sh\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -1023,6 +1211,7 @@ License: {recipe['license']}
         "debian/changelog": changelog,
         "debian/copyright": copyright_file,
         "debian/source/format": "3.0 (quilt)\n",
+        **step_scripts,
     }
     # Tideforge's Go, Cargo, and data renderers install directly into
     # debian/<binary-package>.  A .install file would make dh_install search
@@ -1063,7 +1252,7 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     makedepends = " ".join(f"'{dependency}'" for dependency in target_dependencies(recipe, target))
     depends = " ".join(f"'{dependency}'" for dependency in target_runtime_dependencies(recipe, target))
     provides = " ".join(f"'{dependency}'" for dependency in provides_entries(recipe))
-    sources = source_entries(recipe)
+    sources = source_entries(recipe, target)
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
         workdir, cargo_package, binary = cargo_options(recipe)
@@ -1094,8 +1283,8 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         build = "python -m build --wheel --no-isolation"
         install = 'python -m installer --destdir="$pkgdir" dist/*.whl'
     elif recipe["build_system"] == "custom":
-        build = "\n  ".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build")]))
-        install = custom_commands(recipe, "install", "$pkgdir")
+        build = "\n  ".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
+        install = custom_commands(recipe, "install", "$pkgdir", target)
     elif recipe["build_system"] == "meson":
         build = f"arch-meson build {meson_options(recipe)}\n  meson compile -C build".rstrip()
         install = "DESTDIR=\"$pkgdir\" meson install -C build"
@@ -1159,7 +1348,154 @@ package() {{
     return {"PKGBUILD": pkgbuild}
 
 
+GENTOO_REPO_NAME = "tunaos"
+# Directories Portage compresses at install time (FEATURES=docompress). A path
+# a recipe lists under files.common must stay at that exact path, as on every
+# other format, so the ones under these get `docompress -x`.
+GENTOO_DOCOMPRESS_DIRS = ("usr/share/doc/", "usr/share/man/", "usr/share/info/")
+
+
+def ebuild_string(value: str) -> str:
+    """A value for a double-quoted ebuild variable, with no expansion."""
+    return re.sub(r'(["\\$`])', r"\\\1", value)
+
+
+def ebuild_list(values: list[str]) -> str:
+    return "".join(f"\n\t{value}" for value in values) + ("\n" if values else "")
+
+
+def render_ebuild(recipe: dict, target: str) -> dict[str, str]:
+    """Render a one-package Gentoo overlay: the ebuild plus the repo skeleton.
+
+    Only `build_system: custom` is supported, which is what tuna-desktop (the
+    one recipe targeting Gentoo) uses; other build systems fail rather than
+    render an ebuild nothing has exercised. The recipe's own build and install
+    commands run unchanged, as in the PKGBUILD renderer. A recipe that needs
+    the `rust` capability inherits cargo.eclass: its RUST_DEPEND is the Gentoo
+    spelling of that capability (any rust or rust-bin slot at or above
+    build.rust_version, which becomes RUST_MIN_VER), rust_pkg_setup puts that
+    slot's cargo first on PATH, and the build runs under cargo_env (Gentoo's
+    CC, linker and LDFLAGS). `provides` has no Gentoo equivalent and is not
+    rendered.
+    """
+    if recipe["build_system"] != "custom":
+        fail(f"{target}: the ebuild renderer supports build_system: custom only")
+    name = recipe["name"]
+    category = gentoo_category(recipe)
+    pf = gentoo_pf(recipe)
+    license_name = GENTOO_LICENSES.get(str(recipe["license"]))
+    if not license_name:
+        fail(f"license {recipe['license']!r} has no Gentoo license mapping in GENTOO_LICENSES")
+    capabilities = recipe.get("dependencies", {}).get("build", {}).get("capabilities", [])
+    uses_cargo = "rust" in capabilities
+    minimum_rust = rust_version(recipe)
+    if minimum_rust and not uses_cargo:
+        fail("build.rust_version is set but the recipe does not need the rust capability")
+    sources = source_entries(recipe, target)
+    source_url = recipe["source"]["url"]
+    github = re.match(r"https://github\.com/[^/]+/[^/]+", source_url)
+    homepage = github.group(0) if github else source_url
+    source_directory = recipe["source"].get("directory", f"{name}-{recipe['version']}")
+    workdir = "${WORKDIR}" if source_directory == "." else f"${{WORKDIR}}/{source_directory}"
+    src_uri = ebuild_list([
+        f"{item['url']} -> {gentoo_distfile(recipe, item, index)}"
+        for index, item in enumerate(sources)
+    ])
+    unpack_lines = [f'unpack {shlex.quote(gentoo_distfile(recipe, sources[0], 0))}']
+    if len(sources) > 1:
+        unpack_lines.append('cd "${S}" || die')
+    for index, item in enumerate(sources[1:], start=1):
+        destination = shlex.quote(item["destination"])
+        distfile = f'"${{DISTDIR}}"/{shlex.quote(gentoo_distfile(recipe, item, index))}'
+        if item.get("extract", True):
+            unpack_lines.append(f"mkdir -p {destination} || die")
+            unpack_lines.append(
+                f"tar --extract --file {distfile}"
+                f" --strip-components={item.get('strip_components', 1)}"
+                f" --directory {destination} || die"
+            )
+        else:
+            unpack_lines.append(f"install -Dm0644 {distfile} {destination} || die")
+    if uses_cargo:
+        unpack_lines.append("cargo_gen_config")
+    build = "\n".join(filter(None, [
+        prepare_commands(recipe),
+        build_environment_exports(recipe),
+        cargo_config_commands(recipe),
+        custom_commands(recipe, "build", target=target),
+    ]))
+    install = "\n".join(filter(None, [
+        custom_commands(recipe, "install", "${D}", target),
+        install_commands(recipe, "${D}"),
+        install_directories(recipe, "${D}"),
+    ]))
+    for script in (build, install):
+        if re.search(r"^TIDEFORGE_EOF$", script, re.MULTILINE):
+            fail("a build or install command collides with the ebuild heredoc delimiter")
+    keep_uncompressed = [
+        f"/{path.lstrip('/')}"
+        for path in recipe["files"]["common"]
+        if path.lstrip("/").startswith(GENTOO_DOCOMPRESS_DIRS)
+    ]
+    keywords = " ".join(sorted(load_targets()[target]["architectures"]))
+    runner = "cargo_env bash" if uses_cargo else "bash"
+    rust_lines = f'RUST_MIN_VER="{minimum_rust}"\n' if minimum_rust else ""
+    inherit_line = "inherit cargo\n\n" if uses_cargo else ""
+    docompress = f"\n\tdocompress -x {' '.join(keep_uncompressed)}" if keep_uncompressed else ""
+    unpack_body = "\n\t".join(unpack_lines)
+    ebuild = f"""# Generated by Tideforge from packages/{name}/package.yaml.
+# Edit the recipe, not this file.
+
+EAPI=8
+
+{rust_lines}{inherit_line}DESCRIPTION="{ebuild_string(recipe['summary'])}"
+HOMEPAGE="{homepage}"
+SRC_URI="{src_uri}"
+S="{workdir}"
+
+LICENSE="{license_name}"
+SLOT="0"
+KEYWORDS="{keywords}"
+# The sources are pinned release assets, not mirrored on Gentoo's distfiles.
+RESTRICT="mirror"
+
+RDEPEND="{ebuild_list(target_runtime_dependencies(recipe, target))}"
+DEPEND="${{RDEPEND}}"
+BDEPEND="{ebuild_list(target_dependencies(recipe, target))}"
+
+src_unpack() {{
+	{unpack_body}
+}}
+
+src_configure() {{
+	:
+}}
+
+src_compile() {{
+	{runner} -euo pipefail <<'TIDEFORGE_EOF' || die "build commands failed"
+{build}
+TIDEFORGE_EOF
+}}
+
+src_test() {{
+	:
+}}
+
+src_install() {{
+	env D="${{D}}" bash -euo pipefail <<'TIDEFORGE_EOF' || die "install commands failed"
+{install}
+TIDEFORGE_EOF{docompress}
+}}
+"""
+    return {
+        "profiles/repo_name": f"{GENTOO_REPO_NAME}\n",
+        "metadata/layout.conf": "masters = gentoo\nthin-manifests = true\nsign-manifests = false\n",
+        f"{category}/{name}/{pf}.ebuild": ebuild,
+    }
+
+
 def render(recipe: dict, target: str) -> dict[str, str]:
+    recipe = target_recipe(recipe, target)
     target_data = load_targets()[target]
     if target_data["format"] == "rpm":
         return render_rpm(recipe, target)
@@ -1167,6 +1503,8 @@ def render(recipe: dict, target: str) -> dict[str, str]:
         return render_deb(recipe, target)
     if target_data["format"] == "pkg.tar.zst":
         return render_pkgbuild(recipe, target)
+    if target_data["format"] == "gpkg":
+        return render_ebuild(recipe, target)
     fail(f"{target}: renderer for {target_data['format']} is scaffold-only")
 
 

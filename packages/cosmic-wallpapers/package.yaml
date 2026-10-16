@@ -21,6 +21,10 @@ dependencies:
     targets:
       el10:
         - make
+      alma10:
+        - make
+      alma10-kitten:
+        - make
       ubuntu:
         - make
       debian:
@@ -35,5 +39,7 @@ verify:
   smoke: test -d /usr/share/backgrounds/cosmic
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

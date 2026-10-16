@@ -55,6 +55,8 @@ dependencies:
     # its own complete toolchain.
     targets:
       el10: [gcc-c++, autoconf, automake, libtool]
+      alma10: [gcc-c++, autoconf, automake, libtool]
+      alma10-kitten: [gcc-c++, autoconf, automake, libtool]
       ubuntu: [build-essential, autoconf, automake, libtool]
       debian: [build-essential, autoconf, automake, libtool]
       opensuse-tumbleweed: [gcc-c++, autoconf, automake, libtool]
@@ -79,4 +81,4 @@ verify:
   targets:
     ubuntu: {install_name: libunwind-dev}
     debian: {install_name: libunwind-dev}
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

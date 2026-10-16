@@ -15,6 +15,8 @@ dependencies:
     capabilities: [cmake, gettext, cpp-compiler, extra-cmake-modules, kf6-config-dev, kf6-runner-dev, kf6-i18n-dev, kf6-coreaddons-dev, qt6-base-dev]
     targets:
       el10: [kf6-rpm-macros]
+      alma10: [kf6-rpm-macros]
+      alma10-kitten: [kf6-rpm-macros]
   runtime:
     capabilities: [flatpak]
     targets:
@@ -30,4 +32,4 @@ files:
     - usr/share/locale/*/LC_MESSAGES/plasma_runner_bazaarrunner.mo
 verify:
   smoke: test -x /usr/bin/bazaar-dbus-tool
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

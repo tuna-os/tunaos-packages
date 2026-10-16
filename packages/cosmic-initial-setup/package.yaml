@@ -27,6 +27,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: 9b5a9490e60966ebf0565267ce0e9fca368dfbd1
     VERGEN_GIT_COMMIT_DATE: 2026-09-15 21:53:38 +0200
@@ -42,6 +47,24 @@ dependencies:
       - libinput-dev
     targets:
       el10:
+        - cargo
+        - lld
+        - just
+        - libxkbcommon-devel
+        - openssl-devel
+        - flatpak-devel
+        - systemd-devel
+      alma10:
+        - tunaos-rust193 >= 1.93.0
+        - cargo
+        - lld
+        - just
+        - libxkbcommon-devel
+        - openssl-devel
+        - flatpak-devel
+        - systemd-devel
+      alma10-kitten:
+        - tunaos-rust193 >= 1.93.0
         - cargo
         - lld
         - just
@@ -72,6 +95,16 @@ dependencies:
         - polkit
         - hicolor-icon-theme
         - cosmic-icon-theme >= 1.9.0
+      alma10:
+        - flatpak-libs
+        - polkit
+        - hicolor-icon-theme
+        - cosmic-icon-theme >= 1.9.0
+      alma10-kitten:
+        - flatpak-libs
+        - polkit
+        - hicolor-icon-theme
+        - cosmic-icon-theme >= 1.9.0
       ubuntu: []
       debian: []
 files:
@@ -90,5 +123,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-initial-setup
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian
