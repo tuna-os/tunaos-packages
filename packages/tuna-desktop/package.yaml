@@ -195,14 +195,16 @@ verify:
   # and its roost-* compat link; the visible session entry launches the
   # session supervisor (not the compositor directly) as desktop Tuna; the
   # hidden compat entry launches the same supervisor; both lock-screen PAM
-  # services and the session target are installed.
+  # services and the session target are installed. The version is the last
+  # word of --version, cut with shell expansion: the Tumbleweed image has no
+  # awk.
   smoke: >-
     want=1.0.0-beta.1;
     for b in compositor session shell-host shell-gtk ibus-bridge greeter;
-    do v="$(tuna-$b --version | awk '{print $NF}')";
+    do v="$(tuna-$b --version)"; v="${v##* }";
     if [ "$v" != "$want" ]; then echo "tuna-$b --version reports '$v', expected $want" >&2; exit 1; fi;
     if [ "$(readlink /usr/bin/roost-$b)" != "tuna-$b" ]; then echo "/usr/bin/roost-$b is not a link to tuna-$b" >&2; exit 1; fi;
-    v="$(roost-$b --version | awk '{print $NF}')";
+    v="$(roost-$b --version)"; v="${v##* }";
     if [ "$v" != "$want" ]; then echo "roost-$b --version reports '$v', expected $want" >&2; exit 1; fi;
     done
     && grep -qx 'Exec=tuna-session' /usr/share/wayland-sessions/tuna.desktop
