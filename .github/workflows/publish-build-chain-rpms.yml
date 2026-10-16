@@ -476,8 +476,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
-      - name: Pull everything staged in ORAS
-        run: python3 scripts/oras-stage-artifacts.py pull-all staged/oras
+      #
+      # Only this cell's %{dist} and architecture (or noarch). The ORAS repo
+      # is shared by every family, and everything pulled here is signed and
+      # placed in THIS prefix: unscoped, 345 staged .el10 RPMs were one
+      # hummingbird publish away from hummingbird/20251124-x86_64 (#832).
+      - name: Pull this cell's RPMs staged in ORAS
+        run: |
+          set -euo pipefail
+          dist=$(bash scripts/build-chain.sh --manifest '${{ matrix.manifest }}' --print-dist)
+          python3 scripts/oras-stage-artifacts.py pull-all staged/oras \
+            --dist "$dist" --arch '${{ matrix.architecture }}'
       # --evict-foreign: a family prefix carries only what this factory
       # built and signed. gnome50/10-stream-x86_64 held a COPR mirror
       # (refresh-gnome50-r2.yml, 2026-08-04, signed by the COPR project key)
