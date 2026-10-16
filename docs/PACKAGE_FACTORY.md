@@ -131,6 +131,12 @@ is the enforcement, in two workflows:
   computes the affected coordinates `(package | native family, target,
   architecture, release track, engine)` from the changed paths — or the full
   ~300-cell matrix on `main` and on schedule — and emits only those cells.
+  On a pull request, cells selected only because shared code changed
+  (factory scripts, the cell workflow, `build-chain.sh`, a format adapter, a
+  target contract) are rotated: each push builds
+  `PACKAGE_FACTORY_ROUND_ROBIN_SIZE` of them (repository variable, default 3,
+  `0` builds all), chosen by run number. Cells whose own recipe, manifest or
+  sources changed always build. The push to `main` builds the whole set.
 - **`package-factory-cell.yml`** is the single reusable build boundary every
   cell runs through. It derives a content-addressed action key from the
   cell's exact inputs, restores only an exact cached result (and re-verifies

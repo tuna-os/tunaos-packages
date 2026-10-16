@@ -10660,12 +10660,17 @@ packages:
     packaging:
       pkg.tar.zst:
         tideforge: packages/tuna-desktop
+      rpm:
+        tideforge: packages/tuna-desktop
     upstream:
-      version: 0.1.0
-      source: https://github.com/tuna-os/tuna-desktop/archive/d4438581a24d2acd7fed21b949d78ed15fb25917.tar.gz
-      sha256: d7b6355f9ec0c421cee05edf6197ede6f27da054c1f59a940cca22c89671e5b9
+      version: 1.0.0~beta.1
+      source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.1.tar.gz
+      sha256: c346c0861da4894fd490a3681a039955a90c0a7aeb04b458a1170fa87a6e1ad2
     targets:
       - arch
+      - el10
+      - eln
+      - fedora
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml

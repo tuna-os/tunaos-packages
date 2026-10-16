@@ -1,6 +1,10 @@
 schema: 1
 name: tuna-desktop
-version: "0.1.0"
+# The upstream release tag minus its v, with a prerelease's `-` written `~`
+# (tag v1.2.3-beta.4 -> 1.2.3~beta.4). RPM and Debian take this form as-is and
+# sort it before the final release; Tideforge renders pacman's pkgver without
+# the `~` (1.2.3beta.4), the value upstream's packaging/arch/PKGBUILD derives.
+version: "1.0.0~beta.1"
 release: 1
 summary: "Tuna Desktop: GNOME-style Wayland desktop session in Rust (nested developer preview)"
 description: >-
@@ -18,22 +22,23 @@ license: GPL-3.0-or-later
 # models only `provides`, so those two are not rendered yet (see the PR that
 # added this recipe for the proposed schema change).
 provides: [roost]
-# Pinned upstream commit (no release tag yet): the rename merge,
-# tuna-os/tuna-desktop#536. Bump source, the vendor asset below, and
-# `release` together.
+# Upstream release tag. Bump `version`, source, the vendor asset below,
+# TUNA_VERSION and the verify smoke's want= together, and reset `release`,
+# with scripts/prepare-tuna-desktop-release.py
+# (docs/packaging/tuna-desktop-release.md).
 source:
-  url: https://github.com/tuna-os/tuna-desktop/archive/d4438581a24d2acd7fed21b949d78ed15fb25917.tar.gz
-  sha256: d7b6355f9ec0c421cee05edf6197ede6f27da054c1f59a940cca22c89671e5b9
-  directory: tuna-desktop-d4438581a24d2acd7fed21b949d78ed15fb25917
+  url: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.1.tar.gz
+  sha256: "c346c0861da4894fd490a3681a039955a90c0a7aeb04b458a1170fa87a6e1ad2"
+  directory: tuna-desktop-1.0.0-beta.1
 # Vendored crates.io closure (`cargo vendor --locked --versioned-dirs` from the
-# exact commit above, deterministic tar, verified with `cargo metadata
+# exact tag above, deterministic tar, verified with `cargo metadata
 # --locked --offline`), shipped as an immutable release asset like xfwl4 so
 # the build never fetches crates. Cargo.lock has no git dependencies
 # (third-party/ crates are in-tree path dependencies), so the config needs
 # only the crates-io replacement.
 sources:
-  - url: https://github.com/tuna-os/tunaos-packages/releases/download/tuna-desktop-vendor-d443858/tuna-desktop-vendor.tar.gz
-    sha256: 27e130432fede3957ae334908b763d84a78359ee8730411866710f6f26c967dc
+  - url: https://github.com/tuna-os/tunaos-packages/releases/download/tuna-desktop-vendor-v1.0.0-beta.1/tuna-desktop-vendor.tar.gz
+    sha256: "2ab462cb46fdfd6122c2627ddc2790595690db9c87b5c83d951c2b269a9e62d4"
     filename: tuna-desktop-vendor.tar.gz
     destination: .
     strip_components: 0
@@ -43,10 +48,11 @@ sources:
 build_system: custom
 build:
   environment:
-    # Every binary reports this (minus the leading v) from --version; it must
-    # equal `version` above, exactly as upstream's PKGBUILD stamps v${pkgver}.
+    # Every binary reports this (minus the leading v) from --version: the
+    # upstream tag, exactly as upstream's PKGBUILD stamps v${_semver}. It is
+    # `version` above with `~` written as the tag's `-`.
     # Read at compile time; the old ROOST_VERSION is no longer consulted.
-    TUNA_VERSION: v0.1.0
+    TUNA_VERSION: v1.0.0-beta.1
   cargo_config: |
     [source.crates-io]
     replace-with = "vendored-sources"
@@ -63,6 +69,10 @@ build:
     # cargo renderer applies for niri. Upstream's PKGBUILD sets !lto instead,
     # which the recipe schema cannot express.
     - export CFLAGS="${CFLAGS:-} -ffat-lto-objects"
+    # The ELN builder is a bootc image: /root links to a missing
+    # /var/roothome, so cargo cannot create ~/.cargo. Keep its home in the
+    # build tree on every target.
+    - export CARGO_HOME="$PWD/.cargo-home"
     - cargo build --release --locked --offline -p tuna-compositor -p tuna-shell-host -p tuna-shell-gtk -p tuna-greeter
 dependencies:
   build:
@@ -72,6 +82,18 @@ dependencies:
       # build time is listed here, not only in depends (#118). clang is for
       # bindgen (pipewire/libspa, xkbcommon-adjacent sys crates).
       arch: [clang, dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+      # The same Arch list as pkg-config names, which resolve identically on
+      # Fedora 44, ELN and EL10 (mesa -> gbm + egl, seatd -> libseat,
+      # systemd-libs -> libsystemd + libudev, wayland -> client + server).
+      # clang-devel supplies libclang for bindgen. The floors: GTK 4.12,
+      # gtk4-layer-shell 1.1 (gtk4-session-lock-sys v1_1) and Rust 1.92, the
+      # rollout's build floor (no crate declares an MSRV, so cargo cannot
+      # enforce it). On el10, gtk4-layer-shell-devel
+      # and libseat-devel are factory products (packages/gtk4-layer-shell,
+      # packages/libseat) resolved from the target's published_index.
+      fedora: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
+      eln: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
+      el10: [clang-devel, rust >= 1.92, "pkgconfig(dbus-1)", "pkgconfig(glib-2.0)", "pkgconfig(gtk4) >= 4.12", "pkgconfig(gtk4-layer-shell-0) >= 1.1", "pkgconfig(libadwaita-1)", "pkgconfig(libdrm)", "pkgconfig(libinput)", "pkgconfig(libsecret-1)", "pkgconfig(xkbcommon)", "pkgconfig(xkbcommon-x11)", "pkgconfig(gbm)", "pkgconfig(egl)", "pkgconfig(libpipewire-0.3)", "pkgconfig(libseat)", "pkgconfig(libsystemd)", "pkgconfig(libudev)", "pkgconfig(wayland-client)", "pkgconfig(wayland-server)"]
   runtime:
     targets:
       # Upstream packaging/arch/PKGBUILD depends=(). Optional integrations
@@ -79,6 +101,14 @@ dependencies:
       # optdepends upstream; the recipe schema has no optdepends, so the
       # Marlin image installs them itself.
       arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+      # The same depends in Fedora/EL package names. RPM derives the ELF
+      # library requirements itself; listing them keeps the version floors
+      # and the packages it cannot see: libpam is dlopen()ed by the lock
+      # screen (crates/compositor/src/pam.rs), libsecret is reached over
+      # D-Bus, and the dbus and pipewire daemons are services, not links.
+      fedora: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
+      eln: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
+      el10: [dbus, glib2, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, systemd-libs, libwayland-client, libwayland-server, pam]
 install:
   commands:
     - install -Dm0755 target/release/tuna-compositor {destdir}/usr/bin/tuna-compositor
@@ -132,18 +162,20 @@ files:
     - usr/share/doc/tuna-desktop/nested-session.md
 verify:
   # The real session contract, not just "a binary exists": every one of the
-  # six binaries runs and reports the package version, under both its name
+  # six binaries runs and reports the upstream tag minus its v (want=, kept
+  # equal to TUNA_VERSION), under both its name
   # and its roost-* compat link; the visible session entry launches the
   # session supervisor (not the compositor directly) as desktop Tuna; the
   # hidden compat entry launches the same supervisor; both lock-screen PAM
   # services and the session target are installed.
   smoke: >-
+    want=1.0.0-beta.1;
     for b in compositor session shell-host shell-gtk ibus-bridge greeter;
     do v="$(tuna-$b --version | awk '{print $NF}')";
-    if [ "$v" != 0.1.0 ]; then echo "tuna-$b --version reports '$v', expected 0.1.0" >&2; exit 1; fi;
+    if [ "$v" != "$want" ]; then echo "tuna-$b --version reports '$v', expected $want" >&2; exit 1; fi;
     if [ "$(readlink /usr/bin/roost-$b)" != "tuna-$b" ]; then echo "/usr/bin/roost-$b is not a link to tuna-$b" >&2; exit 1; fi;
     v="$(roost-$b --version | awk '{print $NF}')";
-    if [ "$v" != 0.1.0 ]; then echo "roost-$b --version reports '$v', expected 0.1.0" >&2; exit 1; fi;
+    if [ "$v" != "$want" ]; then echo "roost-$b --version reports '$v', expected $want" >&2; exit 1; fi;
     done
     && grep -qx 'Exec=tuna-session' /usr/share/wayland-sessions/tuna.desktop
     && grep -qx 'DesktopNames=Tuna;GNOME;' /usr/share/wayland-sessions/tuna.desktop
@@ -152,4 +184,4 @@ verify:
     && test -f /etc/pam.d/tuna-lock
     && test -f /etc/pam.d/roost-lock
     && test -f /usr/lib/systemd/user/tuna-session.target
-targets: [arch]
+targets: [arch, fedora, eln, el10]
