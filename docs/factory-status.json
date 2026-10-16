@@ -86,6 +86,13 @@
             "present": 3,
             "roots": 6
           },
+          "tuna": {
+            "missing": [
+              "tuna-desktop"
+            ],
+            "present": 0,
+            "roots": 1
+          },
           "xfce": {
             "missing": [
               "xfwl4"
@@ -142,6 +149,13 @@
             ],
             "present": 3,
             "roots": 6
+          },
+          "tuna": {
+            "missing": [
+              "tuna-desktop"
+            ],
+            "present": 0,
+            "roots": 1
           },
           "xfce": {
             "missing": [
@@ -405,9 +419,58 @@
         }
       },
       "measured_at": "2026-09-05T09:11:39+00:00"
+    },
+    {
+      "counts": {
+        "debian/amd64": {
+          "built": 5,
+          "needed": 51
+        },
+        "debian/arm64": {
+          "built": 5,
+          "needed": 51
+        },
+        "el10/aarch64": {
+          "built": 42,
+          "needed": 102
+        },
+        "el10/x86_64": {
+          "built": 113,
+          "needed": 31
+        },
+        "fedora/x86_64": {
+          "built": 3,
+          "needed": 0
+        },
+        "hummingbird/aarch64": {
+          "built": 625,
+          "needed": 40
+        },
+        "hummingbird/x86_64": {
+          "built": 644,
+          "needed": 21
+        },
+        "opensuse-tumbleweed/aarch64": {
+          "built": 10,
+          "needed": 9
+        },
+        "opensuse-tumbleweed/x86_64": {
+          "built": 10,
+          "needed": 9
+        },
+        "ubuntu/amd64": {
+          "built": 5,
+          "needed": 50
+        },
+        "ubuntu/arm64": {
+          "built": 5,
+          "needed": 50
+        }
+      },
+      "measured_at": "2026-10-15T10:09:50+00:00"
     }
   ],
-  "measured_at": "2026-10-15T10:09:50+00:00",
+  "measured_at": "2026-10-16T10:19:18+00:00",
   "targets": {
     "debian": {
       "amd64": {
@@ -416,14 +479,15 @@
           "cosmic-panel",
           "cosmic-randr",
           "cpptrace-devel",
-          "pop-icon-theme"
+          "pop-icon-theme",
+          "tuna-desktop"
         ],
-        "catalog_entries": 56,
+        "catalog_entries": 57,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/tideforge/debian-sid/",
-            "package_names": 16,
-            "packages_gz_sha256": "a8133bbb4706502c8bc2d0c975bf392c22ed1897b550b8f3e8cfd8fa1ba3e941"
+            "package_names": 20,
+            "packages_gz_sha256": "8ed116781391d43882ae9f80f45ade2de8abbb89c2f1e1b0a1f53baf2b7c1e93"
           }
         ],
         "needed": [
@@ -486,14 +550,15 @@
           "cosmic-panel",
           "cosmic-randr",
           "cpptrace-devel",
-          "pop-icon-theme"
+          "pop-icon-theme",
+          "tuna-desktop"
         ],
-        "catalog_entries": 56,
+        "catalog_entries": 57,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/tideforge/debian-sid/",
-            "package_names": 16,
-            "packages_gz_sha256": "a8133bbb4706502c8bc2d0c975bf392c22ed1897b550b8f3e8cfd8fa1ba3e941"
+            "package_names": 20,
+            "packages_gz_sha256": "8ed116781391d43882ae9f80f45ade2de8abbb89c2f1e1b0a1f53baf2b7c1e93"
           }
         ],
         "needed": [
@@ -582,6 +647,7 @@
           "evtest",
           "greetd",
           "gtk-layer-shell",
+          "gtk4-layer-shell",
           "kairpods",
           "libseat",
           "libunwind-devel",
@@ -591,22 +657,23 @@
           "pop-icon-theme",
           "pop-launcher",
           "python3-evdev",
+          "tuna-desktop",
           "uupd",
           "wayland-protocols",
           "xdg-desktop-portal-cosmic",
           "xfconf",
           "xfwm4-themes"
         ],
-        "catalog_entries": 144,
+        "catalog_entries": 145,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/rpm/el10/aarch64/",
-            "package_names": 61,
-            "primary_bytes": 14994,
-            "primary_href": "repodata/4fdbd1516182464031566307e46f3777ea0f9e1489ce75e2c5c3e468a9bfed64-primary.xml.gz",
-            "primary_sha256": "4fdbd1516182464031566307e46f3777ea0f9e1489ce75e2c5c3e468a9bfed64",
-            "primary_sha256_declared": "4fdbd1516182464031566307e46f3777ea0f9e1489ce75e2c5c3e468a9bfed64",
-            "revision": "1791616546"
+            "package_names": 64,
+            "primary_bytes": 16266,
+            "primary_href": "repodata/00d6b080e9eeaaad5519b3b093ce4c4d4dc5223601190ee8478c37f3f341b2f8-primary.xml.gz",
+            "primary_sha256": "00d6b080e9eeaaad5519b3b093ce4c4d4dc5223601190ee8478c37f3f341b2f8",
+            "primary_sha256_declared": "00d6b080e9eeaaad5519b3b093ce4c4d4dc5223601190ee8478c37f3f341b2f8",
+            "revision": "1792106506"
           }
         ],
         "needed": [
@@ -638,7 +705,6 @@
           "graphviz",
           "gsettings-desktop-schemas",
           "gtk4",
-          "gtk4-layer-shell",
           "gtkgreet",
           "harfbuzz",
           "highway",
@@ -763,6 +829,7 @@
           "gsettings-desktop-schemas",
           "gtk-layer-shell",
           "gtk4",
+          "gtk4-layer-shell",
           "gtkgreet",
           "kairpods",
           "libadwaita",
@@ -800,6 +867,7 @@
           "thunar",
           "tinysparql",
           "tumbler",
+          "tuna-desktop",
           "umockdev",
           "uupd",
           "wayland-protocols",
@@ -830,16 +898,16 @@
           "xfwl4",
           "xfwm4-themes"
         ],
-        "catalog_entries": 144,
+        "catalog_entries": 145,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/repo/10/x86_64/",
-            "package_names": 326,
-            "primary_bytes": 99294,
-            "primary_href": "repodata/d6ed88e3c67956aa021be663c067bf86bcb95bc2f8cbc5fc9058bb211b2e4bfb-primary.xml.gz",
-            "primary_sha256": "d6ed88e3c67956aa021be663c067bf86bcb95bc2f8cbc5fc9058bb211b2e4bfb",
-            "primary_sha256_declared": "d6ed88e3c67956aa021be663c067bf86bcb95bc2f8cbc5fc9058bb211b2e4bfb",
-            "revision": "1791616486"
+            "package_names": 329,
+            "primary_bytes": 100708,
+            "primary_href": "repodata/3bd95ac4092c6c62a77d1011e4391b6b67a4c0b7782a06653635b4bc62efd401-primary.xml.gz",
+            "primary_sha256": "3bd95ac4092c6c62a77d1011e4391b6b67a4c0b7782a06653635b4bc62efd401",
+            "primary_sha256_declared": "3bd95ac4092c6c62a77d1011e4391b6b67a4c0b7782a06653635b4bc62efd401",
+            "revision": "1792106440"
           },
           {
             "baseurl": "https://repo.tunaos.org/xfce/10-stream-x86_64/",
@@ -861,7 +929,6 @@
           "gnome-desktop3",
           "gnome-initial-setup",
           "graphviz",
-          "gtk4-layer-shell",
           "harfbuzz",
           "highway",
           "iio-niri",
@@ -890,19 +957,20 @@
       "x86_64": {
         "built": [
           "libxfce4ui",
+          "tuna-desktop",
           "xfconf",
           "xfwl4"
         ],
-        "catalog_entries": 3,
+        "catalog_entries": 4,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/xfce/44-x86_64/",
-            "package_names": 10,
-            "primary_bytes": 3365,
-            "primary_href": "repodata/93ffaa34ecc5fece5816d67b48d279e24642b0330ddf455e09e9fc1d7fcacff4-primary.xml.gz",
-            "primary_sha256": "93ffaa34ecc5fece5816d67b48d279e24642b0330ddf455e09e9fc1d7fcacff4",
-            "primary_sha256_declared": "93ffaa34ecc5fece5816d67b48d279e24642b0330ddf455e09e9fc1d7fcacff4",
-            "revision": "1786873291"
+            "package_names": 11,
+            "primary_bytes": 4237,
+            "primary_href": "repodata/0736cf67f90df376b18e70a59aa5cccd2366356559bbfa6a6edbbd88794b581f-primary.xml.gz",
+            "primary_sha256": "0736cf67f90df376b18e70a59aa5cccd2366356559bbfa6a6edbbd88794b581f",
+            "primary_sha256_declared": "0736cf67f90df376b18e70a59aa5cccd2366356559bbfa6a6edbbd88794b581f",
+            "revision": "1792107443"
           }
         ],
         "needed": []
@@ -918,7 +986,6 @@
           "NetworkManager-openconnect",
           "NetworkManager-openvpn",
           "NetworkManager-ssh",
-          "NetworkManager-vpnc",
           "PackageKit-Qt",
           "SDL3",
           "SwayNotificationCenter",
@@ -1270,7 +1337,6 @@
           "libudfread",
           "libunibreak",
           "libusbmuxd",
-          "libuser",
           "libutempter",
           "libvdpau",
           "libvisual",
@@ -1389,7 +1455,6 @@
           "python-pyproject-hooks",
           "python-pytest-asyncio",
           "python-pyudev",
-          "python-six",
           "python-trove-classifiers",
           "python-typing-inspection",
           "python-tzlocal",
@@ -1472,12 +1537,10 @@
           "unity-gtk-module",
           "upower",
           "usbmuxd",
-          "usermode",
           "v4l-utils",
           "vid.stab",
           "virt-what",
           "vo-amrwbenc",
-          "vpnc",
           "vpnc-script",
           "vte291",
           "vulkan-loader",
@@ -1537,7 +1600,7 @@
           "zvbi",
           "zxing-cpp"
         ],
-        "catalog_entries": 665,
+        "catalog_entries": 679,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/hummingbird/20251124-aarch64/",
@@ -1550,7 +1613,12 @@
           }
         ],
         "needed": [
+          "brltty",
           "cockpit",
+          "cosmic-osk",
+          "cxx-rust-cssparser",
+          "dotconf",
+          "espeak-ng",
           "evolution-data-server",
           "evolution-ews",
           "firefox",
@@ -1563,6 +1631,7 @@
           "grub2",
           "gstreamer1-plugins-bad-free",
           "intel-media-driver-free",
+          "iw",
           "kf6-kcoreaddons",
           "kf6-kguiaddons",
           "kf6-kjobwidgets",
@@ -1571,22 +1640,35 @@
           "kf6-kunitconversion",
           "kf6-kwidgetsaddons",
           "kf6-kxmlgui",
+          "libao",
           "libayatana-ido",
           "libcanberra",
+          "liberation-fonts",
+          "liblouis",
           "libphonenumber",
           "librist",
           "libsoup3",
           "libvorbis",
           "libvpl",
           "libxfce4util",
+          "libxml2_2.13",
           "nautilus",
+          "oo7",
+          "orca",
           "pavucontrol",
+          "pcaudiolib",
           "plasma-desktop",
+          "plasma-union",
           "plasma-workspace",
+          "plymouth",
+          "pyatspi",
           "qt6-qtmultimedia",
           "qt6-qtwebengine",
+          "rust-pathrs",
           "samba",
+          "speech-dispatcher",
           "stoken",
+          "tuna-desktop",
           "vdirsyncer",
           "xfce4-settings",
           "xfdesktop"
@@ -1601,7 +1683,6 @@
           "NetworkManager-openconnect",
           "NetworkManager-openvpn",
           "NetworkManager-ssh",
-          "NetworkManager-vpnc",
           "PackageKit-Qt",
           "SDL3",
           "SwayNotificationCenter",
@@ -1877,6 +1958,7 @@
           "libXxf86vm",
           "libaccounts-glib",
           "libaccounts-qt",
+          "libao",
           "libaribcaption",
           "libass",
           "libasyncns",
@@ -1967,7 +2049,6 @@
           "libudfread",
           "libunibreak",
           "libusbmuxd",
-          "libuser",
           "libutempter",
           "libvdpau",
           "libvisual",
@@ -2091,7 +2172,6 @@
           "python-pyproject-hooks",
           "python-pytest-asyncio",
           "python-pyudev",
-          "python-six",
           "python-trove-classifiers",
           "python-typing-inspection",
           "python-tzlocal",
@@ -2175,12 +2255,10 @@
           "unity-gtk-module",
           "upower",
           "usbmuxd",
-          "usermode",
           "v4l-utils",
           "vid.stab",
           "virt-what",
           "vo-amrwbenc",
-          "vpnc",
           "vpnc-script",
           "vte291",
           "vulkan-loader",
@@ -2239,7 +2317,7 @@
           "zvbi",
           "zxing-cpp"
         ],
-        "catalog_entries": 665,
+        "catalog_entries": 679,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/hummingbird/20251124-x86_64/",
@@ -2252,7 +2330,12 @@
           }
         ],
         "needed": [
+          "brltty",
           "cockpit",
+          "cosmic-osk",
+          "cxx-rust-cssparser",
+          "dotconf",
+          "espeak-ng",
           "evolution-data-server",
           "evolution-ews",
           "firefox",
@@ -2261,14 +2344,27 @@
           "gpsd",
           "grub2",
           "gstreamer1-plugins-bad-free",
+          "iw",
           "libcanberra",
+          "liberation-fonts",
+          "liblouis",
           "libphonenumber",
           "librist",
           "libvorbis",
           "libxfce4util",
+          "libxml2_2.13",
+          "oo7",
+          "orca",
+          "pcaudiolib",
+          "plasma-union",
+          "plymouth",
+          "pyatspi",
           "qt6-qtwebengine",
+          "rust-pathrs",
           "samba",
+          "speech-dispatcher",
           "stoken",
+          "tuna-desktop",
           "vdirsyncer",
           "webkitgtk",
           "xfce4-settings",
@@ -2288,18 +2384,19 @@
           "greetd",
           "libseat",
           "niri",
-          "quickshell"
+          "quickshell",
+          "tuna-desktop"
         ],
-        "catalog_entries": 19,
+        "catalog_entries": 20,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/rpm/opensuse-tumbleweed/aarch64/",
-            "package_names": 21,
-            "primary_bytes": 5119,
-            "primary_href": "repodata/e4d6c8183f797a8be598acab57fa31346a6cacd1bde452bd655a6459016f4a8b-primary.xml.gz",
-            "primary_sha256": "e4d6c8183f797a8be598acab57fa31346a6cacd1bde452bd655a6459016f4a8b",
-            "primary_sha256_declared": "e4d6c8183f797a8be598acab57fa31346a6cacd1bde452bd655a6459016f4a8b",
-            "revision": "1787647729"
+            "package_names": 22,
+            "primary_bytes": 5967,
+            "primary_href": "repodata/9c5c54d346512376673b25fe145ed8f9ed4275cc9df08cbcd90a61c5981ab774-primary.xml.gz",
+            "primary_sha256": "9c5c54d346512376673b25fe145ed8f9ed4275cc9df08cbcd90a61c5981ab774",
+            "primary_sha256_declared": "9c5c54d346512376673b25fe145ed8f9ed4275cc9df08cbcd90a61c5981ab774",
+            "revision": "1792133596"
           }
         ],
         "needed": [
@@ -2325,18 +2422,19 @@
           "greetd",
           "libseat",
           "niri",
-          "quickshell"
+          "quickshell",
+          "tuna-desktop"
         ],
-        "catalog_entries": 19,
+        "catalog_entries": 20,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/rpm/opensuse-tumbleweed/x86_64/",
-            "package_names": 21,
-            "primary_bytes": 5125,
-            "primary_href": "repodata/dace89b0fb9553d8992fb9f7fb1ae6ed7c1370c056ed571b0fb3bd44112e6a6d-primary.xml.gz",
-            "primary_sha256": "dace89b0fb9553d8992fb9f7fb1ae6ed7c1370c056ed571b0fb3bd44112e6a6d",
-            "primary_sha256_declared": "dace89b0fb9553d8992fb9f7fb1ae6ed7c1370c056ed571b0fb3bd44112e6a6d",
-            "revision": "1787647687"
+            "package_names": 22,
+            "primary_bytes": 5963,
+            "primary_href": "repodata/6b89ae18ab2618a12acd073eda7c96715ee457286ede8ecef35a6fe54149ffe2-primary.xml.gz",
+            "primary_sha256": "6b89ae18ab2618a12acd073eda7c96715ee457286ede8ecef35a6fe54149ffe2",
+            "primary_sha256_declared": "6b89ae18ab2618a12acd073eda7c96715ee457286ede8ecef35a6fe54149ffe2",
+            "revision": "1792133488"
           }
         ],
         "needed": [
@@ -2359,14 +2457,15 @@
           "cosmic-panel",
           "cosmic-randr",
           "cpptrace-devel",
-          "pop-icon-theme"
+          "pop-icon-theme",
+          "tuna-desktop"
         ],
-        "catalog_entries": 55,
+        "catalog_entries": 56,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/tideforge/ubuntu/",
-            "package_names": 10,
-            "packages_gz_sha256": "a3071f36b23580968e9d57ddc0fe77550758213849425829631306bb46b6061a"
+            "package_names": 12,
+            "packages_gz_sha256": "6ef4bc10def4bc2ec8b74ef151a7ba73986b5a955e9c3b542a556a923b962607"
           }
         ],
         "needed": [
@@ -2428,14 +2527,15 @@
           "cosmic-panel",
           "cosmic-randr",
           "cpptrace-devel",
-          "pop-icon-theme"
+          "pop-icon-theme",
+          "tuna-desktop"
         ],
-        "catalog_entries": 55,
+        "catalog_entries": 56,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/tideforge/ubuntu/",
-            "package_names": 10,
-            "packages_gz_sha256": "a3071f36b23580968e9d57ddc0fe77550758213849425829631306bb46b6061a"
+            "package_names": 12,
+            "packages_gz_sha256": "6ef4bc10def4bc2ec8b74ef151a7ba73986b5a955e9c3b542a556a923b962607"
           }
         ],
         "needed": [
@@ -2496,171 +2596,141 @@
   "trend": {
     "rows": {
       "debian/amd64": {
-        "built_delta": 0,
-        "needed_delta": 11,
-        "new": false,
-        "newly_built": [],
-        "regressed": [],
-        "retired": [],
-        "stalled": {
-          "at_least": false,
-          "days": 51
-        }
-      },
-      "debian/arm64": {
-        "built_delta": 0,
-        "needed_delta": 11,
-        "new": false,
-        "newly_built": [],
-        "regressed": [],
-        "retired": [],
-        "stalled": {
-          "at_least": false,
-          "days": 51
-        }
-      },
-      "el10/aarch64": {
-        "built_delta": 22,
-        "needed_delta": -10,
+        "built_delta": 1,
+        "needed_delta": 0,
         "new": false,
         "newly_built": [
-          "cosmic-app-library",
-          "cosmic-applets",
-          "cosmic-bg",
-          "cosmic-comp",
-          "cosmic-files",
-          "cosmic-greeter",
-          "cosmic-icon-theme",
-          "cosmic-idle",
-          "cosmic-initial-setup",
-          "cosmic-launcher",
-          "cosmic-notifications",
-          "cosmic-osd",
-          "cosmic-osk",
-          "cosmic-screenshot",
-          "cosmic-session",
-          "cosmic-settings",
-          "cosmic-settings-daemon",
-          "cosmic-term",
-          "cosmic-wallpapers",
-          "cosmic-workspaces",
-          "pop-launcher",
-          "xdg-desktop-portal-cosmic"
+          "tuna-desktop"
+        ],
+        "regressed": [],
+        "retired": [],
+        "stalled": null
+      },
+      "debian/arm64": {
+        "built_delta": 1,
+        "needed_delta": 0,
+        "new": false,
+        "newly_built": [
+          "tuna-desktop"
+        ],
+        "regressed": [],
+        "retired": [],
+        "stalled": null
+      },
+      "el10/aarch64": {
+        "built_delta": 2,
+        "needed_delta": -1,
+        "new": false,
+        "newly_built": [
+          "gtk4-layer-shell",
+          "tuna-desktop"
         ],
         "regressed": [],
         "retired": [],
         "stalled": null
       },
       "el10/x86_64": {
-        "built_delta": 15,
-        "needed_delta": -3,
+        "built_delta": 2,
+        "needed_delta": -1,
         "new": false,
         "newly_built": [
-          "cosmic-app-library",
-          "cosmic-applets",
-          "cosmic-files",
-          "cosmic-greeter",
-          "cosmic-initial-setup",
-          "cosmic-launcher",
-          "cosmic-osk",
-          "cosmic-screenshot",
-          "cosmic-session",
-          "cosmic-settings",
-          "cosmic-settings-daemon",
-          "cosmic-term",
-          "cosmic-wallpapers",
-          "cosmic-workspaces",
-          "pop-launcher"
+          "gtk4-layer-shell",
+          "tuna-desktop"
         ],
         "regressed": [],
         "retired": [],
         "stalled": null
       },
       "fedora/x86_64": {
-        "built_delta": 0,
+        "built_delta": 1,
         "needed_delta": 0,
         "new": false,
-        "newly_built": [],
-        "regressed": [],
-        "retired": [],
-        "stalled": {
-          "at_least": true,
-          "days": 55
-        }
-      },
-      "hummingbird/aarch64": {
-        "built_delta": 1,
-        "needed_delta": -1,
-        "new": false,
         "newly_built": [
-          "libosinfo"
+          "tuna-desktop"
         ],
         "regressed": [],
         "retired": [],
+        "stalled": null
+      },
+      "hummingbird/aarch64": {
+        "built_delta": -5,
+        "needed_delta": 19,
+        "new": false,
+        "newly_built": [],
+        "regressed": [],
+        "retired": [
+          "NetworkManager-vpnc",
+          "libuser",
+          "python-six",
+          "usermode",
+          "vpnc"
+        ],
         "stalled": null
       },
       "hummingbird/x86_64": {
-        "built_delta": 1,
-        "needed_delta": -1,
+        "built_delta": -4,
+        "needed_delta": 18,
         "new": false,
         "newly_built": [
-          "libosinfo"
+          "libao"
+        ],
+        "regressed": [],
+        "retired": [
+          "NetworkManager-vpnc",
+          "libuser",
+          "python-six",
+          "usermode",
+          "vpnc"
+        ],
+        "stalled": null
+      },
+      "opensuse-tumbleweed/aarch64": {
+        "built_delta": 1,
+        "needed_delta": 0,
+        "new": false,
+        "newly_built": [
+          "tuna-desktop"
         ],
         "regressed": [],
         "retired": [],
         "stalled": null
       },
-      "opensuse-tumbleweed/aarch64": {
-        "built_delta": 0,
-        "needed_delta": 0,
-        "new": false,
-        "newly_built": [],
-        "regressed": [],
-        "retired": [],
-        "stalled": {
-          "at_least": false,
-          "days": 43
-        }
-      },
       "opensuse-tumbleweed/x86_64": {
-        "built_delta": 0,
+        "built_delta": 1,
         "needed_delta": 0,
         "new": false,
-        "newly_built": [],
+        "newly_built": [
+          "tuna-desktop"
+        ],
         "regressed": [],
         "retired": [],
-        "stalled": {
-          "at_least": false,
-          "days": 43
-        }
+        "stalled": null
       },
       "ubuntu/amd64": {
-        "built_delta": 0,
-        "needed_delta": 11,
+        "built_delta": 1,
+        "needed_delta": 0,
         "new": false,
-        "newly_built": [],
+        "newly_built": [
+          "tuna-desktop"
+        ],
         "regressed": [],
         "retired": [],
-        "stalled": {
-          "at_least": false,
-          "days": 51
-        }
+        "stalled": null
       },
       "ubuntu/arm64": {
-        "built_delta": 0,
-        "needed_delta": 11,
+        "built_delta": 1,
+        "needed_delta": 0,
         "new": false,
-        "newly_built": [],
+        "newly_built": [
+          "tuna-desktop"
+        ],
         "regressed": [],
         "retired": [],
-        "stalled": {
-          "at_least": false,
-          "days": 51
-        }
+        "stalled": null
       }
     },
-    "since": "2026-09-05T09:11:39+00:00",
-    "staleness_days": 40
+    "since": "2026-10-15T10:09:50+00:00",
+    "staleness_days": 1
   },
   "unmeasured_targets": {
     "arch": {
@@ -2669,8 +2739,18 @@
       "reason": "no published_index declared in package-factory.yaml"
     },
     "eln": {
-      "catalog_entries": 2,
+      "catalog_entries": 4,
       "format": "rpm",
+      "reason": "no published_index declared in package-factory.yaml"
+    },
+    "rawhide": {
+      "catalog_entries": 1,
+      "format": "rpm",
+      "reason": "no published_index declared in package-factory.yaml"
+    },
+    "trixie": {
+      "catalog_entries": 1,
+      "format": "deb",
       "reason": "no published_index declared in package-factory.yaml"
     }
   }
