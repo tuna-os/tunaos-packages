@@ -50,7 +50,7 @@ def runtime_dependencies(recipe: dict) -> set[str]:
 def validate(recipe: dict, info: str) -> None:
     if field(info, "Name") != recipe["name"]:
         fail("built package name does not match recipe")
-    if not field(info, "Version").startswith(f"{recipe['version']}-"):
+    if not field(info, "Version").startswith(f"{tideforge.pacman_version(recipe['version'])}-"):
         fail("built package version does not match recipe")
     allowed_architectures = {"x86_64", "aarch64"}
     contract = tideforge.portable_payload_contract(recipe)
