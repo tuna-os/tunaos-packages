@@ -3858,32 +3858,6 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
-  - name: graphviz
-    family: gnome50
-    packaging:
-      rpm:
-        copr: graphviz
-    targets:
-      - alma10
-      - alma10-kitten
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order.yml
-      - manifests/package-builds.yaml
-  - name: graphviz
-    family: gnome51
-    packaging:
-      rpm:
-        copr: graphviz
-    targets:
-      - alma10
-      - alma10-kitten
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order-gnome51.yml
-      - manifests/package-builds.yaml
   - name: greetd
     family: hummingbird-desktops
     packaging:
@@ -4478,32 +4452,6 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-      - manifests/package-builds.yaml
-  - name: highway
-    family: gnome50
-    packaging:
-      rpm:
-        copr: highway
-    targets:
-      - alma10
-      - alma10-kitten
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order.yml
-      - manifests/package-builds.yaml
-  - name: highway
-    family: gnome51
-    packaging:
-      rpm:
-        copr: highway
-    targets:
-      - alma10
-      - alma10-kitten
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order-gnome51.yml
       - manifests/package-builds.yaml
   - name: highway
     family: hummingbird-desktops
@@ -6936,32 +6884,6 @@ packages:
       version: 6.0.0
       source: http://ftp.gnome.org/pub/GNOME/sources/%{name}/6.0/%{name}-%{version}.tar.xz
       spec: src/deps/libgda/libgda.spec
-    targets:
-      - alma10
-      - alma10-kitten
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order-gnome51.yml
-      - manifests/package-builds.yaml
-  - name: libgee
-    family: gnome50
-    packaging:
-      rpm:
-        copr: libgee
-    targets:
-      - alma10
-      - alma10-kitten
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order.yml
-      - manifests/package-builds.yaml
-  - name: libgee
-    family: gnome51
-    packaging:
-      rpm:
-        copr: libgee
     targets:
       - alma10
       - alma10-kitten
@@ -9960,7 +9882,11 @@ packages:
     family: gnome50
     packaging:
       rpm:
-        copr: ptyxis
+        native: src/gnome-50/ptyxis
+    upstream:
+      version: '50.1'
+      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-50/ptyxis/ptyxis.spec
     targets:
       - alma10
       - alma10-kitten
@@ -9973,7 +9899,11 @@ packages:
     family: gnome51
     packaging:
       rpm:
-        copr: ptyxis
+        native: src/gnome-51/ptyxis
+    upstream:
+      version: '50.1'
+      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/ptyxis/ptyxis.spec
     targets:
       - alma10
       - alma10-kitten
@@ -12251,32 +12181,6 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
-      - manifests/package-builds.yaml
-  - name: vala
-    family: gnome50
-    packaging:
-      rpm:
-        copr: vala
-    targets:
-      - alma10
-      - alma10-kitten
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order.yml
-      - manifests/package-builds.yaml
-  - name: vala
-    family: gnome51
-    packaging:
-      rpm:
-        copr: vala
-    targets:
-      - alma10
-      - alma10-kitten
-      - el10
-    membership: runtime
-    referenced_by:
-      - build-order-gnome51.yml
       - manifests/package-builds.yaml
   - name: vdirsyncer
     family: hummingbird-desktops
