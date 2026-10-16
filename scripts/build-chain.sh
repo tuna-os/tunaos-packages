@@ -193,6 +193,7 @@ DRY_RUN=false
 FORCE=false
 WITH_CHECKS=false
 STREAM=false
+PRINT_DIST=false
 
 # --- Soft deadline -----------------------------------------------------------
 # CHAIN_BUDGET_SECONDS, when set, is a clean stopping point INSIDE the job's
@@ -238,6 +239,7 @@ usage() {
     echo "  --with-checks        Run the RPM %check section"
     echo "  --dry-run            Print what would be built without building"
     echo "  --force              Force rebuild even if package exists in repo"
+    echo "  --print-dist         Print the manifest's %{dist} and exit"
     echo "  -h, --help           Show this help message"
 }
 
@@ -264,6 +266,7 @@ while [[ $# -gt 0 ]]; do
         --dry-run)     DRY_RUN=true;     shift ;;
         --force)       FORCE=true;       shift ;;
         --stream)      STREAM=true;      shift ;;
+        --print-dist)  PRINT_DIST=true;  shift ;;
         *)
             echo "Unknown option: $1" >&2
             exit 1
@@ -445,6 +448,12 @@ derive_dist() {
 
 if [[ -z "$DIST" ]]; then
     DIST="$(derive_dist)"
+fi
+# The publisher scopes what it pulls from the shared ORAS staging repo to
+# this %{dist} (publish-build-chain-rpms.yml), from this one derivation.
+if $PRINT_DIST; then
+    echo "$DIST"
+    exit 0
 fi
 
 ensure_local_repo() {

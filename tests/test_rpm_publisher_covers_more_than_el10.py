@@ -150,6 +150,23 @@ def test_each_arch_builds_and_verifies_on_its_own_native_runner():
         "x86_64": "ubuntu-latest", "aarch64": "ubuntu-24.04-arm"}
 
 
+def test_a_path_without_arch_is_published_only_by_the_arch_it_serves():
+    """fedora's r2_path is xfce/44-x86_64. aarch64 RPMs synced there would
+    land in the x86_64 repository."""
+    rows = publish_rows(planned("--target", "fedora", "--packages", "tuna-desktop", "--arches", "x86_64"))
+    assert rows["x86_64"]["src"] == "xfce/44-x86_64"
+    assert rows["x86_64"]["served"] == "https://repo.tunaos.org/xfce/44-x86_64/"
+    result = run("--target", "fedora", "--packages", "tuna-desktop", "--arches", "x86_64,aarch64")
+    assert result.returncode != 0
+    assert "refusing to publish ['aarch64']" in result.stderr
+
+
+def test_eln_publishes_each_arch_to_its_own_contract_path():
+    rows = publish_rows(planned("--target", "eln", "--packages", "tuna-desktop"))
+    assert {arch: row["src"] for arch, row in rows.items()} == {
+        "x86_64": "rpm/eln/x86_64", "aarch64": "rpm/eln/aarch64"}
+
+
 WORKFLOW = ROOT / ".github" / "workflows" / "publish-tideforge-rpms.yml"
 
 
@@ -214,6 +231,11 @@ def test_the_verify_job_speaks_each_targets_package_manager():
     assert "zypper" not in dnf
     assert 'rpm -q $(echo "$PACKAGES"' in dnf, (
         "the rpm -q proof sits after the branch, common to both managers")
+    # fedora and eln have no epel-release package and no crb repository.
+    el10, _, rest = dnf.partition("fi\n")
+    assert 'TARGET" == el10' in el10.replace("$", "")
+    assert "epel-release" in el10 and "crb" in el10
+    assert "epel-release" not in rest and "crb" not in rest
 
 
 def test_the_target_is_a_dispatch_input_defaulting_to_el10():

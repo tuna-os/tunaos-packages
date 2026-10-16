@@ -45,11 +45,22 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  yamllint:
-    name: YAML Lint
+  # The fast linters share one job: each takes seconds, and on a shared
+  # 60-job org queue five separate runners cost more in queue slots than the
+  # parallelism saves. Every step after the first runs unless the job was
+  # cancelled, so one failure still reports the rest.
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+
+      - name: Install pinned validation dependencies
+        run: python3 -m pip install -r requirements-ci.txt
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3
@@ -71,13 +82,8 @@ jobs:
                 level: warning
                 max-spaces-inside: 1
 
-  shellcheck:
-    name: ShellCheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Run ShellCheck
+        if: ${{ !cancelled() }}
         uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           scandir: './'
@@ -88,19 +94,10 @@ jobs:
             src/gnome-49
             src/gnome-50
 
-  workspace-validate:
-    name: Workflow Syntax Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.14'
-
       - name: Validate workflow YAMLs
+        if: ${{ !cancelled() }}
         run: |
           echo "=== Checking GitHub Actions workflow syntax ==="
-          python3 -m pip install -r requirements-ci.txt
           ERRORS=0
           for f in .github/workflows/*.yml; do
             if ! python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null; then
@@ -112,19 +109,8 @@ jobs:
           done
           exit $ERRORS
 
-  build-order-validate:
-    name: Build Order Schema Validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.14'
-
-      - name: Install pinned validation dependencies
-        run: python3 -m pip install -r requirements-ci.txt
-
       - name: Validate build-order.yml against schema
+        if: ${{ !cancelled() }}
         run: |
           echo "=== Validating build-order.yml ==="
           shopt -s nullglob
@@ -136,14 +122,9 @@ jobs:
           done
           echo "All build order files valid"
 
-  bats-tests:
-    name: BATS Unit Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Install pinned BATS
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
         env:
           BATS_COMMIT: 713504bc0224a19b3d7c7958c18dc07f64f54b44 # v1.12.0
         run: |
@@ -155,6 +136,8 @@ jobs:
           sudo "$install_root/install.sh" /usr/local
 
       - name: Run BATS tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
         run: |
           echo "=== BATS Tests ==="
           FAILED=0
@@ -256,7 +239,7 @@ jobs:
   required-checks:
     name: required-checks
     if: always()
-    needs: [yamllint, shellcheck, workspace-validate, build-order-validate, bats-tests, pytest]
+    needs: [lint, pytest]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs succeeded
