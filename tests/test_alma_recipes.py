@@ -21,7 +21,12 @@ TRACKED = subprocess.check_output(
     ['git', 'ls-files', 'packages/**/package.yaml'], cwd=ROOT, text=True,
 ).splitlines()
 RECIPES = [(path, yaml.safe_load((ROOT / path).read_text())) for path in TRACKED]
-EL10 = [(path, recipe) for path, recipe in RECIPES if 'el10' in recipe.get('targets', [])]
+# tuna-desktop gained el10 (and other RPM targets) upstream of this contract,
+# but no Alma build of it is qualified: the Alma recipe chain must keep failing
+# closed for it (tests/test_alma_recipe_chain.py), so it is not mirrored.
+ALMA_UNQUALIFIED = {'packages/tuna-desktop/package.yaml'}
+EL10 = [(path, recipe) for path, recipe in RECIPES
+        if 'el10' in recipe.get('targets', []) and path not in ALMA_UNQUALIFIED]
 RUST193_CONSUMERS = {
     'packages/' + name + '/package.yaml' for name in (
         'cosmic-bg', 'cosmic-panel', 'cosmic-app-library', 'cosmic-files',

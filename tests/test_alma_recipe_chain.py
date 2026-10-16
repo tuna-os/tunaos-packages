@@ -268,9 +268,9 @@ def test_canary_full_and_fixed_tuna_selection(source):
         planned(source, chain.select_roots(source, 'alma10', 'tuna'))
 
 
-def test_current_arch_only_tuna_recipe_fails_closed():
+def test_tuna_recipe_without_alma_targets_fails_closed():
     value = yaml.safe_load((ROOT/'packages/tuna-desktop/package.yaml').read_text())
-    assert value['targets'] == ['arch']
+    assert not {'alma10', 'alma10-kitten'} & set(value['targets'])
     for target in ['alma10', 'alma10-kitten']:
         roots = chain.select_roots(ROOT, target, 'tuna')
         key = chain.selection_action_key(target, 'x86_64', 'tuna', SHA, roots)

@@ -117,6 +117,10 @@ jobs:
           files=(build-order*.yml .copr/build-order*.yml)
           ((${#files[@]} > 0)) || exit 1
           for f in "${files[@]}"; do
+            # *.generated.yml are shadow measurements (scripts/measure-target-gap.py),
+            # not executed orders; an empty `tiers:` is a valid result there, and
+            # tests/test_measure_target_gap.py checks their shape.
+            [[ $f == *.generated.yml ]] && continue
             echo "  Checking: $f"
             python3 scripts/parse-build-order.py "$f" --validate
           done

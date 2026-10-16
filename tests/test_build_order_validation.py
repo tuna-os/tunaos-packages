@@ -12,7 +12,13 @@ parser = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(parser)
 
 
-@pytest.mark.parametrize('path', sorted(ROOT.glob('build-order*.yml')) + sorted((ROOT / '.copr').glob('build-order*.yml')))
+# *.generated.yml are shadow measurements (scripts/measure-target-gap.py), not
+# authored orders; tests/test_measure_target_gap.py checks their shape.
+AUTHORED = [path for path in sorted(ROOT.glob('build-order*.yml')) + sorted((ROOT / '.copr').glob('build-order*.yml'))
+            if not path.name.endswith('.generated.yml')]
+
+
+@pytest.mark.parametrize('path', AUTHORED)
 def test_all_authored_manifests_have_real_schema(path):
     parser.validate_manifest(path)
 
@@ -66,11 +72,12 @@ def test_duplicate_yaml_keys_and_tiers_block(tmp_path):
 
 def test_lint_pins_dependencies_and_gates_all_build_orders():
     workflow = yaml.safe_load((ROOT / '.github/workflows/lint.yml').read_text())
-    steps = workflow['jobs']['build-order-validate']['steps']
+    steps = workflow['jobs']['lint']['steps']
     commands = '\n'.join(step.get('run', '') for step in steps)
     assert 'python3 -m pip install -r requirements-ci.txt' in commands
     assert 'build-order*.yml .copr/build-order*.yml' in commands
     assert '--validate' in commands
+    assert '*.generated.yml' in commands
     assert '|| true' not in commands
     assert 'check-jsonschema' not in commands
     assert '/releases/latest/' not in commands
