@@ -45,7 +45,6 @@ import argparse
 import datetime
 import gzip
 import hashlib
-import importlib.util
 import json
 import pathlib
 import sys
@@ -65,17 +64,15 @@ _opener.addheaders = [(
 )]
 urllib.request.install_opener(_opener)
 
+sys.path.insert(0, str(ROOT / "scripts"))
+from module_loader import load_script  # noqa: E402
+
 # gap_engine.py owns the rpm-md machinery (fetch, repomd
 # resolution, primary.xml parsing, srpm name derivation). Import it as a
 # module rather than copying any of it — one implementation of index reading
 # is the point of RFC 011.
-_spec = importlib.util.spec_from_file_location(
-    "mhg", ROOT / "scripts" / "gap_engine.py"
-)
-mhg = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(mhg)
+mhg = load_script("mhg", "gap_engine.py")
 
-sys.path.insert(0, str(ROOT / "scripts"))
 import gentoo_binhost  # noqa: E402
 import published_index as pubidx  # noqa: E402  (needs the path above)
 
