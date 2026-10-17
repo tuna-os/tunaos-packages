@@ -5,9 +5,9 @@ immutable blobs indexed by ActionResults and repository metadata. Over time,
 superseded build waves, unreferenced candidate packages, and test artifacts
 accumulate in storage.
 
-The mark-and-sweep garbage collection subsystem (#430 step 5, #485) measures
-reachability, applies an age grace period, and records tombstones without
-deleting any live objects.
+The subsystem for garbage collection (#430 step 5, #485) measures
+reachability. It applies an age grace period and records tombstones without
+deletion of live objects.
 
 ## Storage Contract
 
@@ -22,39 +22,39 @@ Protected `main` publishers write blobs first and the ActionResult last.
 
 ## Mark Phase
 
-The reachability engine traverses two categories of retained roots:
+The check for reachability reads two categories of retained roots:
 
 1. **Retained ActionResults**: All active ActionResult manifests under
    `actions/sha256/*.json`. Each artifact entry (`name`, `size`, `digest`)
    marks its content blob as reachable.
 2. **Current Repository Metadata**: All package entries in served indexes
    declared by `manifests/package-factory.yaml` (`published_index` for RPM,
-   DEB, and Arch). Any blob matching a served package digest or path is
-   marked as reachable.
+   DEB, and Arch). The engine marks any blob that matches a served package digest or path
+   as reachable.
 
 The union of these two sets forms the complete **reachable blob set**.
 
 ## Sweep Phase (Report-Only)
 
-Any CAS blob not present in the reachable set is identified as **unreachable**.
+The engine classifies any CAS blob not in the reachable set as **unreachable**.
 
 ### Age Grace Period
 
-To protect in-flight builds (where blobs are uploaded before the ActionResult
-manifest is published) and recent build waves:
+To protect in-flight builds (where runners upload blobs before
+manifest publication) and recent build waves:
 
 - Default grace period: **7 days** (604,800 seconds).
 - Configurable via `--grace-period-days` or `--grace-period-seconds`.
-- Blobs younger than the grace period are classified as `grace` (protected).
-- Blobs older than or equal to the grace period are classified as `candidate`
-  (eligible for tombstoning).
+- The report classifies blobs younger than the grace period as `grace` (protected).
+- The report classifies blobs older than or equal to the grace period as `candidate`
+  (eligible for tombstones).
 
 ### Last-Referencing ActionResult Attribution
 
-When historical ActionResults are available, unreachable blobs are matched to
-their last referencing ActionResult. This attributes why the blob was created
-(e.g., a superseded wave of `glib2-2.87.3-1.el10.x86_64.rpm`). Blobs never
-referenced by any ActionResult are flagged as orphans.
+When historical ActionResults are available, the report links unreachable
+blobs to the last ActionResult that references them. This explains why workers
+created the blob (such as a superseded wave of `glib2-2.87.3-1.el10.x86_64.rpm`).
+The report flags blobs that lack an ActionResult as orphans.
 
 ### Tombstone Manifest Format
 
@@ -98,5 +98,5 @@ python3 scripts/cas_gc.py --inventory-lsf inventory.txt \
 ## Safety Policy
 
 1. **Strictly Report-Only**: No delete operations exist in `scripts/cas_gc.py`.
-2. **Destructive Sweep Gating**: Destructive deletion is deferred to a future
+2. **Destructive Sweep Gating**: We defer destructive deletion to a future
    phase after reachability reports run clean across production waves.
