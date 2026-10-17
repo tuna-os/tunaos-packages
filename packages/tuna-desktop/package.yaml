@@ -160,7 +160,9 @@ dependencies:
       # (xorg-xwayland, ibus, greetd, xdg-desktop-portal-gnome, orca, ...) are
       # optdepends upstream; the recipe schema has no optdepends, so the
       # Marlin image installs them itself.
-      arch: [dbus, glib2, gtk4, gtk4-layer-shell, libadwaita, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, systemd-libs, wayland]
+      # The shell and native bell use canberra-gtk-play and the selected
+      # freedesktop event theme; include both in the installed session.
+      arch: [dbus, dconf, glib2, gsettings-desktop-schemas, gtk4, gtk4-layer-shell, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, sound-theme-freedesktop, systemd-libs, wayland]
       # The same depends in Fedora/EL package names. RPM derives the ELF
       # library requirements itself; listing them keeps the version floors
       # and the packages it cannot see: libpam is dlopen()ed by the lock
@@ -206,6 +208,9 @@ install:
     - ln -s tuna-shell-gtk {destdir}/usr/bin/roost-shell-gtk
     - ln -s tuna-ibus-bridge {destdir}/usr/bin/roost-ibus-bridge
     - ln -s tuna-greeter {destdir}/usr/bin/roost-greeter
+  # Requires the final v1 source/vendor pin, whose tree contains this data.
+  directories:
+    - {source: share/tuna-desktop/icons, destination: usr/share/tuna-desktop/icons}
   # Run after `commands`. Ships the private gtk4-layer-shell runtime (the
   # .so.0 link and the library, no headers, .pc or preload shim) and its MIT
   # license, then sets the RUNPATH on exactly the binaries that link it and
@@ -228,6 +233,8 @@ install:
   files:
     - {source: share/wayland-sessions/tuna.desktop, destination: usr/share/wayland-sessions/tuna.desktop}
     - {source: share/systemd/user/tuna-session.target, destination: usr/lib/systemd/user/tuna-session.target}
+    - {source: share/xdg-desktop-portal/portals/tuna.portal, destination: usr/share/xdg-desktop-portal/portals/tuna.portal}
+    - {source: packaging/marlin/tuna-portals.conf, destination: usr/share/xdg-desktop-portal/tuna-portals.conf}
     # Lock-screen PAM service (tuna-desktop#62): unlock under GDM, where no
     # greetd runs.
     - {source: share/pam.d/tuna-lock, destination: etc/pam.d/tuna-lock}
@@ -256,10 +263,13 @@ files:
     - usr/share/wayland-sessions/tuna.desktop
     - usr/share/wayland-sessions/roost.desktop
     - usr/lib/systemd/user/tuna-session.target
+    - usr/share/xdg-desktop-portal/portals/tuna.portal
+    - usr/share/xdg-desktop-portal/tuna-portals.conf
     - etc/pam.d/tuna-lock
     - etc/pam.d/roost-lock
     - usr/share/licenses/tuna-desktop/LICENSE
     - usr/share/doc/tuna-desktop/nested-session.md
+    - usr/share/tuna-desktop/icons
 verify:
   # The real session contract, not just "a binary exists": every one of the
   # six binaries runs and reports the upstream tag minus its v (want=, kept
@@ -286,6 +296,21 @@ verify:
     && test -f /etc/pam.d/tuna-lock
     && test -f /etc/pam.d/roost-lock
     && test -f /usr/lib/systemd/user/tuna-session.target
+    && grep -qx 'DBusName=org.freedesktop.impl.portal.desktop.tuna' /usr/share/xdg-desktop-portal/portals/tuna.portal
+    && grep -qx 'Interfaces=org.freedesktop.impl.portal.Lockdown;' /usr/share/xdg-desktop-portal/portals/tuna.portal
+    && grep -qx 'org.freedesktop.impl.portal.Lockdown=tuna;' /usr/share/xdg-desktop-portal/tuna-portals.conf
+    && grep -qx 'org.freedesktop.impl.portal.Access=gtk;' /usr/share/xdg-desktop-portal/tuna-portals.conf
+    && command -v canberra-gtk-play
+    && gsettings list-schemas | grep -qx org.gnome.desktop.interface
+    && gsettings list-schemas | grep -qx org.gnome.desktop.wm.keybindings
+    && gsettings list-schemas | grep -qx org.gnome.desktop.a11y.keyboard
+    && gsettings list-schemas | grep -qx org.gnome.desktop.privacy
+    && gsettings list-schemas | grep -qx org.gnome.desktop.sound
+    && test -s /usr/share/sounds/freedesktop/stereo/bell.oga
+    && test -s /usr/share/sounds/freedesktop/stereo/audio-volume-change.oga
+    && test -f /usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/default/metadata.json
+    && test -f /usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/wait/metadata.json
+    && test -f /usr/share/tuna-desktop/icons/Adwaita/UPSTREAM.json
 # The ebuild's category in the tunaos overlay: gui-wm/tuna-desktop.
 outputs:
   gpkg:
