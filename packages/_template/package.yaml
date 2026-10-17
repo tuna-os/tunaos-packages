@@ -3,6 +3,9 @@
 # duplicate a whole spec/control/PKGBUILD just to add one dependency.
 schema: 1
 name: example-tool
+# Valid for RPM, Debian and pacman at once: no `-`, `_` or `:`. Write a
+# prerelease as `1.0.0~beta.1`; RPM and Debian use it as-is and Tideforge
+# renders pacman's pkgver as `1.0.0beta.1`. All three sort it before 1.0.0.
 version: "1.0.0"
 release: 1
 summary: Example command-line tool
@@ -36,6 +39,8 @@ dependencies:
     common: [gcc, pkgconf-pkg-config, meson, ninja-build]
     targets:
       el10: [systemd-rpm-macros]
+      alma10: [systemd-rpm-macros]
+      alma10-kitten: [systemd-rpm-macros]
       # Do NOT list debhelper-compat here. render_deb always emits
       # "debhelper-compat (= 13)" itself; a bare entry used to be appended
       # alongside it, and dh reads the unversioned one and aborts with
@@ -69,4 +74,4 @@ verify:
   # targets:
   #   ubuntu:
   #     install_name: libexample-tool0
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

@@ -108,13 +108,26 @@ def test_plan_package_factory_emits_eln_cells():
     )
     assert result.returncode == 0, result.stderr
     data = json.loads(result.stdout)
-    matrices = [json.loads(m) for m in data.get("matrices", [])]
-    cells = [cell for m in matrices for cell in m.get("include", [])]
+    inventory = data['selection_inventory']
+    eln_cells = [cell for cell in inventory if cell.get('target') == 'eln']
+    assert eln_cells, "planner must retain all eln cells"
+    assert {cell['architecture'] for cell in eln_cells} == {'x86_64', 'aarch64'}
+    expected = {cell['id'] for cell in eln_cells}
+    assigned = [batch for batch in data['planned_batches'] if expected.intersection(batch['cells'])]
+    emitted = set()
+    for batch in assigned:
+        result = subprocess.run([sys.executable, 'scripts/plan-package-factory.py',
+            '--batch-index', str(batch['batch_index']), '--selection-digest', data['selection_digest']],
+            cwd=ROOT, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        current = json.loads(result.stdout)
+        assert current['source_revision'] == data['source_revision']
+        cells = [cell for matrix in current['matrices'] for cell in json.loads(matrix)['include']
+                 if 'base_id' not in cell]
+        assert {cell['id'] for cell in cells} == set(batch['cells'])
+        emitted.update(cell['id'] for cell in cells if cell.get('target') == 'eln')
+    assert emitted == expected
 
-    eln_cells = [c for c in cells if c.get("target") == "eln"]
-    assert eln_cells, "planner must emit eln cells"
-    eln_arches = {c.get("architecture") for c in eln_cells}
-    assert eln_arches == {"x86_64", "aarch64"}
 
 
 def test_plan_rpm_publish_eln():

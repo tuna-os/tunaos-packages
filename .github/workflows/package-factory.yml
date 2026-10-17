@@ -1,4 +1,5 @@
 name: Package Factory
+run-name: Package Factory ${{ github.event.inputs.parent_run_id && format('batch {0} for {1}', github.event.inputs.batch_index, github.event.inputs.parent_run_id) || github.event_name }}
 
 on:
   # `closed` added alongside the default [opened, synchronize, reopened] so a
@@ -49,6 +50,27 @@ on:
         description: Optional target=, family=, engine=, or architecture= filter
         required: false
         type: string
+      batch_index:
+        description: Deterministic batch index from a complete factory selection
+        required: false
+        default: '0'
+        type: string
+      source_revision:
+        description: Exact source commit required by a dispatched batch
+        required: false
+        type: string
+      selection_digest:
+        description: Complete source-bound selection digest
+        required: false
+        type: string
+      parent_run_attempt:
+        description: Exact attempt of the parent factory run
+        required: false
+        type: string
+      parent_run_id:
+        description: Parent factory run that requested this batch
+        required: false
+        type: string
 
 # The scheduled full-family run gets its OWN group and is never cancelled.
 #
@@ -94,8 +116,9 @@ concurrency:
     package-factory-${{ github.event_name == 'schedule'
       && format('schedule-{0}', github.event.schedule)
       || github.event_name == 'workflow_dispatch'
-      && format('dispatch-{0}-{1}-{2}', github.ref,
-                github.event.inputs.cell, github.event.inputs.selector)
+      && format('dispatch-{0}-{1}-{2}-{3}-{4}', github.ref,
+                github.event.inputs.cell, github.event.inputs.selector,
+                github.event.inputs.batch_index, github.event.inputs.parent_run_id)
       || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
@@ -120,21 +143,26 @@ permissions:
 
 jobs:
   plan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       count: ${{ steps.plan.outputs.count }}
       matrix_0: ${{ steps.plan.outputs.matrix_0 }}
       matrix_1: ${{ steps.plan.outputs.matrix_1 }}
       matrix_2: ${{ steps.plan.outputs.matrix_2 }}
+      count_0: ${{ steps.plan.outputs.count_0 }}
       count_1: ${{ steps.plan.outputs.count_1 }}
       count_2: ${{ steps.plan.outputs.count_2 }}
+      batch_index: ${{ steps.plan.outputs.batch_index }}
+      batch_count: ${{ steps.plan.outputs.batch_count }}
+      selection_digest: ${{ steps.plan.outputs.selection_digest }}
+      source_revision: ${{ steps.plan.outputs.source_revision }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install pyyaml==6.0.3
       - name: Collect changed paths
         env:
@@ -153,7 +181,13 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_ACTION: ${{ github.event.action || '' }}
           SCHEDULE: ${{ github.event.schedule || '' }}
+          REQUESTED_REVISION: ${{ inputs.source_revision || '' }}
+          BATCH_INDEX: ${{ inputs.batch_index || '0' }}
+          SELECTION_DIGEST: ${{ inputs.selection_digest || '' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          RUN_NUMBER: ${{ github.run_number }}
+          # Shared-input cells built per PR push; 0 builds them all.
+          ROUND_ROBIN_SIZE: ${{ vars.PACKAGE_FACTORY_ROUND_ROBIN_SIZE || '3' }}
         run: |
           set -euo pipefail
           # This run's only job is to occupy the refs/pull/N/merge concurrency
@@ -176,6 +210,11 @@ jobs:
             exit 0
           fi
           args=(--github-output "$GITHUB_OUTPUT")
+          if [ -n "$REQUESTED_REVISION" ]; then
+            [[ "$REQUESTED_REVISION" =~ ^[0-9a-f]{40}$ ]] && [ "$REQUESTED_REVISION" = "$GITHUB_SHA" ]
+          fi
+          args+=(--batch-index "$BATCH_INDEX")
+          [ -z "$SELECTION_DIGEST" ] || args+=(--selection-digest "$SELECTION_DIGEST")
           [ ! -f changed-files.txt ] || args+=(--changed-files changed-files.txt)
           [ -z "${BASE_SHA:-}" ] || args+=(--base "$BASE_SHA")
           [ -z "$REQUESTED_CELL" ] || args+=(--cell "$REQUESTED_CELL")
@@ -210,8 +249,39 @@ jobs:
           case "$EVENT_NAME" in
             pull_request|merge_group|push) args+=(--canary-common) ;;
           esac
+          # A pull request that touches shared code (scripts/tideforge.py, the
+          # cell workflow, build-chain.sh, a format adapter) selects one canary
+          # per family or target: 12-17 cells per push, each covering the same
+          # diff. Build ROUND_ROBIN_SIZE of them, rotated by run number; cells
+          # whose own recipe, manifest or sources changed always build. The
+          # push to main plans the whole canary set, so a deferred cell still
+          # builds on merge, and the weekly schedule builds every family.
+          if [ "$EVENT_NAME" = pull_request ]; then
+            args+=(--round-robin-size "$ROUND_ROBIN_SIZE" --round-robin-seed "$RUN_NUMBER")
+          fi
           [ -z "$REQUESTED_SELECTOR" ] || args+=(--selector "$REQUESTED_SELECTOR")
-          python3 scripts/plan-package-factory.py "${args[@]}"
+          python3 scripts/plan-package-factory.py "${args[@]}" > factory-plan.json
+          cat factory-plan.json
+      - name: Retain complete batch inventory
+        if: steps.plan.outputs.count != '0'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: factory-plan-${{ steps.plan.outputs.batch_index }}-attempt${{ github.run_attempt }}
+          path: factory-plan.json
+      - name: Dispatch remaining pinned batches
+        if: steps.plan.outputs.batch_count != '1' && steps.plan.outputs.batch_index == '0' && steps.plan.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_CELL: ${{ inputs.cell || '' }}
+          REQUESTED_SELECTOR: ${{ inputs.selector || '' }}
+        run: python3 scripts/factory-batches.py dispatch --plan factory-plan.json
+      - name: Retain dispatched batch identities
+        if: always() && steps.plan.outputs.batch_count != '1' && steps.plan.outputs.batch_index == '0' && steps.plan.outputs.count != '0'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: factory-batch-dispatch-attempt${{ github.run_attempt }}
+          path: factory-batch-dispatch.json
+          if-no-files-found: error
 
   build-0:
     needs: plan
@@ -248,9 +318,17 @@ jobs:
     name: Package factory gate
     if: ${{ always() }}
     needs: [plan, build-0, build-1, build-2]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Require every dispatched batch
+        if: needs.plan.outputs.batch_count != '1' && needs.plan.outputs.batch_index == '0' && needs.plan.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_REVISION: ${{ needs.plan.outputs.source_revision }}
+          SELECTION_DIGEST: ${{ needs.plan.outputs.selection_digest }}
+          BATCH_COUNT: ${{ needs.plan.outputs.batch_count }}
+        run: python3 scripts/factory-batches.py verify
       # Every occupied shard must pass, with one exception the shard results
       # alone cannot express: build-1 and build-2 carry CONTINUATIONS of
       # build-0's full-chain cells, and a continuation resumes its
@@ -276,7 +354,7 @@ jobs:
         env:
           PLAN: ${{ needs.plan.result }}
           COUNT: ${{ needs.plan.outputs.count || '0' }}
-          COUNT_0: ${{ needs.plan.outputs.count || '0' }}
+          COUNT_0: ${{ needs.plan.outputs.count_0 || '0' }}
           COUNT_1: ${{ needs.plan.outputs.count_1 || '0' }}
           COUNT_2: ${{ needs.plan.outputs.count_2 || '0' }}
           SHARD_0: ${{ needs.build-0.result }}
@@ -292,3 +370,20 @@ jobs:
             --count-0 "$COUNT_0" --result-0 "$SHARD_0" --matrix-0 "$MATRIX_0" \
             --count-1 "$COUNT_1" --result-1 "$SHARD_1" --matrix-1 "$MATRIX_1" \
             --count-2 "$COUNT_2" --result-2 "$SHARD_2" --matrix-2 "$MATRIX_2"
+      - name: Retain batch result
+        if: always() && needs.plan.result == 'success' && needs.plan.outputs.count != '0'
+        env:
+          SOURCE_REVISION: ${{ needs.plan.outputs.source_revision }}
+          SELECTION_DIGEST: ${{ needs.plan.outputs.selection_digest }}
+          BATCH_INDEX: ${{ needs.plan.outputs.batch_index }}
+          BATCH_COUNT: ${{ needs.plan.outputs.batch_count }}
+          PARENT_RUN_ID: ${{ inputs.parent_run_id || github.run_id }}
+          PARENT_RUN_ATTEMPT: ${{ inputs.parent_run_attempt || github.run_attempt }}
+          BATCH_STATUS: ${{ job.status }}
+        run: python3 scripts/factory-batches.py result
+      - name: Upload batch result
+        if: always() && needs.plan.result == 'success' && needs.plan.outputs.count != '0'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: factory-batch-result-${{ needs.plan.outputs.batch_index }}-attempt${{ github.run_attempt }}
+          path: factory-batch-result.json

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 
 import yaml
 
@@ -100,12 +100,18 @@ def main() -> None:
     for target_id, target in targets.items():
         if target.get("status") not in {"supported", "scaffold"}:
             fail(f"{target_id}: status must be supported or scaffold")
-        for field in ("format", "architectures", "r2_path", "repository", "probe_image"):
+        for field in ("format", "architectures", "r2_path", "repository"):
             if not target.get(field):
                 fail(f"{target_id}: {field} is required")
-        if "/" not in target["probe_image"]:
-            fail(f"{target_id}: probe_image must be a fully-qualified container image")
-        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/", "hummingbird/", "xfce/")):
+        from target_platform import build_context
+        for architecture in target["architectures"]:
+            try:
+                context = build_context(target, architecture)
+            except ValueError as exc:
+                fail(f"{target_id}: {exc}")
+            if "/" not in context["image"]:
+                fail(f"{target_id}: probe image must be a fully-qualified container image")
+        if not target["r2_path"].startswith(("rpm/", "apt/", "pacman/", "gentoo/", "hummingbird/", "xfce/")):
             fail(f"{target_id}: r2_path has an unsupported namespace")
         if not all(arch in {"x86_64", "aarch64", "amd64", "arm64"} for arch in target["architectures"]):
             fail(f"{target_id}: unsupported architecture")

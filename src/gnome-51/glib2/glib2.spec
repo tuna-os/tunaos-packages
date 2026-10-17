@@ -1,5 +1,5 @@
 Name:           glib2
-Version:        2.89.4
+Version:        2.90.0
 # EL10: manual Release, not %%autorelease. Two reasons:
 #  1. rpmautospec macros aren't guaranteed in our buildroot.
 #  2. The full build's Release must stay ahead of glib2-bootstrap.spec's
@@ -9,7 +9,7 @@ Version:        2.89.4
 #     bootstrap glib2-devel -- which ships no gir files -- stays in the
 #     buildroot. Every introspection-generating package then fails on
 #     "Couldn't find include 'GObject-2.0.gir'". Keep this > bootstrap's.
-Release:        3%{?dist}
+Release:        2%{?dist}
 Summary:        A library of handy utility functions
 
 License:        LGPL-2.1-or-later
@@ -17,7 +17,7 @@ URL:            https://www.gtk.org
 # Rawhide spells this with %%{gnome_major_minor_version}; that macro isn't
 # defined in our buildroot (not shipped by any package we pull in), so we
 # keep the version component literal.
-Source0:        https://download.gnome.org/sources/glib/2.89/glib-%{version}.tar.xz
+Source0:        https://download.gnome.org/sources/glib/2.90/glib-%{version}.tar.xz
 
 # Required for RHEL core crypto components policy. Good for Fedora too.
 # https://bugzilla.redhat.com/show_bug.cgi?id=1630260
@@ -273,6 +273,9 @@ glib-compile-schemas %{_datadir}/glib-2.0/schemas &> /dev/null || :
 %{_libdir}/libgthread-2.0.a
 
 %changelog
+* Sat Oct 03 2026 unknown <unknown@users.noreply.github.com> - 2.90.0-2
+- Update to the GNOME 51 stable release
+
 * Fri Aug 28 2026 James Reilly <jreilly1821@gmail.com> - 2.89.4-3
 - Re-fork against Fedora Rawhide's current glib2.spec (fetched
   2026-08-28) to stop this spec from drifting silently. No version or

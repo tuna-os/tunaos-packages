@@ -3,9 +3,6 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 
-import yaml
-
-
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
     "planner", ROOT / "scripts" / "plan-package-factory.py"
@@ -119,6 +116,21 @@ def test_unused_dependency_catalog_change_selects_nothing(tmp_path):
     assert selected == []
 
 
+def test_recipe_changed_with_the_catalog_still_builds_every_target(tmp_path):
+    # A new target lands as a catalog mapping plus the recipe that uses it;
+    # the recipe's other targets must gate too, not only the remapped one.
+    root = repo(tmp_path)
+    selected = planner.select_cells(
+        planner.all_cells(root),
+        ["manifests/package-factory.yaml", "packages/demo/package.yaml"],
+        changed_targets=set(),
+        changed_capabilities={("cmake", "debian")},
+    )
+    assert {(cell["package"], cell["target"]) for cell in selected} == {
+        ("demo", "el10"), ("demo", "debian")
+    }
+
+
 def test_every_matrix_row_has_the_same_schema(tmp_path):
     cells = planner.all_cells(repo(tmp_path))
     assert len({tuple(sorted(cell)) for cell in cells}) == 1
@@ -157,6 +169,23 @@ def test_explicit_canary_wins_over_alphabetical_order(tmp_path):
     selected = planner.canary_cells(planner.all_cells(root))
     tideforge = [cell for cell in selected if cell["engine"] == "tideforge"]
     assert {cell["package"] for cell in tideforge} == {"demo"}
+
+
+def test_recipe_changed_with_shared_code_still_builds_its_cells(tmp_path):
+    # The canary for each contract covers the shared code; it does not cover
+    # a recipe that changed in the same diff and is not the canary.
+    root = repo(tmp_path)
+    other = root / "packages" / "aaa" / "package.yaml"
+    other.parent.mkdir()
+    other.write_text("name: aaa\ntargets: [el10, debian]\n")
+    selected = planner.select_cells(
+        planner.all_cells(root),
+        ["scripts/tideforge.py", "packages/aaa/package.yaml"],
+        canary_common=True,
+    )
+    tideforge = [(cell["package"], cell["target"]) for cell in selected if cell["engine"] == "tideforge"]
+    assert sorted(tideforge) == [("aaa", "debian"), ("aaa", "el10"), ("demo", "debian"), ("demo", "el10")]
+    assert len({cell["id"] for cell in selected}) == len(selected)
 
 
 def test_native_canary_scope_has_a_distinct_identity(tmp_path):

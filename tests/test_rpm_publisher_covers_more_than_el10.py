@@ -24,6 +24,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -149,6 +150,23 @@ def test_each_arch_builds_and_verifies_on_its_own_native_runner():
         "x86_64": "ubuntu-latest", "aarch64": "ubuntu-24.04-arm"}
 
 
+def test_a_path_without_arch_is_published_only_by_the_arch_it_serves():
+    """fedora's r2_path is xfce/44-x86_64. aarch64 RPMs synced there would
+    land in the x86_64 repository."""
+    rows = publish_rows(planned("--target", "fedora", "--packages", "tuna-desktop", "--arches", "x86_64"))
+    assert rows["x86_64"]["src"] == "xfce/44-x86_64"
+    assert rows["x86_64"]["served"] == "https://repo.tunaos.org/xfce/44-x86_64/"
+    result = run("--target", "fedora", "--packages", "tuna-desktop", "--arches", "x86_64,aarch64")
+    assert result.returncode != 0
+    assert "refusing to publish ['aarch64']" in result.stderr
+
+
+def test_eln_publishes_each_arch_to_its_own_contract_path():
+    rows = publish_rows(planned("--target", "eln", "--packages", "tuna-desktop"))
+    assert {arch: row["src"] for arch, row in rows.items()} == {
+        "x86_64": "rpm/eln/x86_64", "aarch64": "rpm/eln/aarch64"}
+
+
 WORKFLOW = ROOT / ".github" / "workflows" / "publish-tideforge-rpms.yml"
 
 
@@ -213,6 +231,11 @@ def test_the_verify_job_speaks_each_targets_package_manager():
     assert "zypper" not in dnf
     assert 'rpm -q $(echo "$PACKAGES"' in dnf, (
         "the rpm -q proof sits after the branch, common to both managers")
+    # fedora and eln have no epel-release package and no crb repository.
+    el10, _, rest = dnf.partition("fi\n")
+    assert 'TARGET" == el10' in el10.replace("$", "")
+    assert "epel-release" in el10 and "crb" in el10
+    assert "epel-release" not in rest and "crb" not in rest
 
 
 def test_the_target_is_a_dispatch_input_defaulting_to_el10():
@@ -220,3 +243,41 @@ def test_the_target_is_a_dispatch_input_defaulting_to_el10():
     triggers = spec[True] if True in spec else spec["on"]
     target = triggers["workflow_dispatch"]["inputs"]["target"]
     assert target["default"] == "el10"
+
+
+@pytest.mark.parametrize("target", ["alma10", "alma10-kitten"])
+@pytest.mark.parametrize("arch", ["x86_64", "aarch64"])
+def test_candidate_target_cannot_emit_production_matrix(target, arch, tmp_path):
+    output = tmp_path / "github-output"
+    result = run("--target", target, "--packages", "cosmic-icon-theme",
+                 "--arches", arch, "--github-output", str(output))
+    assert result.returncode != 0
+    assert "candidate-only" in result.stderr
+    assert result.stdout == ""
+    assert not output.exists()
+
+
+def test_rpm_secret_job_cannot_run_after_refused_plan():
+    jobs = workflow()["jobs"]
+    assert "plan" in jobs["publish"]["needs"]
+    # Default dependency success admission; an always()/failure() override
+    # would let this job acquire production credentials after plan refusal.
+    assert jobs["publish"].get("if", "success()") == "success()"
+    assert "secrets.GPG_PRIVATE_KEY" not in str(jobs["plan"])
+    assert "secrets.R2_ACCESS_KEY_ID" not in str(jobs["plan"])
+    assert "scripts/plan-rpm-publish.py" in str(jobs["plan"])
+
+
+@pytest.mark.parametrize("destination", ["rpm/alma10/{arch}", "rpm/alma10-kitten/{arch}"])
+def test_rpm_target_alias_cannot_publish_into_candidate_namespace(monkeypatch, destination):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("rpm_alias_guard", PLANNER)
+    planner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(planner)
+    monkeypatch.setattr(planner.publisher_contract, "target", lambda *_: {
+        "probe_image": "qualified-image", "architectures": ["x86_64"],
+        "r2_path": destination,
+    })
+    with pytest.raises(SystemExit, match="candidate-only"):
+        planner.plan("el10", ["libunwind-devel"], ["x86_64"])

@@ -4,18 +4,15 @@ Tests the build orchestration logic with mocked subprocess and file I/O.
 """
 
 import json
-import os
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock, mock_open
-
-import pytest
+from unittest.mock import patch
 
 # Add project root to sys.path for importing check_tiers
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import check_tiers
+import check_tiers  # noqa: E402 -- needs the sys.path insert above
 
 
 class TestGetPkgName:

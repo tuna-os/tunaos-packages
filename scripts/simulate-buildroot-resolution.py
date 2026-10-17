@@ -65,7 +65,6 @@ import collections
 import fnmatch
 import gzip
 import importlib.util
-import io
 import json
 import pathlib
 import re

@@ -25,6 +25,7 @@ fs = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(fs)
 
 import sys  # noqa: E402
+
 sys.path.insert(0, str(ROOT / "scripts"))
 import published_index as pubidx  # noqa: E402
 
@@ -136,8 +137,8 @@ def test_render_names_generation_and_counts(tmp_path):
 
 def test_repo_manifests_pass_check_structure():
     """The real package-factory.yaml stays consistent with the tool's rules:
-    every published_index target uses a readable format (rpm-md or flat
-    apt), every arch is declared, every URL scheme is supported. Runs the
+    every published_index target uses a readable format (rpm-md, flat
+    apt or Portage binhost), every arch is declared, every URL scheme is supported. Runs the
     same code path CI's drift check uses."""
     factory = fs.load_yaml(ROOT / "manifests" / "package-factory.yaml")
     measured = [t for t, spec in factory["targets"].items()
@@ -145,10 +146,31 @@ def test_repo_manifests_pass_check_structure():
     assert measured, "no target declares a published_index"
     for target_id in measured:
         spec = factory["targets"][target_id]
-        assert spec["format"] in ("rpm", "deb")
+        assert spec["format"] in ("rpm", "deb", "gpkg")
         for arch, declared in spec["published_index"].items():
             assert arch in spec["architectures"], (target_id, arch)
             resolved = pubidx.normalise(declared)
             assert resolved, (target_id, arch, "declared but empty")
             for url in resolved:
                 assert url.startswith("https://"), (target_id, url)
+
+
+def test_gpkg_measurement_matches_atom_and_recipe_names(tmp_path):
+    repo = tmp_path / "binhost"
+    repo.mkdir()
+    raw = b"PACKAGES: 1\nVERSION: 0\n\nCPV: gui-wm/tuna-desktop-1.0.0_beta1\n\n"
+    (repo / "Packages").write_bytes(raw)
+    factory = {"targets": {"gentoo": {
+        "format": "gpkg",
+        "architectures": ["amd64"],
+        "published_index": {"amd64": repo.as_uri()},
+    }}}
+    catalog = {"packages": [
+        {"name": name, "targets": ["gentoo"]}
+        for name in ("tuna-desktop", "gui-wm/tuna-desktop", "missing")
+    ]}
+    report = fs.measure(catalog, factory, tmp_path / "cache")
+    measured = report["targets"]["gentoo"]["amd64"]
+    assert measured["built"] == ["gui-wm/tuna-desktop", "tuna-desktop"]
+    assert measured["needed"] == ["missing"]
+    assert measured["indexes"][0]["packages_sha256"] == hashlib.sha256(raw).hexdigest()

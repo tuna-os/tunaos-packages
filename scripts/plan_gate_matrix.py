@@ -263,14 +263,14 @@ def main(argv=None) -> int:
     changed = None
     if args.changed_files:
         try:
-            changed = [l for l in args.changed_files.read_text().splitlines() if l.strip()]
+            changed = [line for line in args.changed_files.read_text().splitlines() if line.strip()]
         except OSError as exc:
             print(f"plan-gate-matrix: cannot read {args.changed_files} ({exc}); building everything",
                   file=sys.stderr)
     proven = set()
     if args.proven:
         try:
-            proven = {l.strip() for l in args.proven.read_text().splitlines() if l.strip()}
+            proven = {line.strip() for line in args.proven.read_text().splitlines() if line.strip()}
         except OSError as exc:
             print(f"plan-gate-matrix: cannot read {args.proven} ({exc}); proving nothing",
                   file=sys.stderr)

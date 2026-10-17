@@ -27,17 +27,17 @@
 # - "`"  and "'" inside comments are not ignored
 # - \t is always used for indentation - may result in mixture of spaces and tabs
 
-import sys
 import os
 import re
+import sys
 
 if len(sys.argv) < 1:
-    print(("Usage: {} <policy>.if > <output>.if").format(sys.argv[0]), file=sys.stderr)
+    print((f"Usage: {sys.argv[0]} <policy>.if > <output>.if"), file=sys.stderr)
     exit(os.EX_USAGE)
 
 # ending index of interface
 end = 0
-with open(sys.argv[1], 'r') as f:
+with open(sys.argv[1]) as f:
     interfaces = f.read()
     file_len = len(interfaces)
 
@@ -59,7 +59,7 @@ with open(sys.argv[1], 'r') as f:
         while i < file_len:
             match = reg.search(interfaces, i)
             if not match:
-                print("Malformed interface: {}".format(name), file=sys.stderr)
+                print(f"Malformed interface: {name}", file=sys.stderr)
                 exit(1)
 
             i = match.end()
@@ -75,6 +75,6 @@ with open(sys.argv[1], 'r') as f:
         # interface ends in "')" -- add 1 for the edning bracket
         end = i+1
         # print the whole interface enclosed in "ifndef"
-        print("ifndef(`{}',`".format(name))
+        print(f"ifndef(`{name}',`")
         print('\n'.join([('\t' + x) if x else x for x in interfaces[start:end].split('\n')]))
         print("')", end ="")

@@ -20,6 +20,8 @@ dependencies:
     # its own complete toolchain.
     targets:
       el10: [cmake, gcc-c++]
+      alma10: [cmake, gcc-c++]
+      alma10-kitten: [cmake, gcc-c++]
       ubuntu: [cmake, g++]
       debian: [cmake, g++]
       opensuse-tumbleweed: [cmake, gcc-c++]
@@ -31,4 +33,4 @@ files:
   common: [usr/bin/ninja]
 verify:
   smoke: ninja --version
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

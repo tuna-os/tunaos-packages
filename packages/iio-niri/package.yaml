@@ -21,6 +21,8 @@ dependencies:
     common: [cargo, rust]
     targets:
       el10: [gcc, pkgconfig, dbus-devel]
+      alma10: [gcc, pkgconfig, dbus-devel]
+      alma10-kitten: [gcc, pkgconfig, dbus-devel]
       ubuntu: [debhelper-compat, pkg-config, libdbus-1-dev]
       debian: [debhelper-compat, pkg-config, libdbus-1-dev]
       opensuse-tumbleweed: [gcc, pkg-config, dbus-1-devel]
@@ -31,4 +33,4 @@ files:
   common: [usr/bin/iio-niri]
 verify:
   smoke: "iio-niri --help"
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch]
+targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

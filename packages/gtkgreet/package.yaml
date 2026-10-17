@@ -19,9 +19,19 @@ dependencies:
     common: [meson, ninja-build, pkg-config, gettext, scdoc]
     targets:
       el10: [gcc, gtk3-devel, json-c-devel, gtk-layer-shell-devel]
+      alma10: [gcc, gtk3-devel, json-c-devel, gtk-layer-shell-devel]
+      alma10-kitten: [gcc, gtk3-devel, json-c-devel, gtk-layer-shell-devel]
+      # ELN ships every gtkgreet dependency except gtkgreet itself:
+      # gtk-layer-shell-devel, greetd, cage and scdoc come from eln-extras,
+      # gtk3-devel and json-c-devel from eln-appstream (measured in
+      # eln-bootc). Nothing here resolves from the factory's eln index.
+      eln: [gcc, gtk3-devel, json-c-devel, gtk-layer-shell-devel]
   runtime:
     targets:
       el10: [greetd, cage]
+      alma10: [greetd, cage]
+      alma10-kitten: [greetd, cage]
+      eln: [greetd, cage]
 files:
   common:
     - usr/bin/gtkgreet
@@ -29,4 +39,4 @@ files:
     - usr/share/locale/*/LC_MESSAGES/gtkgreet.mo
 verify:
   smoke: "gtkgreet --help"
-targets: [el10]
+targets: [el10, alma10, alma10-kitten, eln]

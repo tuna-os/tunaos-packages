@@ -10,13 +10,14 @@ import pathlib
 import re
 import sys
 import time
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import consumer_contract
 import factory_contract  # noqa: E402  (needs the path above)
-
 
 SCHEMA = 1
 DEFAULT_LEASE_TTL = 2400
@@ -30,7 +31,8 @@ COMMON_RENDERERS = (
 FORMAT_RENDERERS = {
     "deb": ("scripts/assemble-deb-source-tree.py",),
     "rpm": (),
-    "pkg.tar.zst": (),
+    "pkg.tar.zst": ("scripts/arch-native-policy.sh",),
+    "gpkg": ("scripts/gentoo-build-cell.sh",),
 }
 
 
@@ -149,6 +151,8 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         raise SystemExit("SOURCE_DATE_EPOCH must be a positive integer")
 
     renderers = renderer_paths(target)
+    if args.target in {"alma10", "alma10-kitten"}:
+        renderers += ("scripts/run-alma-rpm.sh", "scripts/alma-compiler-policy.sh", "scripts/target_platform.py")
     renderer_digests = {}
     for relative in renderers:
         path = root / relative
@@ -160,7 +164,7 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     for key in dependency_keys:
         require_sha256(key, "dependency action key")
 
-    return {
+    result = {
         "schema": SCHEMA,
         "recipe": {
             "path": relative_recipe_path(recipe, root),
@@ -179,6 +183,7 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
             "source_date_epoch": int(args.source_date_epoch),
         },
     }
+    return attach_consumer_inputs(result, args, factory)
 
 
 def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
@@ -257,13 +262,17 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
     native_renderers = ["scripts/build-chain.sh", "scripts/run-package-factory-cell.sh"]
     if "distgit:" in pathlib.Path(args.manifest).read_text(encoding="utf-8"):
         native_renderers.append("scripts/import-fedora-distgit.py")
+    if args.target in {"alma10", "alma10-kitten"}:
+        native_renderers.append("scripts/candidate-rpm-repository.py")
+        native_renderers.append("scripts/alma-rpmbuild-guard.py")
+        native_renderers.extend(("scripts/alma-candidate-snapshot.py", "scripts/alma-candidate-resume.py", "scripts/github_api.py"))
     renderer_inputs = {}
     for relative in native_renderers:
         path = root / relative
         if not path.is_file():
             raise SystemExit(f"renderer input does not exist: {relative}")
         renderer_inputs[relative] = digest_file(path)
-    return {
+    result = {
         "schema": SCHEMA,
         "identity": args.identity,
         "native_inputs": sorted(inputs, key=lambda entry: entry["path"]),
@@ -275,6 +284,21 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
         "dependency_action_keys": [],
         "reproducibility": {"contract": 1, "source_date_epoch": int(args.source_date_epoch)},
     }
+    return attach_consumer_inputs(result, args, factory)
+
+
+def attach_consumer_inputs(result: dict, args: argparse.Namespace, factory: dict) -> dict:
+    path = getattr(args, "consumer_bindings", None)
+    if path:
+        document = consumer_contract.read_json(path)
+        if set(document) != {"bindings"}:
+            raise SystemExit("invalid consumer bindings document")
+        try:
+            result["consumer_bindings"] = factory_contract.consumer_binding_inputs(
+                document["bindings"], factory, args.target, args.arch)
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+    return result
 
 
 def action_key(inputs: dict[str, Any]) -> str:
@@ -304,12 +328,51 @@ def create_result(key: str, paths: Iterable[pathlib.Path]) -> dict[str, Any]:
     return {"schema": SCHEMA, "action_key": key, "artifacts": artifacts}
 
 
-def verify_result(result: dict[str, Any], artifact_dir: pathlib.Path, expected_key: str | None = None) -> None:
+def load_quarantine(path: pathlib.Path | None = None) -> list[dict[str, Any]]:
+    manifest = path or (pathlib.Path("manifests/reproducibility-quarantine.yaml"))
+    if not manifest.is_file():
+        return []
+    try:
+        data = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+        entries = data.get("quarantined_packages")
+        return entries if isinstance(entries, list) else []
+    except (yaml.YAMLError, OSError):
+        return []
+
+
+def is_quarantined(
+    package: str,
+    target: str | None = None,
+    arch: str | None = None,
+    path: pathlib.Path | None = None,
+) -> bool:
+    for entry in load_quarantine(path):
+        if not isinstance(entry, dict) or entry.get("package") != package:
+            continue
+        if target and entry.get("target") and entry.get("target") != target:
+            continue
+        if arch and entry.get("architecture") and entry.get("architecture") != arch:
+            continue
+        return True
+    return False
+
+
+def verify_result(
+    result: dict[str, Any],
+    artifact_dir: pathlib.Path,
+    expected_key: str | None = None,
+    quarantine_manifest: pathlib.Path | None = None,
+    package: str | None = None,
+    target: str | None = None,
+    arch: str | None = None,
+) -> None:
     if result.get("schema") != SCHEMA:
         raise SystemExit("unsupported ActionResult schema")
     key = require_sha256(str(result.get("action_key", "")), "action key")
     if expected_key and key != require_sha256(expected_key, "expected action key"):
         raise SystemExit("ActionResult key does not match the requested action")
+    if package and is_quarantined(package, target, arch, quarantine_manifest):
+        raise SystemExit(f"recipe is quarantined due to reproducibility divergence: {package}")
     entries = result.get("artifacts")
     if not isinstance(entries, list) or not entries:
         raise SystemExit("ActionResult must contain a non-empty artifacts list")
@@ -574,6 +637,7 @@ def main() -> int:
     key_parser.add_argument("--image", required=True)
     key_parser.add_argument("--source-date-epoch", required=True, type=int)
     key_parser.add_argument("--dependency-key", action="append", default=[])
+    key_parser.add_argument("--consumer-bindings")
 
     native_parser = commands.add_parser("native-key")
     native_parser.add_argument("--identity", required=True)
@@ -589,6 +653,7 @@ def main() -> int:
     native_parser.add_argument("--arch", required=True)
     native_parser.add_argument("--image", required=True)
     native_parser.add_argument("--source-date-epoch", required=True, type=int)
+    native_parser.add_argument("--consumer-bindings")
 
     result_parser = commands.add_parser("result")
     result_parser.add_argument("--action-key", required=True)
@@ -598,6 +663,16 @@ def main() -> int:
     verify_parser.add_argument("--result", required=True)
     verify_parser.add_argument("--artifact-dir", required=True)
     verify_parser.add_argument("--expected-action-key")
+    verify_parser.add_argument("--package")
+    verify_parser.add_argument("--target")
+    verify_parser.add_argument("--arch")
+    verify_parser.add_argument("--quarantine", type=pathlib.Path)
+
+    quar_parser = commands.add_parser("quarantine-check")
+    quar_parser.add_argument("--package", required=True)
+    quar_parser.add_argument("--target")
+    quar_parser.add_argument("--arch")
+    quar_parser.add_argument("--quarantine", type=pathlib.Path)
 
     path_parser = commands.add_parser("r2-path")
     path_parser.add_argument("--action-key", required=True)
@@ -656,8 +731,20 @@ def main() -> int:
         print(json.dumps(create_result(args.action_key, map(pathlib.Path, args.artifact)), sort_keys=True))
     elif args.command == "verify":
         result = json.loads(pathlib.Path(args.result).read_text(encoding="utf-8"))
-        verify_result(result, pathlib.Path(args.artifact_dir), args.expected_action_key)
+        verify_result(
+            result,
+            pathlib.Path(args.artifact_dir),
+            args.expected_action_key,
+            quarantine_manifest=args.quarantine,
+            package=args.package,
+            target=args.target,
+            arch=args.arch,
+        )
         print("verified " + result["action_key"])
+    elif args.command == "quarantine-check":
+        quarantined = is_quarantined(args.package, args.target, args.arch, args.quarantine)
+        print("quarantined" if quarantined else "not quarantined")
+        return 0 if quarantined else 1
     elif args.command == "r2-path":
         print(result_path(args.action_key))
     elif args.command == "blob-path":

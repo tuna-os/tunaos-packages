@@ -1,4 +1,4 @@
-%global tarball_version 51.beta
+%global tarball_version 51.0
 %global major_version 51
 
 %if 0%{?rhel}
@@ -8,8 +8,8 @@
 %endif
 
 Name:           gnome-shell
-Version:        51~beta
-Release:        1%{?dist}
+Version:        51.0
+Release:        2%{?dist}
 Summary:        Window management and application launching for GNOME
 
 License:        GPL-2.0-or-later
@@ -38,7 +38,7 @@ Patch: gnome-shell-favourite-apps-firefox.patch
 %define gjs_version 1.85.90
 %define gtk4_version 4.0.0
 %define adwaita_version 1.5.0
-%define mutter_version 51~beta
+%define mutter_version 51.0
 # Lock the runtime mutter to the exact build the shell was compiled against.
 # mutter ships GObject-Introspection typelibs whose API can change behind a stable
 # version and SONAME (the el10 keymap backport in mutter-49.4-6 did exactly this on
@@ -48,7 +48,7 @@ Patch: gnome-shell-favourite-apps-firefox.patch
 # mutter is not installed, e.g. when the spec is parsed outside a buildroot. See issue #27.
 %global mutter_dep %(rpm -q --qf '= %%{version}-%%{release}' mutter 2>/dev/null | grep -q '^= ' && rpm -q --qf '= %%{version}-%%{release}' mutter || echo '>= %{mutter_version}')
 %define polkit_version 0.100
-%define gsettings_desktop_schemas_version 51~beta
+%define gsettings_desktop_schemas_version 51.0
 %define ibus_version 1.5.2
 %define gnome_bluetooth_version 1:42.3
 %define gstreamer_version 1.4.5
@@ -178,13 +178,9 @@ Obsoletes:      python2-caribou < 0.4.21-10
 Obsoletes:      python3-caribou < 0.4.21-10
 %endif
 
-# EL10 ships a gnome-shell-common subpackage at version 48.x. This COPR
-# rebuilds gnome-shell as a monolithic package (no split common/) at v50,
-# so the shared data files (org.gnome.shell.gschema.xml, locale files,
-# etc.) now live in gnome-shell itself. Obsolete the older split package
-# so DNF auto-replaces it instead of aborting with a file-conflict.
-Obsoletes:      gnome-shell-common < %{major_version}
-Provides:       gnome-shell-common = %{version}-%{release}
+# The common subpackage owns the GSettings XML files. The main package must
+# require that RPM, not provide its name itself: a self-provider lets DNF
+# omit the schemas and GDM cannot start a session.
 
 # https://bugzilla.redhat.com/show_bug.cgi?id=1740897
 Conflicts:      gnome-shell-extension-background-logo < 3.34.0

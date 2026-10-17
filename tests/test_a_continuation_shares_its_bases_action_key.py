@@ -19,11 +19,10 @@ looked up by it. Only the key computation was left on `matrix.id`.
 These tests read BOTH files that call `native-key`, because fixing one and
 leaving the other is the exact shape of the #529 epoch bug.
 """
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pytest
-
 
 ROOT = Path(__file__).resolve().parents[1]
 CELL = ROOT / ".github/workflows/package-factory-cell.yml"

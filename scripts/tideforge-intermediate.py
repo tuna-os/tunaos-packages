@@ -11,7 +11,6 @@ import hashlib
 import io
 import json
 import os
-from pathlib import Path, PurePosixPath
 import shlex
 import shutil
 import stat
@@ -19,11 +18,11 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-
-import yaml
+from pathlib import Path, PurePosixPath
 
 import tideforge
-
+import yaml
+from target_platform import build_context
 
 SCHEMA = 0
 
@@ -411,13 +410,14 @@ def package_arch(recipe: dict, target: str, manifest: dict, payload: Path, outpu
     copy_directory(payload, root)
     installed_size = sum(row.get("size", 0) for row in manifest["files"])
     dependencies = "".join(f"depend = {dep}\n" for dep in tideforge.target_runtime_dependencies(recipe, target))
+    pkgver = f"{tideforge.pacman_version(recipe['version'])}-{recipe.get('release', 1)}"
     (root / ".PKGINFO").write_text(
-        f"pkgname = {name}\npkgbase = {name}\npkgver = {recipe['version']}-{recipe.get('release', 1)}\n"
+        f"pkgname = {name}\npkgbase = {name}\npkgver = {pkgver}\n"
         f"pkgdesc = {recipe['summary']}\nurl = {recipe['source']['url']}\nbuilddate = {os.environ.get('SOURCE_DATE_EPOCH', '0')}\n"
         f"packager = TunaOS Package Factory <packages@tunaos.org>\nsize = {installed_size}\n"
         f"arch = {architecture}\nlicense = {recipe['license']}\n{dependencies}"
     )
-    artifact = output / f"{name}-{recipe['version']}-{recipe.get('release', 1)}-{architecture}.pkg.tar.zst"
+    artifact = output / f"{name}-{pkgver}-{architecture}.pkg.tar.zst"
     members = " ".join(shlex.quote(path.name) for path in sorted(root.iterdir()))
     command = f"tar --sort=name --mtime=@${{SOURCE_DATE_EPOCH:-0}} --owner=0 --group=0 --numeric-owner -C {shlex.quote(str(root))} -cf - {members} | zstd -19 -T0 -o {shlex.quote(str(artifact))}"
     subprocess.run(["bash", "-euo", "pipefail", "-c", command], check=True)
@@ -458,7 +458,10 @@ def candidates(args: argparse.Namespace) -> None:
             continue
         recipe = yaml.safe_load(recipe_path.read_text())
         contract = tideforge.portable_payload_contract(recipe)
-        targets = [target for target in recipe.get("targets", []) if target in requested_targets]
+        # Shared compiled payloads have no Alma baseline proof. Keep these
+        # consumers on their actual native compiler/buildroot path.
+        targets = [target for target in recipe.get("targets", []) if target in requested_targets
+                   and target not in {"alma10", "alma10-kitten"}]
         # A one-target recipe cannot save a duplicate build, so leave it on
         # the native path even if its bytes happen to satisfy the handler.
         if contract is None or len(targets) < 2:
@@ -482,7 +485,7 @@ def candidates(args: argparse.Namespace) -> None:
                 "payload_architecture": args.architecture,
                 "target": target,
                 "format": target_contract["format"],
-                "image": target_contract["probe_image"],
+                "image": build_context(target_contract, args.architecture)["image"],
             })
     result = {
         "payloads": {"include": payloads},

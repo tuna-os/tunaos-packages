@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 from urllib.request import urlopen
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from tideforge import pacman_version  # noqa: E402
 
 ARCH_API = "https://archlinux.org/packages/extra/{architecture}/{package}/json/"
 
@@ -42,7 +44,7 @@ def compare_arch(recipe: dict, official: dict, architecture: str) -> dict:
     official_runtime = {package_name(value) for value in official.get("depends", [])}
     official_build = {package_name(value) for value in official.get("makedepends", [])}
     checks = {
-        "version": {"expected": recipe["version"], "official": official["pkgver"], "matches": recipe["version"] == official["pkgver"]},
+        "version": {"expected": pacman_version(recipe["version"]), "official": official["pkgver"], "matches": pacman_version(recipe["version"]) == official["pkgver"]},
         "release": {"expected": str(recipe.get("release", 1)), "official": official["pkgrel"], "matches": str(recipe.get("release", 1)) == official["pkgrel"]},
         "description": {"expected": recipe["summary"], "official": official["pkgdesc"], "matches": recipe["summary"] == official["pkgdesc"]},
         "architecture": {"expected": architecture, "official": official["arch"], "matches": architecture == official["arch"]},

@@ -1,6 +1,7 @@
 import os
-import sys
 import re
+import sys
+
 
 def parse_spec_source(content):
     """
@@ -48,7 +49,7 @@ def main():
             if file.endswith(".spec"):
                 pkg_name = os.path.basename(root)
                 spec_path = os.path.join(root, file)
-                with open(spec_path, 'r') as f:
+                with open(spec_path) as f:
                     content = f.read()
                     source_url = parse_spec_source(content)
                     if source_url:

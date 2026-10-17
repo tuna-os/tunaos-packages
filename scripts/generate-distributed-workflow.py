@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import yaml
-import sys
 import os
+
+import yaml
 
 # GitHub caps a matrix at 256 jobs per workflow run. Tiering once over every
 # desktop makes tiers much wider than the per-desktop orders ever were --
@@ -48,7 +48,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
                       r2_path='repo/10-stream-x86_64', secondary_r2_path='repo/10-x86_64',
                       install_script='contrib/install.sh', install_r2_dest='install.sh',
                       submodules=True, mock_config=None, r2_state=False):
-    with open(manifest_path, 'r') as f:
+    with open(manifest_path) as f:
         manifest = yaml.safe_load(f)
 
     # Allow manifest to specify r2_path; CLI arg takes precedence if explicitly set
@@ -288,7 +288,7 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
 
     class IndentedDumper(yaml.Dumper):
         def increase_indent(self, flow=False, indentless=False):
-            return super(IndentedDumper, self).increase_indent(flow, False)
+            return super().increase_indent(flow, False)
 
     # Write yaml out without using standard aliases and formatting correctly
     with open(output_path, 'w') as f:
@@ -304,7 +304,7 @@ def _build_upload_run(r2_path, secondary_r2_path, install_script, install_r2_des
         label2 = secondary_r2_path.split('/')[-1]
         lines += [f'echo "Uploading to {label2}..."',
                   f'rclone sync local-repo/ "r2:${{R2_BUCKET}}/{secondary_r2_path}/" ' + RCLONE_FLAGS]
-    lines += [f'rclone copyto public.gpg "r2:${{R2_BUCKET}}/public.gpg"',
+    lines += ['rclone copyto public.gpg "r2:${R2_BUCKET}/public.gpg"',
               f'rclone copyto {install_script} "r2:${{R2_BUCKET}}/{install_r2_dest}"']
     return '\n'.join(lines) + '\n'
 

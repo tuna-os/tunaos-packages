@@ -22,6 +22,11 @@ sources:
     extract: false
 build_system: custom
 build:
+  environment_by_target:
+    alma10:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
+    alma10-kitten:
+      PATH: /opt/tunaos/rust-1.93/bin:/usr/bin:/bin
   environment:
     VERGEN_GIT_SHA: cc3d42bcc8fbcb67e6312f2766394e18b4d937d5
     VERGEN_GIT_COMMIT_DATE: 2026-09-17 23:52:54 +0200
@@ -45,6 +50,16 @@ dependencies:
         - cargo
         - lld
         - just
+      alma10:
+        - tunaos-rust193 >= 1.93.0
+        - cargo
+        - lld
+        - just
+      alma10-kitten:
+        - tunaos-rust193 >= 1.93.0
+        - cargo
+        - lld
+        - just
       ubuntu:
         - cargo
         - lld
@@ -58,8 +73,14 @@ dependencies:
       el10:
         - pop-launcher
         - cosmic-icon-theme >= 1.9.0
-      ubuntu: []
-      debian: []
+      alma10:
+        - pop-launcher
+        - cosmic-icon-theme >= 1.9.0
+      alma10-kitten:
+        - pop-launcher
+        - cosmic-icon-theme >= 1.9.0
+      ubuntu: [pop-launcher, cosmic-icon-theme (>= 1.9.0)]
+      debian: [pop-launcher, cosmic-icon-theme (>= 1.9.0)]
 files:
   common:
     - usr/bin/cosmic-launcher
@@ -74,5 +95,7 @@ verify:
   smoke: test -x /usr/bin/cosmic-launcher
 targets:
   - el10
+  - alma10
+  - alma10-kitten
   - ubuntu
   - debian

@@ -106,7 +106,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install --disable-pip-version-check --quiet PyYAML zstandard
       - name: Resolve the request against the contract
         id: resolve
@@ -151,7 +151,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install --disable-pip-version-check --quiet PyYAML zstandard
       - name: Measure the gap against the published index
         id: decide
@@ -190,7 +190,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install --disable-pip-version-check --quiet PyYAML zstandard
       - name: Measure the gap against the published index
         id: decide
@@ -226,7 +226,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install --disable-pip-version-check --quiet PyYAML zstandard
       - name: Take the final measurement
         id: final

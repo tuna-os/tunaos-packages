@@ -1,0 +1,145 @@
+schema: 1
+name: gtk4-layer-shell
+version: "1.3.0"
+release: 1
+summary: GTK4 Wayland layer shell and session lock library
+description: >-
+  Native GTK4 implementation of the Wayland layer-shell and ext-session-lock
+  protocols for Tuna Desktop. This is distinct from the GTK3 gtk-layer-shell
+  library. The runtime includes both public APIs and introspection typelibs;
+  the development package supplies headers, pkg-config, GIR and Vala bindings.
+license: MIT
+# Official v1.3.0 tag commit: 1c963c51514581c41b9bdae08cdf69171265cdda.
+# Released 2025-10-29; includes the upstream session-lock failure UAF fix.
+# Release tags can move: the archive SHA256 binds the admitted source bytes.
+source:
+  url: https://github.com/wmww/gtk4-layer-shell/archive/refs/tags/v1.3.0.tar.gz
+  sha256: 1ebb01ab14e98afd1727f68f64981c37bd23305b1f131f5667c02b94cf593192
+  directory: gtk4-layer-shell-1.3.0
+# The generic Meson renderer does not run upstream tests in RPM builds.
+# Custom commands retain native RPM flags and require the upstream mock
+# Wayland layer/lock tests; none use the user's compositor or real DRM.
+build_system: custom
+build:
+  commands:
+    - "%{set_build_flags}"
+    - >-
+      test -r "$(pkg-config --variable=pkgdatadir wayland-protocols)/staging/ext-session-lock/ext-session-lock-v1.xml"
+    - >-
+      meson setup build --prefix=/usr --libdir=lib64 --buildtype=plain
+      -Dtests=true -Dsmoke-tests=false -Dexamples=false -Ddocs=false
+      -Dintrospection=true -Dvapi=true
+    - meson compile -C build
+    - >-
+      meson introspect --tests build | tee build/provider-admitted-tests.json | python3 -c
+      'import json,sys; names={t["name"] for t in json.load(sys.stdin)};
+      assert any(n.startswith("layer-") for n in names), "layer tests missing";
+      assert any(n.startswith("lock-") for n in names), "lock tests missing";
+      assert "unit-test-get-version" in names, "version test missing";
+      print("GTK4 provider admitted tests:", len(names))'
+    - GDK_BACKEND=wayland GSK_RENDERER=cairo meson test -C build --no-rebuild --print-errorlogs
+    - |
+      python3 -c '
+      import hashlib,json,math,pathlib
+      def need(condition,message):
+          if not condition:
+              raise ValueError(message)
+      admitted=pathlib.Path("build/provider-admitted-tests.json").read_bytes()
+      expected=[test["name"] for test in json.loads(admitted)]
+      need(expected and len(expected)==len(set(expected)),"empty or duplicate admitted tests")
+      need(any(name.startswith("layer-") for name in expected),"layer tests missing")
+      need(any(name.startswith("lock-") for name in expected),"lock tests missing")
+      need("unit-test-get-version" in expected,"version test missing")
+      log=pathlib.Path("build/meson-logs/testlog.json").read_bytes()
+      results=[json.loads(line) for line in log.splitlines()]
+      names=[test["name"] for test in results]
+      need(len(names)==len(expected) and set(names)==set(expected),"missing, duplicate or foreign test result")
+      need(len(names)==len(set(names)),"duplicate test result")
+      for test in results:
+          need(test.get("result")=="OK" and type(test.get("returncode")) is int and test["returncode"]==0,"test did not pass")
+          need(isinstance(test.get("command"),list) and test["command"] and all(isinstance(arg,str) for arg in test["command"]),"test command missing")
+          need(type(test.get("starttime")) in (int,float) and math.isfinite(test["starttime"]) and test["starttime"]>0,"test start missing")
+          need(type(test.get("duration")) in (int,float) and math.isfinite(test["duration"]) and test["duration"]>=0,"test duration missing")
+      receipt={"schema":1,"scope":"upstream-mock-wayland-provider-tests","source_sha256":"1ebb01ab14e98afd1727f68f64981c37bd23305b1f131f5667c02b94cf593192","admitted_sha256":hashlib.sha256(admitted).hexdigest(),"testlog_sha256":hashlib.sha256(log).hexdigest(),"passed":sorted(names),"hardware_qualified":False}
+      pathlib.Path("build/provider-test-receipt.json").write_text(json.dumps(receipt,indent=2)+"\n")
+      '
+    - mkdir -p %{_topdir}/provider-test-evidence/gtk4-layer-shell
+    - >-
+      cp build/provider-admitted-tests.json build/provider-test-receipt.json
+      build/meson-logs/testlog.json build/meson-logs/testlog.txt
+      %{_topdir}/provider-test-evidence/gtk4-layer-shell/
+dependencies:
+  build:
+    common:
+      - gcc
+      - meson >= 0.54
+      - ninja-build
+      - pkgconf-pkg-config
+      - redhat-rpm-config
+      - python3
+      - pkgconfig(gtk4) >= 4.12
+      - pkgconfig(wayland-client) >= 1.10
+      - pkgconfig(wayland-server) >= 1.10
+      - wayland-devel
+      - wayland-protocols-devel
+      - gobject-introspection-devel
+      - vala
+    # Alma native cells build natively from their own factory roots.
+    # Do not alias either to CentOS Stream.
+    targets:
+      el10: []
+      alma10: []
+      alma10-kitten: []
+install:
+  commands:
+    - DESTDIR={destdir} meson install -C build --no-rebuild
+  files:
+    - {source: LICENSE, destination: usr/share/licenses/gtk4-layer-shell/LICENSE}
+files:
+  common:
+    - usr/lib64/libgtk4-layer-shell.so.*
+    - usr/lib64/liblayer-shell-preload.so
+    - usr/lib64/girepository-1.0/Gtk4LayerShell-1.0.typelib
+    - usr/lib64/girepository-1.0/Gtk4SessionLock-1.0.typelib
+    - usr/share/licenses/gtk4-layer-shell/LICENSE
+outputs:
+  rpm:
+    files:
+      - usr/lib64/libgtk4-layer-shell.so.*
+      - usr/lib64/liblayer-shell-preload.so
+      - usr/lib64/girepository-1.0/Gtk4LayerShell-1.0.typelib
+      - usr/lib64/girepository-1.0/Gtk4SessionLock-1.0.typelib
+      - usr/share/licenses/gtk4-layer-shell/LICENSE
+    subpackages:
+      - name: devel
+        summary: Development files for GTK4 layer shell and session lock
+        description: Both public headers, pkg-config metadata, GIR and Vala bindings.
+        requires: ["%{name}%{?_isa} = %{version}-%{release}"]
+        files:
+          - usr/include/gtk4-layer-shell/gtk4-layer-shell.h
+          - usr/include/gtk4-layer-shell/gtk4-session-lock.h
+          - usr/lib64/libgtk4-layer-shell.so
+          - usr/lib64/pkgconfig/gtk4-layer-shell-0.pc
+          - usr/share/gir-1.0/Gtk4LayerShell-1.0.gir
+          - usr/share/gir-1.0/Gtk4SessionLock-1.0.gir
+          - usr/share/vala/vapi/gtk4-layer-shell-0.deps
+          - usr/share/vala/vapi/gtk4-layer-shell-0.vapi
+verify:
+  install_name: gtk4-layer-shell-devel
+  smoke: >-
+    pkg-config --atleast-version=1.1 gtk4-layer-shell-0
+    && test "$(pkg-config --modversion gtk4-layer-shell-0)" = 1.3.0
+    && test -r /usr/include/gtk4-layer-shell/gtk4-layer-shell.h
+    && test -r /usr/include/gtk4-layer-shell/gtk4-session-lock.h
+    && test -r /usr/lib64/girepository-1.0/Gtk4LayerShell-1.0.typelib
+    && test -r /usr/lib64/girepository-1.0/Gtk4SessionLock-1.0.typelib
+    && test -r /usr/share/licenses/gtk4-layer-shell/LICENSE
+    && python3 -c
+    'import ctypes; lib=ctypes.CDLL("libgtk4-layer-shell.so.0");
+    version=tuple(getattr(lib,"gtk_layer_get_"+part+"_version")() for part in ("major","minor","micro"));
+    assert version==(1,3,0),version;
+    symbols=("gtk_layer_init_for_window","gtk_layer_set_keyboard_mode","gtk_layer_set_namespace",
+    "gtk_session_lock_instance_new","gtk_session_lock_instance_lock","gtk_session_lock_instance_unlock",
+    "gtk_session_lock_instance_assign_window_to_monitor","gtk_session_lock_instance_is_locked");
+    [getattr(lib,symbol) for symbol in symbols]'
+targets: [el10, alma10, alma10-kitten]

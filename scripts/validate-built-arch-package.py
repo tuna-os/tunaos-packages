@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 
 import yaml
-
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "manifests" / "package-factory.yaml"
@@ -50,7 +49,7 @@ def runtime_dependencies(recipe: dict) -> set[str]:
 def validate(recipe: dict, info: str) -> None:
     if field(info, "Name") != recipe["name"]:
         fail("built package name does not match recipe")
-    if not field(info, "Version").startswith(f"{recipe['version']}-"):
+    if not field(info, "Version").startswith(f"{tideforge.pacman_version(recipe['version'])}-"):
         fail("built package version does not match recipe")
     allowed_architectures = {"x86_64", "aarch64"}
     contract = tideforge.portable_payload_contract(recipe)

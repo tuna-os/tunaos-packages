@@ -40,12 +40,27 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  yamllint:
-    name: YAML Lint
+  # The fast linters share one job: each takes seconds, and on a shared
+  # 60-job org queue five separate runners cost more in queue slots than the
+  # parallelism saves. Every step after the first runs unless the job was
+  # cancelled, so one failure still reports the rest.
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.15'
+
+      - name: Install pinned validation dependencies
+        run: python3 -m pip install -r requirements-ci.txt
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@2576378a8e339169678f9939646ee3ee325e845c # v3
@@ -67,13 +82,8 @@ jobs:
                 level: warning
                 max-spaces-inside: 1
 
-  shellcheck:
-    name: ShellCheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Run ShellCheck
+        if: ${{ !cancelled() }}
         uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           scandir: './'
@@ -84,16 +94,10 @@ jobs:
             src/gnome-49
             src/gnome-50
 
-  workspace-validate:
-    name: Workflow Syntax Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Validate workflow YAMLs
+        if: ${{ !cancelled() }}
         run: |
           echo "=== Checking GitHub Actions workflow syntax ==="
-          pip install pyyaml -q 2>/dev/null || true
           ERRORS=0
           for f in .github/workflows/*.yml; do
             if ! python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null; then
@@ -105,37 +109,26 @@ jobs:
           done
           exit $ERRORS
 
-  build-order-validate:
-    name: Build Order Schema Validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Install yq and check-jsonschema
-        run: |
-          pip install check-jsonschema 2>/dev/null || true
-          sudo wget -qO /usr/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && sudo chmod +x /usr/bin/yq
-
       - name: Validate build-order.yml against schema
+        if: ${{ !cancelled() }}
         run: |
           echo "=== Validating build-order.yml ==="
-          pip install jsonschema pyyaml -q 2>/dev/null || true
-          for f in build-order.yml .copr/build-order-gnome49.yml build-order-xfce.yml; do
-            if [ -f "$f" ]; then
-              echo "  Checking: $f"
-              python3 scripts/parse-build-order.py "$f" --validate || exit $?
-            fi
+          shopt -s nullglob
+          files=(build-order*.yml .copr/build-order*.yml)
+          ((${#files[@]} > 0)) || exit 1
+          for f in "${files[@]}"; do
+            # *.generated.yml are shadow measurements (scripts/measure-target-gap.py),
+            # not executed orders; an empty `tiers:` is a valid result there, and
+            # tests/test_measure_target_gap.py checks their shape.
+            [[ $f == *.generated.yml ]] && continue
+            echo "  Checking: $f"
+            python3 scripts/parse-build-order.py "$f" --validate
           done
           echo "All build order files valid"
 
-  bats-tests:
-    name: BATS Unit Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - name: Install pinned BATS
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
         env:
           BATS_COMMIT: 713504bc0224a19b3d7c7958c18dc07f64f54b44 # v1.12.0
         run: |
@@ -147,6 +140,8 @@ jobs:
           sudo "$install_root/install.sh" /usr/local
 
       - name: Run BATS tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 5
         run: |
           echo "=== BATS Tests ==="
           FAILED=0
@@ -165,21 +160,71 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.14'
+          python-version: '3.15'
+
+      - name: Read pinned consumer test source
+        id: consumer-source
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, re
+          from pathlib import Path
+          pin = json.loads(Path("tests/consumer-source.json").read_text())
+          assert pin["repository"] == "tuna-os/tunaOS"
+          assert re.fullmatch(r"[0-9a-f]{40}", pin["revision"])
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("revision=" + pin["revision"] + "\n")
+          PYTHON
+
+      - name: Checkout exact consumer schemas and validators
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: tuna-os/tunaOS
+          ref: ${{ steps.consumer-source.outputs.revision }}
+          path: .test-deps/tunaos
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /schemas/
+            /scripts/contracts/
+            /required-targets.json
+            /.github/build-config.yml
 
       - name: Install dependencies
+        run: python3 -m pip install -r requirements-ci.txt
+
+      - name: Install native CPU proof tools
         run: |
           pip install pytest pyyaml jsonschema
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends libarchive-tools
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libarchive-tools rpm rpm2cpio gnupg binutils gcc libc6-dev qemu-user-static createrepo-c
 
       - name: Run pytest
         env:
           PYTHONPATH: scripts:.
+          PYTHONDONTWRITEBYTECODE: '1'
+          TUNAOS_CONSUMER_ROOT: ${{ github.workspace }}/.test-deps/tunaos
         run: |
           echo "=== Python Tests ==="
           FAILED=0
           python3 -m pytest tests/ -v --tb=short || FAILED=1
           exit $FAILED
+
+      - name: Verify real signed Alma v2 CPU closure
+        run: |
+          set -euo pipefail
+          for target in alma10 alma10-kitten; do
+            TARGET="$target" bash scripts/verify-alma-evtest-ci.sh
+          done
+
+      - name: Preserve Alma CPU evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: alma-cpu-proof-attempt-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: |
+            .factory/ci-cpu-*/artifacts/
+            .factory/ci-cpu-*/metadata/
+          if-no-files-found: warn
 
       - name: Test summary
         if: always()
@@ -199,7 +244,7 @@ jobs:
   required-checks:
     name: required-checks
     if: always()
-    needs: [yamllint, shellcheck, workspace-validate, build-order-validate, bats-tests, pytest]
+    needs: [lint, pytest]
     runs-on: ubuntu-latest
     steps:
       - name: Verify all required jobs succeeded

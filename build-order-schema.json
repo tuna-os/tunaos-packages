@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Native package build order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["target", "tiers"],
+  "properties": {
+    "target": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+    "r2_path": {"$ref": "#/$defs/path"},
+    "tiers": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "packages"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+          "packages": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/package"}}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "path": {"type": "string", "pattern": "^[A-Za-z0-9_+.-]+(?:/[A-Za-z0-9_+.-]+)*$", "not": {"pattern": "(?:^|/)\\.{1,2}(?:/|$)"}},
+    "package": {
+      "type": "object", "additionalProperties": false,
+      "anyOf": [{"required": ["path"]}, {"required": ["copr_name"]}],
+      "dependentRequired": {"spec_override": ["path"], "distgit": ["path"]},
+      "properties": {
+        "path": {"$ref": "#/$defs/path"},
+        "copr_name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]*$"},
+        "distgit": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]*$"},
+        "spec_override": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]*\\.spec$"},
+        "build_tool": {"type": "boolean"},
+        "bootstrap": {"type": "boolean"}
+      }
+    }
+  }
+}

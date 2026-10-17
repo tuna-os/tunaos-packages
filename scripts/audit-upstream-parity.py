@@ -189,7 +189,7 @@ def audit_all(snapshots_dir: pathlib.Path, root: pathlib.Path) -> dict:
     total = sum(len(s["packages"]) for s in snapshots.values())
     covered = sum(s["covered"] for s in snapshots.values())
     return {
-        "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "recipe_index_entries": len(recipes),
         "snapshots": snapshots,
         "summary": {

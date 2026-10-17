@@ -59,9 +59,13 @@ dependencies:
     capabilities: [c-compiler]
     targets:
       el10: [python3-devel, python3-setuptools, kernel-headers]
+      alma10: [python3-devel, python3-setuptools, kernel-headers]
+      alma10-kitten: [python3-devel, python3-setuptools, kernel-headers]
   runtime:
     targets:
       el10: [python3]
+      alma10: [python3]
+      alma10-kitten: [python3]
 files:
   common:
     # Version-globbed on purpose: the interpreter minor version owns this path
@@ -72,4 +76,4 @@ files:
     - usr/lib64/python3*/site-packages/evdev-*.{dist,egg}-info/
 verify:
   smoke: python3 -c "import evdev"
-targets: [el10]
+targets: [el10, alma10, alma10-kitten]

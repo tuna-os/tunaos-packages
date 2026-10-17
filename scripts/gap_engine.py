@@ -711,7 +711,7 @@ def main() -> None:
 
     wanted = args.desktops or list(catalog["desktops"])
     report = {
-        "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "measured_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "target": {**target, "resolved_baseurl": baseurl},
         "target_index": target_provenance,
         "reference_index": reference_provenance,
@@ -902,6 +902,10 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root,
         "# repository and is built from that.  No COPR repository is enabled in",
         "# the buildroot or in the produced image.",
         "#",
+        "# `local-00`, when present, is the desktops' own `local:` spec",
+        "# directories that Fedora does not carry (tuna-desktop); it comes",
+        "# after every layer, so all of their dependencies are built first.",
+        "#",
         "# `bootstrap: true` marks a member of a BuildRequires cycle — see",
         f"# docs/{target_id}-desktop-gap.json .buildrequires_cycles.  Those",
         "# packages cannot come up in one pass from a clean buildroot; the tier",
@@ -954,6 +958,32 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root,
                 lines.append(f"        distgit: {name}")
             if name in cycles:
                 lines.append("        bootstrap: true")
+        lines.append("")
+
+    # Last, the desktops' own spec directories that Fedora does not carry
+    # (`sources: [{local: src/hummingbird/tuna-desktop}]`). The measurement
+    # resolves everything through the Rawhide reference, so such a root is
+    # only reported (roots_absent_from_reference) and never reaches a layer.
+    # A tier after every layer is a valid place for it: nothing the reference
+    # carries can depend on a package the reference does not have, so its
+    # dependencies are all built earlier or come from the buildroot. A
+    # `local:` that is a tree of specs (src/xfce-wayland) rather than one
+    # package's directory is not a package and is left alone.
+    local = []
+    for desktop in report.get("desktops", {}):
+        for source in catalog["desktops"][desktop].get("sources") or []:
+            directory = source.get("local")
+            if not directory:
+                continue
+            name = directory.rstrip("/").rsplit("/", 1)[-1]
+            if name in seen or not (root / directory / f"{name}.spec").is_file():
+                continue
+            seen.add(name)
+            local.append(directory.rstrip("/"))
+    if local:
+        lines.append("  - name: local-00")
+        lines.append("    packages:")
+        lines.extend(f"      - path: {directory}" for directory in local)
         lines.append("")
     path.write_text("\n".join(lines).rstrip() + "\n")
 

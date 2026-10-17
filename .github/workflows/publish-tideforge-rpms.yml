@@ -30,15 +30,16 @@ on:
       packages:
         description: Comma-separated recipe names under packages/ to build and publish
         # The wave-1 default: every tideforge el10 cell green on BOTH arches
-        # in factory run 32382594650.
-        default: libseat,greetd,gtk-layer-shell,wayland-protocols,ninja-build,libunwind-devel,python3-evdev,evtest,uupd,oversteer-udev,kairpods,dgop,danksearch,xfwm4-themes,cosmic-panel,cosmic-randr
+        # in factory run 32382594650, plus gtk4-layer-shell (dispatch runs
+        # 38731732922 and 38731743857; tuna-desktop el10 BuildRequires it).
+        default: libseat,greetd,gtk-layer-shell,gtk4-layer-shell,wayland-protocols,ninja-build,libunwind-devel,python3-evdev,evtest,uupd,oversteer-udev,kairpods,dgop,danksearch,xfwm4-themes,cosmic-panel,cosmic-randr
         required: true
       arches:
         description: Comma-separated arches; empty means every arch the target declares
         default: x86_64,aarch64
         required: true
       target:
-        description: Which contract target to publish (el10, opensuse-tumbleweed)
+        description: Which contract target to publish (el10, eln, fedora, rawhide, opensuse-tumbleweed)
         default: el10
         required: true
 
@@ -69,7 +70,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install pyyaml==6.0.3
       - id: plan
         run: |
@@ -100,7 +101,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.14'
+          python-version: '3.15'
       - run: pip install pyyaml==6.0.3
       - name: Restore the content-addressed source cache
         uses: ./.github/actions/tideforge-source-cache
@@ -246,7 +247,8 @@ jobs:
   # The anti-#179 job, from the FIRST publish: install every published
   # package from the SERVED URL on a clean image-contract container, in the
   # TARGET'S package manager. The el10 branch enables base + crb + epel (its
-  # system_repositories); the tumbleweed branch adds the served repo with
+  # system_repositories); fedora and eln ship neither epel-release nor crb and
+  # need only their own repos; the tumbleweed branch adds the served repo with
   # the same inverted-priority semantics the cell runner uses (system repos
   # at 99, ours at 200, so shared names stay Tumbleweed's). A dnf script
   # inside a zypper image dies on 'dnf: command not found' — the first
@@ -266,15 +268,17 @@ jobs:
         run: |
           set -euo pipefail
           url='${{ matrix.served }}'
-          docker run --rm --env PACKAGES --env TARGET --env URL="$url" '${{ needs.plan.outputs.image }}' bash -lc '
+          docker run --rm --env PACKAGES --env TARGET --env URL="$url" '${{ matrix.image }}' bash -lc '
             set -euo pipefail
             if [[ "$TARGET" == opensuse-tumbleweed ]]; then
               zypper --non-interactive addrepo --no-gpgcheck --priority 200 "$URL" tunaos
               zypper --non-interactive refresh
               zypper --non-interactive install --no-recommends $(echo "$PACKAGES" | tr "," " ")
             else
-              dnf -y install epel-release "dnf-command(config-manager)"
-              dnf config-manager --set-enabled crb
+              if [[ "$TARGET" == el10 ]]; then
+                dnf -y install epel-release "dnf-command(config-manager)"
+                dnf config-manager --set-enabled crb
+              fi
               dnf -y install --nogpgcheck --repofrompath tunaos,"$URL" --enablerepo=tunaos \
                 $(echo "$PACKAGES" | tr "," " ")
             fi

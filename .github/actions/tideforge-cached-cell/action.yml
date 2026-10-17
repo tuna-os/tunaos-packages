@@ -141,7 +141,7 @@ runs:
         artifacts=()
         while IFS= read -r -d '' path; do artifacts+=(--artifact "$path"); done \
           < <(find ".factory/${CELL_ID}/artifacts" -type f \
-            \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' \) -print0)
+            \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' -o -name '*.gpkg.tar' \) -print0)
         python3 scripts/tideforge-action-cache.py result \
           --action-key "$KEY" "${artifacts[@]}" \
           > ".factory/${CELL_ID}/action-result.json"

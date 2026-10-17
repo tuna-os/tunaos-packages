@@ -1,7 +1,6 @@
 import importlib.util
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
     "verify_gnome_desktop_experience",

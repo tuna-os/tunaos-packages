@@ -14,8 +14,6 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
     "bump_github_release_recipe", ROOT / "scripts" / "bump-github-release-recipe.py")
@@ -39,7 +37,6 @@ def _run_main(monkeypatch, recipe_text, repo="tuna-os/hello", release=None,
                                       "--repo", repo])
 
     release = release or {"tag_name": "v1.2.4", "prerelease": False, "draft": False}
-    base_url = f"https://github.com/{repo}"
 
     def fake_get(url):
         if url.endswith("/releases/latest"):

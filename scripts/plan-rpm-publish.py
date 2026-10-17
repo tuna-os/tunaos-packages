@@ -80,8 +80,11 @@ def split(value: str) -> list[str]:
 
 
 def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dict:
+    rejection = publisher_contract.production_rejection(target_name)
+    if rejection:
+        fail(rejection)
     target = publisher_contract.target(target_name, "rpm", fail)
-    image = target.get("probe_image")
+    image = target.get("probe_image") or ""
     if not packages:
         fail("no packages requested")
 
@@ -90,6 +93,20 @@ def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dic
     r2_path = target.get("r2_path")
     if not r2_path:
         fail(f"target {target_name} declares no r2_path to publish into")
+    rejection = publisher_contract.production_rejection(target_name, r2_path)
+    if rejection:
+        fail(rejection)
+    if "{arch}" not in r2_path:
+        # One prefix for every arch would mix them in one repository. Such a
+        # path belongs to the arch whose published_index serves it (fedora:
+        # xfce/44-x86_64).
+        served = f"{SERVED_ROOT}{r2_path}/"
+        index = target.get("published_index") or {}
+        owners = [arch for arch, urls in index.items() if served in ([urls] if isinstance(urls, str) else urls)]
+        foreign = sorted(set(selected) - set(owners))
+        if foreign:
+            fail(f"target {target_name} r2_path {r2_path} has no {{arch}} and serves only {owners}; "
+                 f"refusing to publish {foreign} into it")
 
     build = []
     for package in packages:
@@ -100,7 +117,7 @@ def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dic
                 "arch": arch,
                 "runner": RUNNERS[arch],
                 "target": target_name,
-                "image": image,
+                **publisher_contract.build_context(target, arch),
                 "cell_id": factory_contract.tideforge_cell_id(package, target_name, arch),
             })
 
@@ -110,6 +127,7 @@ def plan(target_name: str, packages: list[str], arches: list[str] | None) -> dic
         src = override.get("src") or r2_path.replace("{arch}", arch)
         row = {
             "arch": arch,
+            **publisher_contract.build_context(target, arch),
             "src": src,
             "mirror": override.get("mirror", ""),
             "served": override.get("served") or f"{SERVED_ROOT}{src}/",

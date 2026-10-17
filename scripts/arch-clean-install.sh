@@ -44,7 +44,9 @@ shift 2
 # 2026-08-18 fastly served a core.db naming elfutils-0.195-8 while every
 # pool 404d it, so any sync that takes fastly's db resolves packages no
 # mirror still carries. One mirror keeps db and pool in step.
-echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' > /etc/pacman.d/mirrorlist
+policy="$(dirname "$0")/arch-native-policy.sh"
+bash "$policy" configure "${TUNAOS_ARCHITECTURE:-$(uname -m)}"
+native_repositories=$(bash "$policy" repositories)
 pacman -Sy --noconfirm pacman-contrib pkgconf
 
 repo-add /tmp/tideforge.db.tar.gz "$artifacts"/*.pkg.tar.*
@@ -92,11 +94,12 @@ cp /tmp/tideforge.db.tar.gz /var/lib/tideforge/tideforge.db
     echo 'SigLevel = Optional TrustAll'
     echo 'Server = file:///var/lib/tideforge'
     echo
-    echo '[core]'
-    echo 'Include = /etc/pacman.d/mirrorlist'
-    echo
-    echo '[extra]'
-    echo 'Include = /etc/pacman.d/mirrorlist'
+    while IFS= read -r native_repo; do
+        printf '[%s]\n' "$native_repo"
+        echo 'SigLevel = Required DatabaseOptional'
+        echo 'Include = /etc/pacman.d/mirrorlist'
+        echo
+    done <<< "$native_repositories"
 } > /tmp/tideforge-pacman.conf
 
 # Install with a full upgrade, never -Sy followed by -S. The base image's

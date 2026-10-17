@@ -26,6 +26,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import factory_contract  # noqa: E402  (needs the path above)
 import publisher_contract  # noqa: E402
+from target_platform import build_context  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SERVED_ROOT = "https://repo.tunaos.org/"
@@ -47,7 +48,6 @@ def split(value: str) -> list[str]:
 
 def plan(packages: list[str], arches: list[str] | None) -> dict:
     target = publisher_contract.target("arch", "pkg.tar.zst", fail)
-    image = target.get("probe_image")
     r2_path = target.get("r2_path")
     if not r2_path:
         fail("arch declares no r2_path to publish into")
@@ -55,6 +55,10 @@ def plan(packages: list[str], arches: list[str] | None) -> dict:
         fail("no packages requested")
 
     selected = publisher_contract.architectures("arch", target, arches, RUNNERS, fail)
+    contexts = {arch: build_context(target, arch) for arch in selected}
+    # A multi-architecture invocation has no single compatible image. Existing
+    # single-architecture callers retain the scalar; matrix consumers use rows.
+    image = contexts[selected[0]]["image"] if len(selected) == 1 else ""
 
     build = []
     for package in packages:
@@ -64,7 +68,7 @@ def plan(packages: list[str], arches: list[str] | None) -> dict:
                 "package": package,
                 "arch": arch,
                 "runner": RUNNERS[arch],
-                "image": image,
+                **contexts[arch],
                 "cell_id": factory_contract.tideforge_cell_id(package, "arch", arch),
             })
 
@@ -77,6 +81,7 @@ def plan(packages: list[str], arches: list[str] | None) -> dict:
             "served": f"{SERVED_ROOT}{src}/",
             "runner": RUNNERS[arch],
             "repo_name": REPO_NAME,
+            **contexts[arch],
         })
 
     return {

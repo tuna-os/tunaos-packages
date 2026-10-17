@@ -1,7 +1,6 @@
 """Tests for scripts/cleanup.py"""
 
 import os
-import sys
 import tempfile
 from pathlib import Path
 

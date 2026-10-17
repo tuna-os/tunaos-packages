@@ -67,7 +67,7 @@ def test_it_is_exported_rather_than_prefixed() -> None:
 
 def test_it_composes_with_autoreconf() -> None:
     build = render({"build": {"environment": {"LIBS": "-lgcc_s"}, "autoreconf": True}})
-    lines = [l for l in build.splitlines() if l.strip()]
+    lines = [line for line in build.splitlines() if line.strip()]
     assert lines[0].startswith("export LIBS=")
     assert lines[1] == "autoreconf -fi"
     assert lines[2].startswith("%configure")

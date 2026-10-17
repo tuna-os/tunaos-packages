@@ -3,9 +3,8 @@
 import os
 import subprocess
 import sys
-import tempfile
-import yaml
 
+import yaml
 
 SAMPLE_MANIFEST = {
     'tiers': [

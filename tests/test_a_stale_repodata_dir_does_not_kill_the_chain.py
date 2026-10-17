@@ -37,9 +37,7 @@ require it to succeed and produce valid metadata. It fails on the old code.
 from __future__ import annotations
 
 import subprocess
-import textwrap
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 CHAIN = ROOT / "scripts" / "build-chain.sh"
@@ -110,6 +108,7 @@ def _run_update_local_repo(repo: Path, bindir: Path) -> subprocess.CompletedProc
         f'export PATH="{bindir}:$PATH"\n'
         f'LOCAL_REPO="{repo}"\n'
         'BACKEND="stub"\n'
+        'ALMA_CANDIDATE=false\n'
         'log() { echo "==> $*"; }\n'
         'warn() { echo "WARNING: $*" >&2; }\n'
         "update_local_repo() {\n" + func + "\n}\n"

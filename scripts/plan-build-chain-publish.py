@@ -36,6 +36,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import publisher_contract  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 
 # Prefixes publish-tideforge-rpms.yml syncs into. Publishing a build-chain
@@ -70,6 +73,19 @@ def resolve(requested, available):
                 f"{name}: not a build-chain cell "
                 f"(known: {', '.join(sorted(available))})"
             )
+            continue
+        if not cell.get("source_paths"):
+            rejections.append(
+                f"{name}: declares no source_paths, so SOURCE_DATE_EPOCH "
+                "cannot be derived from them; refusing rather than falling "
+                "back to the repository's last commit, which would re-key "
+                "this cell on EVERY commit"
+            )
+            continue
+        rejection = publisher_contract.production_rejection(
+            cell.get("target", ""), cell.get("r2_path") or "")
+        if rejection:
+            rejections.append(f"{name}: {rejection}")
             continue
         if cell.get("publish") is False:
             rejections.append(f"{name}: catalog sets publish: false")
@@ -121,7 +137,9 @@ def main(argv=None):
 
     requested = [c.strip() for c in args.cells.split(",") if c.strip()]
     if not requested:
-        print("ERROR: no cells requested", file=sys.stderr)
+        print("ERROR: no cells requested -- the 'cells' workflow_dispatch "
+              "input is empty (it has no default: pass at least one "
+              "build-chain cell id, e.g. hummingbird-x86_64)", file=sys.stderr)
         return 2
 
     selected, rejections = resolve(requested, build_chain_cells())

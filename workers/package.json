@@ -1,0 +1,13 @@
+{
+  "name": "repo-proxy-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.4",
+    "vitest": "5.0.5",
+    "wrangler": "4.151.1"
+  }
+}

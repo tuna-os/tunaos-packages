@@ -36,7 +36,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import tideforge  # noqa: E402
 
-
 # Derived from a real cmake recipe rather than hand-built, so the fixture
 # cannot drift out of schema as the renderer gains required keys.
 BASE = yaml.safe_load(

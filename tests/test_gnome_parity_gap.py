@@ -10,8 +10,6 @@ import importlib.util
 import json
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location(
     "measure_gnome_parity_gap",

@@ -90,4 +90,4 @@ files:
     - usr/share/themes/Moheli/xfwm4/
 verify:
   smoke: test -f /usr/share/themes/Default/xfwm4/themerc
-targets: [el10]
+targets: [el10, alma10, alma10-kitten]

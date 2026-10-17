@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import copy
+import hashlib
 import json
 import pathlib
 import re
@@ -14,8 +16,9 @@ from typing import Any
 import yaml
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import consumer_contract
 import factory_contract  # noqa: E402  (needs the path above)
-
+from target_platform import build_context
 
 RECIPE_CHANGE = re.compile(r"^packages/([^/]+)/")
 COMMON_INPUTS = {
@@ -26,12 +29,21 @@ COMMON_INPUTS = {
     "scripts/verify-package-factory-cell.sh",
     "scripts/tideforge-action-cache.py",
     "scripts/tideforge.py",
+    "scripts/target_platform.py",
+    "scripts/run-alma-rpm.sh",
+    "scripts/alma-compiler-policy.sh",
+    "scripts/factory-batches.py",
 }
 FORMAT_INPUTS = {
     "scripts/assemble-deb-source-tree.py": {"deb"},
     "scripts/arch-clean-install.sh": {"pkg.tar.zst"},
+    "scripts/arch-native-policy.sh": {"pkg.tar.zst"},
+    "scripts/arch-verify-published.sh": {"pkg.tar.zst"},
+    "scripts/gentoo-build-cell.sh": {"gpkg"},
+    "scripts/gentoo-clean-install.sh": {"gpkg"},
 }
-NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py"}
+NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py", "scripts/candidate-rpm-repository.py", "scripts/alma-rpmbuild-guard.py",
+                 "scripts/alma-candidate-snapshot.py", "scripts/alma-candidate-resume.py", "scripts/github_api.py"}
 DISTGIT_INPUTS = {"scripts/import-fedora-distgit.py"}
 DEPENDENCY_TREE_CHANGE = re.compile(r"^manifests/dependency-trees/[^/]+\.ya?ml$")
 TARGET_QUEUE_CHANGE = re.compile(r"^manifests/target-queues/[^/]+\.ya?ml$")
@@ -68,17 +80,13 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
             target = (factory.get("targets") or {}).get(target_id)
             if not isinstance(target, dict):
                 raise ValueError(f"{recipe_path}: unknown target {target_id}")
-            image = target.get("probe_image")
             package_format = target.get("format")
-            if not image or not package_format:
+            if not package_format:
                 raise ValueError(f"{recipe_path}: incomplete target contract {target_id}")
             architectures = target.get("architectures") or []
             for architecture in architectures:
-                # Arch's official container is x86_64-only. The target contract
-                # may advertise future aarch64 support, but no action is emitted
-                # until it declares a target-native image for that architecture.
-                if target_id == "arch" and architecture != "x86_64":
-                    continue
+                context = build_context(target, str(architecture))
+                image = context["image"]
                 cells.append(
                     {
                         "id": factory_contract.tideforge_cell_id(package, target_id, architecture),
@@ -88,7 +96,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
                         "target": target_id,
                         "format": package_format,
                         "architecture": architecture,
-                        "image": image,
+                        **context,
                         "verify_image": image,
                         "runner": runner_for(str(architecture)),
                         "source_paths": [recipe_path.parent.relative_to(root).as_posix() + "/"],
@@ -124,6 +132,20 @@ def native_cells(root: pathlib.Path) -> list[dict[str, Any]]:
         missing = sorted(required - cell.keys())
         if missing:
             raise ValueError(f"native build {cell.get('id', '<unknown>')} misses {missing}")
+        if cell["target"] in {"alma10", "alma10-kitten"}:
+            factory = load_yaml(root / "manifests/package-factory.yaml")
+            target = factory["targets"][cell["target"]]
+            context = build_context(target, cell["architecture"])
+            if any(cell.get(key) != value for key, value in (
+                ("verify_image", context["image"]), ("platform", context["platform"]),
+                ("cpu_baseline", context["cpu_baseline"]),
+            )):
+                raise ValueError(f"native Alma build {cell['id']} has incompatible verification context")
+            family, name, architecture = cell["family"], cell["target"], cell["architecture"]
+            suffix = "-aarch64" if architecture == "aarch64" else ""
+            if (cell["mock_config"] != f"{name}-ci-{family}{suffix}"
+                    or cell.get("r2_path") != f"{family}/{name}-{architecture}"):
+                raise ValueError(f"native Alma build {cell['id']} has incompatible namespace or mock config")
         cell.update(
             {
                 "engine": "build-chain",
@@ -157,6 +179,92 @@ def all_cells(root: pathlib.Path) -> list[dict[str, Any]]:
     return sorted(cells, key=lambda cell: cell["id"])
 
 
+def declared_consumer_providers(root: pathlib.Path, factory: dict, cells: list[dict]) -> dict:
+    """Recipe declarations provide build work; native receipts prove satisfaction."""
+    providers = []
+    for cell in cells:
+        if cell["engine"] != "tideforge":
+            continue
+        path = root / cell["recipe"]
+        recipe = load_yaml(path)
+        manager = {"rpm": "dnf", "deb": "apt", "pkg.tar.zst": "pacman"}.get(cell["format"])
+        matching = [adapter for adapter in factory.get("consumer_adapters", {}).values()
+                    if adapter.get("target") == cell["target"]]
+        managers = {adapter.get("manager", manager) for adapter in matching}
+        if len(managers) > 1:
+            raise ValueError("factory target maps to conflicting native consumer managers")
+        manager = next(iter(managers), manager)
+        baselines = {baseline for adapter in matching for platform, arch in adapter.get("architectures", {}).items()
+                     if arch == cell["architecture"] for baseline in adapter.get("cpuBaselines", [])
+                     if (baseline == "armv8-a") == (platform == "linux/arm64")}
+        for baseline in sorted(baselines):
+            provider = {"id": cell["id"] + ":" + baseline, "name": recipe["name"],
+                        "nativeExpression": recipe["name"], "manager": manager,
+                        "target": cell["target"], "architecture": cell["architecture"],
+                        "cpuBaseline": baseline, "cellId": cell["id"],
+                        "sourceIdentity": {"path": cell["recipe"], "digest": "sha256:" + hashlib.sha256(path.read_bytes()).hexdigest()},
+                        "declaredVersion": str(recipe.get("version", "")), "readiness": False}
+            for phase, output in (("build", "buildDependencies"), ("runtime", "runtimeDependencies")):
+                dependencies = (recipe.get("dependencies") or {}).get(phase) or {}
+                expressions = list(dependencies.get("common") or []) + list((dependencies.get("targets") or {}).get(cell["target"]) or [])
+                for capability in dependencies.get("capabilities") or []:
+                    mapping = (factory.get("dependency_catalog") or {}).get(capability, {}).get(cell["target"])
+                    expressions.extend(mapping if isinstance(mapping, list) else ["unmapped-capability:" + capability])
+                provider[output] = [{"nativeExpression": expression} for expression in expressions]
+            providers.append(provider)
+    return {"providers": providers}
+
+
+def consumer_factory_plan(args: argparse.Namespace, cells: list[dict]) -> dict | None:
+    inputs = [args.consumer_contracts, args.consumer_root, args.consumer_revision, args.consumer_required_targets]
+    if not any(inputs):
+        if args.consumer_provider_catalog or args.consumer_plan_output:
+            raise ValueError("consumer inputs are required for a provider catalog or plan output")
+        return None
+    if not all(inputs):
+        raise ValueError("consumer contracts, root, immutable revision and required coverage must be supplied together")
+    contracts = consumer_contract.load_contracts(*[args.consumer_contracts, args.consumer_root,
+                                                  args.consumer_revision, args.consumer_required_targets])
+    factory = copy.deepcopy(load_yaml(args.root / "manifests/package-factory.yaml"))
+    queues = {}
+    for path in sorted((args.root / "manifests/target-queues").glob("*.yaml")):
+        for target, queue in (load_yaml(path).get("queues") or {}).items():
+            queues.setdefault(target, {})[path.stem] = queue.get("roots", [])
+    factory["_consumer_queues"] = queues
+    catalog = (consumer_contract.read_json(args.consumer_provider_catalog) if args.consumer_provider_catalog
+               else declared_consumer_providers(args.root, factory, cells))
+    report = consumer_contract.plan_consumers(contracts, factory, cells, catalog)
+    if args.consumer_plan_output:
+        args.consumer_plan_output.write_text(json.dumps(report, sort_keys=True, indent=2) + "\n")
+    return report
+
+
+def bind_consumer_cells(cells: list[dict], selected: list[dict], report: dict) -> list[dict]:
+    """Rebuild dependents, keeping unrelated cells and consumers out of the selection."""
+    by_id = {cell["id"]: cell for cell in cells}
+    selected_by_id = {cell["id"]: copy.deepcopy(cell) for cell in selected}
+    affected = {cell.get("base_id", cell["id"].removesuffix("-canary")) for cell in selected}
+    changed = True
+    while changed:
+        changed = False
+        for parent, dependencies in report["dependencyCells"].items():
+            if set(dependencies) & affected and parent not in affected:
+                affected.add(parent)
+                if parent in by_id:
+                    selected_by_id[parent] = copy.deepcopy(by_id[parent])
+                changed = True
+    consumers = {row["targetKey"]: row for row in report["consumers"]}
+    for cell in selected_by_id.values():
+        identity = cell.get("base_id", cell["id"].removesuffix("-canary"))
+        bindings = []
+        for key in report["cellBindings"].get(identity, []):
+            row = consumers[key]
+            bindings.append({field: row[field] for field in ("target", "sourceRevision", "contractDigest", "baseDigest", "baseReference", "approvedSources")})
+        if bindings:
+            cell["consumer_bindings"] = bindings
+    return sorted(selected_by_id.values(), key=lambda cell: cell["id"])
+
+
 def affected_formats(changed: set[str]) -> set[str] | None:
     if changed & COMMON_INPUTS:
         return None
@@ -183,15 +291,30 @@ def select_cells(
     if not changed:
         return []
     formats = affected_formats(changed)
+    changed_packages = {match.group(1) for path in changed if (match := RECIPE_CHANGE.match(path))}
     if formats is None:
-        return canary_cells(cells) if canary_common else cells
+        if not canary_common:
+            return cells
+        # One canary per contract covers the shared code; a recipe changed in
+        # the same diff still builds every cell of its own.
+        canaries = canary_cells(cells)
+        picked = {cell["id"] for cell in canaries}
+        return canaries + [
+            cell
+            for cell in cells
+            if cell["engine"] == "tideforge" and cell["package"] in changed_packages and cell["id"] not in picked
+        ]
     if "manifests/package-factory.yaml" in changed:
         if changed_targets is None:
             return cells
+        # A recipe changed in the same diff still builds every target it
+        # declares: a new target needs a contract row or catalog mapping and
+        # the recipe that uses it, and only the contract's targets would gate.
         return [
             cell
             for cell in cells
             if cell["target"] in changed_targets
+            or (cell["engine"] == "tideforge" and cell["package"] in changed_packages)
             or (
                 cell["engine"] == "tideforge"
                 and changed_capabilities is not None
@@ -214,7 +337,6 @@ def select_cells(
         if changed_graph_ids is None:
             return graph_cells
         return [cell for cell in graph_cells if cell["id"] in changed_graph_ids]
-    changed_packages = {match.group(1) for path in changed if (match := RECIPE_CHANGE.match(path))}
     selected = []
     # Cells pulled in ONLY because a renderer script moved -- build-chain.sh,
     # parse-build-order.py, import-fedora-distgit.py. Nothing about the
@@ -301,13 +423,81 @@ def canary_cells(cells: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(selected.values(), key=lambda cell: cell["id"])
 
 
+def owns_change(
+    cell: dict[str, Any],
+    changed: set[str],
+    *,
+    changed_native_ids: set[str] | None,
+    changed_graph_ids: set[str] | None,
+) -> bool:
+    """True when the cell's OWN inputs moved, not merely shared code.
+
+    A recipe directory, a build-chain manifest or source path, a changed
+    package-builds row, or a dependency-tree/target-queue edit that resolves
+    to this cell. Anything else selected the cell only because shared code
+    (factory scripts, renderers, format adapters, a target contract) changed,
+    and every cell in that set covers the same diff.
+    """
+    base_id = cell["id"].removesuffix("-canary")
+    if cell["engine"] == "tideforge":
+        prefix = cell["source_paths"][0]
+        if any(path.startswith(prefix) for path in changed):
+            return True
+    elif any(
+        path == cell["manifest"] or any(path.startswith(prefix) for prefix in cell["source_paths"])
+        for path in changed
+    ):
+        return True
+    return base_id in (changed_native_ids or set()) or base_id in (changed_graph_ids or set())
+
+
+def round_robin(
+    selected: list[dict[str, Any]],
+    changed_files: list[str] | None,
+    *,
+    size: int,
+    seed: int,
+    changed_native_ids: set[str] | None = None,
+    changed_graph_ids: set[str] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Keep every own-change cell and a rotating slice of the shared-input cells.
+
+    A pull request that touches shared code (scripts/tideforge.py, the cell
+    workflow, build-chain.sh, a format adapter) selects one canary per family
+    or target, 12-17 cells per push, and each covers the same diff. Building
+    `size` of them per push, rotated by `seed` (the run number), keeps every
+    PR gated while the push to main, the weekly build-chain schedule and any
+    dispatch still plan the whole set. Returns (kept, deferred).
+    """
+    if size <= 0 or changed_files is None:
+        return selected, []
+    changed = {path.strip() for path in changed_files if path.strip()}
+    shared = [
+        cell
+        for cell in selected
+        if not owns_change(
+            cell, changed, changed_native_ids=changed_native_ids, changed_graph_ids=changed_graph_ids
+        )
+    ]
+    if len(shared) <= size:
+        return selected, []
+    # Architecture first so one window spans several families or targets
+    # instead of one family's two architectures.
+    shared.sort(key=lambda cell: (str(cell["architecture"]), cell["id"]))
+    offset = (seed * size) % len(shared)
+    picked = {shared[(offset + index) % len(shared)]["id"] for index in range(size)}
+    deferred_ids = {cell["id"] for cell in shared} - picked
+    kept = [cell for cell in selected if cell["id"] not in deferred_ids]
+    deferred = [cell for cell in selected if cell["id"] in deferred_ids]
+    return kept, deferred
+
+
 def yaml_at_revision(root: pathlib.Path, revision: str, path: str) -> dict[str, Any]:
     completed = subprocess.run(
         ["git", "show", f"{revision}:{path}"],
         cwd=root,
         check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     value = yaml.safe_load(completed.stdout)
@@ -418,6 +608,43 @@ def select_by(cells: list[dict[str, Any]], selector: str) -> list[dict[str, Any]
     return selected
 
 
+def selection_batches(selected: list[dict], source_revision: str) -> dict:
+    """Reserve continuation capacity without discarding any selected cell."""
+    if not re.fullmatch(r"[0-9a-f]{40}", source_revision):
+        raise ValueError("batch source revision must be a full immutable SHA")
+    identities = [cell["id"] for cell in selected]
+    if len(identities) != len(set(identities)):
+        raise ValueError("batch selection has duplicate cell IDs")
+    def full(cell):
+        return cell.get("engine") == "build-chain" and not cell.get("tiers") and not cell.get("canary")
+    canonical = json.dumps({"sourceRevision": source_revision, "cells": selected},
+                           sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    identity = "sha256:" + hashlib.sha256(canonical).hexdigest()
+    original = [selected[index:index + 200] for index in range(0, len(selected), 200)] or [[]]
+    while len(original) < 3:
+        original.append([])
+    continuations = sum(full(cell) for cell in original[0])
+    if len(original) == 3 and all(len(original[index]) + continuations <= 200 for index in (1, 2)):
+        batches = [original]
+    else:
+        native = [cell for cell in selected if full(cell)]
+        recipes = [cell for cell in selected if not full(cell)]
+        batches = []
+        while native or recipes:
+            first = native[:200]
+            native = native[200:]
+            reserved = len(first)
+            capacities = [200 - reserved, 200 - reserved, 200 - reserved]
+            shards = [first, [], []]
+            for index, capacity in enumerate(capacities):
+                shards[index].extend(recipes[:capacity])
+                recipes = recipes[capacity:]
+            batches.append(shards)
+    return {"selection_digest": identity, "shards": batches,
+            "planned_batches": [{"batch_index": index, "cells": [cell["id"] for shard in batch for cell in shard]}
+                                for index, batch in enumerate(batches)]}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path("."))
@@ -426,7 +653,22 @@ def main() -> int:
     parser.add_argument("--cell", help="optional exact cell ID for a manual run")
     parser.add_argument("--selector", help="cell ID or target=/family=/engine=/architecture=")
     parser.add_argument("--canary-common", action="store_true")
+    parser.add_argument("--batch-index", type=int, default=0)
+    parser.add_argument("--selection-digest")
+    parser.add_argument(
+        "--round-robin-size",
+        type=int,
+        default=0,
+        help="pull requests: build only this many shared-input cells, rotated by --round-robin-seed",
+    )
+    parser.add_argument("--round-robin-seed", type=int, default=0, help="rotation seed (the run number)")
     parser.add_argument("--github-output", type=pathlib.Path)
+    parser.add_argument("--consumer-contracts", type=pathlib.Path)
+    parser.add_argument("--consumer-root", type=pathlib.Path)
+    parser.add_argument("--consumer-revision")
+    parser.add_argument("--consumer-required-targets", type=pathlib.Path)
+    parser.add_argument("--consumer-provider-catalog", type=pathlib.Path)
+    parser.add_argument("--consumer-plan-output", type=pathlib.Path)
     args = parser.parse_args()
     try:
         cells = all_cells(args.root)
@@ -450,19 +692,46 @@ def main() -> int:
             changed_graph_ids=graph_changes,
             canary_common=args.canary_common,
         )
+        deferred: list[dict[str, Any]] = []
+        if not args.cell and not args.selector:
+            selected, deferred = round_robin(
+                selected,
+                changed,
+                size=args.round_robin_size,
+                seed=args.round_robin_seed,
+                changed_native_ids=native_changes,
+                changed_graph_ids=graph_changes,
+            )
+        if deferred:
+            print(
+                f"round-robin: building {len(selected)} cells, deferring {len(deferred)} shared-input "
+                f"cells to the push to main: {' '.join(cell['id'] for cell in deferred)}",
+                file=sys.stderr,
+            )
         if args.cell:
             selected = select_by(cells, args.cell)
         if args.selector:
             selected = select_by(selected, args.selector)
+        consumer_plan = consumer_factory_plan(args, cells)
+        if consumer_plan is not None:
+            selected = bind_consumer_cells(cells, selected, consumer_plan)
     except (OSError, ValueError, yaml.YAMLError) as exc:
         print(f"package-factory planner failed closed: {exc}", file=sys.stderr)
         return 2
-    shards = [selected[index:index + 200] for index in range(0, len(selected), 200)] or [[]]
-    while len(shards) < 3:
-        shards.append([])
-    if len(shards) > 3:
-        print("package-factory planner exceeded three 200-cell shards", file=sys.stderr)
+    try:
+        source_revision = subprocess.run(["git", "-C", str(args.root), "rev-parse", "HEAD"],
+                                         check=True, capture_output=True, text=True).stdout.strip()
+        batch_plan = selection_batches(selected, source_revision)
+        if args.batch_index < 0 or args.batch_index >= len(batch_plan["shards"]):
+            raise ValueError("batch index outside complete selection")
+        if args.selection_digest is not None and args.selection_digest != batch_plan["selection_digest"]:
+            raise ValueError("selection digest does not match pinned source and inventory")
+    except (ValueError, subprocess.SubprocessError) as exc:
+        print(f"package-factory batching failed closed: {exc}", file=sys.stderr)
         return 2
+    selection = selected
+    shards = batch_plan["shards"][args.batch_index]
+    selected = [cell for shard in shards for cell in shard]
 
     # Continuation shards for full-chain build-chain cells.
     #
@@ -496,6 +765,8 @@ def main() -> int:
         cont["id"] = f"{cell['id']}-{suffix}"
         return cont
 
+    # selection_batches already reserved room in shards 1 and 2 for shard 0's
+    # full-chain continuations, so they always fit.
     full_chain = [
         cell for cell in shards[0]
         if cell.get("engine") == "build-chain"
@@ -512,10 +783,25 @@ def main() -> int:
             shards[shard_index].append(_continuation(cell, suffix))
 
     matrices = [json.dumps({"include": shard}, separators=(",", ":")) for shard in shards]
-    print(json.dumps({"count": len(selected), "matrices": matrices}))
+    pending = [batch for batch in batch_plan["planned_batches"] if batch["batch_index"] > args.batch_index]
+    result = {"count": len(selected), "matrices": matrices,
+              "batch_index": args.batch_index, "batch_count": len(batch_plan["shards"]),
+              "source_revision": source_revision, "selection_count": len(selection),
+              "selection_digest": batch_plan["selection_digest"], "selection_inventory": selection,
+              "planned_batches": batch_plan["planned_batches"], "pending_batches": pending,
+              "pending_cells": [cell for batch in pending for cell in batch["cells"]],
+              "readiness": False}
+
+    if consumer_plan is not None:
+        result["consumerPlan"] = consumer_plan
+    print(json.dumps(result))
     if args.github_output:
         with args.github_output.open("a", encoding="utf-8") as output:
             output.write(f"count={len(selected)}\n")
+            for field in ("batch_index", "batch_count", "selection_count", "selection_digest", "source_revision"):
+                output.write(f"{field}={result[field]}\n")
+            for field in ("pending_cells", "pending_batches", "planned_batches"):
+                output.write(f"{field}={json.dumps(result[field], separators=(',', ':'))}\n")
             for index, matrix in enumerate(matrices):
                 output.write(f"matrix_{index}={matrix}\n")
                 # Shard occupancy drives the build-1/build-2 job conditions:

@@ -76,6 +76,7 @@ mhg = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(mhg)
 
 sys.path.insert(0, str(ROOT / "scripts"))
+import gentoo_binhost  # noqa: E402
 import published_index as pubidx  # noqa: E402  (needs the path above)
 
 
@@ -123,14 +124,105 @@ def apt_index_names(baseurl: str, cache: pathlib.Path) -> tuple[set, dict]:
     return names, provenance
 
 
-def measure(catalog, factory, cache: pathlib.Path) -> dict:
+def gpkg_index_names(baseurl: str, cache: pathlib.Path) -> tuple[set, dict]:
+    """Read Portage's Packages, retaining atoms and recipe package names."""
+    base = baseurl.rstrip("/") + "/"
+    raw = mhg.fetch(base + "Packages", cache)
+    packages = gentoo_binhost.parse_packages(raw.decode("utf-8"))["packages"]
+    names = set(packages)
+    names.update(atom.split("/", 1)[1] for atom in packages)
+    return names, {
+        "baseurl": base,
+        "packages_sha256": hashlib.sha256(raw).hexdigest(),
+        "package_names": len(packages),
+    }
+
+
+def load_reproducibility(path: pathlib.Path) -> dict | None:
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def render_reproducibility(repro: dict) -> list[str]:
+    lines = [
+        "## Reproducibility verification",
+        "",
+        "Sampled rebuilds against recorded ActionResults to monitor determinism",
+        "and cache-reuse guarantees (#486):",
+        "",
+    ]
+    summary = repro.get("summary", {})
+    rate = summary.get("reproducibility_rate")
+    sampled = summary.get("sampled", 0)
+    repro_count = summary.get("reproducible", 0)
+    quar = summary.get("quarantined", 0)
+    if rate is None:
+        lines.append(f"No sampled rebuilds recorded yet ({quar} quarantined).")
+    else:
+        lines.append(
+            f"Overall: **{rate}%** reproducible ({repro_count}/{sampled} sampled rebuilds verified; "
+            f"{quar} quarantined)."
+        )
+    lines.append("")
+    lines.append("| Engine | Format | Sampled | Reproducible | Divergent | Rate |")
+    lines.append("|---|---|---|---|---|---|")
+    by_coord = repro.get("by_coordinate", {})
+    if by_coord:
+        for coord in sorted(by_coord.keys()):
+            data = by_coord[coord]
+            parts = coord.split("/")
+            eng = parts[0] if len(parts) > 0 else "—"
+            fmt = parts[1] if len(parts) > 1 else "—"
+            arch = parts[2] if len(parts) > 2 else ""
+            label = f"{eng} ({arch})" if arch else eng
+            lines.append(
+                f"| {label} | {fmt} | {data['sampled']} | {data['reproducible']} | "
+                f"{data['divergent']} | {data['rate']}% |"
+            )
+    else:
+        by_engine = repro.get("by_engine", {})
+        for eng, data in sorted(by_engine.items()):
+            lines.append(
+                f"| {eng} | all | {data['sampled']} | {data['reproducible']} | "
+                f"{data['divergent']} | {data['rate']}% |"
+            )
+    lines.append("")
+    quarantined = repro.get("quarantined", [])
+    if quarantined:
+        lines.append("**Quarantined recipes (divergent artifact digests detected upon rebuild):**")
+        lines.append("")
+        for q in quarantined:
+            pkg = q.get("package", "unknown")
+            tgt = q.get("target", "unknown")
+            arch = q.get("architecture", "unknown")
+            reason = q.get("reason", "divergent digests")
+            lines.append(f"- `{pkg}` ({tgt}/{arch}) — {reason}")
+        lines.append("")
+    return lines
+
+
+def measure(
+    catalog,
+    factory,
+    cache: pathlib.Path,
+    reproducibility_path: pathlib.Path | None = None,
+) -> dict:
     report = {
-        "measured_at": datetime.datetime.now(datetime.timezone.utc)
+        "measured_at": datetime.datetime.now(datetime.UTC)
         .replace(microsecond=0)
         .isoformat(),
         "targets": {},
         "unmeasured_targets": {},
     }
+    if reproducibility_path and reproducibility_path.is_file():
+        repro = load_reproducibility(reproducibility_path)
+        if repro:
+            report["reproducibility"] = repro
     entries = catalog["packages"]
     for target_id, target in factory["targets"].items():
         # set(): the same package can be catalogued by several families for
@@ -145,13 +237,13 @@ def measure(catalog, factory, cache: pathlib.Path) -> dict:
                 "reason": "no published_index declared in package-factory.yaml",
             }
             continue
-        readers = {"rpm": index_names, "deb": apt_index_names}
+        readers = {"rpm": index_names, "deb": apt_index_names, "gpkg": gpkg_index_names}
         reader = readers.get(target.get("format"))
         if reader is None:
             report["unmeasured_targets"][target_id] = {
                 "format": target.get("format"),
                 "catalog_entries": len(wanted),
-                "reason": "only rpm-md and flat apt indexes are readable so far",
+                "reason": "only rpm-md, flat apt and Portage binhost indexes are readable so far",
             }
             continue
         arches = {}
@@ -439,6 +531,8 @@ def render(report: dict) -> str:
         "",
     ]
     lines.extend(render_trend(report))
+    if report.get("reproducibility"):
+        lines.extend(render_reproducibility(report["reproducibility"]))
     for target_id, arches in sorted(report["targets"].items()):
         lines.append(f"## {target_id}")
         lines.append("")
@@ -515,6 +609,8 @@ def main() -> None:
                         default=ROOT / "docs" / "FACTORY-STATUS.md")
     parser.add_argument("--out-json", type=pathlib.Path,
                         default=ROOT / "docs" / "factory-status.json")
+    parser.add_argument("--reproducibility-json", type=pathlib.Path,
+                        default=ROOT / "docs" / "reproducibility-status.json")
     parser.add_argument("--cache", type=pathlib.Path,
                         default=pathlib.Path("/tmp/factory-status-cache"))
     parser.add_argument("--check-structure", action="store_true",
@@ -529,7 +625,7 @@ def main() -> None:
                     if spec.get("published_index")]
         for target_id in measured:
             spec = factory["targets"][target_id]
-            if spec.get("format") not in ("rpm", "deb"):
+            if spec.get("format") not in ("rpm", "deb", "gpkg"):
                 raise SystemExit(
                     f"{target_id}: published_index declared for a format "
                     "this tool cannot read yet"
@@ -553,7 +649,7 @@ def main() -> None:
         print(f"structure ok: {len(measured)} measurable target(s)")
         return
 
-    report = measure(catalog, factory, args.cache)
+    report = measure(catalog, factory, args.cache, args.reproducibility_json)
     measure_desktop_coverage(report, factory, args.cache)
 
     # The file this run is about to overwrite IS the last merged

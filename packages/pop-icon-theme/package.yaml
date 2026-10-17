@@ -23,10 +23,12 @@ dependencies:
   runtime:
     targets:
       el10: [gnome-icon-theme]
+      alma10: [gnome-icon-theme]
+      alma10-kitten: [gnome-icon-theme]
       ubuntu: [gnome-icon-theme]
       debian: [gnome-icon-theme]
 files:
   common: [usr/share/icons/Pop]
 verify:
   smoke: test -d /usr/share/icons/Pop
-targets: [el10, ubuntu, debian]
+targets: [el10, ubuntu, debian, alma10, alma10-kitten]

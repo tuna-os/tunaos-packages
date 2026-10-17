@@ -1,0 +1,268 @@
+# Publish Tideforge-built Gentoo packages: a signed gpkg binhost and the
+# overlay that carries their ebuilds (ADR 0002).
+#
+# The gpkg leg of what publish-tideforge-{rpms,debs,arch}.yml do for their
+# formats. Two things land in R2:
+#
+#   r2:bluefin/gentoo/binpkgs/<arch>/   Packages + <category>/<name>/*.gpkg.tar,
+#                                       served as https://repo.tunaos.org/gentoo/binpkgs/<arch>/
+#                                       (binrepos.conf sync-uri)
+#   r2:bluefin/gentoo/overlay/          tunaos-overlay.zip, every recipe that
+#                                       targets gentoo as an ebuild + Manifest
+#                                       (repos.conf sync-type = zipfile)
+#
+# Dispatch-only. Publishing is a deliberate act, not a side effect of a merge;
+# the gate cells prove PRs, this workflow ships what main has.
+name: Publish Tideforge Gentoo packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Comma-separated recipe names under packages/ to build and publish
+        default: tuna-desktop
+        required: true
+      arches:
+        description: Comma-separated arches; empty means every arch the target declares
+        default: ''
+        required: false
+
+env:
+  R2_BUCKET: bluefin
+
+permissions:
+  contents: read
+
+concurrency:
+  # SHARED with the other publishers: they all rclone sync into the same
+  # bucket, and sync makes the destination match the source, so two running at
+  # once can delete each other's packages (#124 / INCIDENT-repo-wipe-gnome).
+  group: publish-rpms
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      publish_matrix: ${{ steps.plan.outputs.publish_matrix }}
+      image: ${{ steps.plan.outputs.image }}
+      overlay_packages: ${{ steps.plan.outputs.overlay_packages }}
+      overlay_src: ${{ steps.plan.outputs.overlay_src }}
+      overlay_url: ${{ steps.plan.outputs.overlay_url }}
+      overlay_zip: ${{ steps.plan.outputs.overlay_zip }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+      - run: pip install pyyaml==6.0.3
+      - id: plan
+        run: |
+          set -euo pipefail
+          python3 scripts/plan-gentoo-publish.py \
+            --packages '${{ inputs.packages }}' \
+            --arches '${{ inputs.arches }}' \
+            --github-output "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    name: ${{ matrix.package }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      # The GATE's cell id, so a restore lands where the build would have
+      # written. See .github/actions/tideforge-cached-cell (#481).
+      CELL_ID: ${{ matrix.cell_id }}
+      RECIPE: packages/${{ matrix.package }}/package.yaml
+      IMAGE: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+      - run: pip install pyyaml==6.0.3
+      - name: Restore the content-addressed source cache
+        uses: ./.github/actions/tideforge-source-cache
+        with:
+          recipe: ${{ env.RECIPE }}
+      - name: Pull the build image, retrying transient registry failures
+        run: scripts/pull-container-image.sh "$IMAGE"
+      - name: Restore the gated build, or build it if there is none
+        uses: ./.github/actions/tideforge-cached-cell
+        with:
+          cell-id: ${{ matrix.cell_id }}
+          package: ${{ matrix.package }}
+          recipe: packages/${{ matrix.package }}/package.yaml
+          target: gentoo
+          format: gpkg
+          architecture: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
+      - name: Stage under the binhost layout
+        # binpkg-multi-instance: <category>/<name>/<name>-<version>-<build-id>.gpkg.tar
+        run: |
+          set -euo pipefail
+          mkdir -p 'stage/${{ matrix.atom }}'
+          cp .factory/"$CELL_ID"/artifacts/*.gpkg.tar 'stage/${{ matrix.atom }}/'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: publish-gentoo-${{ matrix.arch }}-${{ matrix.package }}
+          path: stage/
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    strategy:
+      # Serial: the arches talk to the same bucket and rclone config.
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.publish_matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+      - run: pip install pyyaml==6.0.3
+      - name: Install tooling
+        # Only rclone on the host; gpkg-sign and emaint run in the stage3.
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+      - name: Pull the Gentoo image, retrying transient registry failures
+        run: scripts/pull-container-image.sh '${{ needs.plan.outputs.image }}'
+      - name: Configure rclone for R2
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.config/rclone
+          umask 077
+          cat > ~/.config/rclone/rclone.conf << EOF
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = ${R2_ENDPOINT}
+          EOF
+      - name: Sync down the existing binhost
+        run: |
+          set -euo pipefail
+          mkdir -p repo
+          # NOT `|| true`: the sync-up below makes the bucket MATCH repo/, so
+          # an object that failed to come down would be DELETED there (#519,
+          # #124). rclone exit 3 is "directory not found", the legitimate
+          # first-publish case; anything else stops the job before the sync-up.
+          set +e
+          rclone sync "r2:${R2_BUCKET}/${{ matrix.src }}/" repo/
+          _sync_rc=$?
+          set -e
+          if ((_sync_rc == 3)); then
+            echo "::notice::no existing objects at ${{ matrix.src }} — treating as first publish"
+          elif ((_sync_rc != 0)); then
+            echo "::error::sync-down of ${{ matrix.src }} failed (rclone rc=${_sync_rc}); refusing to continue — the sync-up in this job would DELETE every object that failed to come down"
+            exit 1
+          fi
+          # The SERVED index, kept as the before-state for the regression
+          # gate below; the wave regenerates repo/Packages in place.
+          mkdir -p old
+          if [ -f repo/Packages ]; then cp repo/Packages old/Packages; fi
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: publish-gentoo-${{ matrix.arch }}-*
+          path: staged
+          merge-multiple: true
+      - name: Render the overlay and stage its sources
+        env:
+          OVERLAY_PACKAGES: ${{ needs.plan.outputs.overlay_packages }}
+        run: |
+          set -euo pipefail
+          mkdir -p overlay distfiles
+          IFS=, read -ra recipes <<<"$OVERLAY_PACKAGES"
+          for package in "${recipes[@]}"; do
+            recipe="packages/$package/package.yaml"
+            python3 scripts/tideforge.py render "$recipe" --target gentoo --output overlay
+            python3 scripts/fetch-tideforge-sources.py "$recipe" "sources/$package"
+            python3 - "$recipe" "sources/$package" distfiles <<'PY'
+          import pathlib, shutil, sys
+          sys.path.insert(0, "scripts")
+          import tideforge
+          recipe = tideforge.load_yaml(pathlib.Path(sys.argv[1]))
+          for index, source in enumerate(tideforge.source_entries(recipe, "gentoo")):
+              shutil.copyfile(pathlib.Path(sys.argv[2]) / tideforge.source_filename(source, index),
+                              pathlib.Path(sys.argv[3]) / tideforge.gentoo_distfile(recipe, source, index))
+          PY
+          done
+      - name: Sign, index and package the overlay
+        # Inside the stage3: gpkg-sign, emaint and the ebuild Manifest writer
+        # are Portage's own tools. The key is imported there rather than
+        # mounting the runner's ~/.gnupg (permission and uid mapping).
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --env GPG_PRIVATE_KEY --env GPG_PASSPHRASE \
+            --volume "$PWD/repo:/work/repo" \
+            --volume "$PWD/staged:/work/staged:ro" \
+            --volume "$PWD/overlay:/work/overlay" \
+            --volume "$PWD/distfiles:/work/distfiles" \
+            --volume "$PWD/overlay-out:/work/overlay-out" \
+            --volume "$PWD/scripts:/scripts:ro" \
+            '${{ needs.plan.outputs.image }}' \
+            bash /scripts/publish-gentoo-wave.sh \
+              --staged /work/staged --repo /work/repo \
+              --overlay /work/overlay --distfiles /work/distfiles \
+              --overlay-zip '/work/overlay-out/${{ needs.plan.outputs.overlay_zip }}'
+      - name: Refuse a wave that breaks the served binhost
+        # NEVER BREAK RDEPS, the binhost leg: every dependency the served
+        # index resolved must still resolve in the regenerated one.
+        run: |
+          set -euo pipefail
+          python3 scripts/check-index-regression.py --format gpkg \
+            --old old/Packages --new repo/Packages
+      - name: Sync up
+        run: |
+          set -euo pipefail
+          rclone sync repo/ "r2:${R2_BUCKET}/${{ matrix.src }}/"
+          rclone sync overlay-out/ "r2:${R2_BUCKET}/${{ needs.plan.outputs.overlay_src }}/"
+
+  # The anti-#179 job: a pristine stage3 with only the SERVED binhost and key
+  # added installs the wave as guppy would, requiring signatures, then syncs
+  # the served overlay and resolves the same version from it.
+  verify:
+    needs: [plan, publish]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+      - run: pip install pyyaml==6.0.3
+      - name: Install from the served binhost
+        env:
+          RECIPE: packages/${{ matrix.package }}/package.yaml
+          ATOM: ${{ matrix.atom }}
+          OVERLAY: ${{ needs.plan.outputs.overlay_url }}
+        run: |
+          set -euo pipefail
+          python3 scripts/tideforge.py verify "$RECIPE" --target gentoo --field smoke > smoke.sh
+          FILES=$(python3 -c 'import sys, yaml; print("\n".join(p.lstrip("/") for p in yaml.safe_load(open(sys.argv[1]))["files"]["common"]))' "$RECIPE")
+          export FILES
+          served=$(jq -r --arg arch '${{ matrix.arch }}' '.include[] | select(.arch == $arch) | .served' <<<'${{ needs.plan.outputs.publish_matrix }}')
+          docker run --rm --env ATOM --env OVERLAY --env FILES \
+            --env BINHOST="$served" --env KEY=/keys/tunaos-public.gpg \
+            --volume "$PWD/smoke.sh:/smoke.sh:ro" \
+            --volume "$PWD/public.gpg:/keys/tunaos-public.gpg:ro" \
+            --volume "$PWD/scripts:/scripts:ro" \
+            '${{ matrix.image }}' bash /scripts/gentoo-clean-install.sh
