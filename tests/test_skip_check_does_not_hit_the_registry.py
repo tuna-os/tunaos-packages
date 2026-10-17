@@ -30,6 +30,18 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts/build-chain.sh"
 
+BACKEND_SOURCES = (
+    REPO / "scripts/lib/build-chain/podman.sh",
+    REPO / "scripts/lib/build-chain/mock.sh",
+    REPO / "scripts/lib/build-chain/native.sh",
+)
+
+
+def all_sources() -> str:
+    return "\n".join((SCRIPT, *BACKEND_SOURCES)[i].read_text()
+                     for i in range(len(BACKEND_SOURCES) + 1))
+
+
 
 def _function_body(name: str, *, code_only: bool = False) -> str:
     """The text of a shell function, from `name() {` to the closing brace.
@@ -78,7 +90,7 @@ def test_the_skip_check_still_resolves_the_nvr_inside_the_container():
 
 def test_the_skip_is_still_opt_out_able():
     """`--force` must keep rebuilding regardless, or a bad NVR match is unfixable."""
-    src = SCRIPT.read_text()
+    src = all_sources()
     guards = re.findall(r"if ! \$FORCE && check_package_exists", src)
     assert len(guards) >= 2, (
         f"expected every build backend to guard on FORCE, found {len(guards)}"
@@ -94,7 +106,7 @@ def test_the_build_paths_are_left_alone():
     narrow scope is a decision on record rather than something to 'tidy up'
     without measuring.
     """
-    src = SCRIPT.read_text()
+    src = all_sources()
     assert src.count("--pull=always") >= 1, (
         "the build paths were also changed -- that is a wider change than "
         "tunaos-packages#410 argues for; measure it before widening"
