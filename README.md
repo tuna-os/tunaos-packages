@@ -75,8 +75,8 @@ pytest tests/
 ## Tideforge and cross-distro packaging
 
 Tideforge is a single-recipe abstraction for straightforward packages across
-RPM, DEB, and Pacman targets. [The package-factory contract](docs/PACKAGE_FACTORY.md)
-defines supported targets, the upstream-source policy, and the migration away
+RPM, DEB, and Pacman targets. The [contract for the package factory](docs/PACKAGE_FACTORY.md)
+defines the supported targets, the upstream-source policy, and the migration away
 from COPRs and PPAs.
 
 It must prove source, build, install, and runtime parity before it replaces any

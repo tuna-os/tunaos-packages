@@ -1,6 +1,6 @@
 # Package build failures
 
-Candidates are not published supply. Keep failed attempts and check each
+Candidates do not form published supply. Keep failed tries and check each
 architecture against its native base before publication.
 
 ## Old partial RPMs in a new candidate
@@ -9,11 +9,11 @@ architecture against its native base before publication.
 [CI run 38073315753](https://github.com/tuna-os/tunaos-packages/actions/runs/38073315753)
 failed at this check.
 
-**CAUSE:** The workflow restored RPMs from an earlier attempt. A new attempt
-uses a new signing key; those RPMs are not authenticated inputs.
+**CAUSE:** The workflow restored RPMs from an earlier try. A new try
+uses a new key for signatures; those RPMs lack authentication as inputs.
 
-**FIX:** Initial Alma builds start with an empty repository. Resuming requires
-an authenticated immutable dependency snapshot. Keep the earlier artifacts.
+**FIX:** Initial Alma builds start with an empty repository. To resume, you need
+an authenticated snapshot of immutable dependencies. Keep the earlier artifacts.
 
 ## Kitten release package
 
@@ -33,7 +33,7 @@ reached the native repository and failed during bootstrap.
 satisfies the requested CPU baseline.
 
 **FIX:** Read `collection.json` and `verifier-result.json` in the CI evidence
-artifact. Repair the reported input or dependency; retain the failing gate.
+artifact. Repair the reported input or dependency; retain the failure gate.
 The public key, signed RPM bytes and compiler observation must survive failure.
 
 ## Mock bootstrap cannot read its candidate key
