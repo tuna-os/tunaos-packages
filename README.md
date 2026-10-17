@@ -58,6 +58,10 @@ It also supports dependency workarounds that a generic recipe format does not ye
 | --- | --- |
 | `src/gnome-49/`, `src/gnome-50/`, `src/gnome-51/`, `src/deps/` | Native EL10 GNOME RPM specs, patches, and source metadata |
 | `src/xfce-wayland/` | Native XFCE/XFWL4 RPM packaging |
+| `packages/` | Tideforge package-factory recipes for supported cross-distribution targets |
+| `manifests/` | Factory catalogs, dependency trees, target queues, and build contracts |
+| `docs/` | Architecture, packaging, RFC, and operational documentation |
+| `tests/` | Python and Bats test suites |
 | `build-order.yml` | GNOME 50 bootstrap/build dependency order |
 | `build-order-gnome51.yml` | GNOME 51 build dependency order |
 | `build-order-xfce*.yml` | XFCE/XFWL4 build order for EL10 and Fedora |
@@ -81,7 +85,7 @@ Useful local commands:
 ```bash
 just --list
 python3 scripts/parse-build-order.py build-order.yml --validate
-pytest tests/
+python3 -m pytest tests/ -v
 ./scripts/build-chain.sh --help
 ```
 
