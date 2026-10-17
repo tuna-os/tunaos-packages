@@ -88,6 +88,12 @@ Tideforge publishers are split by repository format:
 The portable experiment workflow is an evaluation surface, not a production
 publisher.
 
+### Python tools
+
+Importable factory tooling lives in the `scripts` package. CLI entry points
+add the repository root to `sys.path` when needed, then use normal `scripts`
+imports; they do not load sibling modules independently with `importlib.util`.
+
 ## Target and repository boundaries
 
 Targets are declared in `manifests/package-factory.yaml`. Supported target

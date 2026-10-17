@@ -15,16 +15,13 @@ Usage:
 """
 from __future__ import annotations
 
-import importlib.util
 import pathlib
 import sys
 
-HERE = pathlib.Path(__file__).resolve().parent
-_spec = importlib.util.spec_from_file_location(
-    "gap_engine", HERE / "gap_engine.py"
-)
-_engine = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_engine)
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from scripts import gap_engine as _engine  # noqa: E402
 
 
 def main() -> None:

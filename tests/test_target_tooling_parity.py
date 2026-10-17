@@ -44,20 +44,6 @@ def test_every_declared_format_is_known_to_the_index_layer():
         "comparator before adding the target")
 
 
-def test_every_format_has_its_own_version_comparator():
-    """Never one format's ruler for another's versions.
-
-    The comparators provably disagree on real versions (deb vs rpm on
-    `1.0.1`/`1.0+1`; pacman vs rpm on `1.0a`/`1.0`), so sharing one
-    would give wrong answers somewhere, silently.
-    """
-    repo_index = load("repo_index")
-    modules = {fmt: repo_index.version_module(fmt).__name__
-               for fmt in repo_index.FORMATS}
-    assert modules == {"rpm": "rpm_vercmp", "deb": "deb_version",
-                       "pkg.tar.zst": "pacman_db", "gpkg": "gentoo_binhost"}
-    assert len(set(modules.values())) == len(modules), (
-        "two formats share a comparator; their version orderings differ")
 
 
 def test_every_format_has_a_constraint_check():

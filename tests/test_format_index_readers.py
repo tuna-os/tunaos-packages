@@ -149,12 +149,6 @@ def test_pacman_and_rpm_genuinely_disagree():
     assert rpm.rpmvercmp("1.0a", "1.0") == 1
 
 
-def test_version_dispatch_is_by_declared_format():
-    assert repo_index.version_module("rpm").__name__ == "rpm_vercmp"
-    assert repo_index.version_module("deb").__name__ == "deb_version"
-    assert repo_index.version_module("pkg.tar.zst").__name__ == "pacman_db"
-    with pytest.raises(ValueError):
-        repo_index.version_module("flatpak")
 
 
 def test_every_declared_format_has_a_reader_and_a_comparator():

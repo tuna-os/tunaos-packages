@@ -45,7 +45,6 @@ import argparse
 import datetime
 import gzip
 import hashlib
-import importlib.util
 import json
 import pathlib
 import sys
@@ -54,6 +53,7 @@ import urllib.request
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 # repo.tunaos.org sits behind Cloudflare, which 403s python-urllib's default
 # User-Agent while serving curl fine (measured 2026-08-18). Install a named
@@ -66,18 +66,12 @@ _opener.addheaders = [(
 urllib.request.install_opener(_opener)
 
 # gap_engine.py owns the rpm-md machinery (fetch, repomd
-# resolution, primary.xml parsing, srpm name derivation). Import it as a
-# module rather than copying any of it — one implementation of index reading
-# is the point of RFC 011.
-_spec = importlib.util.spec_from_file_location(
-    "mhg", ROOT / "scripts" / "gap_engine.py"
-)
-mhg = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(mhg)
-
-sys.path.insert(0, str(ROOT / "scripts"))
-import gentoo_binhost  # noqa: E402
-import published_index as pubidx  # noqa: E402  (needs the path above)
+# resolution, primary.xml parsing, srpm name derivation). Import it rather
+# than copying any of it — one implementation of index reading is the point
+# of RFC 011.
+from scripts import gap_engine as mhg  # noqa: E402
+from scripts import gentoo_binhost  # noqa: E402
+from scripts import published_index as pubidx  # noqa: E402
 
 
 def load_yaml(path: pathlib.Path):

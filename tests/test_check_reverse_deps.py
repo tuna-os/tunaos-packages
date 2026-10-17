@@ -229,8 +229,7 @@ def test_a_local_staged_repo_is_readable(tmp_path):
     """The gate reads the same repodata createrepo_c just wrote."""
     wave_repo = _write_wave_repo(tmp_path)
     blob = rdeps.local_primary(wave_repo)
-    gap = rdeps.load("gap", "gap_engine.py")
-    parsed = gap.parse_primary(blob)
+    parsed = rdeps.gap_engine.parse_primary(blob)
     assert list(parsed["packages"]) == ["glib2"]
 
 
