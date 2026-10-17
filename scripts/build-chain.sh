@@ -268,6 +268,8 @@ while [[ $# -gt 0 ]]; do
         --served-nvrs)   SERVED_NVRS_FILE="$2"; shift 2 ;;
         --with-checks)  WITH_CHECKS=true; shift ;;
         --dry-run)     DRY_RUN=true;     shift ;;
+        # Consumed by sourced backend modules.
+        # shellcheck disable=SC2034
         --force)       FORCE=true;       shift ;;
         --stream)      STREAM=true;      shift ;;
         --print-dist)  PRINT_DIST=true;  shift ;;
@@ -306,6 +308,8 @@ if [[ "$MOCK_CONFIG" == alma10-* ]]; then
     # Neither restored roots nor an NVR from another publication proves this
     # target's baseline. Initial supply is built from signed native inputs.
     SERVED_NVRS_FILE=""
+    # Alma candidate mode must not inherit a host mock cache.
+    # shellcheck disable=SC2034
     MOCK_CACHE_DIR=""
     export BUILDROOT_MANIFESTS="${BUILDROOT_MANIFESTS:-${LOCAL_REPO}/buildroots}"
 fi
@@ -339,8 +343,12 @@ if [[ "$MOCK_CONFIG" == hummingbird-* ]]; then
         echo "ERROR: UTAH_REPO_DIR=$UTAH_REPO_DIR has no repository/repodata/repomd.xml" >&2
         exit 1
     fi
+    # Passed to the sourced podman backend.
+    # shellcheck disable=SC2034
     UTAH_MOUNT_ARGS=(-v "${UTAH_REPO_DIR}:/run/utah-repo:Z")
 elif [[ -n "${UTAH_REPO_DIR:-}" ]]; then
+    # Passed to the sourced podman backend.
+    # shellcheck disable=SC2034
     UTAH_MOUNT_ARGS=(-v "${UTAH_REPO_DIR}:/run/utah-repo:Z")
 fi
 
@@ -521,6 +529,8 @@ ensure_local_repo() {
                 cp "$ALMA_CANDIDATE_STATE/keys/candidate-public.gpg" "$ALMA_CANDIDATE_META/candidate-public.gpg"
                 cp "$ALMA_CANDIDATE_STATE/identity.json" "$ALMA_CANDIDATE_META/candidate-identity.json"
             fi
+            # Passed to the sourced podman backend.
+            # shellcheck disable=SC2034
             ALMA_KEY_MOUNT_ARGS=(-v "${ALMA_CANDIDATE_STATE}/keys:/keys:ro,Z")
             echo 'Alma bootstrap scope: run-local candidate, unpromoted; not production readiness'
         fi
