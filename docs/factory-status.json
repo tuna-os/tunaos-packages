@@ -87,10 +87,8 @@
             "roots": 6
           },
           "tuna": {
-            "missing": [
-              "tuna-desktop"
-            ],
-            "present": 0,
+            "missing": [],
+            "present": 1,
             "roots": 1
           },
           "xfce": {
@@ -151,10 +149,8 @@
             "roots": 6
           },
           "tuna": {
-            "missing": [
-              "tuna-desktop"
-            ],
-            "present": 0,
+            "missing": [],
+            "present": 1,
             "roots": 1
           },
           "xfce": {
@@ -468,9 +464,58 @@
         }
       },
       "measured_at": "2026-10-15T10:09:50+00:00"
+    },
+    {
+      "counts": {
+        "debian/amd64": {
+          "built": 6,
+          "needed": 51
+        },
+        "debian/arm64": {
+          "built": 6,
+          "needed": 51
+        },
+        "el10/aarch64": {
+          "built": 44,
+          "needed": 101
+        },
+        "el10/x86_64": {
+          "built": 115,
+          "needed": 30
+        },
+        "fedora/x86_64": {
+          "built": 4,
+          "needed": 0
+        },
+        "hummingbird/aarch64": {
+          "built": 620,
+          "needed": 59
+        },
+        "hummingbird/x86_64": {
+          "built": 640,
+          "needed": 39
+        },
+        "opensuse-tumbleweed/aarch64": {
+          "built": 11,
+          "needed": 9
+        },
+        "opensuse-tumbleweed/x86_64": {
+          "built": 11,
+          "needed": 9
+        },
+        "ubuntu/amd64": {
+          "built": 6,
+          "needed": 50
+        },
+        "ubuntu/arm64": {
+          "built": 6,
+          "needed": 50
+        }
+      },
+      "measured_at": "2026-10-16T10:19:18+00:00"
     }
   ],
-  "measured_at": "2026-10-16T10:19:18+00:00",
+  "measured_at": "2026-10-17T09:33:16+00:00",
   "targets": {
     "debian": {
       "amd64": {
@@ -664,7 +709,7 @@
           "xfconf",
           "xfwm4-themes"
         ],
-        "catalog_entries": 145,
+        "catalog_entries": 141,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/rpm/el10/aarch64/",
@@ -702,12 +747,10 @@
           "gnome-shell",
           "gnome50-el10-compat",
           "gobject-introspection",
-          "graphviz",
           "gsettings-desktop-schemas",
           "gtk4",
           "gtkgreet",
           "harfbuzz",
-          "highway",
           "iio-niri",
           "input-remapper",
           "krunner-bazaar",
@@ -716,7 +759,6 @@
           "libei",
           "libfprint",
           "libgda",
-          "libgee",
           "libgexiv2",
           "libglib-testing",
           "libldac",
@@ -751,7 +793,6 @@
           "tinysparql",
           "tumbler",
           "umockdev",
-          "vala",
           "vte291",
           "wlr-protocols",
           "xdg-desktop-portal",
@@ -898,7 +939,7 @@
           "xfwl4",
           "xfwm4-themes"
         ],
-        "catalog_entries": 145,
+        "catalog_entries": 141,
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/repo/10/x86_64/",
@@ -928,16 +969,13 @@
           "gdk-pixbuf2",
           "gnome-desktop3",
           "gnome-initial-setup",
-          "graphviz",
           "harfbuzz",
-          "highway",
           "iio-niri",
           "input-remapper",
           "krunner-bazaar",
           "labwc",
           "libfprint",
           "libgda",
-          "libgee",
           "libglib-testing",
           "libsoup",
           "libzip",
@@ -946,10 +984,55 @@
           "quickshell",
           "simdutf",
           "sqlcipher",
-          "vala",
           "vte291",
           "xdg-desktop-portal",
           "xdg-desktop-portal-gnome"
+        ]
+      }
+    },
+    "eln": {
+      "aarch64": {
+        "built": [
+          "gtkgreet",
+          "tuna-desktop"
+        ],
+        "catalog_entries": 4,
+        "indexes": [
+          {
+            "baseurl": "https://repo.tunaos.org/rpm/eln/aarch64/",
+            "package_names": 4,
+            "primary_bytes": 2245,
+            "primary_href": "repodata/bb13f33a398e67cf371eee5f527791d46dee95565a233137b010db1721e19e07-primary.xml.gz",
+            "primary_sha256": "bb13f33a398e67cf371eee5f527791d46dee95565a233137b010db1721e19e07",
+            "primary_sha256_declared": "bb13f33a398e67cf371eee5f527791d46dee95565a233137b010db1721e19e07",
+            "revision": "1792141436"
+          }
+        ],
+        "needed": [
+          "uupd",
+          "wayland-protocols"
+        ]
+      },
+      "x86_64": {
+        "built": [
+          "gtkgreet",
+          "tuna-desktop"
+        ],
+        "catalog_entries": 4,
+        "indexes": [
+          {
+            "baseurl": "https://repo.tunaos.org/rpm/eln/x86_64/",
+            "package_names": 4,
+            "primary_bytes": 2245,
+            "primary_href": "repodata/52f882c29cd55646c446586e54e3c5b26e2cea66789cf5737a6f8426637fb533-primary.xml.gz",
+            "primary_sha256": "52f882c29cd55646c446586e54e3c5b26e2cea66789cf5737a6f8426637fb533",
+            "primary_sha256_declared": "52f882c29cd55646c446586e54e3c5b26e2cea66789cf5737a6f8426637fb533",
+            "revision": "1792141307"
+          }
+        ],
+        "needed": [
+          "uupd",
+          "wayland-protocols"
         ]
       }
     },
@@ -971,6 +1054,22 @@
             "primary_sha256": "0736cf67f90df376b18e70a59aa5cccd2366356559bbfa6a6edbbd88794b581f",
             "primary_sha256_declared": "0736cf67f90df376b18e70a59aa5cccd2366356559bbfa6a6edbbd88794b581f",
             "revision": "1792107443"
+          }
+        ],
+        "needed": []
+      }
+    },
+    "gentoo": {
+      "amd64": {
+        "built": [
+          "tuna-desktop"
+        ],
+        "catalog_entries": 1,
+        "indexes": [
+          {
+            "baseurl": "https://repo.tunaos.org/gentoo/binpkgs/amd64/",
+            "package_names": 1,
+            "packages_sha256": "7d2b01652a8dd296a06be7a8071940a3d5a4f19c75c56289eb2fa381a423e16f"
           }
         ],
         "needed": []
@@ -1530,6 +1629,7 @@
           "tinyxml2",
           "totem-pl-parser",
           "tumbler",
+          "tuna-desktop",
           "tuned",
           "twolame",
           "uchardet",
@@ -1604,12 +1704,12 @@
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/hummingbird/20251124-aarch64/",
-            "package_names": 3915,
-            "primary_bytes": 2110752,
-            "primary_href": "repodata/0a0706a9a99889ea2769f04abab9ef818fc501fbf2a4db1fea832f2bb3de1f92-primary.xml.gz",
-            "primary_sha256": "0a0706a9a99889ea2769f04abab9ef818fc501fbf2a4db1fea832f2bb3de1f92",
-            "primary_sha256_declared": "0a0706a9a99889ea2769f04abab9ef818fc501fbf2a4db1fea832f2bb3de1f92",
-            "revision": "1791528184"
+            "package_names": 3916,
+            "primary_bytes": 2111670,
+            "primary_href": "repodata/d6b521b8b88713c953acfbcf274d45445ebf62c4c9dc61200617485ae2415c71-primary.xml.gz",
+            "primary_sha256": "d6b521b8b88713c953acfbcf274d45445ebf62c4c9dc61200617485ae2415c71",
+            "primary_sha256_declared": "d6b521b8b88713c953acfbcf274d45445ebf62c4c9dc61200617485ae2415c71",
+            "revision": "1792160459"
           }
         ],
         "needed": [
@@ -1668,7 +1768,6 @@
           "samba",
           "speech-dispatcher",
           "stoken",
-          "tuna-desktop",
           "vdirsyncer",
           "xfce4-settings",
           "xfdesktop"
@@ -2248,6 +2347,7 @@
           "tinyxml2",
           "totem-pl-parser",
           "tumbler",
+          "tuna-desktop",
           "tuned",
           "twolame",
           "uchardet",
@@ -2321,12 +2421,12 @@
         "indexes": [
           {
             "baseurl": "https://repo.tunaos.org/hummingbird/20251124-x86_64/",
-            "package_names": 8821,
-            "primary_bytes": 3891485,
-            "primary_href": "repodata/042adab524c8d3588f3fc37c52827581ac9352b52550d55c5246b20018c38a7a-primary.xml.gz",
-            "primary_sha256": "042adab524c8d3588f3fc37c52827581ac9352b52550d55c5246b20018c38a7a",
-            "primary_sha256_declared": "042adab524c8d3588f3fc37c52827581ac9352b52550d55c5246b20018c38a7a",
-            "revision": "1791526295"
+            "package_names": 8822,
+            "primary_bytes": 3892446,
+            "primary_href": "repodata/0dd17055d09dbee9b4ad1545f093da50b8a06e4a6506992fa2424fd277922499-primary.xml.gz",
+            "primary_sha256": "0dd17055d09dbee9b4ad1545f093da50b8a06e4a6506992fa2424fd277922499",
+            "primary_sha256_declared": "0dd17055d09dbee9b4ad1545f093da50b8a06e4a6506992fa2424fd277922499",
+            "revision": "1792146347"
           }
         ],
         "needed": [
@@ -2364,7 +2464,6 @@
           "samba",
           "speech-dispatcher",
           "stoken",
-          "tuna-desktop",
           "vdirsyncer",
           "webkitgtk",
           "xfce4-settings",
@@ -2448,6 +2547,74 @@
           "uupd",
           "wayland-protocols"
         ]
+      }
+    },
+    "rawhide": {
+      "aarch64": {
+        "built": [
+          "tuna-desktop"
+        ],
+        "catalog_entries": 1,
+        "indexes": [
+          {
+            "baseurl": "https://repo.tunaos.org/rpm/rawhide/aarch64/",
+            "package_names": 1,
+            "primary_bytes": 1537,
+            "primary_href": "repodata/3c7f967cf8af0da025e60ba6a8d48fe6b026faae92eb25ab3f3ca1f9073c63cb-primary.xml.gz",
+            "primary_sha256": "3c7f967cf8af0da025e60ba6a8d48fe6b026faae92eb25ab3f3ca1f9073c63cb",
+            "primary_sha256_declared": "3c7f967cf8af0da025e60ba6a8d48fe6b026faae92eb25ab3f3ca1f9073c63cb",
+            "revision": "1792131775"
+          }
+        ],
+        "needed": []
+      },
+      "x86_64": {
+        "built": [
+          "tuna-desktop"
+        ],
+        "catalog_entries": 1,
+        "indexes": [
+          {
+            "baseurl": "https://repo.tunaos.org/rpm/rawhide/x86_64/",
+            "package_names": 1,
+            "primary_bytes": 1539,
+            "primary_href": "repodata/85b78d8bce6de7a25acfb3f523b089ddf20fce00d3488eeecaa574012147992f-primary.xml.gz",
+            "primary_sha256": "85b78d8bce6de7a25acfb3f523b089ddf20fce00d3488eeecaa574012147992f",
+            "primary_sha256_declared": "85b78d8bce6de7a25acfb3f523b089ddf20fce00d3488eeecaa574012147992f",
+            "revision": "1792131726"
+          }
+        ],
+        "needed": []
+      }
+    },
+    "trixie": {
+      "amd64": {
+        "built": [
+          "tuna-desktop"
+        ],
+        "catalog_entries": 1,
+        "indexes": [
+          {
+            "baseurl": "https://repo.tunaos.org/tideforge/debian-trixie/",
+            "package_names": 4,
+            "packages_gz_sha256": "0fec3d7c601fd92dd36826b0898a4e579d662039523888f48db6878a397bf6e1"
+          }
+        ],
+        "needed": []
+      },
+      "arm64": {
+        "built": [
+          "tuna-desktop"
+        ],
+        "catalog_entries": 1,
+        "indexes": [
+          {
+            "baseurl": "https://repo.tunaos.org/tideforge/debian-trixie/",
+            "package_names": 4,
+            "packages_gz_sha256": "0fec3d7c601fd92dd36826b0898a4e579d662039523888f48db6878a397bf6e1"
+          }
+        ],
+        "needed": []
       }
     },
     "ubuntu": {
@@ -2596,161 +2763,198 @@
   "trend": {
     "rows": {
       "debian/amd64": {
-        "built_delta": 1,
+        "built_delta": 0,
         "needed_delta": 0,
         "new": false,
-        "newly_built": [
-          "tuna-desktop"
-        ],
+        "newly_built": [],
         "regressed": [],
         "retired": [],
         "stalled": null
       },
       "debian/arm64": {
-        "built_delta": 1,
+        "built_delta": 0,
         "needed_delta": 0,
         "new": false,
-        "newly_built": [
-          "tuna-desktop"
-        ],
+        "newly_built": [],
         "regressed": [],
         "retired": [],
         "stalled": null
       },
       "el10/aarch64": {
-        "built_delta": 2,
-        "needed_delta": -1,
+        "built_delta": 0,
+        "needed_delta": -4,
         "new": false,
-        "newly_built": [
-          "gtk4-layer-shell",
-          "tuna-desktop"
-        ],
+        "newly_built": [],
         "regressed": [],
         "retired": [],
         "stalled": null
       },
       "el10/x86_64": {
-        "built_delta": 2,
-        "needed_delta": -1,
-        "new": false,
-        "newly_built": [
-          "gtk4-layer-shell",
-          "tuna-desktop"
-        ],
-        "regressed": [],
-        "retired": [],
-        "stalled": null
-      },
-      "fedora/x86_64": {
-        "built_delta": 1,
-        "needed_delta": 0,
-        "new": false,
-        "newly_built": [
-          "tuna-desktop"
-        ],
-        "regressed": [],
-        "retired": [],
-        "stalled": null
-      },
-      "hummingbird/aarch64": {
-        "built_delta": -5,
-        "needed_delta": 19,
+        "built_delta": 0,
+        "needed_delta": -4,
         "new": false,
         "newly_built": [],
         "regressed": [],
-        "retired": [
-          "NetworkManager-vpnc",
-          "libuser",
-          "python-six",
-          "usermode",
-          "vpnc"
-        ],
+        "retired": [],
         "stalled": null
       },
-      "hummingbird/x86_64": {
-        "built_delta": -4,
-        "needed_delta": 18,
-        "new": false,
+      "eln/aarch64": {
+        "built_delta": 2,
+        "needed_delta": 2,
+        "new": true,
         "newly_built": [
-          "libao"
+          "gtkgreet",
+          "tuna-desktop"
         ],
         "regressed": [],
-        "retired": [
-          "NetworkManager-vpnc",
-          "libuser",
-          "python-six",
-          "usermode",
-          "vpnc"
+        "retired": []
+      },
+      "eln/x86_64": {
+        "built_delta": 2,
+        "needed_delta": 2,
+        "new": true,
+        "newly_built": [
+          "gtkgreet",
+          "tuna-desktop"
         ],
+        "regressed": [],
+        "retired": []
+      },
+      "fedora/x86_64": {
+        "built_delta": 0,
+        "needed_delta": 0,
+        "new": false,
+        "newly_built": [],
+        "regressed": [],
+        "retired": [],
         "stalled": null
       },
-      "opensuse-tumbleweed/aarch64": {
+      "gentoo/amd64": {
         "built_delta": 1,
         "needed_delta": 0,
+        "new": true,
+        "newly_built": [
+          "tuna-desktop"
+        ],
+        "regressed": [],
+        "retired": []
+      },
+      "hummingbird/aarch64": {
+        "built_delta": 1,
+        "needed_delta": -1,
         "new": false,
         "newly_built": [
           "tuna-desktop"
         ],
+        "regressed": [],
+        "retired": [],
+        "stalled": null
+      },
+      "hummingbird/x86_64": {
+        "built_delta": 1,
+        "needed_delta": -1,
+        "new": false,
+        "newly_built": [
+          "tuna-desktop"
+        ],
+        "regressed": [],
+        "retired": [],
+        "stalled": null
+      },
+      "opensuse-tumbleweed/aarch64": {
+        "built_delta": 0,
+        "needed_delta": 0,
+        "new": false,
+        "newly_built": [],
         "regressed": [],
         "retired": [],
         "stalled": null
       },
       "opensuse-tumbleweed/x86_64": {
-        "built_delta": 1,
+        "built_delta": 0,
         "needed_delta": 0,
         "new": false,
-        "newly_built": [
-          "tuna-desktop"
-        ],
+        "newly_built": [],
         "regressed": [],
         "retired": [],
         "stalled": null
       },
-      "ubuntu/amd64": {
+      "rawhide/aarch64": {
         "built_delta": 1,
         "needed_delta": 0,
-        "new": false,
+        "new": true,
         "newly_built": [
           "tuna-desktop"
         ],
+        "regressed": [],
+        "retired": []
+      },
+      "rawhide/x86_64": {
+        "built_delta": 1,
+        "needed_delta": 0,
+        "new": true,
+        "newly_built": [
+          "tuna-desktop"
+        ],
+        "regressed": [],
+        "retired": []
+      },
+      "trixie/amd64": {
+        "built_delta": 1,
+        "needed_delta": 0,
+        "new": true,
+        "newly_built": [
+          "tuna-desktop"
+        ],
+        "regressed": [],
+        "retired": []
+      },
+      "trixie/arm64": {
+        "built_delta": 1,
+        "needed_delta": 0,
+        "new": true,
+        "newly_built": [
+          "tuna-desktop"
+        ],
+        "regressed": [],
+        "retired": []
+      },
+      "ubuntu/amd64": {
+        "built_delta": 0,
+        "needed_delta": 0,
+        "new": false,
+        "newly_built": [],
         "regressed": [],
         "retired": [],
         "stalled": null
       },
       "ubuntu/arm64": {
-        "built_delta": 1,
+        "built_delta": 0,
         "needed_delta": 0,
         "new": false,
-        "newly_built": [
-          "tuna-desktop"
-        ],
+        "newly_built": [],
         "regressed": [],
         "retired": [],
         "stalled": null
       }
     },
-    "since": "2026-10-15T10:09:50+00:00",
-    "staleness_days": 1
+    "since": "2026-10-16T10:19:18+00:00",
+    "staleness_days": 0
   },
   "unmeasured_targets": {
+    "alma10": {
+      "catalog_entries": 139,
+      "format": "rpm",
+      "reason": "no published_index declared in package-factory.yaml"
+    },
+    "alma10-kitten": {
+      "catalog_entries": 139,
+      "format": "rpm",
+      "reason": "no published_index declared in package-factory.yaml"
+    },
     "arch": {
       "catalog_entries": 28,
       "format": "pkg.tar.zst",
-      "reason": "no published_index declared in package-factory.yaml"
-    },
-    "eln": {
-      "catalog_entries": 4,
-      "format": "rpm",
-      "reason": "no published_index declared in package-factory.yaml"
-    },
-    "rawhide": {
-      "catalog_entries": 1,
-      "format": "rpm",
-      "reason": "no published_index declared in package-factory.yaml"
-    },
-    "trixie": {
-      "catalog_entries": 1,
-      "format": "deb",
       "reason": "no published_index declared in package-factory.yaml"
     }
   }
