@@ -15,18 +15,16 @@ Usage:
 """
 from __future__ import annotations
 
-import importlib.util
 import pathlib
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
-_spec = importlib.util.spec_from_file_location(
-    "gap_engine", HERE / "gap_engine.py"
-)
-_engine = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_engine)
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+from module_loader import load_script  # noqa: E402
 
-
+# Loads gap_engine.py via shared module loader
+_engine = load_script("gap_engine", "gap_engine.py")
 def main() -> None:
     if "--target" not in sys.argv:
         raise SystemExit("measure-target-gap.py requires --target")
