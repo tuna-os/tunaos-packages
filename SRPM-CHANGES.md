@@ -67,6 +67,10 @@ them in `%files`.
 *   **Origin**: Backport from Rawhide.
 *   **Modifications**:
     *   Retained EL10-specific schema compilation triggers and `gio` module query triggers.
+    *   Removed versioned self-Obsoletes from the GNOME 50 bootstrap spec so
+        the published bootstrap package cannot replace EL10's system GLib.
+    *   Bumped the bootstrap release to ensure the safe rebuild supersedes
+        the stale artifact instead of reusing its NVR.
 
 ### `gdk-pixbuf2`
 *   **Origin**: Custom / Backport from Rawhide.
