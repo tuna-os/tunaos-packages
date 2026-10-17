@@ -121,7 +121,7 @@ def test_exact_recipe_action_and_served_observations_form_a_receipt(evidence):
     assert value["status"] == "pass"
     assert value["package"]["sha256"] == "a" * 64
     assert value["signature"]["primary_fingerprint"] == receipt.SIGNER
-    assert len(value["source_inputs"]) == 2
+    assert len(value["source_inputs"]) == 3
     assert "image boot" in value["note"]
 
 
