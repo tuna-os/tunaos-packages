@@ -36,7 +36,7 @@
 
 Name:           localsearch
 Version:        3.11~rc
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Localsearch and metadata extractors
 
 # The indexer is a mix of GPLv2 and LGPLv2+ code
@@ -87,7 +87,9 @@ BuildRequires:  pkgconfig(totem-plparser)
 BuildRequires:  pkgconfig(tinysparql-3.0) >= %{tinysparql_version}
 BuildRequires:  pkgconfig(vorbisfile)
 %if !0%{?flatpak}
+%if !0%{?rhel}
 BuildRequires:  pkgconfig(libosinfo-1.0)
+%endif
 BuildRequires:  pkgconfig(libnm)
 BuildRequires:  pkgconfig(upower-glib)
 %endif

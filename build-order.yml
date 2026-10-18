@@ -118,6 +118,8 @@ tiers:
       - path: src/gnome-50/gsettings-desktop-schemas
       - path: src/gnome-50/gnome-desktop3
       - path: src/deps/gtk4
+      - path: src/deps/colord-gtk
+      - path: src/deps/gsound
       - path: src/deps/glycin
       - path: src/deps/libgda
 
