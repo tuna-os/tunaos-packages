@@ -40,15 +40,13 @@ disabled) reopens the row.
 
 ## Known conversion blockers
 
-1. **Local roots absent from the reference index** (row 2, blocking):
-   `xfwl4` is maintained under `src/xfce-wayland` and Fedora Rawhide does not
-   carry it, so the target-parameterized engine cannot derive its package
-   metadata or dependency closure from the reference index. The conversion
-   needs an explicit local-payload input before the curated three-package
-   order can be deleted.
+1. **The index lacks `xfwl4`** (row 2).
+   `xfwl4` lives in `src/xfce-wayland`, but Fedora Rawhide does not carry it.
+   The target-specific engine cannot read its package metadata or dependency
+   closure from the reference index. The conversion needs a local-payload input
+   before it can delete the curated three-package order.
 
-2. **Version-aware satisfaction** is no longer an engine blocker: `closure()`
-   now compares recorded target capability EVRs with versioned requirements,
-   and tiering keeps a rebuilt provider ahead of its consumer. Fedora 44's
-   older `xfconf` and `libxfce4ui` are therefore no longer silently accepted
-   by name alone.
+2. **Version-aware satisfaction no longer blocks the engine.**
+   The closure checks the required EVR against the target's capability.
+   The tier order puts a rebuilt provider before its consumer. Fedora 44's
+   older `xfconf` and `libxfce4ui` versions no longer pass by name alone.
