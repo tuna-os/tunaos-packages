@@ -21,6 +21,23 @@ def factory() -> dict:
     )
 
 
+def test_primary_index_records_package_name_at_its_evr() -> None:
+    primary = b"""<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://linux.duke.edu/metadata/common"
+          xmlns:rpm="http://linux.duke.edu/metadata/rpm">
+  <package type="rpm">
+    <name>lib</name>
+    <arch>x86_64</arch>
+    <version epoch="2" ver="1.0" rel="1"/>
+    <format><rpm:provides/></format>
+  </package>
+</metadata>
+"""
+    index = gap.parse_primary(primary)
+    assert index["provides"]["lib"] == {"lib"}
+    assert index["provides_evr"]["lib"] == {"2:1.0-1"}
+
+
 def test_hummingbird_gap_contract_is_complete() -> None:
     measurement = gap.target_measurement(factory(), "hummingbird")
     assert measurement["roots_manifest"] == "manifests/hummingbird-desktops.yaml"
