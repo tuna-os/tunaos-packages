@@ -6,7 +6,7 @@ queues:
   alma10:
     format: rpm
     implementation: native-spec
-    build_order: build-order.yml
+    build_order: build-order-gnome51.yml
     compatibility_overlay: src/deps/gnome50-el10-compat
     gates:
       - mock-build
@@ -16,7 +16,7 @@ queues:
   alma10-kitten:
     format: rpm
     implementation: native-spec
-    build_order: build-order.yml
+    build_order: build-order-gnome51.yml
     compatibility_overlay: src/deps/gnome50-el10-compat
     gates:
       - mock-build
@@ -26,7 +26,7 @@ queues:
   el10:
     format: rpm
     implementation: native-spec
-    build_order: build-order.yml
+    build_order: build-order-gnome51.yml
     compatibility_overlay: src/deps/gnome50-el10-compat
     gates: [mock-build, rpm-md-stage-install, gnome-session-smoke, selinux-enforcing]
   ubuntu:
