@@ -153,3 +153,18 @@ def test_libnotify_does_not_build_its_tests():
     tests would make a tier depend on itself."""
     text = (ROOT / "src" / "deps" / "libnotify" / "libnotify.spec").read_text(encoding="utf-8")
     assert "-Dtests=false" in text
+
+def test_colord_gtk_is_built_after_gtk4():
+    """colord-gtk declares pkgconfig(gtk4), so it cannot race gtk4's tier."""
+    import yaml
+
+    tiers = yaml.safe_load((ROOT / "build-order.yml").read_text(encoding="utf-8"))["tiers"]
+
+    def tier_of(name: str) -> int:
+        for i, tier in enumerate(tiers):
+            for package in tier.get("packages", []):
+                if package.get("path", "").rsplit("/", 1)[-1] == name:
+                    return i
+        raise AssertionError(f"{name} not in build-order.yml")
+
+    assert tier_of("gtk4") < tier_of("colord-gtk")
