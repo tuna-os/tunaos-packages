@@ -54,6 +54,34 @@ def load_yaml(path: pathlib.Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"{path} must contain a mapping")
     return value
+def native_manifest_packages(
+    root: pathlib.Path, manifest: str
+) -> list[tuple[str, bool]]:
+    data = load_yaml(root / manifest)
+    packages = []
+    for tier in data.get("tiers") or []:
+        if not isinstance(tier, dict):
+            continue
+        for package in tier.get("packages") or []:
+            if not isinstance(package, dict):
+                continue
+            path = package.get("path")
+            if isinstance(path, str) and path:
+                packages.append((path.rstrip("/"), bool(package.get("build_tool"))))
+    return packages
+
+
+def owned_native_sources(
+    root: pathlib.Path, cell: dict[str, Any], changed: set[str]
+) -> list[tuple[str, bool]]:
+    packages = native_manifest_packages(root, str(cell["manifest"]))
+    owned = []
+    for path in changed:
+        for package_path, build_tool in packages:
+            if path == package_path or path.startswith(f"{package_path}/"):
+                owned.append((path, build_tool))
+                break
+    return owned
 
 
 def runner_for(architecture: str) -> str:
@@ -284,6 +312,7 @@ def select_cells(
     changed_capabilities: set[tuple[str, str]] | None = None,
     changed_graph_ids: set[str] | None = None,
     canary_common: bool = False,
+    root: pathlib.Path | None = None,
 ) -> list[dict[str, Any]]:
     if changed_files is None:
         return cells
@@ -356,11 +385,10 @@ def select_cells(
             shared += bound_to_canary_tiers(native)
         return owners + shared
     selected = []
-    # Cells pulled in ONLY because a renderer script moved -- build-chain.sh,
-    # parse-build-order.py, import-fedora-distgit.py. Nothing about the
-    # packages themselves changed, so on a PR these are bounded to their first
-    # tier rather than rebuilding every family end to end. See
-    # bound_to_canary_tiers() for why that is the right depth.
+    # Cells pulled ONLY because shared renderer code moved, or because a
+    # build-tool-only source moved. The former cannot alter package inputs;
+    # the latter is exercised in its own first tier. Both are bounded on PRs
+    # rather than rebuilding every family end to end.
     renderer_only = []
     for cell in cells:
         if cell["engine"] == "tideforge" and cell["package"] in changed_packages:
@@ -369,14 +397,26 @@ def select_cells(
         if formats and cell["format"] in formats:
             selected.append(cell)
             continue
-        # Checked BEFORE the renderer rules: a cell whose own manifest or
-        # sources moved must build for real, however it was also selected.
-        if cell["engine"] == "build-chain" and any(
-            path == cell["manifest"] or any(path.startswith(prefix) for prefix in cell["source_paths"])
-            for path in changed
-        ):
-            selected.append(cell)
-            continue
+        # Checked BEFORE the renderer rules: an ordinary package source or
+        # manifest change builds for real. Build-tool-only source changes are
+        # safe to bound to the first tier on the PR gate.
+        if cell["engine"] == "build-chain":
+            if root is None:
+                owned = []
+                owns_change = any(
+                    path == cell["manifest"]
+                    or any(path.startswith(prefix) for prefix in cell["source_paths"])
+                    for path in changed
+                )
+            else:
+                owned = owned_native_sources(root, cell, changed)
+                owns_change = cell["manifest"] in changed or bool(owned)
+            if owns_change:
+                if canary_common and owned and all(build_tool for _, build_tool in owned):
+                    renderer_only.append(cell)
+                else:
+                    selected.append(cell)
+                continue
         if changed & NATIVE_INPUTS and cell["engine"] == "build-chain":
             renderer_only.append(cell)
             continue
@@ -390,12 +430,14 @@ def select_cells(
 def bound_to_canary_tiers(cells: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Same cells, each bounded to the FIRST tier of its own chain.
 
-    For a renderer-script change there is no package to attribute the edit to,
-    so every build-chain family gets selected and each one rebuilds its entire
-    chain. Measured on #576's gate, a two-line build-chain.sh fix pulled in 36
-    cells: xfce-el10-x86_64 took 51m, xfce-el10-aarch64 38m, and gnome50/51 ran
-    past 50m without finishing -- for a change that could not alter what any of
-    those packages compile to.
+    Renderer-script changes have no package to attribute the edit to, so every
+    build-chain family gets selected and each one rebuilds its entire chain.
+    Build-tool-only source changes are bounded for the PR gate because the
+    changed package is built in this first tier; nightly and publish legs still
+    build the full chain. Measured on #576's gate, a two-line build-chain.sh
+    fix pulled in 36 cells: xfce-el10-x86_64 took 51m, xfce-el10-aarch64 38m,
+    and gnome50/51 ran past 50m without finishing -- for a change that could
+    not alter what any of those packages compile to.
 
     This is deliberately NOT canary_cells(). That collapses to one cell per
     (engine, target, format, architecture), and every el10 rpm family shares
@@ -710,6 +752,7 @@ def main() -> int:
             changed_native_ids=native_changes,
             changed_capabilities=capability_changes,
             changed_graph_ids=graph_changes,
+            root=args.root,
             canary_common=args.canary_common,
         )
         deferred: list[dict[str, Any]] = []
