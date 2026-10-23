@@ -1,12 +1,12 @@
 Name:           malcontent
 Version:        0.14.0
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Parental controls implementation
 
 License:        LGPL-2.1-only AND CC-BY-3.0
 URL:            https://gitlab.freedesktop.org/pwithnall/%{name}/
 Source0:        https://tecnocode.co.uk/downloads/%{name}/%{name}-%{version}.tar.xz
-Source1:        https://gitlab.gnome.org/pwithnall/libgsystemservice/-/archive/0.3.0/libgsystemservice-0.3.0.tar.bz2
+Source1:        https://gitlab.gnome.org/pwithnall/libgsystemservice/-/archive/0.3.0/libgsystemservice-0.3.0.tar.gz
 # tinycdb's canonical upstream, taken from malcontent's own
 # subprojects/tinycdb.wrap, which declares this exact source_url and a
 # source_hash of 469de2d4…ebc2 — verified to match the tarball this URL
@@ -230,6 +230,10 @@ appstream-util validate-relax --nonet %{buildroot}%{_datadir}/metainfo/org.freed
 %{_docdir}/libmalcontent-ui-1
 
 %changelog
+* Sun Oct 18 2026 TunaOS Package Factory <packages@tunaos.org> - 0.14.0-4
+- Use GitLab's gzip archive endpoint; the bzip2 endpoint returns HTTP 406 in
+  the package factory downloader.
+
 * Mon Mar 30 2026 James Reilly <jreilly1821@gmail.com> - 0.14.0-3
 - Commit tinycdb-0.81.tar.gz locally; COPR SRPM builder rejects HTTP URLs
 - Change Source3 from HTTP URL to local filename

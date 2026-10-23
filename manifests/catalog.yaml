@@ -712,6 +712,23 @@ packages:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: colord-gtk
+    family: gnome50
+    packaging:
+      rpm:
+        native: src/deps/colord-gtk
+    upstream:
+      version: 0.3.1
+      source: https://github.com/hughsie/colord-gtk/archive/refs/tags/%{version}.tar.gz#/colord-gtk-%{version}.tar.gz
+      spec: src/deps/colord-gtk/colord-gtk.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: runtime
+    referenced_by:
+      - build-order.yml
+      - manifests/package-builds.yaml
+  - name: colord-gtk
     family: hummingbird-desktops
     packaging:
       rpm:
@@ -3994,6 +4011,23 @@ packages:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: gsound
+    family: gnome50
+    packaging:
+      rpm:
+        native: src/deps/gsound
+    upstream:
+      version: 1.0.3
+      source: https://download.gnome.org/sources/gsound/1.0/gsound-%{version}.tar.xz
+      spec: src/deps/gsound/gsound.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: runtime
+    referenced_by:
+      - build-order.yml
+      - manifests/package-builds.yaml
+  - name: gsound
     family: hummingbird-desktops
     packaging:
       rpm:
@@ -6961,7 +6995,7 @@ packages:
         native: src/deps/libglib-testing
     upstream:
       version: 0.1.0
-      source: https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.bz2
+      source: https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.gz
       spec: src/deps/libglib-testing/libglib-testing.spec
     targets:
       - alma10
@@ -6978,7 +7012,7 @@ packages:
         native: src/deps/libglib-testing
     upstream:
       version: 0.1.0
-      source: https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.bz2
+      source: https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.gz
       spec: src/deps/libglib-testing/libglib-testing.spec
     targets:
       - alma10

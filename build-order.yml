@@ -118,12 +118,14 @@ tiers:
       - path: src/gnome-50/gsettings-desktop-schemas
       - path: src/gnome-50/gnome-desktop3
       - path: src/deps/gtk4
+      - path: src/deps/gsound
       - path: src/deps/glycin
       - path: src/deps/libgda
 
-  # Tier 12: Desktop Foundations.
+  # Tier 12: Desktop Foundations. colord-gtk needs gtk4 from Tier 11.
   - name: desktop-foundations
     packages:
+      - path: src/deps/colord-gtk
       - path: src/gnome-50/libadwaita
       - path: src/gnome-50/xdg-desktop-portal
       - path: src/deps/localsearch

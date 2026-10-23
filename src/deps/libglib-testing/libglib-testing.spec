@@ -1,11 +1,11 @@
 Name:           libglib-testing
 Version:        0.1.0
-Release:        4%{?dist}
+Release:        5%{?dist}
 Summary:        GLib-based test library and harness
 
 License:        LGPL-2.1-or-later
 URL:            https://gitlab.gnome.org/pwithnall/libglib-testing
-Source0:        https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.bz2
+Source0:        https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  meson
 BuildRequires:  gcc
@@ -54,6 +54,10 @@ DESTDIR=%{buildroot} ninja -C _build install
 %{_libdir}/pkgconfig/glib-testing-0.pc
 
 %changelog
+* Sun Oct 18 2026 TunaOS Package Factory <packages@tunaos.org> - 0.1.0-5
+- Use GitLab's gzip archive endpoint; the bzip2 endpoint returns HTTP 406 in
+  the package factory downloader.
+
 * Sun Aug 23 2026 TunaOS Package Factory <packages@tunaos.org> - 0.1.0-4
 - Use the SPDX identifier LGPL-2.1-or-later. LicenseRef-Callaway-LGPLv2+ is
   not a valid LicenseRef: SPDX allows only [A-Za-z0-9.-] in the idstring, so
