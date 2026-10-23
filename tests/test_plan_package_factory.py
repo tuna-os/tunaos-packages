@@ -53,6 +53,9 @@ def test_native_build_chain_change_does_not_select_tideforge_rpm(tmp_path):
     selected = planner.select_cells(planner.all_cells(root), ["scripts/build-chain.sh"])
     assert [cell["engine"] for cell in selected] == ["build-chain"]
 
+def test_planner_change_is_a_shared_input():
+    assert planner.affected_formats({"scripts/plan-package-factory.py"}) is None
+
 
 def test_native_source_change_selects_only_its_queue(tmp_path):
     root = repo(tmp_path)
