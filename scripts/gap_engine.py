@@ -29,6 +29,7 @@ import collections
 import datetime
 import gzip
 import hashlib
+import importlib.util
 import io
 import json
 import lzma
@@ -48,6 +49,18 @@ REPO = "{http://linux.duke.edu/metadata/repo}"
 # Capabilities no rebuild can supply because they are the buildroot itself or
 # an unversioned rich-dep alternative that rpm resolves at install time.
 RICH_DEP_PREFIX = "("
+
+
+def _load_rpm_vercmp():
+    spec = importlib.util.spec_from_file_location(
+        "rpm_vercmp", pathlib.Path(__file__).resolve().with_name("rpm_vercmp.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+RPM_VERCMP = _load_rpm_vercmp()
 
 
 def target_measurement(factory: dict, target_id: str) -> dict:
@@ -196,9 +209,10 @@ def parse_primary(blob: bytes) -> dict:
         version = element.find(f"{COMMON}version")
         source = element.find(f"{COMMON}format/{RPM}sourcerpm")
         if arch != "i686":
+            package_evr = entry_evr(version)
             packages[name] = {
                 "arch": arch,
-                "evr": f"{version.get('ver')}-{version.get('rel')}",
+                "evr": package_evr,
                 "srpm": source.text if source is not None else None,
                 "requires": [
                     entry.get("name")
@@ -216,6 +230,10 @@ def parse_primary(blob: bytes) -> dict:
                     and entry_evr(entry) is not None
                 ],
             }
+            # A package name is an implicit capability at the package's own
+            # EVR. Explicit Provides: entries below may add virtual names.
+            provides.setdefault(name, set()).add(name)
+            provides_evr.setdefault(name, set()).add(package_evr)
         for entry in element.findall(f"{COMMON}format/{RPM}provides/{RPM}entry"):
             provides.setdefault(entry.get("name"), set()).add(name)
             evr = entry_evr(entry)
@@ -291,7 +309,89 @@ def choose_provider(capability: str, candidates: set[str]) -> str:
     return sorted(candidates, key=lambda name: (len(name), name))[0]
 
 
-def closure(roots, reference, have, source_index=None):
+def _versioned_constraints(requirements, capability: str) -> list[tuple[str, str]]:
+    return [
+        (op, required)
+        for name, op, required in requirements
+        if name == capability
+    ]
+
+
+def _capability_satisfies(
+    capability: str,
+    have: set[str],
+    have_evr: dict[str, set[str]] | None,
+    constraints: list[tuple[str, str]],
+) -> bool:
+    """Whether the target can satisfy a capability at the required EVR.
+
+    A capability with no recorded EVR is deliberately treated as satisfied:
+    the index cannot prove it is too old, and a gap measurement must not turn
+    incomplete virtual Provides: metadata into a fabricated build request.
+    """
+    if capability not in have:
+        return False
+    if not constraints or have_evr is None:
+        return True
+    offered = have_evr.get(capability)
+    if not offered:
+        return True
+    return all(
+        any(RPM_VERCMP.satisfies(evr, op, required)
+            for evr in offered)
+        for op, required in constraints
+    )
+
+
+def _provider_satisfies(
+    capability: str,
+    provider: str,
+    reference: dict,
+    constraints: list[tuple[str, str]],
+) -> bool:
+    if not constraints:
+        return True
+    offered = set(
+        reference.get("provides_evr", {}).get(capability, ())
+    )
+    if not offered and provider == capability:
+        package = reference.get("packages", {}).get(provider) or {}
+        if package.get("evr"):
+            offered.add(package["evr"])
+    # An unversioned virtual provider cannot be judged, so retain the
+    # engine's existing lenient behaviour for that metadata shape.
+    if not offered:
+        return True
+    return all(
+        any(RPM_VERCMP.satisfies(evr, op, required)
+            for evr in offered)
+        for op, required in constraints
+    )
+
+
+def choose_provider_for(
+    capability: str,
+    candidates: set[str],
+    reference: dict,
+    constraints: list[tuple[str, str]],
+) -> str | None:
+    eligible = {
+        provider for provider in candidates
+        if _provider_satisfies(capability, provider, reference, constraints)
+    }
+    if not eligible:
+        return None
+    return choose_provider(capability, eligible)
+
+
+def closure(
+    roots,
+    reference,
+    have,
+    source_index=None,
+    have_evr=None,
+    source_versioned_index=None,
+):
     """Transitive Requires: + BuildRequires: closure, stopping at what the target has.
 
     Runtime Requires: alone is not the closure a BUILD needs.  A build tool
@@ -350,7 +450,12 @@ def closure(roots, reference, have, source_index=None):
                 absent_roots.append(name)
                 continue
             for requirement in info["requires"]:
-                if requirement in have:
+                constraints = _versioned_constraints(
+                    info.get("requires_versioned", ()), requirement
+                )
+                if _capability_satisfies(
+                    requirement, have, have_evr, constraints
+                ):
                     continue
                 if requirement.startswith(RICH_DEP_PREFIX):
                     continue
@@ -358,7 +463,12 @@ def closure(roots, reference, have, source_index=None):
                 if not candidates:
                     unresolved.setdefault(requirement, []).append(name)
                     continue
-                provider = choose_provider(requirement, candidates)
+                provider = choose_provider_for(
+                    requirement, candidates, reference, constraints
+                )
+                if provider is None:
+                    unresolved.setdefault(requirement, []).append(name)
+                    continue
                 if provider not in seen:
                     queue.append(provider)
 
@@ -377,8 +487,12 @@ def closure(roots, reference, have, source_index=None):
             if source is None or source in folded_sources:
                 continue
             folded_sources.add(source)
+            versioned = (source_versioned_index or {}).get(source, ())
             for requirement in source_index.get(source, ()):
-                if requirement in have or requirement in seen:
+                constraints = _versioned_constraints(versioned, requirement)
+                if _capability_satisfies(
+                    requirement, have, have_evr, constraints
+                ) or requirement in seen:
                     continue
                 if requirement.startswith(RICH_DEP_PREFIX):
                     continue
@@ -386,7 +500,12 @@ def closure(roots, reference, have, source_index=None):
                 if not candidates:
                     unresolved.setdefault(requirement, []).append(source)
                     continue
-                provider = choose_provider(requirement, candidates)
+                provider = choose_provider_for(
+                    requirement, candidates, reference, constraints
+                )
+                if provider is None:
+                    unresolved.setdefault(requirement, []).append(source)
+                    continue
                 if provider not in seen:
                     queue.append(provider)
 
@@ -430,7 +549,14 @@ def closure(roots, reference, have, source_index=None):
     return seen, absent_roots, unresolved
 
 
-def tier_sources(need, reference, have, source_index=None):
+def tier_sources(
+    need,
+    reference,
+    have,
+    source_index=None,
+    have_evr=None,
+    source_versioned_index=None,
+):
     """Group source packages into build tiers.
 
     Build order is decided by BuildRequires:, not by runtime Requires:.  When
@@ -453,13 +579,23 @@ def tier_sources(need, reference, have, source_index=None):
     for source in sources:
         edges.setdefault(source, set())
 
-    def link(source: str, requirement: str) -> None:
-        if requirement in have or requirement.startswith(RICH_DEP_PREFIX):
+    def link(
+        source: str,
+        requirement: str,
+        constraints: list[tuple[str, str]] = (),
+    ) -> None:
+        if _capability_satisfies(
+            requirement, have, have_evr, constraints
+        ) or requirement.startswith(RICH_DEP_PREFIX):
             return
         candidates = provides.get(requirement)
         if not candidates:
             return
-        provider = choose_provider(requirement, candidates)
+        provider = choose_provider_for(
+            requirement, candidates, reference, constraints
+        )
+        if provider is None:
+            return
         # BuildRequires: name -devel subpackages, which never enter the runtime
         # closure, so binary_to_source does not know them.  Resolve the
         # provider through the full reference index instead: cairo-devel maps
@@ -472,13 +608,25 @@ def tier_sources(need, reference, have, source_index=None):
 
     if source_index:
         for source in sources:
+            versioned = (source_versioned_index or {}).get(source, ())
             for requirement in source_index.get(source, ()):
-                link(source, requirement)
+                link(
+                    source,
+                    requirement,
+                    _versioned_constraints(versioned, requirement),
+                )
     else:
         for binary, source in binary_to_source.items():
             if source:
                 for requirement in packages[binary]["requires"]:
-                    link(source, requirement)
+                    link(
+                        source,
+                        requirement,
+                        _versioned_constraints(
+                            packages[binary].get("requires_versioned", ()),
+                            requirement,
+                        ),
+                    )
 
     # Condense strongly connected components first.  Fedora's BuildRequires
     # graph has genuine cycles (cairo BuildRequires gtk-doc which eventually
@@ -565,8 +713,8 @@ def consumed_indexes(measurement: dict | None, arch: str, cache: pathlib.Path) -
 
     Each entry is {id, index[, note]} where `index` is an https:// rpm-md
     baseurl or an oci://…@sha256:… reference; `$arch` is substituted. Returns
-    one dict per entry with the index's provenance, its binary count, and a
-    private `_have` set (provides ∪ names) for the caller to fold in.
+    one dict per entry with its provenance, binary count, capabilities, and
+    capability EVRs for the caller to fold in.
     """
     out = []
     for spec in (measurement or {}).get("consumed_indexes") or []:
@@ -578,6 +726,10 @@ def consumed_indexes(measurement: dict | None, arch: str, cache: pathlib.Path) -
             **provenance,
             "binary_packages": len(index["packages"]),
             "_have": set(index["provides"]) | set(index["packages"]),
+            "_have_evr": {
+                capability: set(evrs)
+                for capability, evrs in index.get("provides_evr", {}).items()
+            },
         })
     return out
 
@@ -675,16 +827,22 @@ def main() -> None:
     reference_blob, reference_provenance = primary_of(reference, args.cache)
     reference_index = parse_primary(reference_blob)
     source_index = None
+    source_versioned_index = None
     source_provenance = None
     if source_reference:
         source_blob, source_provenance = primary_of(source_reference, args.cache)
         source_index = parse_source_primary(source_blob)
+        source_versioned_index = parse_source_primary_versioned(source_blob)
         print(
             f"source reference has {len(source_index)} SRPMs with BuildRequires",
             file=sys.stderr,
         )
 
     have = set(target_index["provides"]) | set(target_index["packages"])
+    have_evr = {
+        capability: set(evrs)
+        for capability, evrs in target_index.get("provides_evr", {}).items()
+    }
     print(
         f"target ships {len(target_index['packages'])} binary packages, "
         f"{len(target_index['provides'])} capabilities",
@@ -699,6 +857,8 @@ def main() -> None:
     consumed = consumed_indexes(measurement, args.arch, args.cache)
     for entry in consumed:
         have |= entry.pop("_have")
+        for capability, evrs in entry.pop("_have_evr").items():
+            have_evr.setdefault(capability, set()).update(evrs)
         print(
             f"consumed     {entry['id']}: {entry['binary_packages']} binary "
             f"packages counted as had ({entry['baseurl']})",
@@ -725,6 +885,19 @@ def main() -> None:
     build_tiers: dict[str, list[list[str]]] = {}
     union_need: set[str] = set()
 
+    def needs_package(name: str) -> bool:
+        if name not in have:
+            return True
+        target_evrs = have_evr.get(name, ())
+        reference_evrs = reference_index.get("provides_evr", {}).get(name, ())
+        if not target_evrs or not reference_evrs:
+            return False
+        return any(
+            RPM_VERCMP.compare_evr(reference_evr, target_evr) > 0
+            for reference_evr in reference_evrs
+            for target_evr in target_evrs
+        )
+
     for desktop in wanted:
         definition = catalog["desktops"][desktop]
         roots = list(
@@ -744,8 +917,14 @@ def main() -> None:
         # regardless, so members that build-depend on each other still come
         # up in the right tiers.
         reachable, absent, unresolved = closure(
-            need_roots, reference_index, have,
+            need_roots,
+            reference_index,
+            have,
             source_index if membership == "selfhost" else None,
+            have_evr=have_evr,
+            source_versioned_index=(
+                source_versioned_index if membership == "selfhost" else None
+            ),
         )
         # A root the reference does not carry (quickshell, dms — packaged
         # upstream, not in Fedora) is reported separately under
@@ -754,9 +933,16 @@ def main() -> None:
         need = sorted(
             name
             for name in reachable
-            if name not in have and name in reference_index["packages"]
+            if needs_package(name) and name in reference_index["packages"]
         )
-        tiers, cycles = tier_sources(need, reference_index, have, source_index)
+        tiers, cycles = tier_sources(
+            need,
+            reference_index,
+            have,
+            source_index,
+            have_evr=have_evr,
+            source_versioned_index=source_versioned_index,
+        )
         sources = sorted({name for tier in tiers for name in tier})
         build_tiers[desktop] = tiers
         union_need |= set(need)
@@ -806,7 +992,12 @@ def main() -> None:
     # Over the union every edge is present, so the layering is a topological
     # order over the whole graph. It is also 36 layers rather than 78.
     global_tiers, global_cycles = tier_sources(
-        sorted(union_need), reference_index, have, source_index
+        sorted(union_need),
+        reference_index,
+        have,
+        source_index,
+        have_evr=have_evr,
+        source_versioned_index=source_versioned_index,
     )
     report["build_order"] = {
         "tiers": [{"index": i, "sources": t} for i, t in enumerate(global_tiers)],
