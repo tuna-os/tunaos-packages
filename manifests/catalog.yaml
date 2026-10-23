@@ -3058,6 +3058,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: ghc-pandoc
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: ghc-pandoc
+    upstream:
+      distgit: ghc-pandoc
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: gi-docgen
     family: gnome50
     packaging:
@@ -9292,6 +9305,19 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml
+  - name: pandoc-cli
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: pandoc-cli
+    upstream:
+      distgit: pandoc-cli
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: pango
     family: gnome50
     packaging:

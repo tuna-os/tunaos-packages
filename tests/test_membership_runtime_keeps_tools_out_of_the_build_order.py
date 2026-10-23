@@ -61,6 +61,18 @@ def test_ordering_still_uses_buildrequires_between_members() -> None:
     assert cycles == []
 
 
+def test_retained_package_walks_its_runtime_closure_without_selfhosting() -> None:
+    """A served repair root needs its runtime library, not unrelated tools."""
+    measured, need = gap.measure_roots(
+        ["app"], reference(), set(), {}, SOURCE_INDEX, "runtime"
+    )
+
+    assert need == {"app", "lib"}
+    assert measured["binary_packages_to_build"] == ["app", "lib"]
+    assert measured["source_packages_to_build"] == ["app", "lib"]
+    assert "buildtool" not in measured["source_packages_to_build"]
+
+
 def test_catalog_declares_runtime_membership() -> None:
     """The policy is in the catalog so every regeneration honours it."""
     catalog = yaml.safe_load(

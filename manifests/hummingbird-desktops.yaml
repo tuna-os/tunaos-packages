@@ -36,16 +36,23 @@ distgit_prefix: src/hummingbird
 # gets 0.8.8.  Without this line the next scheduled re-measure would have
 # quietly moved libnotify onto the EL10 pin.
 prefer_distgit: [libnotify]
-# What the generated build order contains.  `runtime` builds only what images
+# What the generated build order contains. `runtime` builds only what images
 # ship; BuildRequires-only tools (bison, transfig, gtk-doc, the Java stack the
-# documentation toolchains drag in) come from the buildroot's inherited
-# Rawhide fallback at priority 99 (mock/hummingbird-ci.cfg) and are never
-# rebuilt here.  The alternative, `selfhost`, folds the full BuildRequires:
-# closure into the build order -- measured 2026-08-17 that is 3282 source
-# packages against runtime's 663, a 5x factory for tools no image ships.
-# Decided with the fixed fold of #289; the 1248-package order this replaced
-# was an artifact of the fold bug, neither closure.
+# documentation toolchains drag in) come from the Fedora 44 + Hummingbird
+# buildroot and are never rebuilt here. The alternative, `selfhost`, folds the
+# full BuildRequires: closure into the build order -- measured 2026-08-17 that
+# is 3282 source packages against runtime's 663, a 5x factory for tools no image
+# ships. Decided with the fixed fold of #289; the 1248-package order this
+# replaced was an artifact of the fold bug, neither closure.
 membership: runtime
+# Packages outside every current desktop closure that this prefix still
+# serves as supported output. They are measured through their full runtime
+# closure and kept in the generated build order until the served artifacts
+# have been rebuilt in Hummingbird's Fedora 44 root. `pandoc-cli` is retained
+# because the live 3.7.0.2-41.1.fc43 build requires GLIBC_2.44 while the target
+# provides 2.43 (#557); dropping it from the order in #415 left the broken
+# artifact published forever.
+retained_packages: [pandoc-cli]
 target:
   id: hummingbird-20251124-x86_64
   baseurl: https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/

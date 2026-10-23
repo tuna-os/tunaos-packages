@@ -65,6 +65,7 @@
           "fribidi",
           "fuse",
           "fxload",
+          "ghc-pandoc",
           "giflib",
           "gnome-backgrounds",
           "gnome-shell-extensions",
@@ -291,6 +292,7 @@
           "openexr",
           "openjpeg",
           "openvpn",
+          "pandoc-cli",
           "python-aiosignal",
           "python-argcomplete",
           "python-click-log",
@@ -6846,23 +6848,58 @@
       "unresolved_capabilities": {}
     }
   },
-  "measured_at": "2026-10-16T06:58:42.465573+00:00",
+  "measured_at": "2026-10-18T05:10:03.664431+00:00",
   "membership": "runtime",
   "reference_index": {
     "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/",
-    "primary_bytes": 16204692,
-    "primary_href": "repodata/5edc507b8d163597c49ae1cdefa43d938ccc0b1b3741bbe9649d98a1bcc926a8-primary.xml.zst",
-    "primary_sha256": "5edc507b8d163597c49ae1cdefa43d938ccc0b1b3741bbe9649d98a1bcc926a8",
-    "primary_sha256_declared": "5edc507b8d163597c49ae1cdefa43d938ccc0b1b3741bbe9649d98a1bcc926a8",
-    "revision": "1792042936"
+    "primary_bytes": 16217013,
+    "primary_href": "repodata/8f06c68c8b03a33ada9f99370c483894fb8681957c61ec3f5cc63886ba615a0d-primary.xml.zst",
+    "primary_sha256": "8f06c68c8b03a33ada9f99370c483894fb8681957c61ec3f5cc63886ba615a0d",
+    "primary_sha256_declared": "8f06c68c8b03a33ada9f99370c483894fb8681957c61ec3f5cc63886ba615a0d",
+    "revision": "1792217647"
+  },
+  "retained_packages": {
+    "binary_packages_to_build": [
+      "pandoc-cli",
+      "pandoc-common"
+    ],
+    "buildrequires_cycles": [],
+    "closure_binary_packages": 3,
+    "roots": [
+      "pandoc-cli"
+    ],
+    "roots_absent_from_reference": [],
+    "roots_already_in_target": [],
+    "roots_missing_from_target": [
+      "pandoc-cli"
+    ],
+    "source_packages_to_build": [
+      "ghc-pandoc",
+      "pandoc-cli"
+    ],
+    "tiers": [
+      {
+        "index": 0,
+        "sources": [
+          "ghc-pandoc"
+        ]
+      },
+      {
+        "index": 1,
+        "sources": [
+          "pandoc-cli"
+        ]
+      }
+    ],
+    "unresolved_capabilities": {}
   },
   "source_reference_index": {
     "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/",
-    "primary_bytes": 6105954,
-    "primary_href": "repodata/ffc9e2a564f58e43f3bd3aadcd1cf3d4e27202f253d7e4cafc1507cd88761ec7-primary.xml.zst",
-    "primary_sha256": "ffc9e2a564f58e43f3bd3aadcd1cf3d4e27202f253d7e4cafc1507cd88761ec7",
-    "primary_sha256_declared": "ffc9e2a564f58e43f3bd3aadcd1cf3d4e27202f253d7e4cafc1507cd88761ec7",
-    "revision": "1792042832"
+    "primary_bytes": 6108555,
+    "primary_href": "repodata/4f5b6524dd874c617bddc0026e96275e069d5d1c6c0b1d8e1d25a7500cef8bf4-primary.xml.zst",
+    "primary_sha256": "4f5b6524dd874c617bddc0026e96275e069d5d1c6c0b1d8e1d25a7500cef8bf4",
+    "primary_sha256_declared": "4f5b6524dd874c617bddc0026e96275e069d5d1c6c0b1d8e1d25a7500cef8bf4",
+    "revision": "1792217538"
   },
   "target": {
     "baseurl": "https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/",
@@ -6875,11 +6912,11 @@
   "target_binary_packages": 3536,
   "target_index": {
     "baseurl": "https://packages.redhat.com/api/pulp-content/public-hummingbird/x86_64/",
-    "primary_bytes": 6439635,
-    "primary_href": "repodata/6fe20b54b277ed49387706b749f181819a5d8bdcbdad578df0c7f51aa800a7ec-primary.xml.gz",
-    "primary_sha256": "6fe20b54b277ed49387706b749f181819a5d8bdcbdad578df0c7f51aa800a7ec",
-    "primary_sha256_declared": "6fe20b54b277ed49387706b749f181819a5d8bdcbdad578df0c7f51aa800a7ec",
-    "revision": "1792031732"
+    "primary_bytes": 6528940,
+    "primary_href": "repodata/3f7fb93690a4f64c9f3ca3e42e1e9099ac467457fed1fc6d4983883385d132a2-primary.xml.gz",
+    "primary_sha256": "3f7fb93690a4f64c9f3ca3e42e1e9099ac467457fed1fc6d4983883385d132a2",
+    "primary_sha256_declared": "3f7fb93690a4f64c9f3ca3e42e1e9099ac467457fed1fc6d4983883385d132a2",
+    "revision": "1792265627"
   },
   "tier_ordering": "buildrequires"
 }

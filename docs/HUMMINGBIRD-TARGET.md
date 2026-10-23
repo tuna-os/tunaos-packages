@@ -158,20 +158,22 @@ the case.
   1.48`, `gsettings-desktop-schemas >= 51.alpha`) will surface as
   `preflight-buildrequires.py` findings and become build-order entries.
   That is the expected cost, and it is the cost utah paid.
-- **The three GLIBC_2.44 packages must be rebuilt**, and the prefix should
-  be re-verified for any other symbol-version leak (`GLIBC_2.44`,
-  `OPENSSL_3.5`+, `libpython3.15`).  The checker's `needer_from:
-  published` column is the list.
-- **Name masking is the overlay's inherent cost.**  dnf's priority filter
-  drops a *name* from every lower-priority repo, so a Fedora 44 package that
-  needs a library the base ships under the same name at a different soname
-  cannot resolve: F44 `fontforge` wants `libxml2.so.2`, the base's
-  `libxml2` 2.15 provides `.so.16`, and F44's `libxml2` is never a
-  candidate.  The old `includepkgs` list handled four such names by keeping
-  them *out*; the answer per package is the same either way -- exclude the
-  Fedora name or build the package against the base -- and it is a
-  per-package decision, not a global list.  utah-packages carries exactly
-  this list as `HB_EXCLUDE` (libicu, ruby-default-gems, gpgme, qt6-qtbase).
+- **Published GLIBC_2.44 leaks must be rebuilt.**  The static installability
+  check covers both every desktop closure and `retained_packages`: served
+  output that is intentionally outside those closures but still needs repair.
+  `pandoc-cli` is retained until its full runtime closure (`ghc-pandoc` and
+  `pandoc-cli`) is rebuilt in the Fedora 44 root; otherwise removing it from
+  a desktop build order leaves the incompatible artifact published (#557).
+  The checker's `needer_from: published` column identifies these leaks.
+- **The overlay uses name masks for packages.**  DNF's priority filter drops a *name*
+  from every lower-priority repo. A Fedora 44 package can need a library that
+  the base ships with another soname. The package does not resolve that
+  library. F44 `fontforge` wants `libxml2.so.2`. The base `libxml2` 2.15
+  provides `.so.16`, so F44's `libxml2` is never a candidate.
+  The list had four names. It kept those names *out*. For each package, choose
+  one action: exclude the Fedora name or build against the base. This is a
+  per-package decision, not a global list. utah-packages carries this list as
+  `HB_EXCLUDE` (libicu, ruby-default-gems, gpgme, qt6-qtbase).
 - **Upstream sources.**  utah's direct-source model (fetch the release
   tarball, verify SHA-512, fail closed) is the Hummingbird project's own
   freshness model; this repository still builds from dist-git lookaside.

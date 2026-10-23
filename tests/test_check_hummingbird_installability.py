@@ -78,6 +78,32 @@ def test_a_rawhide_glibc_leak_is_named_and_attributed_to_the_published_side():
     assert entry["needer_from"] == ["published"]
 
 
+def test_a_retained_served_package_is_audited_outside_desktop_closures():
+    """#557's pandoc-cli had left every desktop closure but remained served.
+
+    Retained roots must still expose the ABI leak, or dropping a package from
+    the generated desktop order makes its broken repository artifact invisible.
+    """
+    catalog = {
+        "retained_packages": ["pandoc-cli"],
+        "desktops": {},
+    }
+    target = index({"glibc": {"provides": ["libm.so.6(GLIBC_2.43)(64bit)"]}})
+    published = index({
+        "pandoc-cli": {"requires": ["libm.so.6(GLIBC_2.44)(64bit)"]},
+    })
+
+    report = chk.check(catalog, target, published, [chk.RETAINED_SET])
+
+    assert report["retained"]["roots"] == 1
+    assert report["retained"]["unresolved"] == {
+        "libm.so.6(GLIBC_2.44)(64bit)": {
+            "needed_by": ["pandoc-cli"],
+            "needer_from": ["published"],
+        },
+    }
+
+
 def test_a_root_in_neither_repository_is_reported_not_swallowed():
     target = index({})
     published = index({"desktop-shell": {}})
