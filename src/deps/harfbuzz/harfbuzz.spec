@@ -1,6 +1,6 @@
 Name:           harfbuzz
 Version:        13.1.1
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Text shaping library
 
 License:        MIT-Modern-Variant
@@ -71,6 +71,9 @@ This package contains Harfbuzz Vector support library.
 
 
 %build
+# redhat-rpm-config appends -fexceptions after _distro_extra_cxxflags.
+# HarfBuzz is linked by gcc, so keep its C++ objects exception-free.
+export CXXFLAGS="${CXXFLAGS:-} -fno-exceptions -fno-rtti"
 %meson -Dgraphite2=enabled -Dchafa=disabled
 %meson_build
 
@@ -142,6 +145,9 @@ This package contains Harfbuzz Vector support library.
 %{_libdir}/libharfbuzz-vector.so.*
 
 %changelog
+* Sun Oct 18 2026 TunaOS Package Factory <packages@tunaos.org> - 13.1.1-3
+- Keep HarfBuzz C++ objects exception-free after EL10 compiler flags are appended.
+
 * Fri Mar 13 2026 Parag Nemade <pnemade AT redhat DOT com> - 13.1.1-2
 - add missing hb-raster binary
 

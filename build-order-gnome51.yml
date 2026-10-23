@@ -113,11 +113,14 @@ tiers:
       # unreferenced in src/gnome-51/gtk4. Per-track copies are the
       # convention the hummingbird order already follows (src/gnome-50/gtk4).
       - path: src/gnome-51/gtk4
+      - path: src/deps/gsound
       - path: src/deps/libgda
 
   # Tier 12: Desktop Foundations.
   - name: desktop-foundations
     packages:
+      # colord-gtk declares pkgconfig(gtk4), so keep it after Tier 11.
+      - path: src/deps/colord-gtk
       - path: src/gnome-51/libadwaita
       - path: src/gnome-51/xdg-desktop-portal
       - path: src/deps/localsearch
