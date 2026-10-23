@@ -9,6 +9,9 @@ target=${TARGET:?}
 : "${ARCHITECTURE:?}"
 image=${IMAGE:?}
 out=${OUT_DIR:-"$PWD/.factory/$cell_id"}
+if [[ $out != /* ]]; then
+    out="$PWD/$out"
+fi
 mkdir -p "$out/artifacts"
 
 export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:?}
