@@ -19,6 +19,8 @@ tiers:
         build_tool: true
       - path: src/deps/autoconf
         build_tool: true
+      - path: src/deps/yq
+        build_tool: true
       - path: src/deps/libldac
       - path: src/deps/python-smartypants
         build_tool: true
