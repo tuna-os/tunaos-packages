@@ -236,3 +236,25 @@ def test_the_deb_build_is_not_shallow():
         if "actions/checkout" in (step.get("uses") or "")
     )
     assert checkout["with"]["fetch-depth"] == 0
+
+
+def test_publishers_retain_the_action_input_identity_with_the_artifact():
+    """An ActionResult key without its inputs cannot be independently rechecked."""
+    action = ACTION.read_text(encoding="utf-8")
+    assert "action-inputs.json" in action
+    workflow = PUBLISHERS["deb"].read_text(encoding="utf-8")
+    assert "publish-deb-provenance-" in workflow
+    assert "action-inputs.json" in workflow
+    assert "action-result.json" in workflow
+
+
+def test_deb_publication_binds_served_bytes_and_signed_install_evidence():
+    spec = load(PUBLISHERS["deb"])
+    steps = spec["jobs"]["verify"]["steps"]
+    assert any("actions/download-artifact" in (step.get("uses") or "") for step in steps)
+    verify = next(step for step in steps if step.get("name") == "Install from the published repo with no third-party sources")
+    assert "/keys/tunaos-public.gpg:ro" in verify["run"]
+    bind = next(step for step in steps if step.get("name") == "Bind Tuna Desktop served bytes to the verified build")
+    assert "deb-verification-receipt.py" in bind["run"]
+    assert "action-result.json" in bind["run"]
+    assert any(step.get("name") == "Retain the Debian publication receipt" for step in steps)
