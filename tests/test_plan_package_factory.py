@@ -59,6 +59,22 @@ def test_native_source_change_selects_only_its_queue(tmp_path):
     selected = planner.select_cells(planner.all_cells(root), ["src/gnome/mutter/mutter.spec"])
     assert [cell["id"] for cell in selected] == ["gnome"]
 
+def test_unlisted_native_source_cleanup_does_not_select_family(tmp_path):
+    root = repo(tmp_path)
+    (root / "order.yml").write_text(
+        "tiers:\n"
+        "- name: base\n"
+        "  packages:\n"
+        "  - path: src/gnome/real\n"
+    )
+    cells = planner.all_cells(root)
+    assert planner.select_cells(
+        cells, ["src/gnome/dead/dead.spec"], root=root
+    ) == []
+    assert [cell["id"] for cell in planner.select_cells(
+        cells, ["src/gnome/real/real.spec"], root=root
+    )] == ["gnome"]
+
 
 def test_unrelated_change_selects_nothing(tmp_path):
     root = repo(tmp_path)
