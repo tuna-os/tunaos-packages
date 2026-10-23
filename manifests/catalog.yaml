@@ -13704,6 +13704,40 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: yq
+    family: gnome50
+    packaging:
+      rpm:
+        native: src/deps/yq
+    upstream:
+      version: 4.53.6
+      source: https://github.com/mikefarah/yq/releases/download/v%{version}/yq_linux_amd64.tar.gz
+      spec: src/deps/yq/yq.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: build_tool
+    referenced_by:
+      - build-order.yml
+      - manifests/package-builds.yaml
+  - name: yq
+    family: gnome51
+    packaging:
+      rpm:
+        native: src/deps/yq
+    upstream:
+      version: 4.53.6
+      source: https://github.com/mikefarah/yq/releases/download/v%{version}/yq_linux_amd64.tar.gz
+      spec: src/deps/yq/yq.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: build_tool
+    referenced_by:
+      - build-order-gnome51.yml
+      - manifests/package-builds.yaml
   - name: yyjson
     family: hummingbird-desktops
     packaging:
