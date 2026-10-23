@@ -119,6 +119,12 @@ def test_a_renderer_change_is_bounded_on_a_pull_request():
     unbounded = [c["id"] for c in cells if not c.get("tiers")]
     assert not unbounded, f"still building whole chains on a PR: {unbounded}"
 
+def test_planner_change_is_shared_input():
+    cells = plan(["scripts/plan-package-factory.py"], canary=True)
+    native = [cell for cell in cells if cell["engine"] == "build-chain"]
+    assert native, "a planner change must still gate native families"
+    assert all(cell.get("tiers") for cell in native)
+
 
 def test_the_bounding_drops_the_continuation_shards():
     """-c1/-c2 exist to resume a long chain; one tier has nothing to resume."""

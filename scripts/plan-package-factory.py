@@ -33,6 +33,7 @@ COMMON_INPUTS = {
     "scripts/run-alma-rpm.sh",
     "scripts/alma-compiler-policy.sh",
     "scripts/factory-batches.py",
+    "scripts/plan-package-factory.py",
 }
 FORMAT_INPUTS = {
     "scripts/assemble-deb-source-tree.py": {"deb"},

@@ -57,7 +57,7 @@ test "$result" = true
 %files
 %license %{_datadir}/licenses/%{name}/LICENSE
 %{_bindir}/yq
-%{_mandir}/man1/yq.1
+%{_mandir}/man1/yq.1*
 %{_datadir}/bash-completion/completions/yq
 %{_datadir}/fish/vendor_completions.d/yq.fish
 %{_datadir}/zsh/site-functions/_yq
