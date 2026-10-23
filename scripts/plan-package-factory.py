@@ -15,10 +15,8 @@ from typing import Any
 
 import yaml
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import consumer_contract
-import factory_contract  # noqa: E402  (needs the path above)
-from target_platform import build_context
+from factory import consumer_contract, factory_contract
+from factory.target_platform import build_context
 
 RECIPE_CHANGE = re.compile(r"^packages/([^/]+)/")
 COMMON_INPUTS = {
@@ -29,7 +27,11 @@ COMMON_INPUTS = {
     "scripts/verify-package-factory-cell.sh",
     "scripts/tideforge-action-cache.py",
     "scripts/tideforge.py",
-    "scripts/target_platform.py",
+    "scripts/factory/__init__.py",
+    "scripts/factory/consumer_contract.py",
+    "scripts/factory/factory_contract.py",
+    "scripts/factory/publisher_contract.py",
+    "scripts/factory/target_platform.py",
     "scripts/run-alma-rpm.sh",
     "scripts/alma-compiler-policy.sh",
     "scripts/factory-batches.py",
@@ -523,7 +525,7 @@ def yaml_at_revision(root: pathlib.Path, revision: str, path: str) -> dict[str, 
 
 
 # Which contract keys can change a cell's outcome is decided in ONE place,
-# scripts/factory_contract.py, because scripts/tideforge-action-cache.py has
+# scripts/factory/factory_contract.py, because scripts/tideforge-action-cache.py has
 # to answer the same question for its action key (#473). This used to be a
 # local table here covering only published_index for deb and pkg.tar.zst —
 # added after declaring the served apt indexes re-planned every deb cell,

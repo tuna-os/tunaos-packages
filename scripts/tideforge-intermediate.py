@@ -22,7 +22,7 @@ from pathlib import Path, PurePosixPath
 
 import tideforge
 import yaml
-from target_platform import build_context
+from factory.target_platform import build_context
 
 SCHEMA = 0
 

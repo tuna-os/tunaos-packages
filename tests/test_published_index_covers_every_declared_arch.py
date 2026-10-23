@@ -87,7 +87,7 @@ def test_pending_is_inert_for_builds(targets):
     import sys
 
     sys.path.insert(0, str(ROOT / "scripts"))
-    import factory_contract
+    from factory import factory_contract
 
     assert "published_index_pending" in factory_contract.BUILD_INERT_KEYS
     for target in targets.values():

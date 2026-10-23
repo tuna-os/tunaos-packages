@@ -15,10 +15,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TUNAOS = Path(os.environ.get('TUNAOS_CONSUMER_ROOT', str(ROOT / '.test-deps/tunaos')))
-SPEC = importlib.util.spec_from_file_location('consumer_bridge', ROOT / 'scripts/consumer_contract.py')
-bridge = importlib.util.module_from_spec(SPEC)
-assert SPEC and SPEC.loader
-SPEC.loader.exec_module(bridge)
+from scripts.factory import consumer_contract as bridge
 DIGEST = 'sha256:' + 'a' * 64
 TARGET = {'variant': 'yellowfin', 'flavor': 'cosmic', 'platform': 'linux/amd64/v2',
           'cpuBaseline': 'x86-64-v2', 'hardwareScope': 'generic'}

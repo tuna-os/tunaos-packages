@@ -21,7 +21,7 @@ import time
 from pathlib import Path
 
 import yaml
-from target_platform import build_context
+from factory.target_platform import build_context
 
 DIGEST = re.compile(r'sha256:[0-9a-f]{64}\Z')
 SHA = re.compile(r'[0-9a-f]{40}\Z')

@@ -107,7 +107,7 @@ def test_the_publishers_pass_the_gates_cell_id():
 
 def test_the_planners_emit_the_shared_cell_id():
     sys.path.insert(0, str(ROOT / "scripts"))
-    import factory_contract
+    from factory import factory_contract
 
     for name, (script, args) in PLANNERS.items():
         result = subprocess.run(

@@ -16,9 +16,8 @@ SHA = 'a'*40
 
 @pytest.fixture
 def selection_checkout(tmp_path):
-    (tmp_path/'scripts').mkdir()
-    for name in ['alma-recipe-chain.py', 'target_platform.py']:
-        shutil.copy2(ROOT/'scripts'/name, tmp_path/'scripts'/name)
+    shutil.copytree(ROOT/'scripts'/'factory', tmp_path/'scripts'/'factory')
+    shutil.copy2(ROOT/'scripts'/'alma-recipe-chain.py', tmp_path/'scripts'/'alma-recipe-chain.py')
     for name, targets in [('cosmic-icon-theme', ['alma10']), ('tuna-desktop', ['alma10', 'alma10-kitten']),
                           ('foreign', ['arch'])]:
         path=tmp_path/'packages'/name/'package.yaml'

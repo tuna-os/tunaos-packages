@@ -4,11 +4,11 @@ from __future__ import annotations
 import pathlib
 from typing import Any
 
-import factory_contract
+from . import factory_contract
 import yaml
-from target_platform import build_context  # noqa: F401  (re-exported for plan-rpm-publish.py)
+from .target_platform import build_context  # noqa: F401  (re-exported for plan-rpm-publish.py)
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 FACTORY = factory_contract.FACTORY
 
 

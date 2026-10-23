@@ -15,9 +15,7 @@ from typing import Any
 
 import yaml
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import consumer_contract
-import factory_contract  # noqa: E402  (needs the path above)
+from factory import consumer_contract, factory_contract
 
 SCHEMA = 1
 DEFAULT_LEASE_TTL = 2400
@@ -152,7 +150,7 @@ def action_inputs(args: argparse.Namespace) -> dict[str, Any]:
 
     renderers = renderer_paths(target)
     if args.target in {"alma10", "alma10-kitten"}:
-        renderers += ("scripts/run-alma-rpm.sh", "scripts/alma-compiler-policy.sh", "scripts/target_platform.py")
+        renderers += ("scripts/run-alma-rpm.sh", "scripts/alma-compiler-policy.sh", "scripts/factory/target_platform.py")
     renderer_digests = {}
     for relative in renderers:
         path = root / relative

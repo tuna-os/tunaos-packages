@@ -18,7 +18,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-from target_platform import build_context  # noqa: E402
+from factory.target_platform import build_context  # noqa: E402
 
 
 def load_module(name, path):

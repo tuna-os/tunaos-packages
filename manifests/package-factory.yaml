@@ -507,7 +507,7 @@ targets:
     # gpkg into a Portage binhost (`Packages` index) beside the overlay. ADR
     # 0002 records the shape. Dependencies come from ::gentoo and Gentoo's
     # official binhost, never from this target's own index, so
-    # published_index is inert for gpkg (scripts/factory_contract.py).
+    # published_index is inert for gpkg (scripts/factory/factory_contract.py).
     status: supported
     format: gpkg
     # Gentoo's own keyword spelling; it is also the ebuild's KEYWORDS.

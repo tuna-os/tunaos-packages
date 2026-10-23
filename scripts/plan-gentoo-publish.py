@@ -24,9 +24,7 @@ import sys
 
 import yaml
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import factory_contract  # noqa: E402  (needs the path above)
-import publisher_contract  # noqa: E402
+from factory import factory_contract, publisher_contract
 import tideforge  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]

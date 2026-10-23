@@ -155,7 +155,7 @@ def main() -> None:
     for target in targets:
         packages = native_dependencies(recipe, target)
         target_data = factory["targets"][target]
-        from target_platform import build_context
+        from factory.target_platform import build_context
         architecture = {"x86_64": "amd64", "aarch64": "arm64"}.get(args.architecture) if target_data["format"] == "deb" else args.architecture
         image = build_context(target_data, architecture)["image"]
         repositories = target_data.get("build_repositories", [])

@@ -113,7 +113,7 @@ Three pieces, each usable without the others.
 target contract, the roots manifest it names, and `package-builds.yaml`.
 Everything it returns comes out of those files, so adding a target stays a
 contract block rather than a code change — the rule
-`scripts/factory_contract.py` already enforces on the other side of the same
+`scripts/factory/factory_contract.py` already enforces on the other side of the same
 manifests. `scripts/request.py` is the CLI (`just want "gnome 51 on
 hummingbird"`), and `--measure` reads the live index and answers the only
 number that matters: **580 of 673 served, 93 to go.**

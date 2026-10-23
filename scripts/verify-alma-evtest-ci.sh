@@ -11,7 +11,7 @@ out="$PWD/.factory/ci-cpu-${TARGET}"
 image=$(python3 - "$TARGET" <<'PY'
 import sys, yaml
 sys.path.insert(0, 'scripts')
-from target_platform import build_context
+from factory.target_platform import build_context
 factory = yaml.safe_load(open('manifests/package-factory.yaml'))
 print(build_context(factory['targets'][sys.argv[1]], 'x86_64')['image'])
 PY

@@ -28,7 +28,7 @@ yaml = pytest.importorskip("yaml")
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-import factory_contract as fc  # noqa: E402
+from factory import factory_contract as fc, publisher_contract as publisher  # noqa: E402
 
 MANIFEST = ROOT / "manifests" / "package-factory.yaml"
 
@@ -125,7 +125,6 @@ def test_shared_loader_rejects_malformed_target_contracts(tmp_path, document, me
 
 
 def test_publisher_uses_the_shared_target_loader(tmp_path):
-    publisher = _load("publisher_contract", "publisher_contract.py")
     manifest = tmp_path / "package-factory.yaml"
     manifest.write_text("targets:\n  el10: malformed\n", encoding="utf-8")
 

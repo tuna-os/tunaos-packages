@@ -53,7 +53,7 @@ from typing import Any
 
 import yaml
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 FACTORY = ROOT / "manifests" / "package-factory.yaml"
 
 

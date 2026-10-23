@@ -14,7 +14,7 @@ import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
-import factory_contract  # noqa: E402
+from factory import factory_contract  # noqa: E402
 
 
 def load(filename, name):

@@ -103,7 +103,7 @@ def main() -> None:
         for field in ("format", "architectures", "r2_path", "repository"):
             if not target.get(field):
                 fail(f"{target_id}: {field} is required")
-        from target_platform import build_context
+        from factory.target_platform import build_context
         for architecture in target["architectures"]:
             try:
                 context = build_context(target, architecture)

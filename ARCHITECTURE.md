@@ -23,7 +23,7 @@ workflow.
 | `manifests/package-factory.yaml` | Targets, architectures, build roots, publication paths, and served indexes |
 | `manifests/package-builds.yaml` | Package recipes and the targets on which each recipe is built |
 | `build-order*.yml` | Curated dependency order for build-chain package families |
-| `scripts/factory_contract.py` | Shared reader and validator for the factory contract |
+| `scripts/factory/factory_contract.py` | Shared reader and validator for the factory contract |
 | `scripts/plan-package-factory.py` | Converts contracts and a change set or selector into build cells |
 | `.github/workflows/package-factory-cell.yml` | Reusable execution boundary for one planned cell |
 

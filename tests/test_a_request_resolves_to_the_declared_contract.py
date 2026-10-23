@@ -6,7 +6,7 @@ manifests/package-factory.yaml, the roots manifest that contract names, and
 manifests/package-builds.yaml -- because the moment any of it is hard-coded
 here, adding a target becomes a code change and the resolver becomes a second,
 drifting definition of what a target is. That is the exact defect
-scripts/factory_contract.py exists to prevent on the other side of the same
+scripts/factory/factory_contract.py exists to prevent on the other side of the same
 manifests.
 
 The wrong answers pinned here are the quiet ones:
