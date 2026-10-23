@@ -33,6 +33,7 @@ COMMON_INPUTS = {
     "scripts/run-alma-rpm.sh",
     "scripts/alma-compiler-policy.sh",
     "scripts/factory-batches.py",
+    "scripts/plan-package-factory.py",
 }
 FORMAT_INPUTS = {
     "scripts/assemble-deb-source-tree.py": {"deb"},
@@ -275,10 +276,45 @@ def affected_formats(changed: set[str]) -> set[str] | None:
     return formats
 
 
+def _native_source_change_is_declared(
+    cell: dict[str, Any], path: str, root: pathlib.Path | None
+) -> bool:
+    """Ignore deleted files outside a native cell's build-order packages.
+
+    Native cells use broad source prefixes so every package edit re-keys the
+    family. A cleanup of an unreferenced directory under ``src/deps/`` must
+    not turn into a full-family build, though: it cannot affect that cell's
+    manifest or artifact.
+    """
+    if path == cell["manifest"]:
+        return True
+    if not any(path.startswith(prefix) for prefix in cell["source_paths"]):
+        return False
+    if root is None:
+        return True
+    try:
+        manifest = load_yaml(root / cell["manifest"])
+    except (OSError, ValueError, yaml.YAMLError):
+        # An unreadable manifest must fail open to the existing conservative
+        # behavior; the manifest validation job remains authoritative.
+        return True
+    declared = set()
+    for tier in manifest.get("tiers") or []:
+        for package in tier.get("packages") or []:
+            package_path = package if isinstance(package, str) else package.get("path")
+            if package_path:
+                declared.add(str(package_path).rstrip("/"))
+    return any(
+        path == package_path or path.startswith(package_path + "/")
+        for package_path in declared
+    )
+
+
 def select_cells(
     cells: list[dict[str, Any]],
     changed_files: list[str] | None,
     *,
+    root: pathlib.Path | None = None,
     changed_targets: set[str] | None = None,
     changed_native_ids: set[str] | None = None,
     changed_capabilities: set[tuple[str, str]] | None = None,
@@ -370,9 +406,10 @@ def select_cells(
             selected.append(cell)
             continue
         # Checked BEFORE the renderer rules: a cell whose own manifest or
-        # sources moved must build for real, however it was also selected.
+        # declared package sources moved must build for real, however it was
+        # also selected.
         if cell["engine"] == "build-chain" and any(
-            path == cell["manifest"] or any(path.startswith(prefix) for prefix in cell["source_paths"])
+            _native_source_change_is_declared(cell, path, root)
             for path in changed
         ):
             selected.append(cell)
@@ -706,6 +743,7 @@ def main() -> int:
         selected = select_cells(
             cells,
             changed,
+            root=args.root,
             changed_targets=target_changes,
             changed_native_ids=native_changes,
             changed_capabilities=capability_changes,
