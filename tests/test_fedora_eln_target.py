@@ -63,6 +63,14 @@ def test_eln_mock_configs_exist_and_include_correct_base():
     assert "package_state_enable" in arm_text
     assert "local-build" in arm_text
 
+def test_eln_mock_configs_bind_mount_the_local_repo():
+    for path in (MOCK_DIR / "fedora-eln-ci.cfg", MOCK_DIR / "fedora-eln-ci-aarch64.cfg"):
+        namespace = {"config_opts": {"dnf.conf": ""}, "include": lambda _name: None}
+        exec(compile(path.read_text(encoding="utf-8"), str(path), "exec"), namespace)
+        plugin_conf = namespace["config_opts"]["plugin_conf"]
+        assert plugin_conf["bind_mount_enable"] is True
+        assert ("/local-repo", "/local-repo") in plugin_conf["bind_mount_opts"]["dirs"]
+
 
 def test_containerfile_copies_eln_mock_configs():
     containerfile = (MOCK_DIR / "Containerfile").read_text(encoding="utf-8")
