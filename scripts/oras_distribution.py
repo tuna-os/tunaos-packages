@@ -18,6 +18,8 @@ import tarfile
 import tempfile
 
 VERSION = '1.3.4'
+# Conservative decimal-byte ceiling below GHCR's documented 10 GB per layer.
+MAX_PUBLISH_LAYER_BYTES = 9_000_000_000
 MANIFEST = 'application/vnd.oci.image.manifest.v1+json'
 CONFIG = 'application/vnd.oci.image.config.v1+json'
 LAYER = 'application/vnd.oci.image.layer.v1.tar'
@@ -89,20 +91,51 @@ def prepare(repository, layout, selected):
                 raise ValueError('unsafe repository symlink')
         elif not path.is_file() and not path.is_dir():
             raise ValueError('special files are not repository content')
+    entries = []
+    tar_bytes = 0
+    for path in paths:
+        if not path.is_file():
+            continue
+        info = tarfile.TarInfo('repository/' + path.relative_to(repository).as_posix())
+        snapshot = path.stat()
+        info.size = snapshot.st_size
+        info.mode = 0o644
+        # Include extended PAX headers, file padding, end markers and record padding.
+        tar_bytes += len(info.tobuf(format=tarfile.PAX_FORMAT))
+        tar_bytes += ((info.size + 511) // 512) * 512
+        serialized = ((tar_bytes + 1024 + 10239) // 10240) * 10240
+        if serialized > MAX_PUBLISH_LAYER_BYTES:
+            raise ValueError('repository exceeds single-layer publication limit; '
+                             'split transport required')
+        entries.append((path, info, snapshot))
+    if not entries:
+        raise ValueError('empty repository after size preflight')
     layout.mkdir(parents=True)
     (layout / 'blobs' / 'sha256').mkdir(parents=True)
-    # Write exactly one tar copy, on the caller-selected layout filesystem.
-    # Large families exceed 30 GiB; a second temporary tar can exhaust runners.
+    # Write one tar copy only after the complete size preflight succeeds.
     layer_path = layout / 'layer.tmp'
     with tarfile.open(layer_path, mode='w', format=tarfile.PAX_FORMAT) as archive:
-        for path in paths:
-            if not path.is_file():
-                continue
-            info = tarfile.TarInfo('repository/' + path.relative_to(repository).as_posix())
-            info.size = path.stat().st_size
-            info.mode = 0o644
+        for path, info, snapshot in entries:
+            current = path.stat()
+            if (current.st_ino, current.st_dev, current.st_size, current.st_mtime_ns,
+                current.st_ctime_ns) != (snapshot.st_ino, snapshot.st_dev, snapshot.st_size,
+                                        snapshot.st_mtime_ns, snapshot.st_ctime_ns):
+                raise ValueError('repository changed after size preflight')
             with path.open('rb') as source:
+                opened = os.fstat(source.fileno())
+                if (opened.st_ino, opened.st_dev, opened.st_size, opened.st_mtime_ns,
+                    opened.st_ctime_ns) != (snapshot.st_ino, snapshot.st_dev, snapshot.st_size,
+                                           snapshot.st_mtime_ns, snapshot.st_ctime_ns):
+                    raise ValueError('repository changed after size preflight')
                 archive.addfile(info, source)
+                # atime can change on read, so compare only content-relevant fields.
+                after = os.fstat(source.fileno())
+                if (after.st_size != snapshot.st_size
+                        or after.st_mtime_ns != snapshot.st_mtime_ns
+                        or after.st_ctime_ns != snapshot.st_ctime_ns):
+                    raise ValueError('repository changed during archive creation')
+    if layer_path.stat().st_size != serialized or serialized > MAX_PUBLISH_LAYER_BYTES:
+        raise ValueError('serialized layer size violates publication preflight')
     with layer_path.open('rb') as source:
         layer_digest = 'sha256:' + hashlib.file_digest(source, 'sha256').hexdigest()
     layer = {'mediaType': LAYER, 'digest': layer_digest, 'size': layer_path.stat().st_size}

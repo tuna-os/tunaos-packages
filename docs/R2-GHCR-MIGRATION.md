@@ -245,14 +245,24 @@ production pipelines.
 
 The image uses one uncompressed layer. This preserves transparent bytes and
 simple verification, not minimum download size.
-A 32 GiB repository needs about 32 GiB for the original tree.
-It also needs about 65 GiB of free scratch space for the downloaded layer
-and its extracted round trip. Before upload, the publisher checks for
+GHCR limits each layer to 10 GB and each upload to 10 minutes.
+See [the registry limits](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#troubleshooting).
+The publisher rejects a serialized layer above 9,000,000,000 bytes before it
+reads package contents or creates the layout. This includes tar headers,
+PAX headers and padding.
+
+A 32 GiB repository is **not supported** by this format.
+More scratch space does not remove the registry limit.
+
+Before upload, the publisher also checks for
 `2 * repository_bytes + 1 GiB` of spare capacity.
 Archive overhead and concurrent users can still exhaust disk space.
+A layer below the size limit can still exceed the upload timeout on a slow link.
+The job timeout does not extend that registry timeout.
 
 Such failures stop before the channel advances. Production jobs have a
-180-minute limit. We have not measured bandwidth or full-family runtime live.
+180-minute limit; candidate jobs have a 120-minute limit.
+The successful 522 MB candidate does not qualify large families.
 The publisher streams the archive once to the selected layout filesystem.
 It does not create a second temporary tar. It removes the upload layout before
 pull and uses `/mnt` for scratch space where possible.

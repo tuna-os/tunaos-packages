@@ -220,3 +220,58 @@ def test_dangling_destination_symlink_rejected(tree, tmp_path):
     with pytest.raises(ValueError):
         d.extract(layout, identity, output, selected)
     assert output.is_symlink()
+
+
+def test_serialized_layer_limit_includes_padding(tree, tmp_path, monkeypatch):
+    selected = d.scope('rpm', 'el10', 'x86_64')
+    reference = tmp_path / 'reference'
+    expected = d.prepare(tree, reference, selected)
+    desc = json.loads((reference / 'index.json').read_text())['manifests'][0]
+    manifest = json.loads(d.read_blob(reference, desc, d.MANIFEST))
+    size = manifest['layers'][0]['size']
+    monkeypatch.setattr(d, 'MAX_PUBLISH_LAYER_BYTES', size)
+    assert d.prepare(tree, tmp_path / 'exact', selected) == expected
+    monkeypatch.setattr(d, 'MAX_PUBLISH_LAYER_BYTES', size - 1)
+    monkeypatch.setattr(Path, 'open', lambda *a, **k: pytest.fail('must reject before content I/O'))
+    with pytest.raises(ValueError, match='single-layer publication limit'):
+        d.prepare(tree, tmp_path / 'rejected', selected)
+    assert not (tmp_path / 'rejected').exists()
+
+
+def test_pax_headers_count_toward_layer_limit(tmp_path, monkeypatch):
+    repo = tmp_path / 'repo'
+    repo.mkdir()
+    # Long UTF-8 names require PAX records; ordinary header-only estimates undercount.
+    for n in range(5):
+        (repo / (str(n) + 'é' * 80)).write_bytes(b'x')
+    monkeypatch.setattr(d, 'MAX_PUBLISH_LAYER_BYTES', 10240)
+    with pytest.raises(ValueError, match='single-layer publication limit'):
+        d.prepare(repo, tmp_path / 'layout', d.scope('rpm', 'el10', 'x86_64'))
+    assert not (tmp_path / 'layout').exists()
+
+
+def test_oversized_single_file_rejected_without_reading(tmp_path, monkeypatch):
+    repo = tmp_path / 'repo'
+    repo.mkdir()
+    (repo / 'large.rpm').write_bytes(b'x' * 10240)
+    monkeypatch.setattr(d, 'MAX_PUBLISH_LAYER_BYTES', 10240)
+    with pytest.raises(ValueError, match='single-layer publication limit'):
+        d.prepare(repo, tmp_path / 'layout', d.scope('rpm', 'el10', 'x86_64'))
+    assert not (tmp_path / 'layout').exists()
+
+
+@pytest.mark.parametrize('new_content', [b'changed-size', b'y'])
+def test_source_mutation_after_preflight_fails_closed(tmp_path, monkeypatch, new_content):
+    repo = tmp_path / 'repo'
+    repo.mkdir()
+    package = repo / 'pkg.rpm'
+    package.write_bytes(b'x')
+    original = d.tarfile.open
+    def mutate(*args, **kwargs):
+        package.write_bytes(new_content)
+        return original(*args, **kwargs)
+    monkeypatch.setattr(d.tarfile, 'open', mutate)
+    layout = tmp_path / 'layout'
+    with pytest.raises(ValueError, match='repository changed'):
+        d.prepare(repo, layout, d.scope('rpm', 'el10', 'x86_64'))
+    assert not (layout / 'index.json').exists()

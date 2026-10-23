@@ -62,8 +62,8 @@ jobs:
           echo "DOCKER_CONFIG=$RUNNER_TEMP/.docker" >> "$GITHUB_ENV"
           sudo apt-get update -q
           sudo apt-get install -y -q createrepo-c rpm gpg gpgconf podman
-          # Large families exceed 30 GiB. Keep the OCI layer copies on the
-          # second runner disk when available, as the live publisher does.
+          # Prefer the second disk for layer copies. The publisher separately
+          # rejects layers above its registry size limit before upload.
           if [ -d /mnt ]; then
             sudo install -d -o "$(id -u)" -g "$(id -g)" /mnt/candidate-containers
             printf '[storage]\ndriver = "overlay"\ngraphroot = "/mnt/candidate-containers"\nrunroot = "%s/podman-run"\n' "$RUNNER_TEMP" > "$RUNNER_TEMP/storage.conf"
