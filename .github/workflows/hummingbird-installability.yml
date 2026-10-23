@@ -4,16 +4,15 @@ name: Hummingbird installability
 #
 # The chain reports "built"; the gap engine reports "missing from the
 # target"; nothing reported the thing a consumer image needs: with ONLY
-# public-hummingbird and our published prefix enabled, do the desktop roots
-# resolve?  utah-packages gates its publish on that question inside the
-# bootc-os image; this is the static half (two primary.xml downloads, no
-# container), so it can run on every relevant change and daily.
+# public-hummingbird and our published prefix enabled, do the desktop and
+# retained served roots resolve?  utah-packages gates its publish on that
+# question inside the bootc-os image; this is the static half (two primary.xml
+# downloads, no container), so it can run on every relevant change and daily.
 #
-# Advisory: it never fails the run.  Measured 2026-09-02, no desktop
-# resolved (GNOME: 30 unresolved capabilities, three of them a Rawhide-root
-# GLIBC_2.44 leak), so a hard gate today would be permanent red; the report
-# in the job summary is the product, and `--fail-on-unresolved` is there for
-# the day a desktop first goes green and should stay so.
+# Advisory: it never fails the run.  Existing desktop closures do not resolve
+# yet, so a hard gate today would be permanent red; the report in the job
+# summary is the product, and `--fail-on-unresolved` is there for the day a
+# package set first goes green and should stay so.
 # docs/HUMMINGBIRD-TARGET.md.
 
 on:
@@ -40,7 +39,7 @@ concurrency:
 
 jobs:
   check:
-    name: resolve every desktop root on hummingbird
+    name: resolve desktop and retained roots on hummingbird
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -52,7 +51,7 @@ jobs:
       - uses: actions/setup-python@v7
         with: {python-version: "3.15"}
       - run: pip install --disable-pip-version-check PyYAML zstandard
-      - name: Resolve the desktop roots over target + published
+      - name: Resolve desktop and retained roots over target + published
         run: |
           set -euo pipefail
           python3 scripts/check-hummingbird-installability.py --arch "${{ matrix.arch }}" \
