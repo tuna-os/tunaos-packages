@@ -124,6 +124,8 @@ jobs:
               --track '${{ matrix.track }}' --series '${{ matrix.series }}' \
               --source-date-epoch "$epoch" "${consumer_args[@]}")
           fi
+          mkdir -p '.factory/${{ matrix.id }}'
+          printf '%s\n' "$payload" > '.factory/${{ matrix.id }}/action-inputs.json'
           echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
           echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
           jq . <<<"$payload"
@@ -497,6 +499,7 @@ jobs:
           path: |
             .factory/${{ matrix.id }}/artifacts/
             .factory/${{ matrix.id }}/metadata/
+            .factory/${{ matrix.id }}/action-inputs.json
             .factory/${{ matrix.id }}/action-result.json
             .factory/${{ matrix.id }}/action-key.txt
           if-no-files-found: error
