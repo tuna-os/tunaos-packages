@@ -47,7 +47,6 @@ from __future__ import annotations
 import argparse
 import collections
 import gzip
-import importlib.util
 import json
 import lzma
 import pathlib
@@ -55,19 +54,13 @@ import sys
 import xml.etree.ElementTree as ET
 
 HERE = pathlib.Path(__file__).resolve().parent
-
-_MODULES: dict[str, object] = {}
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+from module_loader import load_script  # noqa: E402
 
 
 def load(name: str, filename: str):
-    if name not in _MODULES:
-        spec = importlib.util.spec_from_file_location(name, HERE / filename)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        _MODULES[name] = module
-    return _MODULES[name]
-
-
+    return load_script(name, filename)
 def local_primary(repo: pathlib.Path) -> bytes:
     """The decompressed primary.xml of an on-disk repo directory."""
     gap = load("gap", "gap_engine.py")

@@ -55,7 +55,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import pathlib
 import re
@@ -64,22 +63,17 @@ import sys
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+SCRIPTS_DIR = str(ROOT / "scripts")
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+from module_loader import load_script  # noqa: E402
+
 SERVED_ROOT = "https://repo.tunaos.org/"
 
 
 def _load(name: str):
-    """Import a sibling script as a module.
-
-    gap_engine owns rpm-md reading (fetch with the Cloudflare-safe agent,
-    repomd resolution, primary.xml parsing) and rpm_vercmp owns EVR
-    comparison. Importing them is the point of RFC 011 -- a third copy of
-    either would be a third thing to keep correct.
-    """
-    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
+    """Import a sibling script as a module."""
+    return load_script(name)
 
 def arch_of(r2_path: str, override: str | None = None) -> str:
     """The architecture a served prefix holds.
