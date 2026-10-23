@@ -31,6 +31,17 @@ on:
         required: false
         default: false
         type: boolean
+      distribution:
+        description: "Publication transport (ORAS requires explicit seed map and operator enablement)"
+        required: false
+        default: r2
+        type: choice
+        options: [r2, oras]
+      oras_seeds:
+        description: 'JSON map of selected cell IDs to current sha256 digests; no empty bootstrap'
+        required: false
+        default: '{}'
+        type: string
       tiers:
         # Empty (the default) builds the whole order, exactly as before. A
         # comma-separated list of the order's tier names builds only those,
@@ -86,8 +97,13 @@ jobs:
         id: plan
         env:
           CELLS: ${{ inputs.cells }}
+          DISTRIBUTION: ${{ inputs.distribution }}
+          ORAS_ENABLED: ${{ vars.ORAS_PRODUCTION_ENABLED }}
+          ORAS_CELLS: ${{ vars.ORAS_PRODUCTION_CELLS }}
+          ORAS_SEEDS: ${{ inputs.oras_seeds }}
         run: |
           set -euo pipefail
+          python3 scripts/validate-oras-admission.py
           python3 scripts/plan-build-chain-publish.py \
             --cells "$CELLS" --github-output "$GITHUB_OUTPUT"
 
@@ -402,7 +418,7 @@ jobs:
     # red: one failed package must not hold the other built packages hostage,
     # or the chain can never accumulate across legs (#544). cancelled() still
     # aborts -- a torn-down run must not race a fresh one for the bucket.
-    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    if: ${{ !cancelled() && needs.plan.result == 'success' && inputs.distribution != 'oras' }}
     runs-on: ubuntu-latest
     strategy:
       # Serial: every cell talks to the same bucket and rclone config.
@@ -651,7 +667,7 @@ jobs:
   # rather than being quietly mis-verified against a URL that 404s.
   verify:
     needs: [plan, publish]
-    if: ${{ !inputs.dry_run }}
+    if: ${{ !inputs.dry_run && inputs.distribution != 'oras' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -668,3 +684,94 @@ jobs:
           python3 scripts/verify-published-wave.py \
             --served-url "https://repo.tunaos.org/${{ matrix.r2_path }}/" \
             --staged staged
+
+  publish-oras:
+    needs: [plan, build]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && inputs.distribution == 'oras' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      CELL: ${{ matrix.id }}
+      ARCH: ${{ matrix.architecture }}
+      BUILD_MANIFEST: ${{ matrix.manifest }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+      - run: python3 -m pip install -r requirements-ci.txt
+      - name: Require explicit production admission and seed
+        env:
+          ENABLED: ${{ vars.ORAS_PRODUCTION_ENABLED }}
+          SEEDS: ${{ inputs.oras_seeds }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          test "$ENABLED" = true
+          test "$GITHUB_REF" = refs/heads/main
+          test "$DRY_RUN" = false
+          seed=$(jq -er --arg cell "$CELL" '.[$cell] | select(type == "string")' <<< "$SEEDS")
+          [[ "$seed" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "SEED_DIGEST=$seed" >> "$GITHUB_ENV"
+      - name: Install tooling and reserve scratch filesystem
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
+          sudo docker image prune -af >/dev/null
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c rpm gpg gpgconf podman
+          work="$RUNNER_TEMP/oras-production"
+          if [ -d /mnt ]; then work=/mnt/oras-production; fi
+          sudo install -d -o "$(id -u)" -g "$(id -g)" "$work"
+          echo "ORAS_WORKDIR=$work" >> "$GITHUB_ENV"
+          echo "DOCKER_CONFIG=$RUNNER_TEMP/.docker" >> "$GITHUB_ENV"
+          printf '[storage]\ndriver = "overlay"\ngraphroot = "%s/containers"\nrunroot = "%s/podman-run"\n' "$work" "$RUNNER_TEMP" > "$RUNNER_TEMP/storage.conf"
+          echo "CONTAINERS_STORAGE_CONF=$RUNNER_TEMP/storage.conf" >> "$GITHUB_ENV"
+      - uses: ./.github/actions/install-oras
+      - uses: sigstore/cosign-installer@v4.1.2
+      - name: Registry authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$DOCKER_CONFIG"
+          echo "$GH_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          echo "$GH_TOKEN" | podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin --authfile "$DOCKER_CONFIG/config.json"
+      - uses: actions/download-artifact@v8
+        with:
+          name: publish-rpm-${{ matrix.id }}
+          path: staged
+      - name: Import native signing key
+        id: key
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Configure native signing
+        env:
+          KEY_ID: ${{ steps.key.outputs.keyid }}
+        run: |
+          echo '%_signature gpg' > ~/.rpmmacros
+          echo "%_gpg_name $KEY_ID" >> ~/.rpmmacros
+          echo '%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u "%{_gpg_name}" -sbo %{__signature_filename} %{__plaintext_filename}' >> ~/.rpmmacros
+      - name: Publish and verify the immutable ORAS repository
+        id: publish
+        run: bash scripts/publish-oras-rpm.sh
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: oras-production-receipt-${{ matrix.id }}
+          path: |
+            publication-intent.json
+            publication-receipt.json
+            candidate.digest
+            seed-signature.json
+          if-no-files-found: warn

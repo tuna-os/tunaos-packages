@@ -73,8 +73,8 @@ def test_no_r2_credentials_commands_or_implicit_promotion():
     assert 'secrets.R2' not in text
     assert 'rclone' not in text
     assert 'candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}' in text
-    assert 'podman push' in text
-    assert '"${image}:${CELL}"' not in text.split('podman push', 1)[1]
+    assert 'oras cp --from-oci-layout' in text
+    assert '"${image}:${CELL}"' not in text.split('oras cp --from-oci-layout', 1)[1]
     assert '--evict-foreign' not in text
     assert '--allow-empty' not in text
 

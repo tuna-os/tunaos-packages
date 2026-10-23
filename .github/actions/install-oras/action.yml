@@ -1,0 +1,26 @@
+name: Install ORAS
+description: Install the official ORAS release with committed SHA-256 pins
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+        # Official v1.3.4 release checksums; update pins together on upgrade.
+        version=1.3.4
+        case "$(uname -m)" in
+          x86_64) arch=amd64; sha=f27adb935022d94df8dc77719c322dda592c78a0d57a6f7dcdd8d900b248c454 ;;
+          aarch64) arch=arm64; sha=15702c6e3a4a56a8bd8ac5c17efdbcab56d9bada661ccbcf017f5b10c1d89399 ;;
+          *) echo 'Unsupported ORAS architecture' >&2; exit 1 ;;
+        esac
+        tmp=$(mktemp -d)
+        trap 'rm -rf "$tmp"' EXIT
+        archive="oras_${version}_linux_${arch}.tar.gz"
+        curl --fail --location --retry 3 \
+          "https://github.com/oras-project/oras/releases/download/v${version}/${archive}" \
+          --output "$tmp/$archive"
+        echo "$sha  $tmp/$archive" | sha256sum --check -
+        tar -xzf "$tmp/$archive" -C "$tmp" oras
+        mkdir -p "$RUNNER_TEMP/oras-bin"
+        install -m 0755 "$tmp/oras" "$RUNNER_TEMP/oras-bin/oras"
+        echo "$RUNNER_TEMP/oras-bin" >> "$GITHUB_PATH"

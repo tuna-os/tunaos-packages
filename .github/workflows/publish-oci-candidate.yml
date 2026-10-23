@@ -68,7 +68,13 @@ jobs:
             sudo install -d -o "$(id -u)" -g "$(id -g)" /mnt/candidate-containers
             printf '[storage]\ndriver = "overlay"\ngraphroot = "/mnt/candidate-containers"\nrunroot = "%s/podman-run"\n' "$RUNNER_TEMP" > "$RUNNER_TEMP/storage.conf"
             echo "CONTAINERS_STORAGE_CONF=$RUNNER_TEMP/storage.conf" >> "$GITHUB_ENV"
+            sudo install -d -o "$(id -u)" -g "$(id -g)" /mnt/oras-candidate
+            echo "ORAS_WORKDIR=/mnt/oras-candidate" >> "$GITHUB_ENV"
+          else
+            mkdir -p "$RUNNER_TEMP/oras-candidate"
+            echo "ORAS_WORKDIR=$RUNNER_TEMP/oras-candidate" >> "$GITHUB_ENV"
           fi
+      - uses: ./.github/actions/install-oras
       - uses: sigstore/cosign-installer@v4.1.2
       - name: Verify and materialize the pinned accumulated repository
         env:
@@ -106,6 +112,7 @@ jobs:
             count=$((count + 1))
           done < <(find repo -name '*.rpm' ! -name '*.src.rpm' -print0)
           test "$count" -gt 0
+          bash scripts/verify-native-rpm-repository.sh repo "$arch"
           echo "Seed retained $count accumulated RPMs for $CELL ($SEED_DIGEST)"
           podman rm "$cid" >/dev/null
           trap - EXIT
@@ -147,19 +154,36 @@ jobs:
           bash scripts/publish-rpm-wave.sh --staged staged --repo repo --subdir build-chain
       - name: Push and sign an isolated candidate digest
         id: publish
+        env:
+          MATRIX: ${{ steps.plan.outputs.matrix }}
         run: |
           set -euo pipefail
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/tunaos-packages"
           tag="${CELL}-candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          printf 'FROM scratch\nCOPY repo /repository\n' > Containerfile.repo
-          podman build -t "${image}:${tag}" -f Containerfile.repo .
-          podman push --authfile "$DOCKER_CONFIG/config.json" \
-            --digestfile candidate.digest "${image}:${tag}"
+          arch=$(jq -r '.include[0].architecture' <<< "$MATRIX")
+          # Allow room for downloaded layer plus extracted round trip. The
+          # upload layout is removed before download; never retain both layers.
+          repo_bytes=$(du -sb repo | cut -f1)
+          available=$(df -B1 --output=avail "$ORAS_WORKDIR" | tail -n 1)
+          test "$available" -gt "$((repo_bytes * 2 + 1073741824))"
+          python3 scripts/oras_distribution.py prepare --repository repo --layout "$ORAS_WORKDIR/candidate-layout" \
+            --format rpm --target "$CELL" --architecture "$arch" > candidate.digest
+          # OCI image media types retain COPY --from compatibility. Never oras push
+          # a generic artifact where current image consumers expect a rootfs.
+          oras cp --from-oci-layout "$ORAS_WORKDIR/candidate-layout:repository" "${image}:${tag}"
+          rm -rf "$ORAS_WORKDIR/candidate-layout"
           ref="${image}@$(cat candidate.digest)"
           cosign sign --yes "$ref"
           cosign verify "$ref" \
             --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/publish-oci-candidate.yml@refs/heads/main" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > candidate-signature.json
+          # Fetch by the locally computed manifest digest, never the mutable tag.
+          # This also proves the published bytes match the signed local layout.
+          TMPDIR="$ORAS_WORKDIR" python3 scripts/oras_distribution.py pull --reference "$ref" \
+            --destination "$ORAS_WORKDIR/roundtrip-repo" --format rpm --target "$CELL" --architecture "$arch" \
+            --identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/publish-oci-candidate.yml@refs/heads/main"
+          diff -qr repo "$ORAS_WORKDIR/roundtrip-repo"
+          bash scripts/verify-native-rpm-repository.sh "$ORAS_WORKDIR/roundtrip-repo" "$arch"
           echo "ref=$ref" >> "$GITHUB_OUTPUT"
           {
             echo '### Isolated OCI publication candidate'
