@@ -1,0 +1,17 @@
+{
+  "by_coordinate": {},
+  "by_engine": {},
+  "by_format": {},
+  "history": [],
+  "measured_at": "2026-10-24T12:01:06+00:00",
+  "quarantined": [],
+  "results": [],
+  "schema": 1,
+  "summary": {
+    "divergent": 0,
+    "quarantined": 0,
+    "reproducibility_rate": null,
+    "reproducible": 0,
+    "sampled": 0
+  }
+}
