@@ -42,10 +42,10 @@ Headers and pkgconfig files for building against libxfce4windowing.
 %{_datadir}/gir-1.0/*.gir
 %{_datadir}/vala/vapi/*
 
+%changelog
 * Tue Oct 20 2026 TunaOS Bot <bot@tunaos.org> - 4.20.6-2
 - Disable the X11 backend for pure Wayland targets, including Fedora ELN.
 
-%changelog
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
 - Packaged for the XFCE Wayland stack (tuna-os/tunaos-packages#65)
 
