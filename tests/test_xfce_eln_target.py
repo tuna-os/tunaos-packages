@@ -97,6 +97,32 @@ def test_build_chain_derives_eln_dist_with_mock_config():
     assert result.stdout.strip() == ".eln159"
 
 
+def test_build_chain_preserves_el10_and_fedora_dist_tags():
+    """Regression for the `.eln159` short-circuit above: a non-ELN
+    --mock-config must still fall through to the pre-existing target:
+    parsing, so adding the eln159 branch cannot change .el10/.fc* output.
+    """
+    for manifest, mock_config, expected in (
+        ("build-order-xfce.yml", "centos-stream-10-ci", ".el10"),
+        ("build-order-xfce-fedora.yml", "fedora-44-ci", ".fc44"),
+    ):
+        result = subprocess.run(
+            [
+                ROOT / "scripts" / "build-chain.sh",
+                "--manifest",
+                manifest,
+                "--mock-config",
+                mock_config,
+                "--print-dist",
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        assert result.stdout.strip() == expected, (manifest, mock_config, result.stdout)
+
+
 def test_plan_build_chain_publish_resolves_xfce_eln_cells():
     result = subprocess.run(
         [
