@@ -11969,7 +11969,7 @@ packages:
       rpm:
         native: src/hummingbird/tuna-desktop
     upstream:
-      version: 1.0.0~beta.1
+      version: 1.0.0~beta.2
       source: '%{url}/archive/refs/tags/v%{upstream_version}.tar.gz#/tuna-desktop-%{upstream_version}.tar.gz'
       spec: src/hummingbird/tuna-desktop/tuna-desktop.spec
     targets:
