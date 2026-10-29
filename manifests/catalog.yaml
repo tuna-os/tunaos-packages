@@ -11990,9 +11990,9 @@ packages:
       gpkg:
         tideforge: packages/tuna-desktop
     upstream:
-      version: 1.0.0~beta.1
-      source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.1.tar.gz
-      sha256: c346c0861da4894fd490a3681a039955a90c0a7aeb04b458a1170fa87a6e1ad2
+      version: 1.0.0~beta.2
+      source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.2.tar.gz
+      sha256: 1e8abf38f4959a171007c3c61865057b76deaeb92aa7cbb79bcade830ec999b3
     targets:
       - arch
       - debian

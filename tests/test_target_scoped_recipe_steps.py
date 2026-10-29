@@ -35,7 +35,7 @@ def test_trixie_renders_the_private_library_and_sid_does_not():
     assert "meson setup .gtk4-layer-shell-build private/gtk4-layer-shell" in build
     # The private build runs before cargo, so pkg-config already sees it.
     assert build.index("PKG_CONFIG_PATH") < build.index("cargo build")
-    assert install.index("ln -s tuna-greeter") < install.index("patchelf --set-rpath")
+    assert install.index("cp -a share/tuna-desktop/icons") < install.index("patchelf --set-rpath")
     assert "libgtk4-layer-shell-dev" not in trixie["debian/control"]
     for rendered in (sid["debian/tideforge-build.sh"], sid["debian/tideforge-install.sh"]):
         assert "gtk4-layer-shell" not in rendered

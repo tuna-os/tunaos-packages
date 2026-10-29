@@ -15,12 +15,12 @@
 %global debug_package %{nil}
 # The upstream tag minus its v. RPM's Version writes the prerelease `-` as `~`
 # so it sorts before the final release.
-%global upstream_version 1.0.0-beta.1
+%global upstream_version 1.0.0-beta.2
 
 Name:           tuna-desktop
-Version:        1.0.0~beta.1
+Version:        1.0.0~beta.2
 Release:        1%{?dist}
-Summary:        Tuna Desktop: GNOME-style Wayland desktop session in Rust (nested developer preview)
+Summary:        Tuna Desktop: GNOME-style Wayland desktop session in Rust (v1 beta)
 License:        GPL-3.0-or-later
 URL:            https://github.com/tuna-os/tuna-desktop
 Source0:        %{url}/archive/refs/tags/v%{upstream_version}.tar.gz#/tuna-desktop-%{upstream_version}.tar.gz
@@ -40,6 +40,7 @@ BuildRequires:  clang-devel
 BuildRequires:  pkgconf-pkg-config
 BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(glib-2.0)
+BuildRequires:  pkgconfig(gdk-pixbuf-2.0)
 BuildRequires:  pkgconfig(gtk4) >= 4.12
 BuildRequires:  pkgconfig(gtk4-layer-shell-0) >= 1.1
 BuildRequires:  pkgconfig(libadwaita-1)
@@ -59,9 +60,18 @@ BuildRequires:  pkgconfig(wayland-server)
 
 # RPM derives the ELF library requirements itself. These keep the version
 # floors and what it cannot see: libpam is dlopen()ed by the lock screen,
-# libsecret is reached over D-Bus, and dbus and pipewire are services.
+# libsecret is reached over D-Bus, dbus and pipewire are services, and the
+# settings-daemon plugins, session targets, SVG loader and sound theme are
+# started or loaded at run time.
 Requires:       dbus
 Requires:       glib2
+Requires:       gnome-settings-daemon
+Requires:       gnome-session
+Requires:       gdk-pixbuf2
+Requires:       librsvg2
+Requires:       fontconfig
+Requires:       libcanberra
+Requires:       sound-theme-freedesktop
 Requires:       gtk4 >= 4.12
 Requires:       gtk4-layer-shell >= 1.1
 Requires:       libadwaita
@@ -85,9 +95,10 @@ Provides:       roost
 Tuna Desktop (formerly Roost) is a Smithay-based Wayland desktop that aims
 at GNOME 51 parity: a supervised compositor with a GNOME-style GTK shell,
 optional scrollable tiling, an IBus bridge, and a greetd greeter. This
-package ships the six session binaries, the wayland-sessions entry, the
-lock-screen PAM service and the session target, plus one release of
-compatibility with the former `roost` name.
+package ships the seven session binaries, the wayland-sessions entry, the
+lock-screen PAM service, the session target, the Lockdown portal backend and
+a private cursor fallback, plus the retained session and PAM bridge for the
+former `roost` name.
 
 %prep
 %autosetup -n tuna-desktop-%{upstream_version}
@@ -111,35 +122,38 @@ export TUNA_VERSION=v%{upstream_version}
 # loses its symbols at the Rust link; fat LTO objects keep real code beside it.
 export CFLAGS="${CFLAGS:-} -ffat-lto-objects"
 export CARGO_HOME="$PWD/.cargo-home"
-cargo build --release --locked --offline -p tuna-compositor -p tuna-shell-host -p tuna-shell-gtk -p tuna-greeter
+cargo build --release --locked --offline -p tuna-compositor -p tuna-wallpaper-svg -p tuna-shell-host -p tuna-shell-gtk -p tuna-greeter
 
 %install
-for b in compositor session shell-host shell-gtk ibus-bridge greeter; do
+for b in compositor session shell-host shell-gtk ibus-bridge greeter wallpaper-svg; do
     install -Dm0755 target/release/tuna-$b %{buildroot}%{_bindir}/tuna-$b
-    # One release of compatibility with the former name (#505).
-    ln -s tuna-$b %{buildroot}%{_bindir}/roost-$b
 done
+# Private GNOME 51 scalable cursor fallback.
+install -d %{buildroot}%{_datadir}/tuna-desktop/icons
+cp -a share/tuna-desktop/icons/. %{buildroot}%{_datadir}/tuna-desktop/icons/
+# The shell's Lockdown portal backend and the session's portal preferences.
+install -Dm0644 share/xdg-desktop-portal/portals/tuna.portal %{buildroot}%{_datadir}/xdg-desktop-portal/portals/tuna.portal
+install -Dm0644 packaging/marlin/tuna-portals.conf %{buildroot}%{_datadir}/xdg-desktop-portal/tuna-portals.conf
 install -Dm0644 share/wayland-sessions/tuna.desktop %{buildroot}%{_datadir}/wayland-sessions/tuna.desktop
 install -Dm0644 share/systemd/user/tuna-session.target %{buildroot}%{_prefix}/lib/systemd/user/tuna-session.target
 # Lock-screen PAM service (tuna-desktop#62): unlock under GDM, where no
 # greetd runs.
 install -Dm0644 share/pam.d/tuna-lock %{buildroot}%{_sysconfdir}/pam.d/tuna-lock
-# Compat (#505): the hidden roost.desktop keeps a session GDM remembers as
-# "roost" starting Tuna Desktop, and roost-lock serves a session started
-# before the upgrade.
+# Retained legacy bridge (tuna-desktop#780): the hidden roost.desktop keeps a
+# session GDM remembers as "roost" starting Tuna Desktop, and roost-lock
+# serves a session started before the upgrade. The roost-* binary links went
+# with tuna-desktop#775.
 install -Dm0644 share/compat/wayland-sessions/roost.desktop %{buildroot}%{_datadir}/wayland-sessions/roost.desktop
 install -Dm0644 share/compat/pam.d/roost-lock %{buildroot}%{_sysconfdir}/pam.d/roost-lock
 
 %if %{with check}
 %check
-# The recipe's verify smoke, against the built tree: every binary and its
-# compat link reports the upstream tag minus its v, and the session entries
-# launch the supervisor.
-for b in compositor session shell-host shell-gtk ibus-bridge greeter; do
-    for name in tuna-$b roost-$b; do
-        v="$(%{buildroot}%{_bindir}/$name --version)"
-        test "${v##* }" = "%{upstream_version}" || { echo "$name --version reports '$v'" >&2; exit 1; }
-    done
+# The recipe's verify smoke, against the built tree: every binary reports
+# the upstream tag minus its v, and the session entries launch the
+# supervisor.
+for b in compositor session shell-host shell-gtk ibus-bridge greeter wallpaper-svg; do
+    v="$(%{buildroot}%{_bindir}/tuna-$b --version)"
+    test "${v##* }" = "%{upstream_version}" || { echo "tuna-$b --version reports '$v'" >&2; exit 1; }
 done
 grep -qx 'Exec=tuna-session' %{buildroot}%{_datadir}/wayland-sessions/tuna.desktop
 grep -qx 'DesktopNames=Tuna;GNOME;' %{buildroot}%{_datadir}/wayland-sessions/tuna.desktop
@@ -156,12 +170,10 @@ grep -qx 'NoDisplay=true' %{buildroot}%{_datadir}/wayland-sessions/roost.desktop
 %{_bindir}/tuna-shell-gtk
 %{_bindir}/tuna-ibus-bridge
 %{_bindir}/tuna-greeter
-%{_bindir}/roost-compositor
-%{_bindir}/roost-session
-%{_bindir}/roost-shell-host
-%{_bindir}/roost-shell-gtk
-%{_bindir}/roost-ibus-bridge
-%{_bindir}/roost-greeter
+%{_bindir}/tuna-wallpaper-svg
+%{_datadir}/tuna-desktop/icons
+%{_datadir}/xdg-desktop-portal/portals/tuna.portal
+%{_datadir}/xdg-desktop-portal/tuna-portals.conf
 %{_datadir}/wayland-sessions/tuna.desktop
 %{_datadir}/wayland-sessions/roost.desktop
 %{_prefix}/lib/systemd/user/tuna-session.target
@@ -169,5 +181,7 @@ grep -qx 'NoDisplay=true' %{buildroot}%{_datadir}/wayland-sessions/roost.desktop
 %config(noreplace) %{_sysconfdir}/pam.d/roost-lock
 
 %changelog
+* Thu Oct 29 2026 TunaOS Package Factory <packages@tunaos.org> - 1.0.0~beta.2-1
+- Tuna Desktop v1.0.0-beta.2 for Hummingbird
 * Fri Oct 16 2026 TunaOS Package Factory <packages@tunaos.org> - 1.0.0~beta.1-1
 - Tuna Desktop v1.0.0-beta.1 for Hummingbird (tuna-os/tunaos-packages#832)
