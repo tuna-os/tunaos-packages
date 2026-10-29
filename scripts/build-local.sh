@@ -3,8 +3,8 @@
 # Build RPMs using mock inside containers
 #
 # Usage:
-#   ./scripts/build-local.sh hello-world fedora-40-x86_64
-#   ./scripts/build-local.sh hello-world alma-9-x86_64
+#   ./scripts/build-local.sh xfconf fedora-44-x86_64
+#   ./scripts/build-local.sh meson centos-stream-10-x86_64
 
 set -euo pipefail
 
@@ -35,10 +35,10 @@ usage() {
     echo "Usage: $0 <package-name> [target]"
     echo ""
     echo "Examples:"
-    echo "  $0 hello-world fedora-44-x86_64"
-    echo "  $0 hello-world fedora-eln-x86_64"
-    echo "  $0 hello-world almalinux-10-x86_64"
-    echo "  $0 hello-world centos-stream-10-x86_64"
+    echo "  $0 xfconf fedora-44-x86_64"
+    echo "  $0 xfconf fedora-eln-x86_64"
+    echo "  $0 xfconf almalinux-10-x86_64"
+    echo "  $0 xfconf centos-stream-10-x86_64"
     echo ""
     echo "Available targets:"
     echo "  fedora-44-x86_64"
@@ -54,17 +54,9 @@ usage() {
 
 find_spec() {
     local pkg="$1"
-    local spec="$PROJECT_DIR/src/$pkg.spec"
-    
-    if [ -f "$spec" ]; then
-        SPEC_FILE="$spec"
-        return 0
-    fi
-    
-    # Try to find spec in src/
-    # shellcheck disable=SC2012
-    spec=$(ls "$PROJECT_DIR/src/"*.spec 2>/dev/null | head -n1 || true)
-    if [ -n "$spec" ]; then
+    local spec
+    spec=$(find "$PROJECT_DIR/src" -name "${pkg}.spec" 2>/dev/null | head -n1 || true)
+    if [ -n "$spec" ] && [ -f "$spec" ]; then
         SPEC_FILE="$spec"
         return 0
     fi
@@ -86,8 +78,7 @@ build_srpm() {
     cp "$spec" "$topdir/SPECS/"
     
     # Create tarball if needed
-    # (Note: This still runs on host, but for hello-world it's fine.
-    # For more complex specs it might need refinement)
+    # (Note: This still runs on host; for more complex specs it might need refinement)
     local name
     name=$(basename "$spec" .spec)
     

@@ -752,21 +752,6 @@
     },
     {
       "customType": "regex",
-      "description": "pango-fresh: tracks GNOME/pango (gitlab-releases).",
-      "fileMatch": [
-        "^src/deps/pango-fresh/pango-fresh\\.spec$"
-      ],
-      "matchStrings": [
-        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
-      ],
-      "datasourceTemplate": "gitlab-releases",
-      "depNameTemplate": "pango-fresh",
-      "packageNameTemplate": "GNOME/pango",
-      "depTypeTemplate": "upstream-source",
-      "registryUrlTemplate": "https://gitlab.gnome.org"
-    },
-    {
-      "customType": "regex",
       "description": "python-dbusmock: tracks python-dbusmock (pypi).",
       "fileMatch": [
         "^src/deps/python-dbusmock/python-dbusmock\\.spec$"
