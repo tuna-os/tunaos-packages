@@ -174,7 +174,7 @@ def test_missing_prerequisite_is_blocking(tmp_path, missing):
     elif missing == "icons":
         recipe["install"]["directories"] = []
     elif missing == "ownership":
-        recipe["files"]["common"].remove("usr/bin/tuna-greeter")
+        recipe["files"]["common"].remove("usr/bin/tuna-ibus-bridge")
     else:
         factory["consumer_adapters"]["albacore"]["cpuBaselines"] = ["x86-64-v3", "armv8-a"]
     args[0].write_text(yaml.safe_dump(recipe))

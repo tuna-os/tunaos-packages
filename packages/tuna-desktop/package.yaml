@@ -10,8 +10,8 @@ summary: "Tuna Desktop: GNOME-style Wayland desktop session in Rust (v1 beta)"
 description: >-
   Tuna Desktop (formerly Roost) is a Smithay-based Wayland desktop that aims
   at GNOME 51 parity: a supervised compositor with a GNOME-style GTK shell,
-  optional scrollable tiling, an IBus bridge, and a greetd greeter. This
-  package ships the seven session binaries, the wayland-sessions entry, the
+  optional scrollable tiling and an IBus bridge; login is through GDM. This
+  package ships the six session binaries, the wayland-sessions entry, the
   lock-screen PAM service, the session target, the Lockdown portal backend
   and a private cursor fallback, plus the retained session and PAM bridge for
   the former `roost` name, mirroring upstream's own
@@ -109,7 +109,7 @@ build:
     # /var/roothome, so cargo cannot create ~/.cargo. Keep its home in the
     # build tree on every target.
     - export CARGO_HOME="$PWD/.cargo-home"
-    - cargo build --release --locked --offline -p tuna-compositor -p tuna-wallpaper-svg -p tuna-shell-host -p tuna-shell-gtk -p tuna-greeter
+    - cargo build --release --locked --offline -p tuna-compositor -p tuna-wallpaper-svg -p tuna-shell-host -p tuna-shell-gtk
 dependencies:
   build:
     capabilities: [rust, c-compiler, pkg-config]
@@ -161,7 +161,7 @@ dependencies:
       # settings-daemon plugins and session targets tuna-session.target pulls
       # in (tuna-os/tuna-desktop#820), the SVG wallpaper helper's
       # gdk-pixbuf/librsvg/glycin/fontconfig/adwaita-fonts stack (#458) and the
-      # event-sound stack. Optional integrations (xorg-xwayland, ibus, greetd,
+      # event-sound stack. Optional integrations (xorg-xwayland, ibus,
       # xdg-desktop-portal-gnome, orca, ...) are optdepends upstream; the
       # recipe schema has no optdepends, so the Marlin image installs them
       # itself.
@@ -205,7 +205,6 @@ install:
     - install -Dm0755 target/release/tuna-shell-host {destdir}/usr/bin/tuna-shell-host
     - install -Dm0755 target/release/tuna-shell-gtk {destdir}/usr/bin/tuna-shell-gtk
     - install -Dm0755 target/release/tuna-ibus-bridge {destdir}/usr/bin/tuna-ibus-bridge
-    - install -Dm0755 target/release/tuna-greeter {destdir}/usr/bin/tuna-greeter
     - install -Dm0755 target/release/tuna-wallpaper-svg {destdir}/usr/bin/tuna-wallpaper-svg
     # Private GNOME 51 scalable cursor fallback (upstream
     # share/tuna-desktop/icons), installed as upstream's PKGBUILD does.
@@ -237,8 +236,7 @@ install:
     # preferences (tuna-os/tuna-desktop#604, #821).
     - {source: share/xdg-desktop-portal/portals/tuna.portal, destination: usr/share/xdg-desktop-portal/portals/tuna.portal}
     - {source: packaging/marlin/tuna-portals.conf, destination: usr/share/xdg-desktop-portal/tuna-portals.conf}
-    # Lock-screen PAM service (tuna-desktop#62): unlock under GDM, where no
-    # greetd runs.
+    # Lock-screen PAM service (tuna-desktop#62): the compositor's unlock.
     - {source: share/pam.d/tuna-lock, destination: etc/pam.d/tuna-lock}
     # Retained legacy bridge (tuna-os/tuna-desktop#780): the hidden
     # roost.desktop keeps a session GDM remembers as "roost" starting Tuna
@@ -255,7 +253,6 @@ files:
     - usr/bin/tuna-shell-host
     - usr/bin/tuna-shell-gtk
     - usr/bin/tuna-ibus-bridge
-    - usr/bin/tuna-greeter
     - usr/bin/tuna-wallpaper-svg
     - usr/share/tuna-desktop/icons
     - usr/share/wayland-sessions/tuna.desktop
@@ -269,7 +266,7 @@ files:
     - usr/share/doc/tuna-desktop/nested-session.md
 verify:
   # The real session contract, not just "a binary exists": every one of the
-  # seven binaries runs and reports the upstream tag minus its v (want=, kept
+  # six binaries runs and reports the upstream tag minus its v (want=, kept
   # equal to TUNA_VERSION); no roost-* binary remains; the visible session
   # entry launches the session supervisor (not the compositor directly) as
   # desktop Tuna; the hidden compat entry launches the same supervisor; both
@@ -278,7 +275,7 @@ verify:
   # --version, cut with shell expansion: the Tumbleweed image has no awk.
   smoke: >-
     want=1.0.0-beta.2;
-    for b in compositor session shell-host shell-gtk ibus-bridge greeter wallpaper-svg;
+    for b in compositor session shell-host shell-gtk ibus-bridge wallpaper-svg;
     do v="$(tuna-$b --version)"; v="${v##* }";
     if [ "$v" != "$want" ]; then echo "tuna-$b --version reports '$v', expected $want" >&2; exit 1; fi;
     if [ -e "/usr/bin/roost-$b" ] || [ -L "/usr/bin/roost-$b" ]; then echo "/usr/bin/roost-$b still installed" >&2; exit 1; fi;

@@ -94,8 +94,8 @@ Provides:       roost
 %description
 Tuna Desktop (formerly Roost) is a Smithay-based Wayland desktop that aims
 at GNOME 51 parity: a supervised compositor with a GNOME-style GTK shell,
-optional scrollable tiling, an IBus bridge, and a greetd greeter. This
-package ships the seven session binaries, the wayland-sessions entry, the
+optional scrollable tiling and an IBus bridge; login is through GDM. This
+package ships the six session binaries, the wayland-sessions entry, the
 lock-screen PAM service, the session target, the Lockdown portal backend and
 a private cursor fallback, plus the retained session and PAM bridge for the
 former `roost` name.
@@ -122,10 +122,10 @@ export TUNA_VERSION=v%{upstream_version}
 # loses its symbols at the Rust link; fat LTO objects keep real code beside it.
 export CFLAGS="${CFLAGS:-} -ffat-lto-objects"
 export CARGO_HOME="$PWD/.cargo-home"
-cargo build --release --locked --offline -p tuna-compositor -p tuna-wallpaper-svg -p tuna-shell-host -p tuna-shell-gtk -p tuna-greeter
+cargo build --release --locked --offline -p tuna-compositor -p tuna-wallpaper-svg -p tuna-shell-host -p tuna-shell-gtk
 
 %install
-for b in compositor session shell-host shell-gtk ibus-bridge greeter wallpaper-svg; do
+for b in compositor session shell-host shell-gtk ibus-bridge wallpaper-svg; do
     install -Dm0755 target/release/tuna-$b %{buildroot}%{_bindir}/tuna-$b
 done
 # Private GNOME 51 scalable cursor fallback.
@@ -136,8 +136,7 @@ install -Dm0644 share/xdg-desktop-portal/portals/tuna.portal %{buildroot}%{_data
 install -Dm0644 packaging/marlin/tuna-portals.conf %{buildroot}%{_datadir}/xdg-desktop-portal/tuna-portals.conf
 install -Dm0644 share/wayland-sessions/tuna.desktop %{buildroot}%{_datadir}/wayland-sessions/tuna.desktop
 install -Dm0644 share/systemd/user/tuna-session.target %{buildroot}%{_prefix}/lib/systemd/user/tuna-session.target
-# Lock-screen PAM service (tuna-desktop#62): unlock under GDM, where no
-# greetd runs.
+# Lock-screen PAM service (tuna-desktop#62): the compositor's unlock.
 install -Dm0644 share/pam.d/tuna-lock %{buildroot}%{_sysconfdir}/pam.d/tuna-lock
 # Retained legacy bridge (tuna-desktop#780): the hidden roost.desktop keeps a
 # session GDM remembers as "roost" starting Tuna Desktop, and roost-lock
@@ -151,7 +150,7 @@ install -Dm0644 share/compat/pam.d/roost-lock %{buildroot}%{_sysconfdir}/pam.d/r
 # The recipe's verify smoke, against the built tree: every binary reports
 # the upstream tag minus its v, and the session entries launch the
 # supervisor.
-for b in compositor session shell-host shell-gtk ibus-bridge greeter wallpaper-svg; do
+for b in compositor session shell-host shell-gtk ibus-bridge wallpaper-svg; do
     v="$(%{buildroot}%{_bindir}/tuna-$b --version)"
     test "${v##* }" = "%{upstream_version}" || { echo "tuna-$b --version reports '$v'" >&2; exit 1; }
 done
@@ -169,7 +168,6 @@ grep -qx 'NoDisplay=true' %{buildroot}%{_datadir}/wayland-sessions/roost.desktop
 %{_bindir}/tuna-shell-host
 %{_bindir}/tuna-shell-gtk
 %{_bindir}/tuna-ibus-bridge
-%{_bindir}/tuna-greeter
 %{_bindir}/tuna-wallpaper-svg
 %{_datadir}/tuna-desktop/icons
 %{_datadir}/xdg-desktop-portal/portals/tuna.portal

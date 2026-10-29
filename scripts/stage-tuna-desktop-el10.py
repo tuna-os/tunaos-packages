@@ -146,10 +146,9 @@ def _stage_impl(
                 "shell-host",
                 "shell-gtk",
                 "ibus-bridge",
-                "greeter",
             ]
         ),
-        "six session executables must remain native package owned",
+        "five session executables must remain native package owned",
     )
     require(
         "usr/share/tuna-desktop/icons" in manifest, "cursor native file ownership manifest missing"

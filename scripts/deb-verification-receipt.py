@@ -47,7 +47,7 @@ TUNA_BINARIES = (
     "shell-host",
     "shell-gtk",
     "ibus-bridge",
-    "greeter",
+    "wallpaper-svg",
 )
 
 
@@ -320,8 +320,8 @@ def receipt(
                 f"Tuna executable has wrong mode: {executable}",
             )
             require(
-                payload.get(compat) == ["symlink", compat, f"tuna-{binary}"],
-                f"Tuna compatibility link differs: {compat}",
+                compat not in payload,
+                f"retired Roost binary link still installed: {compat}",
             )
         schemas = set(
             (observed_dir / "installed-schemas.txt").read_text(encoding="utf-8").splitlines()
