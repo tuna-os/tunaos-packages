@@ -141,3 +141,65 @@ def test_buildrequires_found_even_when_every_runtime_dep_is_already_shipped() ->
     assert "cmake" in seen, (
         "runtime dep of the build tool must also be reached"
     )
+
+
+def versioned_reference() -> dict:
+    return {
+        "packages": {
+            "app": {
+                "arch": "x86_64",
+                "evr": "1-1",
+                "srpm": "app-1-1.fc45.src.rpm",
+                "requires": ["lib"],
+                "requires_versioned": [("lib", ">=", "0:2.0-1")],
+            },
+            "lib": {
+                "arch": "x86_64",
+                "evr": "3.0-1",
+                "srpm": "lib-3.0-1.fc45.src.rpm",
+                "requires": [],
+                "requires_versioned": [],
+            },
+        },
+        "provides": {"app": {"app"}, "lib": {"lib"}},
+        "provides_evr": {
+            "app": {"1-1"},
+            "lib": {"3.0-1"},
+        },
+        "files": set(),
+    }
+
+
+def test_an_older_target_provider_does_not_satisfy_a_versioned_requirement() -> None:
+    seen, _, unresolved = gap.closure(
+        ["app"],
+        versioned_reference(),
+        {"lib"},
+        have_evr={"lib": {"1.0-1"}},
+    )
+    assert "lib" in seen
+    assert unresolved == {}
+
+
+def test_a_target_provider_at_the_required_version_stays_out_of_the_closure() -> None:
+    seen, _, unresolved = gap.closure(
+        ["app"],
+        versioned_reference(),
+        {"lib"},
+        have_evr={"lib": {"2.0-1"}},
+    )
+    assert "lib" not in seen
+    assert unresolved == {}
+
+
+def test_versioned_buildrequires_order_a_rebuilt_provider_before_its_consumer() -> None:
+    tiers, cycles = gap.tier_sources(
+        ["app", "lib"],
+        versioned_reference(),
+        {"lib"},
+        {"app": ["lib"]},
+        have_evr={"lib": {"1.0-1"}},
+        source_versioned_index={"app": [("lib", ">=", "0:2.0-1")]},
+    )
+    assert tiers == [["lib"], ["app"]]
+    assert cycles == []
