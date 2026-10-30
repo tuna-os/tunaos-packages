@@ -19,7 +19,7 @@
 
 Name:           tuna-desktop
 Version:        1.0.0~beta.2
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Tuna Desktop: GNOME-style Wayland desktop session in Rust (v1 beta)
 License:        GPL-3.0-or-later
 URL:            https://github.com/tuna-os/tuna-desktop
@@ -179,6 +179,8 @@ grep -qx 'NoDisplay=true' %{buildroot}%{_datadir}/wayland-sessions/roost.desktop
 %config(noreplace) %{_sysconfdir}/pam.d/roost-lock
 
 %changelog
+* Fri Oct 30 2026 TunaOS Package Factory <packages@tunaos.org> - 1.0.0~beta.2-2
+- Rebuild without tuna-greeter (tuna-os/tunaos-packages#950)
 * Thu Oct 29 2026 TunaOS Package Factory <packages@tunaos.org> - 1.0.0~beta.2-1
 - Tuna Desktop v1.0.0-beta.2 for Hummingbird
 * Fri Oct 16 2026 TunaOS Package Factory <packages@tunaos.org> - 1.0.0~beta.1-1

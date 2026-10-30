@@ -5,7 +5,7 @@ name: tuna-desktop
 # sort it before the final release; Tideforge renders pacman's pkgver without
 # the `~` (1.2.3beta.4), the value upstream's packaging/arch/PKGBUILD derives.
 version: "1.0.0~beta.2"
-release: 1
+release: 2
 summary: "Tuna Desktop: GNOME-style Wayland desktop session in Rust (v1 beta)"
 description: >-
   Tuna Desktop (formerly Roost) is a Smithay-based Wayland desktop that aims

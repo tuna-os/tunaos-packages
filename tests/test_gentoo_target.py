@@ -25,7 +25,7 @@ tideforge = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(tideforge)
 
 TUNA = yaml.safe_load((ROOT / "packages" / "tuna-desktop" / "package.yaml").read_text(encoding="utf-8"))
-EBUILD_PATH = "gui-wm/tuna-desktop/tuna-desktop-1.0.0_beta2.ebuild"
+EBUILD_PATH = "gui-wm/tuna-desktop/tuna-desktop-1.0.0_beta2-r1.ebuild"
 
 
 @pytest.mark.parametrize(
