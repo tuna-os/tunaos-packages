@@ -278,6 +278,23 @@ packages:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: at-spi2-core
+    family: gnome51
+    packaging:
+      rpm:
+        native: src/gnome-51/at-spi2-core
+    upstream:
+      version: 2.58.6
+      source: https://download.gnome.org/sources/%{name}/%{major_minor_version}/%{name}-%{version}.tar.xz
+      spec: src/gnome-51/at-spi2-core/at-spi2-core.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: runtime
+    referenced_by:
+      - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: at-spi2-core
     family: hummingbird-desktops
     packaging:
       rpm:
@@ -3591,7 +3608,7 @@ packages:
         native: src/gnome-51/gnome-session
     upstream:
       version: '51.0'
-      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/gnome-session/gnome-session.spec
     targets:
       - alma10
@@ -3635,7 +3652,7 @@ packages:
         native: src/gnome-51/gnome-settings-daemon
     upstream:
       version: '51.0'
-      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/gnome-settings-daemon/gnome-settings-daemon.spec
     targets:
       - alma10
@@ -6406,7 +6423,7 @@ packages:
         native: src/gnome-51/libadwaita
     upstream:
       version: 1.10.0
-      source: https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{gnome_tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{major_minor_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/libadwaita/libadwaita.spec
     targets:
       - alma10
@@ -9234,7 +9251,7 @@ packages:
         native: src/gnome-51/orca
     upstream:
       version: '51.0'
-      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/orca/orca.spec
     targets:
       - alma10
@@ -9251,7 +9268,7 @@ packages:
         native: src/gnome-51/orca
     upstream:
       version: '51.0'
-      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+      source: https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
       spec: src/gnome-51/orca/orca.spec
     targets:
       - hummingbird

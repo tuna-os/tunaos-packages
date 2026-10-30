@@ -2,6 +2,45 @@
 
 This document tracks all manual modifications made to SRPM specifications and sources to enable GNOME 50 and GNOME 51 on CentOS Stream 10.
 
+## Orca 51 native accessibility predecessor
+
+The changed-input native build in
+`/tmp/gnome51-orca-native.5F9uN9/build.log` passed spec parsing and dependency
+installation, then found AT-SPI 2.56.1 where Orca 51.0's Meson requires 2.58.6.
+The native order had no AT-SPI source; only the separate Hummingbird order
+referenced one.
+
+Add native AT-SPI 2.58.6 in `src/gnome-51/at-spi2-core`, following the package
+split and XWayland helper from Utah recipe revision
+`76ed1d97fefd5a1cb90b240c596a1237a3819328`. Use the minimum stable upstream
+release required by Orca, not Utah's development 2.61.1 payload. Its Python
+override is included in the main RPM. The native graph builds it after GI and
+before GTK/Orca. Orca now declares both AT-SPI pkg-config minimums and runtime
+providers, as well as its upstream Meson/Python/PyGObject floors. No upstream
+requirements were lowered. Native builds passed for AT-SPI in
+`/tmp/gnome51-orca-native.5F9uN9/at-spi2-core-build.log` and Orca in
+`/tmp/gnome51-orca-native.5F9uN9/orca-build.log`. Orca's desktop-file `%check`
+ran; the AT-SPI spec has no `%check`. A real AlmaLinux package transaction
+then exposed a missing Gdk 3.0 runtime provider. Add Orca's required Gtk3 and
+PyGObject runtime dependencies, not just their build dependencies. The rebuilt
+RPM installed and printed Orca 51.0 with AT-SPI2 2.58.6; its Python override
+loaded. GLib and SELinux policy stayed unchanged. These results do not qualify
+the full desktop or a live accessibility session.
+
+## GNOME 51 native source-version macros
+
+The bounded native Orca build recorded in
+`/tmp/gnome51-orca-native.dMIgb1/build.log` failed before dependency resolution:
+EL10's initial Mock root rejected `%gnome_check_version` as an unknown tag,
+although the outer Fedora runner could create the SRPM.
+
+Orca, gnome-session, gnome-settings-daemon, and libadwaita now derive their
+source series and tarball names locally, following the existing Ptyxis spec.
+Their `%prep` checks still reject `.alpha`, `.beta`, and `.rc` version spelling
+and accept RPM's tilde spelling. No buildroot macro-package replacement or
+version-check suppression is needed. Native dependency resolution and rebuild
+remain required; this change does not establish runtime closure.
+
 ## GNOME 51.0 release set
 
 The GNOME 51 tier moved from development snapshots to the coordinated

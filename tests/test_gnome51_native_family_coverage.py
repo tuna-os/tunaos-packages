@@ -69,3 +69,16 @@ def test_native_family_does_not_build_the_same_spec_twice():
         for entry in tier["packages"]
     ]
     assert len(builds) == len(set(builds)), "duplicate native package/spec build"
+
+
+def test_native_accessibility_predecessor_follows_gi_and_precedes_consumers():
+    document = yaml.safe_load((ROOT / "build-order-gnome51.yml").read_text())
+    tiers = {
+        (entry["path"], entry.get("spec_override")): index
+        for index, tier in enumerate(document["tiers"])
+        for entry in tier["packages"]
+    }
+    accessibility = tiers[("src/gnome-51/at-spi2-core", None)]
+    assert tiers[("src/gnome-51/gobject-introspection", None)] < accessibility
+    assert accessibility < tiers[("src/gnome-51/gtk4", None)]
+    assert accessibility < tiers[("src/gnome-51/orca", None)]

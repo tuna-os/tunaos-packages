@@ -1,3 +1,7 @@
+# Keep source naming and validation independent of newer macros.gnome on EL10.
+%global tarball_version %%(echo %%{version} | tr '~' '.')
+%global major_minor_version %%(echo %%{tarball_version} | cut -d "." -f 1-2)
+
 %global apiver  1
 # 4.23.1, not 4.21.1: libadwaita 1.10.beta.1's own meson.build declares
 # gtk_min_version = '>= 4.23.1' (the exact tag this spec packages, verified
@@ -21,13 +25,12 @@ Summary:        Building blocks for modern GNOME applications
 # part of src/adw-spring-animation.c is MIT
 License:        LGPL-2.1-or-later AND MIT
 URL:            https://gitlab.gnome.org/GNOME/libadwaita
-Source0:        https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{gnome_tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/%{major_minor_version}/%{name}-%{tarball_version}.tar.xz
 
 # The sassc tarball-build fix carried for 1.10.beta.1 is included in 1.10.0:
 # src/stylesheet/meson.build checks for the gtk.css shipped in release tarballs.
 # Keep sassc out of BuildRequires; it is only needed for git checkouts.
 
-%gnome_check_version
 
 BuildRequires:  desktop-file-utils
 BuildRequires:  gcc
@@ -86,7 +89,11 @@ Demo files for %{name}.
 
 
 %prep
-%autosetup -p1 -n %{name}-%{gnome_tarball_version}
+if echo "%{version}" | grep -qE '\.(alpha|beta|rc)'; then
+    echo "Error: Use tilde in Version field in front of alpha/beta/rc; checked '%{version}'" >&2
+    exit 1
+fi
+%autosetup -p1 -n %{name}-%{tarball_version}
 
 
 %build

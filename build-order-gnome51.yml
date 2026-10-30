@@ -87,6 +87,9 @@ tiers:
       - path: src/deps/simdutf
       - path: src/deps/libgexiv2
       - path: src/deps/libsoup
+      # Orca 51.0 requires AT-SPI >= 2.58.6 and its Python overrides;
+      # the native base solved only 2.56.1 in the bounded Orca probe.
+      - path: src/gnome-51/at-spi2-core
 
   # Tier 10: System Tools & GJS.
   - name: system-tools

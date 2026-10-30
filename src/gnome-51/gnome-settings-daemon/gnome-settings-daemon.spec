@@ -1,3 +1,7 @@
+# Keep source naming and validation independent of newer macros.gnome on EL10.
+%global tarball_version %%(echo %%{version} | tr '~' '.')
+%global major_version %%(echo %%{tarball_version} | cut -d "." -f 1)
+
 %global glib2_version 2.70
 %global colord_version 1.4.5
 %global geocode_glib_version 3.26.3
@@ -16,7 +20,7 @@ Summary:        The daemon sharing settings from GNOME to GTK+/KDE applications
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
 URL:            https://gitlab.gnome.org/GNOME/gnome-settings-daemon
-Source0:        https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
 
 # gsetting overrides for RHEL in general
 Source1:    	org.gnome.settings-daemon.plugins.housekeeping.gschema.override
@@ -24,7 +28,6 @@ Source1:    	org.gnome.settings-daemon.plugins.housekeeping.gschema.override
 # gsetting overrides for the "Server with GUI" installation
 Source100:    	org.gnome.settings-daemon.plugins.power.gschema.override
 
-%gnome_check_version
 
 BuildRequires:  gcc
 BuildRequires:  gettext
@@ -110,7 +113,11 @@ for the default behavior of Workstation in the Server with GUI product.
 %endif
 
 %prep
-%autosetup -p1 -n %{name}-%{gnome_tarball_version}
+if echo "%{version}" | grep -qE '\.(alpha|beta|rc)'; then
+    echo "Error: Use tilde in Version field in front of alpha/beta/rc; checked '%{version}'" >&2
+    exit 1
+fi
+%autosetup -p1 -n %{name}-%{tarball_version}
 
 %build
 %meson
@@ -184,8 +191,8 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 %{_libexecdir}/gsd-wwan
 %{_datadir}/glib-2.0/schemas/org.gnome.settings-daemon.plugins.wwan.gschema.xml
 
-%dir %{_libdir}/gnome-settings-daemon-%{gnome_major_version}
-%{_libdir}/gnome-settings-daemon-%{gnome_major_version}/libgsd.so
+%dir %{_libdir}/gnome-settings-daemon-%{major_version}
+%{_libdir}/gnome-settings-daemon-%{major_version}/libgsd.so
 
 %{_sysconfdir}/xdg/Xwayland-session.d/00-xrdb
 %{_userunitdir}/gnome-session-x11-services-ready.target.wants/
@@ -200,7 +207,7 @@ cp %{SOURCE1} %{SOURCE100} $RPM_BUILD_ROOT%{_datadir}/glib-2.0/schemas
 %{_datadir}/glib-2.0/schemas/org.gnome.settings-daemon.plugins.gschema.xml
 
 %files devel
-%{_includedir}/gnome-settings-daemon-%{gnome_major_version}
+%{_includedir}/gnome-settings-daemon-%{major_version}
 %{_libdir}/pkgconfig/gnome-settings-daemon.pc
 
 %if 0%{?rhel}

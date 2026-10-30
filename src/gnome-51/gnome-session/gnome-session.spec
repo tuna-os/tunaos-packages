@@ -1,4 +1,7 @@
 %define po_package gnome-session
+# Keep source naming and validation independent of newer macros.gnome on EL10.
+%global tarball_version %%(echo %%{version} | tr '~' '.')
+%global major_version %%(echo %%{tarball_version} | cut -d "." -f 1)
 
 Name:           gnome-session
 Version:        51.0
@@ -7,13 +10,8 @@ Summary:        GNOME session manager
 
 License:        GPL-2.0-or-later
 URL:            https://gitlab.gnome.org/GNOME/gnome-session
-# %%{gnome_major_version}/%%{gnome_tarball_version}/%%gnome_check_version come
-# from /usr/lib/rpm/macros.d/macros.gnome, confirmed present in our own
-# hummingbird-ci (centos-stream-10) mock buildroot -- not Fedora-only, so we
-# use Rawhide's exact macros instead of re-deriving the same values locally.
-Source:         https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+Source:         https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
 
-%gnome_check_version
 
 # For https://fedoraproject.org/w/index.php?title=Changes/HiddenGrubMenu
 # This should go upstream once systemd has a generic interface for this
@@ -67,7 +65,11 @@ Obsoletes: gnome-session-xsession < %{version}-%{release}
 Desktop file to add GNOME on wayland to display manager session menu.
 
 %prep
-%autosetup -p1 -n %{name}-%{gnome_tarball_version}
+if echo "%{version}" | grep -qE '\.(alpha|beta|rc)'; then
+    echo "Error: Use tilde in Version field in front of alpha/beta/rc; checked '%{version}'" >&2
+    exit 1
+fi
+%autosetup -p1 -n %{name}-%{tarball_version}
 
 %build
 %meson

@@ -11,6 +11,63 @@ Keep `gnome50-el10-compat`: GDM 51 needs that package by name. Its name does
 not select Shell 50. Preserve its PAM, user-database, and SELinux support
 until tests prove a replacement works.
 
+## Local native bootstrap prerequisite
+
+The first Orca probe (`/tmp/gnome51-orca-native.dMIgb1/build.log`) created its
+SRPM in the Fedora runner, then failed in EL10's initial Mock root at
+`%gnome_check_version`, before BuildRequires installation. A BuildRequires on a
+new macro package cannot fix a spec that must parse before those dependencies
+are installed. The native Orca, session, settings-daemon, and libadwaita specs
+therefore use the existing Ptyxis convention: local source-version derivation
+with an explicit prerelease-format check in `%prep`. The regression in
+`tests/test_gnome51_release_versions.py` exercises that check with valid and
+invalid version spellings. The changed-input build
+`/tmp/gnome51-orca-native.5F9uN9/build.log` passed that stage and dependency
+installation, then found base AT-SPI 2.56.1 below Orca's required 2.58.6.
+
+`src/gnome-51/at-spi2-core` supplies the missing native predecessor. Build it
+first, then Orca into the same isolated local repository. Its 2.58.6 source
+requires GLib >= 2.67.4 and Meson >= 0.64.0, so this bounded probe does not need
+the entire GLib/GTK bootstrap. The native full-stack order nevertheless places
+it after GI and before its GTK/Orca consumers. Utah's recipe is the packaging
+reference, not a binary source. Neither a single-package build request nor
+source-graph coverage establishes complete desktop closure.
+
+### Local result — 2026-10-30
+
+AT-SPI 2.58.6 and Orca 51.0 both built in the native CentOS Stream 10 Mock root.
+The runner digest was `ed61842fd5cf306c0907c6c31cc3f48cae415fef58e0b2c495c490b53521a5cb`.
+The successful Orca build used the AT-SPI RPMs from the same isolated repository.
+Its `%check` validated the desktop file. The AT-SPI spec has no `%check`;
+this result does not claim an upstream AT-SPI test pass.
+
+Receipts remain under `/tmp/gnome51-orca-native.5F9uN9`:
+`at-spi2-core-build.log`, `orca-build.log`, result JSON and RPMs.
+The earlier disk-full result is in `orca-no-space-receipt.tar.gz`.
+Only the completed Flounder smoke preloads were removed to recover space.
+No shared cache prune or pre-existing image removal occurred.
+
+A real AlmaLinux 10 transaction then exposed a runtime dependency defect:
+`orca --version` failed because the Gdk 3.0 typelib was absent. Orca now
+requires `gtk3 >= 3.24` and `python3-gobject >= 3.18`, without architecture
+qualifiers on the noarch package. The rebuilt RPM installed with its native
+dependencies and printed `Orca version 51.0, AT-SPI2 version: 2.58.6`.
+The native Atspi typelib and Python override loaded from the installed RPM.
+GLib and SELinux policy package versions stayed unchanged.
+
+The final Orca spec SHA-256 is
+`ef0a897dd9945f7b5fa196602afabfe093daf840730d95cc3a2eb1160d36b822`.
+The Orca RPM SHA-256 is
+`68bbc5692844c4c8a2d2daca18d2f9797689967f3569f8dc9481953ecfc1eda1`.
+The AT-SPI main RPM SHA-256 is
+`e98256f5f4f06d9d859a08d8bd01830aed965f9270e6b1f8441b7b6f5b279eee`.
+
+These unsigned local outputs prove two native package builds, their bounded
+dependency installation and Orca CLI startup. They do not prove a frozen
+full-stack build, signed publication, a live accessibility session or desktop
+login. The GNOME 51 provider remains unqualified; no consumer pin changed.
+
+
 ## First-publication proposal (not implemented)
 
 The [OCI rehearsal](R2-GHCR-MIGRATION.md) needs a signed seed that already

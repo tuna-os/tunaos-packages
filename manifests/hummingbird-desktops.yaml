@@ -35,7 +35,9 @@ distgit_prefix: src/hummingbird
 # published".  That is right for EL10 and wrong for a Rawhide rebuild, which
 # gets 0.8.8.  Without this line the next scheduled re-measure would have
 # quietly moved libnotify onto the EL10 pin.
-prefer_distgit: [libnotify]
+# The native EL10 AT-SPI 2.58.6 predecessor is likewise not the Rawhide source.
+# Preserve Hummingbird's existing source instead of silently selecting EL10's.
+prefer_distgit: [libnotify, at-spi2-core]
 # What the generated build order contains.  `runtime` builds only what images
 # ship; BuildRequires-only tools (bison, transfig, gtk-doc, the Java stack the
 # documentation toolchains drag in) come from the buildroot's inherited

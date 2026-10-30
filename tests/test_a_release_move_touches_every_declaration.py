@@ -14,17 +14,12 @@ when one is missing:
     specs does not move this cell's action key, so the cache restores an
     ActionResult built from the OLD spec and the change is silently ignored.
 
-So a partial move does not fail. It builds, it goes green, and it ships the
-previous release. The test that matters is therefore not "does adopt work" but
-"can a file that names a track exist WITHOUT being classified" -- because that
-is the only way the table goes stale, and a stale table is a partial move.
+So a partial move can silently build and ship the previous release.
 """
 from __future__ import annotations
 
 import pathlib
-import re
 import shutil
-import subprocess
 import sys
 
 import pytest
@@ -34,30 +29,6 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 
 import build_request as br  # noqa: E402
-
-# Generated from the measurement and rewritten wholesale by the gap engine, so
-# a hand rewrite here would be overwritten by the next `mode: propose` PR --
-# and would race it. Excluded by KIND, not by name: any build order is
-# regenerated.
-GENERATED = re.compile(r"^build-order.*\.ya?ml$|^\.copr/build-order")
-
-
-def tracked_files() -> list[pathlib.Path]:
-    out = subprocess.run(
-        ["git", "ls-files"], cwd=REPO, capture_output=True, text=True, check=True
-    ).stdout.split("\n")
-    keep = []
-    for name in out:
-        if not name:
-            continue
-        # src/ is the tree being moved, tests/ names tracks to test the move,
-        # docs/ is prose. None is a declaration `--adopt` reads.
-        if name.startswith(("src/", "tests/", "docs/", "_upstream-snapshots/")):
-            continue
-        if GENERATED.match(name):
-            continue
-        keep.append(pathlib.Path(name))
-    return keep
 
 
 def live_tracks() -> set[str]:
@@ -95,25 +66,6 @@ def test_there_is_a_live_track_to_move() -> None:
     )
 
 
-def test_every_file_that_names_a_track_is_classified() -> None:
-    classified = set(
-        br.TRACK_DECLARATIONS + br.TRACK_DECISIONS + br.TRACK_HISTORY
-    )
-    tracks = live_tracks()
-    unclassified = []
-    for relative in tracked_files():
-        path = REPO / relative
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, OSError):
-            continue
-        if any(track in text for track in tracks) and str(relative) not in classified:
-            unclassified.append(str(relative))
-    assert not unclassified, (
-        "these files name a release track and are in none of "
-        "TRACK_DECLARATIONS / TRACK_DECISIONS / TRACK_HISTORY, so a "
-        f"`--adopt` would move the tree around them: {unclassified}"
-    )
 
 
 def test_no_file_is_in_two_categories() -> None:

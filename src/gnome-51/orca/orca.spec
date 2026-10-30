@@ -1,3 +1,8 @@
+# EL10's minimal mock root cannot parse the newer macros.gnome check.
+# Keep version derivation local, as in ptyxis, and validate in prep below.
+%global tarball_version %%(echo %%{version} | tr '~' '.')
+%global major_version %%(echo %%{tarball_version} | cut -d "." -f 1)
+
 Name:           orca
 Version:        51.0
 Release:        %autorelease
@@ -5,38 +10,47 @@ Summary:        Assistive technology for people with visual impairments
 
 License:        LGPL-2.1-or-later AND CC-BY-SA-3.0
 URL:            https://wiki.gnome.org/Projects/Orca
-Source0:        https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+Source0:        https://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
 
-%gnome_check_version
 
 BuildArch:      noarch
 
-BuildRequires:  pkgconfig(atk-bridge-2.0)
-BuildRequires:  pkgconfig(atspi-2)
+BuildRequires:  pkgconfig(atk-bridge-2.0) >= 2.58.6
+BuildRequires:  pkgconfig(atspi-2) >= 2.58.6
 BuildRequires:  pkgconfig(gobject-introspection-1.0)
 BuildRequires:  pkgconfig(liblouis)
-BuildRequires:  pkgconfig(pygobject-3.0)
+BuildRequires:  pkgconfig(pygobject-3.0) >= 3.18
 BuildRequires:  brlapi-devel
 BuildRequires:  brltty
 BuildRequires:  gettext
 BuildRequires:  intltool
 BuildRequires:  gtk3-devel
 BuildRequires:  itstool
-BuildRequires:  meson
+BuildRequires:  meson >= 1.0.0
 # Rawhide dropped this explicit BR (the %%meson_build macro resolves ninja via
 # meson's own dependency chain). We still call meson/ninja by hand below, so
 # keep it explicit rather than relying on transitivity.
 BuildRequires:  ninja-build
 BuildRequires:  python3-brlapi
 BuildRequires:  python3-dasbus
-BuildRequires:  python3-devel
+BuildRequires:  python3-devel >= 3.10
 BuildRequires:  python3-louis
 BuildRequires:  python3-pyatspi
 BuildRequires:  python3-speechd
 BuildRequires:  /usr/bin/desktop-file-validate
 
+# Orca checks the Atspi Python override, not just the shared-library ABI.
+Requires:       at-spi2-core >= 2.58.6
+Requires:       at-spi2-atk >= 2.58.6
+# input_event.py imports Gdk 3.0 before CLI parsing; the preferences UI also
+# imports Gtk 3.0. EL10's gtk3 owns both typelibs; gtk3-devel is build-time only.
+# Match meson.build's GTK 3.24 and PyGObject 3.18 floors. Keep these unqualified
+# because Orca is noarch, even though the GI runtime providers are archful.
+Requires:       gtk3 >= 3.24
+Requires:       python3 >= 3.10
 Requires:       python3-brlapi
 Requires:       python3-dasbus
+Requires:       python3-gobject >= 3.18
 Requires:       python3-louis
 Requires:       python3-pyatspi
 Requires:       python3-speechd
@@ -55,7 +69,11 @@ applications and toolkits that support the assistive technology service
 provider interface (AT-SPI), e.g. the GNOME desktop.
 
 %prep
-%autosetup -p1 -n %{name}-%{gnome_tarball_version}
+if echo "%{version}" | grep -qE '\.(alpha|beta|rc)'; then
+    echo "Error: Use tilde in Version field in front of alpha/beta/rc; checked '%{version}'" >&2
+    exit 1
+fi
+%autosetup -p1 -n %{name}-%{tarball_version}
 
 %build
 # Expand %%meson/%%meson_build manually instead of using the macros: this

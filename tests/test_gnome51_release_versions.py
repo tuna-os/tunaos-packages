@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import subprocess
 
 import pytest
 
@@ -94,3 +95,40 @@ def test_gsettings_desktop_schemas_does_not_package_the_removed_gconf_files() ->
     assert "GConf" not in text, (
         "gsettings-desktop-schemas 51.0 no longer installs /usr/share/GConf"
     )
+
+
+NATIVE_VERSION_SPECS = ("orca", "gnome-session", "gnome-settings-daemon", "libadwaita")
+
+
+@pytest.mark.parametrize("package", NATIVE_VERSION_SPECS)
+def test_native_source_version_derivation(package):
+    text = spec_for(package).read_text(encoding="utf-8")
+    declarations = dict(re.findall(r"^%global (\w+) %%(.*)$", text, re.MULTILINE))
+    version = version_of(spec_for(package))
+    # Execute the spec's actual derivation commands without Fedora RPM macros.
+    tarball = subprocess.check_output(
+        ["sh", "-eu", "-c", declarations["tarball_version"].strip("()").replace("%%{version}", version)],
+        text=True,
+    ).strip()
+    series_macro = "major_minor_version" if package == "libadwaita" else "major_version"
+    series = subprocess.check_output(
+        ["sh", "-eu", "-c", declarations[series_macro].strip("()").replace("%%{tarball_version}", tarball)],
+        text=True,
+    ).strip()
+    assert tarball == version
+    assert series == ("1.10" if package == "libadwaita" else "51")
+
+
+@pytest.mark.parametrize("package", NATIVE_VERSION_SPECS)
+@pytest.mark.parametrize("version,accepted", [
+    ("51.0", True), ("51~alpha", True), ("51~beta.1", True), ("51~rc", True),
+    ("51.alpha", False), ("51.beta.1", False), ("51.rc", False),
+])
+def test_native_version_guard_preserves_gnome_prerelease_validation(package, version, accepted):
+    text = spec_for(package).read_text(encoding="utf-8")
+    prep = text.split("\n%prep\n", 1)[1].split("%autosetup", 1)[0]
+    result = subprocess.run(
+        ["sh", "-eu", "-c", prep.replace("%{version}", version)],
+        capture_output=True, text=True,
+    )
+    assert (result.returncode == 0) == accepted
