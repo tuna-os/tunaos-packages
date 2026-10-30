@@ -135,6 +135,8 @@ tiers:
   # Tier 12b: Parental controls stack (needs gtk4, libadwaita, flatpak) and full gdk-pixbuf2 (needs glycin).
   - name: parental-controls
     packages:
+      # GOA requires libadwaita from the preceding tier; control-center uses it.
+      - path: src/gnome-51/gnome-online-accounts
       - path: src/deps/malcontent
       - path: src/deps/gdk-pixbuf2
 
@@ -166,3 +168,4 @@ tiers:
   - name: post-session
     packages:
       - path: src/gnome-51/gnome-initial-setup
+      - path: src/gnome-51/orca

@@ -3570,6 +3570,23 @@ packages:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: gnome-online-accounts
+    family: gnome51
+    packaging:
+      rpm:
+        native: src/gnome-51/gnome-online-accounts
+    upstream:
+      version: 3.58.1
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{version}.tar.xz
+      spec: src/gnome-51/gnome-online-accounts/gnome-online-accounts.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: runtime
+    referenced_by:
+      - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: gnome-online-accounts
     family: hummingbird-desktops
     packaging:
       rpm:
@@ -9290,6 +9307,23 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: orca
+    family: gnome51
+    packaging:
+      rpm:
+        native: src/gnome-51/orca
+    upstream:
+      version: '51.0'
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+      spec: src/gnome-51/orca/orca.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: runtime
+    referenced_by:
+      - build-order-gnome51.yml
       - manifests/package-builds.yaml
   - name: orca
     family: hummingbird-desktops
