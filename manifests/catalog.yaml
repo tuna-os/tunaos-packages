@@ -529,21 +529,6 @@ packages:
     referenced_by:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
-  - name: cairo
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        native: src/deps/cairo
-    upstream:
-      version: 1.18.4
-      source: https://cairographics.org/releases/%{name}-%{version}.tar.xz
-      spec: src/deps/cairo/cairo.spec
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
-      - manifests/package-builds.yaml
   - name: cairomm
     family: hummingbird-desktops
     packaging:
@@ -4838,19 +4823,6 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
-  - name: jasper
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        distgit: jasper
-    upstream:
-      distgit: jasper
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
-      - manifests/package-builds.yaml
   - name: jpegxl
     family: hummingbird-desktops
     packaging:
@@ -6186,19 +6158,6 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
-  - name: lcms2
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        distgit: lcms2
-    upstream:
-      distgit: lcms2
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
-      - manifests/package-builds.yaml
   - name: leptonica
     family: hummingbird-desktops
     packaging:
@@ -6611,11 +6570,9 @@ packages:
     family: hummingbird-desktops
     packaging:
       rpm:
-        native: src/deps/libcanberra
+        distgit: libcanberra
     upstream:
-      version: '0.30'
-      source: https://0pointer.de/lennart/projects/libcanberra/libcanberra-%{version}.tar.xz
-      spec: src/deps/libcanberra/libcanberra.spec
+      distgit: libcanberra
     targets:
       - hummingbird
     membership: runtime
@@ -6836,19 +6793,6 @@ packages:
         distgit: libepoxy
     upstream:
       distgit: libepoxy
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
-      - manifests/package-builds.yaml
-  - name: liberation-fonts
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        distgit: liberation-fonts
-    upstream:
-      distgit: liberation-fonts
     targets:
       - hummingbird
     membership: runtime
@@ -9213,19 +9157,6 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
-  - name: openjpeg
-    family: hummingbird-desktops
-    packaging:
-      rpm:
-        distgit: openjpeg
-    upstream:
-      distgit: openjpeg
-    targets:
-      - hummingbird
-    membership: runtime
-    referenced_by:
-      - build-order-hummingbird-desktops.yml
-      - manifests/package-builds.yaml
   - name: openjph
     family: hummingbird-desktops
     packaging:
@@ -11238,6 +11169,19 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml
+  - name: rpm-ostree
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: rpm-ostree
+    upstream:
+      distgit: rpm-ostree
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: rtkit
     family: hummingbird-desktops
     packaging:
