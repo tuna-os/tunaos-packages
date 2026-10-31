@@ -18,10 +18,7 @@ description: >-
   packaging/arch/PKGBUILD. Built for TunaOS Marlin (tuna-os/tuna-desktop#69,
   renamed in tuna-os/tuna-desktop#536).
 license: GPL-3.0-or-later
-# The package's former name (tuna-os/tuna-desktop#505). Upstream's PKGBUILD
-# also declares replaces=('roost') and conflicts=('roost'); the recipe schema
-# models only `provides`, so those two are not rendered yet (see the PR that
-# added this recipe for the proposed schema change).
+# Native replacement and PAM backup metadata is declared in outputs.arch.
 provides: [roost]
 # Upstream release tag. Bump `version`, source, the vendor asset below,
 # TUNA_VERSION and the verify smoke's want= together, and reset `release`,
@@ -292,6 +289,10 @@ verify:
     && test -f /usr/share/tuna-desktop/icons/Adwaita/index.theme
 # The ebuild's category in the tunaos overlay: gui-wm/tuna-desktop.
 outputs:
+  arch:
+    conflicts: [roost]
+    replaces: [roost]
+    backup: [etc/pam.d/tuna-lock, etc/pam.d/roost-lock]
   gpkg:
     category: gui-wm
 targets: [arch, fedora, rawhide, eln, el10, ubuntu, debian, trixie, opensuse-tumbleweed, gentoo]
