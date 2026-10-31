@@ -2106,8 +2106,8 @@ packages:
         tideforge: packages/danksearch
     upstream:
       version: 0.3.2
-      source: https://github.com/AvengeMedia/danksearch/archive/refs/tags/v0.3.2.tar.gz
-      sha256: 9454a2935c149ca3eb64106d59c266f513daff90438bac8b58e3a66b477521a9
+      source: https://github.com/duxlabs-dev/dux-search/archive/1269b4688cc94cbd271e1cbbf19a6e7caa2293de.tar.gz
+      sha256: 5840eaaee6525d8b7d086317a9b860fcd48d79995dafaeec801e28f4ea815799
     targets:
       - arch
       - debian
@@ -2128,8 +2128,8 @@ packages:
         tideforge: packages/danksearch
     upstream:
       version: 0.3.2
-      source: https://github.com/AvengeMedia/danksearch/archive/refs/tags/v0.3.2.tar.gz
-      sha256: 9454a2935c149ca3eb64106d59c266f513daff90438bac8b58e3a66b477521a9
+      source: https://github.com/duxlabs-dev/dux-search/archive/1269b4688cc94cbd271e1cbbf19a6e7caa2293de.tar.gz
+      sha256: 5840eaaee6525d8b7d086317a9b860fcd48d79995dafaeec801e28f4ea815799
     targets:
       - alma10
       - alma10-kitten
@@ -2231,8 +2231,8 @@ packages:
         tideforge: packages/dgop
     upstream:
       version: 0.2.3
-      source: https://github.com/AvengeMedia/dgop/archive/refs/tags/v0.2.3.tar.gz
-      sha256: afd2f9542ce25c739b13d6213fdfbc5493bce537d5afec309b4df945e318ff1a
+      source: https://github.com/duxlabs-dev/dux-gop/archive/ac77511bbb9ae52ae8f04b9d7e15116a4d4838eb.tar.gz
+      sha256: 8a2b8e64cad78e9a4bb03d37dafc4aa58eaeb9c52cc8d8273f151b3be1478647
     targets:
       - arch
       - debian
@@ -2253,8 +2253,8 @@ packages:
         tideforge: packages/dgop
     upstream:
       version: 0.2.3
-      source: https://github.com/AvengeMedia/dgop/archive/refs/tags/v0.2.3.tar.gz
-      sha256: afd2f9542ce25c739b13d6213fdfbc5493bce537d5afec309b4df945e318ff1a
+      source: https://github.com/duxlabs-dev/dux-gop/archive/ac77511bbb9ae52ae8f04b9d7e15116a4d4838eb.tar.gz
+      sha256: 8a2b8e64cad78e9a4bb03d37dafc4aa58eaeb9c52cc8d8273f151b3be1478647
     targets:
       - alma10
       - alma10-kitten
@@ -2338,8 +2338,8 @@ packages:
         tideforge: packages/dms-cli
     upstream:
       version: 1.5.2
-      source: https://github.com/AvengeMedia/DankMaterialShell/archive/refs/tags/v1.5.2.tar.gz
-      sha256: 2fa4fccb9e3fd259fb5e2c8d6e5fe329096f893ca6b8ac9766c699061e0b347c
+      source: https://github.com/duxlabs-dev/dux-shell/archive/74896fb87cb9e4bb866dbabcfd754e3e649ad0c7.tar.gz
+      sha256: 2ef271bf89cee85efa469eaa1aba4ffc89334554d8f6b89eba6dbd806126d7c2
     targets:
       - arch
       - debian
@@ -2360,8 +2360,8 @@ packages:
         tideforge: packages/dms-cli
     upstream:
       version: 1.5.2
-      source: https://github.com/AvengeMedia/DankMaterialShell/archive/refs/tags/v1.5.2.tar.gz
-      sha256: 2fa4fccb9e3fd259fb5e2c8d6e5fe329096f893ca6b8ac9766c699061e0b347c
+      source: https://github.com/duxlabs-dev/dux-shell/archive/74896fb87cb9e4bb866dbabcfd754e3e649ad0c7.tar.gz
+      sha256: 2ef271bf89cee85efa469eaa1aba4ffc89334554d8f6b89eba6dbd806126d7c2
     targets:
       - alma10
       - alma10-kitten

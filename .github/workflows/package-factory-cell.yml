@@ -370,6 +370,10 @@ jobs:
           python3 scripts/tideforge-action-cache.py result \
             --action-key '${{ steps.identity.outputs.key }}' "${artifacts[@]}" \
             > '.factory/${{ matrix.id }}/action-result.json'
+          python3 scripts/tideforge-action-cache.py verify \
+            --result '.factory/${{ matrix.id }}/action-result.json' \
+            --artifact-dir '.factory/${{ matrix.id }}/artifacts' \
+            --expected-action-key '${{ steps.identity.outputs.key }}'
       - name: Validate package installation and smoke contract
         env:
           CELL_ID: ${{ matrix.id }}
