@@ -182,7 +182,10 @@ def receipt(
             "invalid installed payload member",
         )
         payload[path] = parts
+    # The private cursor theme is a directory tree; the payload receipt lists
+    # only its members, so check the members that prove the pinned theme.
     directories = {entry["destination"] for entry in recipe["install"].get("directories", [])}
+    directories.add("usr/share/tuna-desktop/icons")
     required_payload = set(recipe["files"]["common"]) - directories
     required_payload |= {
         "usr/share/tuna-desktop/icons/Adwaita/UPSTREAM.json",
@@ -190,17 +193,17 @@ def receipt(
         "usr/share/tuna-desktop/icons/Adwaita/cursors_scalable/wait/metadata.json",
     }
     require(required_payload <= payload.keys(), "required installed payload member missing")
-    for binary in ("compositor", "session", "shell-host", "shell-gtk", "ibus-bridge", "greeter"):
+    for path in sorted(p for p in required_payload if p.startswith("usr/bin/")):
         require(
-            payload[f"usr/bin/tuna-{binary}"][0] == "file"
-            and payload[f"usr/bin/tuna-{binary}"][2] == "755",
+            payload[path][0] == "file" and payload[path][2] == "755",
             "installed executable is not a regular 0755 file",
         )
-        require(
-            payload[f"usr/bin/roost-{binary}"]
-            == ["symlink", f"usr/bin/roost-{binary}", f"tuna-{binary}"],
-            "installed compatibility target differs",
-        )
+    # The roost-* binary links were dropped with upstream (#775); a served
+    # package that still carries one is not the recipe's payload.
+    require(
+        not any(path.startswith("usr/bin/roost-") for path in payload),
+        "installed payload still carries a roost-* binary",
+    )
     package_info = (observations / "package-info.txt").read_text().splitlines()
     declared_dependencies = {
         re.split(r"[<>=]", line.removeprefix("depend = "))[0]

@@ -1,7 +1,9 @@
 """Tests for the single-recipe TunaOS package renderer."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -29,6 +31,89 @@ def recipe() -> dict:
         "files": {"common": ["usr/bin/hello-tuna"]},
         "targets": ["el10", "ubuntu", "debian"],
     }
+
+
+@pytest.fixture
+def native_recipe(recipe, tmp_path, monkeypatch):
+    patch = tmp_path / "packages/hello-tuna/patches/tuna.patch"
+    patch.parent.mkdir(parents=True)
+    patch.write_text("--- a/message\n+++ b/message\n@@ -1 +1 @@\n-ubuntu\n+tuna\n")
+    monkeypatch.setattr(tideforge, "ROOT", tmp_path)
+    recipe["targets"] = ["ubuntu"]
+    recipe["release"] = "0ubuntu1+tuna1"
+    recipe["source"]["url"] = "https://example.invalid/hello-tuna_1.2.3.orig.tar.xz"
+    recipe["sources"] = [
+        {"url": "https://example.invalid/hello-tuna_1.2.3-0ubuntu1.debian.tar.xz",
+         "sha256": "b" * 64, "destination": ".", "strip_components": 0},
+        {"url": "https://example.invalid/hello-tuna_1.2.3-0ubuntu1.dsc",
+         "sha256": "c" * 64, "destination": ".tuna-source/hello-tuna_1.2.3-0ubuntu1.dsc",
+         "extract": False},
+    ]
+    recipe["outputs"] = {"deb": {"native_source": {
+        "version": "1.2.3-0ubuntu1", "suite": "resolute",
+        "dsc": "hello-tuna_1.2.3-0ubuntu1.dsc",
+        "debian_tar": "hello-tuna_1.2.3-0ubuntu1.debian.tar.xz",
+        "patch": {"path": patch.relative_to(tmp_path).as_posix(),
+                  "sha256": hashlib.sha256(patch.read_bytes()).hexdigest()},
+    }}}
+    return recipe
+
+
+def test_native_renderer_emits_only_patch_and_parseable_downstream_changelog(
+    native_recipe, tmp_path
+):
+    tideforge.validate(native_recipe, "ubuntu")
+    rendered = tideforge.render(native_recipe, "ubuntu")
+    assert set(rendered) == {"debian/patches/tuna.patch", "native-changelog"}
+    assert hashlib.sha256(rendered["debian/patches/tuna.patch"].encode()).hexdigest() == \
+        native_recipe["outputs"]["deb"]["native_source"]["patch"]["sha256"]
+    changelog = tmp_path / "changelog"
+    changelog.write_text(rendered["native-changelog"])
+    for field, expected in [("Source", "hello-tuna"), ("Version", "1.2.3-0ubuntu1+tuna1"),
+                            ("Distribution", "resolute")]:
+        result = subprocess.run(
+            ["dpkg-parsechangelog", "-l", str(changelog), "-S", field],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == expected
+
+
+@pytest.mark.parametrize("defect", [
+    "version", "release", "suite", "target", "missing-closure", "filtered-closure",
+    "debian-destination", "debian-strip", "descriptor-extraction",
+    "descriptor-destination", "orig-filename", "patch-digest", "patch-path",
+])
+def test_native_source_contract_refuses_invalid_inputs(native_recipe, defect):
+    native = native_recipe["outputs"]["deb"]["native_source"]
+    if defect == "version":
+        native["version"] = "1.2.4-0ubuntu1"
+    elif defect == "release":
+        native_recipe["release"] = "0ubuntu1+tuna0"
+    elif defect == "suite":
+        native["suite"] = "unstable"
+    elif defect == "target":
+        native_recipe["targets"].append("debian")
+    elif defect == "missing-closure":
+        native_recipe["sources"].pop()
+    elif defect == "filtered-closure":
+        native_recipe["sources"][0]["targets"] = ["ubuntu"]
+    elif defect == "debian-destination":
+        native_recipe["sources"][0]["destination"] = "vendor"
+    elif defect == "debian-strip":
+        native_recipe["sources"][0]["strip_components"] = 1
+    elif defect == "descriptor-extraction":
+        native_recipe["sources"][1]["extract"] = True
+    elif defect == "descriptor-destination":
+        native_recipe["sources"][1]["destination"] = "descriptor.dsc"
+    elif defect == "orig-filename":
+        native_recipe["source"]["url"] = "https://example.invalid/repacked.tar.xz"
+    elif defect == "patch-digest":
+        native["patch"]["sha256"] = "0" * 64
+    elif defect == "patch-path":
+        native["patch"]["path"] = "packages/other/patches/tuna.patch"
+    with pytest.raises(SystemExit):
+        tideforge.validate(native_recipe, "ubuntu")
 
 
 def test_recipe_renders_el10_rpm(recipe: dict) -> None:

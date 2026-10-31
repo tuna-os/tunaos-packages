@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import re
 import shlex
@@ -705,6 +706,80 @@ def portable_payload_contract(recipe: dict) -> dict | None:
     return None
 
 
+def native_deb_source(recipe: dict) -> dict | None:
+    """Validate the owned Ubuntu source-package contract before any assembly."""
+    deb = recipe.get("outputs", {}).get("deb", {})
+    if "native_source" not in deb:
+        return None
+    native = deb["native_source"]
+    if not isinstance(native, dict) or set(native) != {"version", "suite", "dsc", "debian_tar", "patch"}:
+        fail("outputs.deb.native_source requires version, suite, dsc, debian_tar and patch")
+    if recipe.get("targets") != ["ubuntu"] or native["suite"] != "resolute":
+        fail("native Debian source packaging requires the Ubuntu Resolute target")
+    upstream = str(recipe["version"])
+    version = native["version"]
+    release = recipe.get("release")
+    if not isinstance(version, str) or not re.fullmatch(
+        re.escape(upstream) + r"-[0-9A-Za-z.+~]+", version
+    ):
+        fail(
+            "native source version must name the recipe's exact upstream version "
+            "and Debian revision"
+        )
+    if not isinstance(release, str) or not re.fullmatch(
+        re.escape(version.split("-", 1)[1]) + r"\+tuna[1-9][0-9]*", release
+    ):
+        fail(
+            "native source release must append a positive +tunaN revision "
+            "to the original Debian revision"
+        )
+    expected = {
+        "dsc": f"{recipe['name']}_{version}.dsc",
+        "debian_tar": f"{recipe['name']}_{version}.debian.tar.xz",
+    }
+    extras = {
+        source_filename(source, index): source
+        for index, source in enumerate(recipe.get("sources", []), 1)
+    }
+    if len(recipe.get("sources", [])) != 2 or len(extras) != 2:
+        fail("native source closure requires exactly its Debian archive and signed dsc")
+    if source_filename(recipe["source"], 0) != f"{recipe['name']}_{upstream}.orig.tar.xz":
+        fail("native source primary archive must retain its original Debian filename")
+    for key, filename in expected.items():
+        if native[key] != filename or filename not in extras:
+            fail(f"native source {key} must reference its checksum-locked auxiliary source")
+    packaging = extras[expected["debian_tar"]]
+    descriptor = extras[expected["dsc"]]
+    if (
+        packaging.get("destination") != "."
+        or packaging.get("strip_components", 1) != 0
+        or packaging.get("extract", True) is not True
+    ):
+        fail("native Debian packaging must extract unchanged at the source root")
+    if (
+        descriptor.get("extract", True) is not False
+        or descriptor.get("destination") != f".tuna-source/{expected['dsc']}"
+    ):
+        fail("native source dsc must be retained under .tuna-source without extraction")
+    if any("targets" in source for source in recipe.get("sources", [])):
+        fail("native source closure may not filter auxiliary sources by target")
+    patch = native["patch"]
+    if not isinstance(patch, dict) or set(patch) != {"path", "sha256"}:
+        fail("native source patch requires path and sha256")
+    path = Path(str(patch["path"]))
+    if (
+        path.is_absolute()
+        or ".." in path.parts
+        or path.parent != Path("packages") / recipe["name"] / "patches"
+    ):
+        fail("native source patch must belong to this owned recipe's patches directory")
+    if not path.name.endswith(".patch") or not (ROOT / path).is_file():
+        fail("native source patch must be a maintained .patch file")
+    if hashlib.sha256((ROOT / path).read_bytes()).hexdigest() != patch["sha256"]:
+        fail("native source patch checksum mismatch")
+    return native
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -777,6 +852,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
     if not recipe["files"].get("common"):
         fail("files.common must list installed paths")
     validate_deb_packages(recipe)
+    native_deb_source(recipe)
     for item in recipe.get("install", {}).get("files", []) + recipe.get("install", {}).get("directories", []):
         if not isinstance(item, dict) or not isinstance(item.get("source"), str) or not isinstance(item.get("destination"), str):
             fail("install.files entries need source and destination")
@@ -1056,6 +1132,20 @@ Source0:        {rpm_source_field(recipe['source'], 0)}
 
 
 def render_deb(recipe: dict, target: str) -> dict[str, str]:
+    native = native_deb_source(recipe)
+    if native is not None:
+        patch = ROOT / native["patch"]["path"]
+        changelog = (
+            f"{recipe['name']} ({recipe['version']}-{recipe['release']}) "
+            f"{native['suite']}; urgency=medium\n\n"
+            "  * Correct native tuna-shell-gtk masked password-event deltas.\n"
+            "    Preserve Ubuntu source packaging and raw-key privacy guards.\n\n"
+            " -- TunaOS Package Factory <packages@tunaos.org>  Sat, 31 Oct 2026 00:00:00 +0000\n\n"
+        )
+        return {
+            f"debian/patches/{patch.name}": patch.read_text(),
+            "native-changelog": changelog,
+        }
     # The Build-Depends line below always emits "debhelper-compat (= 13)", so a
     # recipe that also lists a bare "debhelper-compat" produces the relation
     # twice — once versioned, once not. dh reads the UNVERSIONED one and aborts

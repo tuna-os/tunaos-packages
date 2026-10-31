@@ -80,6 +80,8 @@ def inventory(root: Path) -> list[dict]:
     for path in sorted(root.rglob("*")):
         relative = normalized_path(path.relative_to(root).as_posix())
         mode = stat.S_IMODE(path.lstat().st_mode)
+        if mode & ~0o777:
+            raise SystemExit(f"unsupported payload mode {mode:04o}: {relative}")
         if path.is_symlink():
             rows.append({"path": relative, "type": "symlink", "mode": f"{mode:04o}", "target": os.readlink(path)})
         elif path.is_dir():
@@ -155,15 +157,9 @@ def read_manifest(path: Path) -> dict:
 
 
 def verify(args: argparse.Namespace) -> None:
-    expected = read_manifest(args.intermediate)
     with tempfile.TemporaryDirectory(prefix="tideforge-intermediate-") as tmp:
         root = Path(tmp)
-        with tarfile.open(args.intermediate, "r:*") as archive:
-            for member in archive.getmembers():
-                if member.name == "manifest.json":
-                    continue
-                normalized_path(member.name)
-            archive.extractall(root, filter="data")
+        expected = extract_payload(args.intermediate, root)
         actual_rows = inventory(root / "payload")
     actual = tree_digest(actual_rows)
     if actual != expected["tree_sha256"]:
@@ -293,7 +289,16 @@ def extract_payload(intermediate: Path, destination: Path) -> dict:
     with tarfile.open(intermediate, "r:*") as archive:
         for member in archive.getmembers():
             normalized_path(member.name)
-        archive.extractall(destination, filter="data")
+            if member.mode & ~0o777:
+                raise SystemExit(f"unsupported payload mode {member.mode:04o}: {member.name}")
+        # Keep data_filter's path/link/type/ownership checks, but retain ordinary
+        # permissions from the inventory instead of rewriting them or using umask.
+        archive.extractall(
+            destination,
+            filter=lambda member, path: tarfile.data_filter(member, path).replace(
+                mode=member.mode, deep=False
+            ),
+        )
     return manifest
 
 

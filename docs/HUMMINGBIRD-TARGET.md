@@ -108,7 +108,9 @@ plan.
 
 `scripts/check-hummingbird-installability.py` runs daily
 (`.github/workflows/hummingbird-installability.yml`), advisory, per arch.
-It becomes a gate the day a desktop first resolves.
+It becomes a gate the day a desktop first resolves. Since §10 it is also
+a *ratchet* on the publish path. This does not wait for that day:
+a wave may fix blockers, but it may not add one.
 
 ## 4. What utah-packages does differently, and what this repository took
 
@@ -158,20 +160,22 @@ the case.
   1.48`, `gsettings-desktop-schemas >= 51.alpha`) will surface as
   `preflight-buildrequires.py` findings and become build-order entries.
   That is the expected cost, and it is the cost utah paid.
-- **The three GLIBC_2.44 packages must be rebuilt**, and the prefix should
-  be re-verified for any other symbol-version leak (`GLIBC_2.44`,
-  `OPENSSL_3.5`+, `libpython3.15`).  The checker's `needer_from:
-  published` column is the list.
-- **Name masking is the overlay's inherent cost.**  dnf's priority filter
-  drops a *name* from every lower-priority repo, so a Fedora 44 package that
-  needs a library the base ships under the same name at a different soname
-  cannot resolve: F44 `fontforge` wants `libxml2.so.2`, the base's
-  `libxml2` 2.15 provides `.so.16`, and F44's `libxml2` is never a
-  candidate.  The old `includepkgs` list handled four such names by keeping
-  them *out*; the answer per package is the same either way -- exclude the
-  Fedora name or build the package against the base -- and it is a
-  per-package decision, not a global list.  utah-packages carries exactly
-  this list as `HB_EXCLUDE` (libicu, ruby-default-gems, gpgme, qt6-qtbase).
+- **Published GLIBC_2.44 leaks must be rebuilt.**  The static installability
+  check covers both every desktop closure and `retained_packages`: served
+  output that is intentionally outside those closures but still needs repair.
+  `pandoc-cli` is retained until its full runtime closure (`ghc-pandoc` and
+  `pandoc-cli`) is rebuilt in the Fedora 44 root; otherwise removing it from
+  a desktop build order leaves the incompatible artifact published (#557).
+  The checker's `needer_from: published` column identifies these leaks.
+- **The overlay uses name masks for packages.**  DNF's priority filter drops a *name*
+  from every lower-priority repo. A Fedora 44 package can need a library that
+  the base ships with another soname. The package does not resolve that
+  library. F44 `fontforge` wants `libxml2.so.2`. The base `libxml2` 2.15
+  provides `.so.16`, so F44's `libxml2` is never a candidate.
+  The list had four names. It kept those names *out*. For each package, choose
+  one action: exclude the Fedora name or build against the base. This is a
+  per-package decision, not a global list. utah-packages carries this list as
+  `HB_EXCLUDE` (libicu, ruby-default-gems, gpgme, qt6-qtbase).
 - **Upstream sources.**  utah's direct-source model (fetch the release
   tarball, verify SHA-512, fail closed) is the Hummingbird project's own
   freshness model; this repository still builds from dist-git lookaside.
@@ -333,3 +337,67 @@ The chain-band workflow caches the tree by pin and mounts it for
 the build. `build-chain.sh` stops a hummingbird config without it.
 `tests/test_materialize_consumed_repo.py` covers the extractor, the
 fail-closed paths, and the empty-repo shape.
+
+## 10. Why the leak outlived the root move, and what now stops it (2026-10-24)
+
+§2 named three packages that leaked from the Rawhide buildroot:
+`gstreamer1-plugins-good`, `libavutil-free`, and `zvbi`.
+They need `libm.so.6(GLIBC_2.44)`, which Hummingbird's glibc 2.43 cannot provide.
+§6 said they "must be rebuilt". The root moved to Fedora 44 on 2026-09-02.
+The measurement on 2026-10-24 used the live indexes
+(`repo.tunaos.org/hummingbird/20251124-x86_64`, 8822 binaries, utah
+`38da5357…` consumed). The prefix still answers:
+
+| capability | needed by, in OUR prefix | class |
+|---|---|---|
+| `libm.so.6(GLIBC_2.44)(64bit)` | `libavutil-free`, `libavfilter-free`, `zvbi` | `abi_symbol` |
+| `libjsoncpp.so.26()(64bit)` | `openxr-libs`, `waybar` | `abi_soname` |
+
+The root was never the whole mechanism. `build-chain.sh --served-nvrs`
+treats the published index as the durable record of what exists (#544).
+A package from the wrong root has exactly the NVR that the correct root
+would produce: the same `%{VERSION}` and `.bfin1`.
+Every leg since the move computed the NVR, found it served, and skipped it.
+Seven weeks of waves could not fix these packages; no step requested a rebuild.
+
+Three changes, each small, together a closed loop:
+
+1. **The checker classifies each unresolved capability.**
+   `scripts/check-hummingbird-installability.py` assigns one of three labels.
+   With `abi_symbol`, the index serves the library but not the symbol version.
+   With `abi_soname`, it serves another major version.
+   With `absent`, nothing serves the name at any version: build that package.
+
+   A rebuild can fix the first two classes, but only for a package from our prefix.
+   `--print-rebuild-names` prints exactly those packages.
+2. **Do not skip served packages that the target cannot install.**
+   `scripts/list-served-nvrs.py --except-names` withholds these names and all binaries from the same source.
+   The skip uses the first binary that `rpmspec -q` names for the spec.
+   Thus, to withhold `libavutil-free` alone changes nothing if the index still serves `ffmpeg-free`.
+   Both chain callers (`publish-build-chain-rpms.yml`, `chain-band.yml`) pass this option for hummingbird.
+
+   On the live index, 5 names withhold 146 NVRs out of 14353 served.
+   These are the ffmpeg, zvbi, openxr and waybar source builds.
+   Everything else still skips, so legs stay incremental.
+3. **A wave that regresses installability does not publish.**
+   `publish-rpm-wave.sh` signs and indexes the tree.
+   Before `rclone sync` makes it the served index, the publisher checks the exact bytes about to ship.
+   It walks `file://…/repo` with `--fail-on-regression` against `docs/hummingbird-installability-baseline.json`.
+   A wave may fix blockers, but it may not add one.
+
+   A desktop that resolved must continue to resolve.
+   The contract compares sets, not counts.
+
+This is not a green gate: no desktop resolves yet.
+The x86_64 counts on this date were: gnome 24 unresolved, kde 24, niri 22, tuna 17, xfce 14, cosmic 10.
+A requirement for green would refuse every wave forever.
+The baseline records this distance per architecture, with provenance for the indexes used in the measurement.
+When the target's own repository changes, refresh it deliberately:
+
+```
+scripts/check-hummingbird-installability.py --arch x86_64 --write-baseline
+scripts/check-hummingbird-installability.py --arch aarch64 --write-baseline
+```
+
+and commit the diff — a baseline that refreshes itself is a gate that
+ratchets nothing.

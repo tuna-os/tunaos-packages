@@ -4,8 +4,11 @@
 # publisher carries the SAME #519 protections -- most importantly, a failed
 # sync-down must stop everything BEFORE the destructive sync-up.
 #
-# env: R2_BUCKET, R2_PATH, STAGED (dir holding this cell's wave), and
-# DRY_RUN=true to skip the sync-up.
+# env: R2_BUCKET, R2_PATH, STAGED (dir holding this cell's wave), DRY_RUN=true
+# to skip the sync-up, and TARGET (optional) to apply
+# manifests/withdrawn-packages.yaml's excludes for that target (#525) --
+# build-chain-fanout.yml's publish job sets it to hummingbird, the only
+# caller today.
 set -euo pipefail
 
 : "${R2_BUCKET:?}" "${R2_PATH:?}" "${STAGED:?}"
@@ -30,7 +33,12 @@ elif (( _rc != 0 )); then
 fi
 echo "synced down $(find "$repo" -name '*.rpm' | wc -l) RPM(s) from ${R2_PATH}"
 
-bash scripts/publish-rpm-wave.sh --staged "$STAGED" --repo "$repo" --subdir build-chain
+wave_args=(--staged "$STAGED" --repo "$repo" --subdir build-chain)
+if [[ -n "${TARGET:-}" ]]; then
+    python3 scripts/plan-withdrawn-excludes.py --target "$TARGET" --out /tmp/withdrawn-excludes.txt
+    wave_args+=(--exclude-file /tmp/withdrawn-excludes.txt)
+fi
+bash scripts/publish-rpm-wave.sh "${wave_args[@]}"
 
 if [[ "${DRY_RUN:-false}" == "true" ]]; then
     echo "::notice::dry run -- signed and indexed ${R2_PATH} but synced nothing"

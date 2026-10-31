@@ -226,6 +226,20 @@ buildroot manifests so a red run diffs against the last green one
 (`scripts/diff-buildroots.py`). `tests/test_target_tooling_parity.py`
 keeps this per-format equality a CI property rather than an intention.
 
+For Hummingbird, the publisher checks installability after it signs and
+indexes the wave, but before `rclone sync` makes that index public.
+`scripts/check-hummingbird-installability.py --fail-on-regression`
+walks the new tree. It refuses a wave that leaves a desktop worse off than
+`docs/hummingbird-installability-baseline.json` records.
+This is a ratchet, not a green gate: no Hummingbird desktop resolves yet.
+It answers the question before a sync makes the wave public.
+
+The same walk names packages that the index serves but the target cannot install.
+The chain's served-NVR skip no longer counts these as built
+(`list-served-nvrs.py --except-names`).
+The chain can then rebuild an ABI leak in the correct root.
+Waves no longer skip it (#629).
+
 ### What the gate does not cover
 
 Recorded here on purpose. A gate whose exceptions are implicit reads as full
@@ -356,3 +370,41 @@ demonstrably stale *root-package* entry in an otherwise pinned `Cargo.lock` may
 set `build.cargo_locked: false`, but it must include a specific
 `build.cargo_lock_reason` and is accepted only after the resulting lockfile
 diff has been reviewed in the target build.
+
+### Queue-only pull requests and native canaries
+
+A target queue can serve several native release families. With
+`--canary-common`, a queue-only change tests the first declared tier of every
+selected native cell. Keep all family and architecture combinations. Do not
+collapse them to one representative. Run 39466490732 selected twelve chains for GNOME with no depth limit. The queue
+branch returned before this bound took effect.
+
+A change to a cell's own manifest or source still builds the full chain.
+For example, a GNOME queue change plus a GNOME 51 manifest change selects six
+full GNOME 51 cells and six GNOME 50 canaries. Dependency-graph edits and runs
+without `--canary-common` retain full builds. This does not establish a policy
+that every pull request must avoid full builds. The tests in
+`tests/test_target_queue_canary_bounds.py` cover these distinctions.
+
+### One isolated manual attempt
+
+The `single_attempt` boolean is optional and defaults to false. Use it only
+with a manual dispatch, one exact full-chain `cell`, and `source_revision`
+set to the full commit SHA. The planner rejects a different run SHA,
+selectors, shared-change modes, and batch offsets. Leave the other dispatch
+fields empty. Normal PR, push, and scheduled runs keep their existing rules.
+
+This mode runs one native job with a 360-minute limit and a 4.5-hour soft
+build budget. It adds no continuation jobs. The plan and artifact jobs also
+use runner time. A partial result remains partial: the final step fails if
+the chain deferred, after the workflow retains the available artifacts.
+Failure logs and partial packages remain available for diagnosis.
+
+Complete,
+validated outputs can enter the Actions cache. Deferred outputs cannot.
+
+A manual run does not promote to the authoritative R2 cache, the shared ORAS
+store, live repositories, or family OCI tags. EL10 artifacts from this run
+have checksums and SBOM metadata, but no production RPM signatures or
+main-push attestations. A successful job proves its existing build and smoke
+checks; dependency closure for the full desktop and boot qualification remain separate.

@@ -33,7 +33,7 @@ def macro_options(arguments):
         elif token.startswith(('--undefine', '--macros', '--rcfile', '--root', '--dbpath', '--load', '--eval')) or token == '-E':
             raise ValueError('alternate RPM macro/configuration inputs are forbidden')
         elif token.startswith('--') and token.split('=', 1)[0] not in {
-            '--nodeps', '--nocheck', '--noclean', '--short-circuit', '--clean',
+            '--nodeps', '--noprep', '--nocheck', '--noclean', '--short-circuit', '--clean',
             '--rmsource', '--rmspec', '--quiet', '--verbose', '--with', '--without',
         }:
             raise ValueError('unsupported rpmbuild option: ' + token)

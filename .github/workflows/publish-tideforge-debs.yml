@@ -133,6 +133,15 @@ jobs:
           # sync`s it, and sync makes the destination match the source (#124).
           if-no-files-found: error
           retention-days: 1
+      - name: Retain the verified build identity
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: publish-deb-provenance-${{ matrix.distro }}-${{ matrix.package }}-${{ matrix.arch }}
+          path: |
+            .factory/${{ matrix.cell_id }}/action-inputs.json
+            .factory/${{ matrix.cell_id }}/action-result.json
+          if-no-files-found: error
+          retention-days: 90
 
   publish:
     needs: [plan, build]
@@ -255,21 +264,67 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.verify_matrix) }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+      - run: pip install pyyaml==6.0.3
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: publish-deb-provenance-${{ matrix.distro }}-*
+          path: build-provenance
       - name: Install from the published repo with no third-party sources
         env:
           # The wave's binary package names for this distro, from the plan
           # (each recipe's verify install_name for the target).
-          INSTALL: ${{ matrix.install }}
+          PACKAGES: ${{ matrix.install }}
+          URL: https://repo.tunaos.org/tideforge/${{ matrix.distro }}/
+          EVIDENCE_DIR: /evidence
+          KEYRING: /keys/tunaos-public.gpg
         run: |
           set -euo pipefail
-          docker run --rm --env INSTALL "${{ matrix.image }}" bash -lc '
-            set -euo pipefail
-            export DEBIAN_FRONTEND=noninteractive
-            apt-get update -qq
-            apt-get install -y --no-install-recommends ca-certificates curl gpg
-            curl -fsSL https://repo.tunaos.org/tideforge/${{ matrix.distro }}/tideforge.gpg -o /usr/share/keyrings/tideforge.gpg
-            echo "deb [signed-by=/usr/share/keyrings/tideforge.gpg] https://repo.tunaos.org/tideforge/${{ matrix.distro }} ./" > /etc/apt/sources.list.d/tideforge.list
-            apt-get update
-            apt-get install -y $INSTALL
-            dpkg-query -W $INSTALL
-          '
+          mkdir -p evidence
+          docker run --rm --env PACKAGES --env URL --env EVIDENCE_DIR --env KEYRING \
+            --volume "$PWD/scripts:/scripts:ro" \
+            --volume "$PWD/public.gpg:/keys/tunaos-public.gpg:ro" \
+            --volume "$PWD/evidence:/evidence" \
+            '${{ matrix.image }}' bash /scripts/deb-verify-published.sh
+      - name: Bind Tuna Desktop served bytes to the verified build
+        env:
+          PACKAGE: tuna-desktop
+          DISTRO: ${{ matrix.distro }}
+          ARCH: ${{ matrix.arch }}
+          SELECTED_PACKAGES: ${{ inputs.packages }}
+          SERVED_URL: https://repo.tunaos.org/tideforge/${{ matrix.distro }}/
+          PROVENANCE_ROOT: build-provenance
+        run: |
+          set -euo pipefail
+          selected=$(PYTHONPATH=scripts python3 -c \
+            'import os; from publisher_contract import split; print(int(os.environ["PACKAGE"] in split(os.environ["SELECTED_PACKAGES"])))')
+          [ "$selected" = 1 ] || exit 0
+          provenance="$PROVENANCE_ROOT/publish-deb-provenance-${DISTRO}-${PACKAGE}-${ARCH}"
+          test -s "$provenance/action-inputs.json"
+          test -s "$provenance/action-result.json"
+          cp "$provenance/action-inputs.json" evidence/action-inputs.json
+          cp "$provenance/action-result.json" evidence/action-result.json
+          python3 scripts/deb-verification-receipt.py \
+            --provenance "$provenance" \
+            --observations evidence \
+            --package "$PACKAGE" \
+            --distro "$DISTRO" \
+            --arch "$ARCH" \
+            --revision "$GITHUB_SHA" \
+            --run-url "https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --served-url "$SERVED_URL" \
+            --output evidence/tuna-desktop-verdict.json
+      - name: Retain the Debian publication receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tuna-desktop-publication-${{ matrix.distro }}-${{ matrix.arch }}
+          path: evidence/
+          if-no-files-found: ignore
+          retention-days: 90

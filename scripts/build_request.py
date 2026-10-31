@@ -284,6 +284,7 @@ TRACK_DECISIONS = (
 )
 
 TRACK_HISTORY = (
+    "SRPM-CHANGES.md",
     "scripts/gap_engine.py",
     "scripts/summarize-gap-drift.py",
     "scripts/verify-package-factory-cell.sh",

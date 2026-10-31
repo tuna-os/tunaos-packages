@@ -46,6 +46,11 @@ on:
         description: Optional exact matrix cell ID
         required: false
         type: string
+      single_attempt:
+        description: One exact full-chain cell, one six-hour job; incomplete work fails the gate
+        required: false
+        default: false
+        type: boolean
       selector:
         description: Optional target=, family=, engine=, or architecture= filter
         required: false
@@ -160,7 +165,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.15'
       - run: pip install pyyaml==6.0.3
@@ -176,6 +181,9 @@ jobs:
       - id: plan
         name: Emit the unified package matrix
         env:
+          PARENT_RUN_ID: ${{ inputs.parent_run_id || '' }}
+          PARENT_RUN_ATTEMPT: ${{ inputs.parent_run_attempt || '' }}
+          SINGLE_ATTEMPT: ${{ inputs.single_attempt || false }}
           REQUESTED_CELL: ${{ inputs.cell || '' }}
           REQUESTED_SELECTOR: ${{ inputs.selector || '' }}
           EVENT_NAME: ${{ github.event_name }}
@@ -211,7 +219,22 @@ jobs:
           fi
           args=(--github-output "$GITHUB_OUTPUT")
           if [ -n "$REQUESTED_REVISION" ]; then
-            [[ "$REQUESTED_REVISION" =~ ^[0-9a-f]{40}$ ]] && [ "$REQUESTED_REVISION" = "$GITHUB_SHA" ]
+            [[ "$REQUESTED_REVISION" =~ ^[0-9a-f]{40}$ ]]
+            [ "$REQUESTED_REVISION" = "$GITHUB_SHA" ]
+          fi
+          if [ "$SINGLE_ATTEMPT" = true ]; then
+            [ "$EVENT_NAME" = workflow_dispatch ]
+            [ -n "$REQUESTED_CELL" ]
+            [ -n "$REQUESTED_REVISION" ]
+            [ -z "$REQUESTED_SELECTOR" ]
+            [ "$BATCH_INDEX" = 0 ]
+            [ -z "$SELECTION_DIGEST" ]
+            [ -z "$PARENT_RUN_ID" ]
+            [ -z "$PARENT_RUN_ATTEMPT" ]
+            args+=(--single-attempt --expected-source-revision "$REQUESTED_REVISION")
+          elif [ "$SINGLE_ATTEMPT" != false ]; then
+            echo "::error::single_attempt must be a boolean"
+            exit 2
           fi
           args+=(--batch-index "$BATCH_INDEX")
           [ -z "$SELECTION_DIGEST" ] || args+=(--selection-digest "$SELECTION_DIGEST")

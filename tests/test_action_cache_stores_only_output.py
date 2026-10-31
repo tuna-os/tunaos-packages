@@ -153,6 +153,7 @@ def test_success_uploads_the_output_and_failure_uploads_the_build_tree():
     assert ok == [
         ".factory/${{ matrix.id }}/artifacts/",
         ".factory/${{ matrix.id }}/metadata/",
+        ".factory/${{ matrix.id }}/action-inputs.json",
         ".factory/${{ matrix.id }}/action-result.json",
         # ~70 bytes, and the reason this artifact is EVIDENCE and not merely a
         # deliverable: GitHub scopes the Actions cache by ref, so a

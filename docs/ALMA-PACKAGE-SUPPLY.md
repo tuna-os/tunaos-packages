@@ -40,6 +40,33 @@ and baseline. Do not invent compiler flags for those inputs. Inspection
 always leaves `readiness` false. Before promotion, the publication gate must
 verify the producer's authority and a clean transaction for the consumer.
 
+The CPU collector's optional `--cache-dir` stores only primary metadata in
+its raw compressed form and vendor RPM blobs, addressed by SHA256. It never
+caches keys, installed roots or proof verdicts.
+
+The collector fetches the key and `repomd.xml` afresh on every run. It checks
+each cached file's type, size and digest against that run's metadata, and
+rehashes hits and copies. It safely refetches missing, partial or corrupt
+inputs. If bytes from the network have the wrong digest, collection stops.
+
+Every hit still needs signature checks. The installed ELF files must match
+their declared byte hashes. Identity checks and tests with restricted-CPU
+QEMU remain mandatory.
+
+CI restores inputs only from the exact namespace for that cache version.
+PRs restore their own scope and the trusted base, and save only PR-local
+inputs. Only trusted default-branch runs save shared inputs. A missing cache
+slot does not trigger a fallback to production supply.
+
+Run 41144847612 took 1775 seconds for the signed CPU closure across two
+targets. Its job timestamps do not identify the expensive substeps.
+
+The script now logs phase times within bounded output. The `collection.json`
+file includes aggregate times in `phaseSeconds` for acquisition, index
+construction, signatures, byte binding and QEMU. These measurements, not
+the existence of a cache, establish any savings. These results do not
+measure a speedup for the full collector.
+
 ## Complete factory selection
 
 The planner splits selections into deterministic batches if they exceed

@@ -75,6 +75,7 @@ def test_rewrite_refuses_placeholder_hashes() -> None:
 
 def test_check_recipe_rejects_a_smoke_that_expects_another_version() -> None:
     recipe = yaml.safe_load(RECIPE.read_text())
-    recipe["verify"]["smoke"] = recipe["verify"]["smoke"].replace("want=1.0.0-beta.1;", "want=0.1.0;")
+    want = recipe["build"]["environment"]["TUNA_VERSION"].removeprefix("v")
+    recipe["verify"]["smoke"] = recipe["verify"]["smoke"].replace(f"want={want};", "want=0.1.0;")
     with pytest.raises(SystemExit):
         prepare.check_recipe(recipe)

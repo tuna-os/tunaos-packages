@@ -2,7 +2,7 @@
 
 The ebuild is generated from the recipe, so these pin the parts a Gentoo
 consumer depends on: the PMS version and path guppy installs
-(gui-wm/tuna-desktop-1.0.0_beta1), the pinned sources under collision-free
+(gui-wm/tuna-desktop-1.0.0_beta2), the pinned sources under collision-free
 DISTDIR names, cargo.eclass with the recipe's Rust floor, the recipe's own
 commands, and the gpkg wiring through the cell, cache and publisher.
 """
@@ -25,12 +25,12 @@ tideforge = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(tideforge)
 
 TUNA = yaml.safe_load((ROOT / "packages" / "tuna-desktop" / "package.yaml").read_text(encoding="utf-8"))
-EBUILD_PATH = "gui-wm/tuna-desktop/tuna-desktop-1.0.0_beta1.ebuild"
+EBUILD_PATH = "gui-wm/tuna-desktop/tuna-desktop-1.0.0_beta2-r1.ebuild"
 
 
 @pytest.mark.parametrize(
     ("version", "expected"),
-    [("1.0.0~beta.1", "1.0.0_beta1"), ("1.2.3", "1.2.3"), ("2.0~rc2", "2.0_rc2"), ("1.0~alpha", "1.0_alpha")],
+    [("1.0.0~beta.2", "1.0.0_beta2"), ("1.2.3", "1.2.3"), ("2.0~rc2", "2.0_rc2"), ("1.0~alpha", "1.0_alpha")],
 )
 def test_recipe_versions_take_their_pms_spelling(version, expected):
     assert tideforge.gentoo_version(version) == expected
@@ -44,7 +44,7 @@ def test_versions_without_a_pms_spelling_fail(version):
 
 def test_release_above_one_is_a_gentoo_revision():
     recipe = dict(TUNA, release=3)
-    assert tideforge.gentoo_pf(recipe) == "tuna-desktop-1.0.0_beta1-r2"
+    assert tideforge.gentoo_pf(recipe) == "tuna-desktop-1.0.0_beta2-r2"
 
 
 def test_tuna_desktop_renders_a_one_package_overlay():
@@ -68,21 +68,21 @@ def test_the_ebuild_uses_cargo_eclass_at_the_recipe_floor():
 def test_sources_are_the_pinned_archives_under_versioned_distfile_names():
     ebuild = tideforge.render(TUNA, "gentoo")[EBUILD_PATH]
     assert (
-        "tuna-desktop-vendor.tar.gz -> tuna-desktop-1.0.0_beta1-tuna-desktop-vendor.tar.gz" in ebuild
+        "tuna-desktop-vendor.tar.gz -> tuna-desktop-1.0.0_beta2-tuna-desktop-vendor.tar.gz" in ebuild
     )
-    assert "v1.0.0-beta.1.tar.gz -> tuna-desktop-1.0.0_beta1-v1.0.0-beta.1.tar.gz" in ebuild
+    assert "v1.0.0-beta.2.tar.gz -> tuna-desktop-1.0.0_beta2-v1.0.0-beta.2.tar.gz" in ebuild
     # trixie's private gtk4-layer-shell never reaches Gentoo, which has 1.3.0.
     assert "gtk4-layer-shell-1.3.0.tar.gz" not in ebuild
-    assert 'S="${WORKDIR}/tuna-desktop-1.0.0-beta.1"' in ebuild
+    assert 'S="${WORKDIR}/tuna-desktop-1.0.0-beta.2"' in ebuild
 
 
 def test_the_recipe_commands_run_unchanged_with_destdir_as_D():
     ebuild = tideforge.render(TUNA, "gentoo")[EBUILD_PATH]
     compile_phase = ebuild.split("src_compile() {", 1)[1].split("\n}\n", 1)[0]
     install_phase = ebuild.split("src_install() {", 1)[1].split("\n}\n", 1)[0]
-    assert "export TUNA_VERSION=v1.0.0-beta.1" in compile_phase
+    assert "export TUNA_VERSION=v1.0.0-beta.2" in compile_phase
     assert "cargo build --release --locked --offline" in compile_phase
-    assert "ln -s tuna-greeter ${D}/usr/bin/roost-greeter" in install_phase
+    assert "cp -a share/tuna-desktop/icons/. ${D}/usr/share/tuna-desktop/icons/" in install_phase
     assert "{destdir}" not in install_phase
     # files.common is exact on every format; Portage would compress the doc.
     assert "docompress -x /usr/share/doc/tuna-desktop/nested-session.md" in install_phase
@@ -165,8 +165,8 @@ PACKAGES: 2
 VERSION: 0
 
 BUILD_ID: 1
-CPV: gui-wm/tuna-desktop-1.0.0_beta1
-PATH: gui-wm/tuna-desktop/tuna-desktop-1.0.0_beta1-1.gpkg.tar
+CPV: gui-wm/tuna-desktop-1.0.0_beta2
+PATH: gui-wm/tuna-desktop/tuna-desktop-1.0.0_beta2-1.gpkg.tar
 RDEPEND: sys-apps/dbus dev-libs/glib:2 >=gui-libs/gtk-4.12:4[wayland] >=gui-libs/gtk4-layer-shell-1.1 || ( a/b c/d ) !x/blocked
 
 BUILD_ID: 1
@@ -178,7 +178,7 @@ PATH: gui-wm/tuna-desktop/tuna-desktop-0.9.0-1.gpkg.tar
 @pytest.mark.parametrize(
     ("left", "right", "expected"),
     [
-        ("1.0.0_beta1", "1.0.0", -1),
+        ("1.0.0_beta2", "1.0.0", -1),
         ("1.0.0_rc1", "1.0.0_beta2", 1),
         ("1.0", "1.0_p1", -1),
         ("1.01", "1.1", -1),
@@ -194,15 +194,15 @@ def test_pms_version_ordering(left, right, expected):
 def test_a_binhost_index_reads_into_the_standard_shape():
     index = binhost.parse_packages(PACKAGES)
     package = index["packages"]["gui-wm/tuna-desktop"]
-    assert package["evr"] == "1.0.0_beta1"
+    assert package["evr"] == "1.0.0_beta2"
     assert package["arch"] == "amd64"
     assert "gui-libs/gtk" in package["requires"]
     assert ("gui-libs/gtk4-layer-shell", ">=", "1.1") in package["requires_versioned"]
     # Alternatives and blockers are never hard requirements.
     assert not {"a/b", "c/d", "x/blocked"} & set(package["requires"])
     rows = list(binhost.iter_rows(PACKAGES))
-    assert [row["evr"] for row in rows] == ["1.0.0_beta1", "0.9.0"]
-    assert rows[0]["location"] == "gui-wm/tuna-desktop/tuna-desktop-1.0.0_beta1-1.gpkg.tar"
+    assert [row["evr"] for row in rows] == ["1.0.0_beta2", "0.9.0"]
+    assert rows[0]["location"] == "gui-wm/tuna-desktop/tuna-desktop-1.0.0_beta2-1.gpkg.tar"
 
 
 def test_satisfies_speaks_pms_operators():

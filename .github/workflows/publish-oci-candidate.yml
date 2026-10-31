@@ -1,0 +1,205 @@
+name: Rehearse R2-independent RPM publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      cell:
+        description: "One existing build-chain cell ID"
+        required: true
+        type: string
+      seed_digest:
+        description: "Current signed family image digest (sha256:..., not a tag)"
+        required: true
+        type: string
+      wave_run_id:
+        description: "Completed main build-chain publisher run with this cell's RPM artifact"
+        required: true
+        type: string
+
+# Same lock as the live publishers: verify the current family tag while no
+# other publisher can advance it. This never replaces that tag or touches R2.
+concurrency:
+  group: publish-rpms
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  packages: write
+  id-token: write
+
+jobs:
+  candidate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      CELL: ${{ inputs.cell }}
+      SEED_DIGEST: ${{ inputs.seed_digest }}
+      WAVE_RUN_ID: ${{ inputs.wave_run_id }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+      - name: Install validation dependencies
+        run: python3 -m pip install -r requirements-ci.txt
+      - name: Validate the requested wave and cell
+        id: plan
+        run: |
+          set -euo pipefail
+          [[ "$WAVE_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${WAVE_RUN_ID}" > wave-run.json
+          python3 scripts/validate-oci-candidate.py --cell "$CELL" \
+            --digest "$SEED_DIGEST" --run wave-run.json --repository "$GITHUB_REPOSITORY"
+          python3 scripts/plan-build-chain-publish.py --cells "$CELL" --github-output "$GITHUB_OUTPUT"
+      - name: Free runner disk and install tools
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift
+          sudo docker image prune -af >/dev/null
+          echo "DOCKER_CONFIG=$RUNNER_TEMP/.docker" >> "$GITHUB_ENV"
+          sudo apt-get update -q
+          sudo apt-get install -y -q createrepo-c rpm gpg gpgconf podman
+          # Prefer the second disk for layer copies. The publisher separately
+          # rejects layers above its layer size policy before upload.
+          if [ -d /mnt ]; then
+            sudo install -d -o "$(id -u)" -g "$(id -g)" /mnt/candidate-containers
+            printf '[storage]\ndriver = "overlay"\ngraphroot = "/mnt/candidate-containers"\nrunroot = "%s/podman-run"\n' "$RUNNER_TEMP" > "$RUNNER_TEMP/storage.conf"
+            echo "CONTAINERS_STORAGE_CONF=$RUNNER_TEMP/storage.conf" >> "$GITHUB_ENV"
+            sudo install -d -o "$(id -u)" -g "$(id -g)" /mnt/oras-candidate
+            echo "ORAS_WORKDIR=/mnt/oras-candidate" >> "$GITHUB_ENV"
+          else
+            mkdir -p "$RUNNER_TEMP/oras-candidate"
+            echo "ORAS_WORKDIR=$RUNNER_TEMP/oras-candidate" >> "$GITHUB_ENV"
+          fi
+      - uses: ./.github/actions/install-oras
+      - uses: sigstore/cosign-installer@v4.1.2
+      - name: Verify and materialize the pinned accumulated repository
+        env:
+          MATRIX: ${{ steps.plan.outputs.matrix }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/tunaos-packages"
+          seed="${image}@${SEED_DIGEST}"
+          mkdir -p "$DOCKER_CONFIG"
+          echo "$GH_TOKEN" | podman login ghcr.io -u "$GITHUB_ACTOR" \
+            --password-stdin --authfile "$DOCKER_CONFIG/config.json"
+          # Fail closed on a stale pin or the digest of another cell. Never
+          # fall back to a tag, an empty tree, or an R2 download.
+          podman pull --authfile "$DOCKER_CONFIG/config.json" "${image}:${CELL}"
+          current=$(podman image inspect "${image}:${CELL}" --format '{{index .RepoDigests 0}}')
+          test "${current##*@}" = "$SEED_DIGEST"
+          cosign verify "$seed" \
+            --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/publish-build-chain-rpms.yml@refs/heads/main" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > seed-signature.json
+          cid=$(podman create "$seed" /bin/true)
+          trap 'podman rm "$cid" >/dev/null' EXIT
+          mkdir repo
+          podman cp "$cid:/repository/." repo/
+          test -s repo/repodata/repomd.xml
+          test -s repo/repodata/repomd.xml.asc
+          gpg --batch --import public.gpg
+          rpm --import public.gpg
+          gpg --batch --verify repo/repodata/repomd.xml.asc repo/repodata/repomd.xml
+          arch=$(jq -r '.include[0].architecture' <<< "$MATRIX")
+          count=0
+          while IFS= read -r -d '' rpm; do
+            rpm --checksig "$rpm"
+            rpm_arch=$(rpm -qp --qf '%{ARCH}' "$rpm")
+            [[ "$rpm_arch" = "$arch" || "$rpm_arch" = noarch ]]
+            count=$((count + 1))
+          done < <(find repo -name '*.rpm' ! -name '*.src.rpm' -print0)
+          test "$count" -gt 0
+          bash scripts/verify-native-rpm-repository.sh repo "$arch"
+          echo "Seed retained $count accumulated RPMs for $CELL ($SEED_DIGEST)"
+          podman rm "$cid" >/dev/null
+          trap - EXIT
+          podman rmi "${image}:${CELL}"
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: publish-rpm-${{ inputs.cell }}
+          path: staged
+          run-id: ${{ inputs.wave_run_id }}
+          github-token: ${{ github.token }}
+      - name: Import RPM signing key
+        id: gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+      - name: Sign and merge the wave without dropping accumulated packages
+        env:
+          MATRIX: ${{ steps.plan.outputs.matrix }}
+          KEY_ID: ${{ steps.gpg.outputs.keyid }}
+        run: |
+          set -euo pipefail
+          arch=$(jq -r '.include[0].architecture' <<< "$MATRIX")
+          manifest=$(jq -r '.include[0].manifest' <<< "$MATRIX")
+          dist=$(bash scripts/build-chain.sh --manifest "$manifest" --print-dist)
+          test -n "$dist"
+          while IFS= read -r -d '' rpm; do
+            rpm_arch=$(rpm -qp --qf '%{ARCH}' "$rpm")
+            release=$(rpm -qp --qf '%{RELEASE}' "$rpm")
+            [[ "$rpm_arch" = "$arch" || "$rpm_arch" = noarch ]]
+            [[ "$release" = *"$dist" || "$release" = *"$dist".* ]]
+          done < <(find staged -name '*.rpm' ! -name '*.src.rpm' -print0)
+          echo '%_signature gpg' > ~/.rpmmacros
+          echo "%_gpg_name $KEY_ID" >> ~/.rpmmacros
+          echo '%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u "%{_gpg_name}" -sbo %{__signature_filename} %{__plaintext_filename}' >> ~/.rpmmacros
+          # Same empty-wave, reverse-dependency, supersession, never-shrink
+          # and repomd-signature guards as production. No foreign eviction.
+          bash scripts/publish-rpm-wave.sh --staged staged --repo repo --subdir build-chain
+      - name: Push and sign an isolated candidate digest
+        id: publish
+        env:
+          MATRIX: ${{ steps.plan.outputs.matrix }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/tunaos-packages"
+          tag="${CELL}-candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          arch=$(jq -r '.include[0].architecture' <<< "$MATRIX")
+          # Allow room for downloaded layer plus extracted round trip. The
+          # upload layout is removed before download; never retain both layers.
+          repo_bytes=$(du -sb repo | cut -f1)
+          available=$(df -B1 --output=avail "$ORAS_WORKDIR" | tail -n 1)
+          test "$available" -gt "$((repo_bytes * 2 + 1073741824))"
+          python3 scripts/oras_distribution.py prepare --repository repo --layout "$ORAS_WORKDIR/candidate-layout" \
+            --format rpm --target "$CELL" --architecture "$arch" > candidate.digest
+          # OCI image media types retain COPY --from compatibility. Never oras push
+          # a generic artifact where current image consumers expect a rootfs.
+          oras cp --from-oci-layout "$ORAS_WORKDIR/candidate-layout:repository" "${image}:${tag}"
+          rm -rf "$ORAS_WORKDIR/candidate-layout"
+          ref="${image}@$(cat candidate.digest)"
+          cosign sign --yes "$ref"
+          cosign verify "$ref" \
+            --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/publish-oci-candidate.yml@refs/heads/main" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > candidate-signature.json
+          # Fetch by the locally computed manifest digest, never the mutable tag.
+          # This also proves the published bytes match the signed local layout.
+          TMPDIR="$ORAS_WORKDIR" python3 scripts/oras_distribution.py pull --reference "$ref" \
+            --destination "$ORAS_WORKDIR/roundtrip-repo" --format rpm --target "$CELL" --architecture "$arch" \
+            --identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/publish-oci-candidate.yml@refs/heads/main"
+          diff -qr repo "$ORAS_WORKDIR/roundtrip-repo"
+          bash scripts/verify-native-rpm-repository.sh "$ORAS_WORKDIR/roundtrip-repo" "$arch"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          {
+            echo '### Isolated OCI publication candidate'
+            echo "Candidate: $ref"
+            echo "Seed: ${image}@${SEED_DIGEST}"
+            echo "Cell: $CELL; wave run: $WAVE_RUN_ID"
+            echo 'Zero R2 API calls in this publication job; existing HTTP repos and live OCI tags unchanged.'
+            echo 'Not promoted or install-qualified. Follow docs/R2-GHCR-MIGRATION.md before consumer cutover.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: oci-candidate-evidence-${{ inputs.cell }}
+          path: |
+            wave-run.json
+            seed-signature.json
+            candidate-signature.json
+            candidate.digest
+            repo/repodata/repomd.xml
+            repo/repodata/repomd.xml.asc

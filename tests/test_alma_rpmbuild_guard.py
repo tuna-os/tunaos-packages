@@ -78,6 +78,13 @@ def test_native_vendor_flags_are_measured_before_exact_rpmbuild_and_never_reset(
     assert evidence['readiness'] is False
 
 
+def test_dynamic_buildrequires_noprep_is_forwarded(boundary):
+    _, _, _, executions = boundary
+    arguments = ['-br', '--noprep', '--noclean', '--target', 'x86_64', 'evtest.spec']
+    guard.main(['x86_64', *arguments])
+    assert executions == [('/usr/bin/rpmbuild', ['/usr/bin/rpmbuild', *arguments])]
+
+
 @pytest.mark.parametrize('field,value', [
     ('_target_cpu', 'aarch64'), ('optflags', ''), ('build_cflags', '%{build_cflags}'),
     ('build_cxxflags', '-O2 -march=native'), ('build_ldflags', '-Wl,-z,relro\nadditional-output'),

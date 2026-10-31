@@ -55,7 +55,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import pathlib
 import re
@@ -64,22 +63,17 @@ import sys
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+SCRIPTS_DIR = str(ROOT / "scripts")
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+from module_loader import load_script  # noqa: E402
+
 SERVED_ROOT = "https://repo.tunaos.org/"
 
 
 def _load(name: str):
-    """Import a sibling script as a module.
-
-    gap_engine owns rpm-md reading (fetch with the Cloudflare-safe agent,
-    repomd resolution, primary.xml parsing) and rpm_vercmp owns EVR
-    comparison. Importing them is the point of RFC 011 -- a third copy of
-    either would be a third thing to keep correct.
-    """
-    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
+    """Import a sibling script as a module."""
+    return load_script(name)
 
 def arch_of(r2_path: str, override: str | None = None) -> str:
     """The architecture a served prefix holds.
@@ -133,6 +127,24 @@ def shadowed(served: dict, upstream: dict, compare_evr) -> list[dict]:
     return sorted(found, key=lambda row: row["package"])
 
 
+def annotate_withdrawn(rows: list[dict], withdrawn_by_target: dict,
+                        target: str) -> int:
+    """Mark each row withdrawn/not via the loaded manifest in place.
+
+    Returns how many remain unactioned (not withdrawn) -- the count that
+    must fail the run. A row already recorded in
+    manifests/withdrawn-packages.yaml is a decision already made, pending
+    only the next publish to take effect; it must not keep failing a check
+    that exists to surface decisions NOT yet made (the complaint on #525:
+    "every scheduled drift run will stay red until the withdrawal happens").
+    """
+    withdrawn_packages = _load("withdrawn_packages")
+    for row in rows:
+        row["withdrawn"] = withdrawn_packages.is_withdrawn(
+            withdrawn_by_target, target, row["package"], row["served_evr"])
+    return sum(1 for row in rows if not row["withdrawn"])
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", help="only this target (default: all declared)")
@@ -141,11 +153,16 @@ def main(argv=None) -> int:
     ap.add_argument("--warn-only", action="store_true",
                     help="report and exit 0")
     ap.add_argument("--cache", default="/tmp/tunaos-index-cache")
+    ap.add_argument("--withdrawn-manifest", type=pathlib.Path,
+                    help="manifests/withdrawn-packages.yaml override, for tests")
     args = ap.parse_args(argv)
 
     gap_engine = _load("gap_engine")
     rpm_vercmp = _load("rpm_vercmp")
+    withdrawn_packages = _load("withdrawn_packages")
     cache = pathlib.Path(args.cache)
+    withdrawn_by_target = withdrawn_packages.load(
+        args.withdrawn_manifest or withdrawn_packages.DEFAULT_MANIFEST)
 
     factory = yaml.safe_load((ROOT / "manifests" / "package-factory.yaml").read_text())
     selected = targets_to_check(factory, args.target)
@@ -158,6 +175,7 @@ def main(argv=None) -> int:
 
     report = {"targets": {}}
     total = 0
+    unactioned = 0
     unreadable = 0
 
     for name, target in selected:
@@ -180,6 +198,7 @@ def main(argv=None) -> int:
         served = gap_engine.parse_primary(served_blob)["packages"]
         upstream = gap_engine.parse_primary(upstream_blob)["packages"]
         rows = shadowed(served, upstream, rpm_vercmp.compare_evr)
+        unactioned += annotate_withdrawn(rows, withdrawn_by_target, name)
         total += len(rows)
 
         report["targets"][name] = {
@@ -192,26 +211,33 @@ def main(argv=None) -> int:
             "shadowed": rows,
         }
 
+        withdrawn_here = sum(1 for row in rows if row["withdrawn"])
         print(f"{name}: {len(served)} served, {len(upstream)} upstream, "
-              f"{len(rows)} shadowed")
+              f"{len(rows)} shadowed ({withdrawn_here} withdrawn, pending publish)")
         for row in rows:
+            tag = " [withdrawn, pending publish]" if row["withdrawn"] else ""
             print(f"  {row['package']:32s} served {row['served_evr']}  "
-                  f"< upstream {row['upstream_evr']}")
+                  f"< upstream {row['upstream_evr']}{tag}")
 
     if args.report_json:
         pathlib.Path(args.report_json).write_text(
             json.dumps(report, indent=2, sort_keys=True) + "\n")
 
-    if total:
-        print(f"\nERROR: {total} package(s) are served at an older build than "
-              f"upstream now ships. Our repository is added at priority 5, and "
-              f"dnf priority is absolute, so these shadow upstream's builds "
-              f"rather than losing to them. Withdraw them from the published "
-              f"repository -- upstream shipping them is why the gap "
-              f"measurement no longer asks us to build them.",
+    if unactioned:
+        print(f"\nERROR: {unactioned} package(s) are served at an older build "
+              f"than upstream now ships, with no recorded withdrawal. Our "
+              f"repository is added at priority 5, and dnf priority is "
+              f"absolute, so these shadow upstream's builds rather than "
+              f"losing to them. Add them to "
+              f"manifests/withdrawn-packages.yaml -- upstream shipping them "
+              f"is why the gap measurement no longer asks us to build them.",
               file=sys.stderr)
         if not args.warn_only:
             return 1
+    elif total:
+        print(f"\n{total} package(s) are served older than upstream's build, "
+              f"all already recorded in manifests/withdrawn-packages.yaml "
+              f"and pending the next publish.")
     if unreadable:
         return 2
     return 0

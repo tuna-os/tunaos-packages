@@ -1,0 +1,55 @@
+schema: 1
+name: orca
+version: "50.3"
+release: 0ubuntu0.1+tuna1
+summary: Scriptable screen reader with native Tuna password event correction
+description: >-
+  Ubuntu Resolute Orca with maintained count-only masked password feedback for
+  the native tuna-shell-gtk application. Ubuntu source packaging owns the build,
+  dependency relationships, installation paths and maintainer behavior.
+license: LGPL-2.1-or-later
+source:
+  url: https://archive.ubuntu.com/ubuntu/pool/main/o/orca/orca_50.3.orig.tar.xz
+  sha256: cc13521037519e06125ec6eb0236ffd52a6d6ff7ef538323f786fca840a3dbda
+  filename: orca_50.3.orig.tar.xz
+  directory: orca-50.3
+sources:
+  - url: https://archive.ubuntu.com/ubuntu/pool/main/o/orca/orca_50.3-0ubuntu0.1.debian.tar.xz
+    sha256: 1cada256a356bb77b26221c2adda8f6867bc9f7cf543bb0cde6683fb4bf21422
+    filename: orca_50.3-0ubuntu0.1.debian.tar.xz
+    destination: .
+    strip_components: 0
+  - url: https://archive.ubuntu.com/ubuntu/pool/main/o/orca/orca_50.3-0ubuntu0.1.dsc
+    sha256: 903cc9a6209e184c948c0cd10fc7fd3d0d7602e6e2a73531d48b1588c0793ed6
+    filename: orca_50.3-0ubuntu0.1.dsc
+    destination: .tuna-source/orca_50.3-0ubuntu0.1.dsc
+    extract: false
+build_system: meson
+# Native source mode deliberately does not regenerate Debian control/rules.
+# The checksum-locked source package is the build-dependency authority.
+outputs:
+  deb:
+    native_source:
+      version: 50.3-0ubuntu0.1
+      suite: resolute
+      dsc: orca_50.3-0ubuntu0.1.dsc
+      debian_tar: orca_50.3-0ubuntu0.1.debian.tar.xz
+      patch:
+        path: packages/orca/patches/0001-tuna-native-password-deltas.patch
+        sha256: 8c9d226e66dd242fa6f25db00a941dd229ba97f0610d9f78d06fb05bd2a9db17
+files:
+  common:
+    - usr/bin/orca
+    - usr/lib/python3/dist-packages/orca/scripts/apps/tuna-shell-gtk/__init__.py
+    - usr/lib/python3/dist-packages/orca/scripts/apps/tuna-shell-gtk/script.py
+verify:
+  install_name: orca
+  smoke: >-
+    test "$(dpkg-query -W -f='${Version}' orca)" = 50.3-0ubuntu0.1+tuna1
+    && dpkg-query -L orca | grep -Fx /usr/lib/python3/dist-packages/orca/scripts/apps/tuna-shell-gtk/__init__.py
+    && dpkg-query -L orca | grep -Fx /usr/lib/python3/dist-packages/orca/scripts/apps/tuna-shell-gtk/script.py
+    && test -f /usr/lib/python3/dist-packages/orca/scripts/apps/tuna-shell-gtk/__init__.py
+    && test -f /usr/lib/python3/dist-packages/orca/scripts/apps/tuna-shell-gtk/script.py
+# Existing owned-recipe discovery selects both native Ubuntu architectures.
+# Publication is separate and is not enabled by adding a recipe.
+targets: [ubuntu]

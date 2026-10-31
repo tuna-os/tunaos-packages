@@ -1,6 +1,6 @@
 Name:           glib2
 Version:        2.88.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        A library of handy utility functions
 License:        LGPL-2.1-or-later
 URL:            https://www.gtk.org
@@ -17,7 +17,6 @@ BuildRequires:  pkgconfig(mount)
 BuildRequires:  python3-devel
 BuildRequires:  python3-docutils
 
-Obsoletes:      glib2 < %{version}
 Provides:       glib2 = %{version}-%{release}
 
 %description
@@ -27,7 +26,6 @@ GNOME and GTK.
 %package devel
 Summary:        Development files for glib2
 Requires:       %{name}%{?_isa} = %{version}-%{release}
-Obsoletes:      glib2-devel < %{version}
 Provides:       glib2-devel = %{version}-%{release}
 
 %description devel
@@ -74,6 +72,12 @@ DESTDIR=%{buildroot} meson install -C build
 # For now combined
 
 %changelog
+* Sat Oct 17 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-2
+- Remove versioned self-Obsoletes so the bootstrap package cannot replace
+  EL10's system glib2/glib2-devel in consumer transactions.
+- Bump the bootstrap release so the rebuilt package supersedes the stale
+  2.88.0-1 artifact.
+
 * Sat Mar 28 2026 James Reilly <jreilly1821@gmail.com> - 2.88.0-1
 - Update to 2.88.0 (GNOME 50 stable release)
 - Track F44 branch

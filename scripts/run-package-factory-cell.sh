@@ -9,6 +9,9 @@ target=${TARGET:?}
 : "${ARCHITECTURE:?}"
 image=${IMAGE:?}
 out=${OUT_DIR:-"$PWD/.factory/$cell_id"}
+if [[ $out != /* ]]; then
+    out="$PWD/$out"
+fi
 mkdir -p "$out/artifacts"
 
 export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:?}
@@ -226,8 +229,16 @@ case ${FORMAT:?} in
     published_index="$(python3 scripts/published_index.py "$target" "${ARCHITECTURE:-}" --join)"
     python3 scripts/tideforge.py render "$recipe" --target "$target" --output "$root/rendered"
     python3 scripts/assemble-deb-source-tree.py "$recipe" "$root" "$target"
+    native_deb_source="$(python3 - "$recipe" <<'PY'
+import sys
+import yaml
+recipe = yaml.safe_load(open(sys.argv[1]))
+print("1" if "native_source" in recipe.get("outputs", {}).get("deb", {}) else "0")
+PY
+)"
     docker run --rm --env SOURCE_DATE_EPOCH --env TZ --env LANG --env LC_ALL \
       --env PUBLISHED_INDEX="$published_index" \
+      --env NATIVE_DEB_SOURCE="$native_deb_source" \
       --volume "$root:/work" "$image" bash -lc '
         set -euo pipefail
         export DEBIAN_FRONTEND=noninteractive
@@ -316,11 +327,26 @@ case ${FORMAT:?} in
           done
         fi
         apt-get build-dep -y --no-install-recommends "$PWD"
+        if [ "$NATIVE_DEB_SOURCE" = 1 ]; then
+          # Build the changed quilt source, including the exact original
+          # tarball, before compiling the native binary package.
+          dpkg-buildpackage -us -uc -S -sa
+          mkdir -p /work/artifacts/source
+          cp ../*.dsc ../*.orig.tar.xz ../*.debian.tar.xz \
+            ../*.changes ../*.buildinfo /work/artifacts/source/
+          cp -a ../original-source /work/artifacts/source/
+        fi
         dpkg-buildpackage -us -uc -b
         mkdir -p /work/artifacts
         cp ../*.deb /work/artifacts/
+        if [ "$NATIVE_DEB_SOURCE" = 1 ]; then
+          cp ../*.changes ../*.buildinfo /work/artifacts/source/
+        fi
       '
     cp "$root"/artifacts/*.deb "$out/artifacts/"
+    if [[ $native_deb_source == 1 ]]; then
+      cp -a "$root/artifacts/source" "$out/artifacts/"
+    fi
     ;;
   pkg.tar.zst)
     root="$out/arch"

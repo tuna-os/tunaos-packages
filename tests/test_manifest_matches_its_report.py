@@ -77,10 +77,11 @@ def test_every_manifest_package_is_in_the_report():
         for p in tier["packages"]
     }
     r = report()
+    measured_sets = [*r["desktops"].values(), r["retained_packages"]]
     in_report = {
         name
-        for desktop in r["desktops"].values()
-        for tier in desktop["tiers"]
+        for measured in measured_sets
+        for tier in measured["tiers"]
         for name in tier["sources"]
     }
     bootstrap = {
@@ -99,8 +100,8 @@ def test_every_manifest_package_is_in_the_report():
     }
     absent = {
         name
-        for desktop in r["desktops"].values()
-        for name in desktop["roots_absent_from_reference"]
+        for measured in measured_sets
+        for name in measured["roots_absent_from_reference"]
     }
     assert local <= absent, f"local-00 builds roots the reference carries: {sorted(local - absent)}"
     orphans = sorted(in_manifest - in_report - bootstrap - local)

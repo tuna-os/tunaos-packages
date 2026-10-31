@@ -85,3 +85,51 @@ def test_shadowed_detects_older_served_packages() -> None:
     assert result[0]["package"] == "sudo"
     assert result[0]["served_evr"] == "1.9.15-1.fc43"
     assert result[0]["upstream_evr"] == "1.9.17-1.fc43"
+
+
+def test_annotate_withdrawn_marks_recorded_entries() -> None:
+    """A row matching manifests/withdrawn-packages.yaml by (name, served_evr)
+    is marked withdrawn and does not count toward the unactioned total that
+    fails the run (#525: "every scheduled drift run will stay red until the
+    withdrawal happens")."""
+    rows = [
+        {"package": "sudo", "served_evr": "1.9.17-1.p2.fc43",
+         "upstream_evr": "1.9.17-16.p2.hum1"},
+        {"package": "bubblewrap", "served_evr": "0.11.2-2.1.fc43",
+         "upstream_evr": "0.13.1-0.1.hum1"},
+    ]
+    withdrawn_by_target = {
+        "hummingbird": [{"name": "sudo", "evr": "1.9.17-1.p2.fc43"}],
+    }
+
+    unactioned = shadowing_mod.annotate_withdrawn(
+        rows, withdrawn_by_target, "hummingbird")
+
+    assert rows[0]["withdrawn"] is True
+    assert rows[1]["withdrawn"] is False
+    assert unactioned == 1, "only the un-recorded row must count as unactioned"
+
+
+def test_annotate_withdrawn_is_scoped_to_its_own_target() -> None:
+    """hummingbird's withdrawals must not silence gnome50's shadowing, or a
+    shared manifest file would let one target's decision hide another's
+    unactioned case."""
+    rows = [{"package": "sudo", "served_evr": "1.9.17-1.p2.fc43",
+             "upstream_evr": "1.9.17-16.p2.hum1"}]
+    withdrawn_by_target = {
+        "hummingbird": [{"name": "sudo", "evr": "1.9.17-1.p2.fc43"}],
+    }
+
+    unactioned = shadowing_mod.annotate_withdrawn(
+        rows, withdrawn_by_target, "gnome50")
+
+    assert rows[0]["withdrawn"] is False
+    assert unactioned == 1
+
+
+def test_annotate_withdrawn_with_nothing_recorded() -> None:
+    rows = [{"package": "sudo", "served_evr": "1.9.17-1.p2.fc43",
+             "upstream_evr": "1.9.17-16.p2.hum1"}]
+
+    assert shadowing_mod.annotate_withdrawn(rows, {}, "hummingbird") == 1
+    assert rows[0]["withdrawn"] is False

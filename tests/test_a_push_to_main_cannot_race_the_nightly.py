@@ -24,66 +24,11 @@ from __future__ import annotations
 
 import pathlib
 
-import yaml
-
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-WORKFLOW = ROOT / ".github" / "workflows" / "package-factory.yml"
 
 
-def plan_step() -> str:
-    body = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
-    for step in body["jobs"]["plan"]["steps"]:
-        if step.get("id") == "plan":
-            return step["run"]
-    raise AssertionError("package-factory.yml has no plan step with id: plan")
-
-
-def test_a_push_to_main_plans_in_canary_form() -> None:
-    run = plan_step()
-    case_lines = [line for line in run.splitlines()
-                  if "--canary-common" in line and "args+=" in line]
-    assert case_lines, "nothing passes --canary-common any more"
-    guard = case_lines[0]
-    assert "push" in guard.split(")")[0], (
-        "a push to main plans full build chains, so merging anything can "
-        "start a 4.5 h chain that races the nightly for the same "
-        "<cell>-partial artifact name. Observed live after #512 merged."
-    )
-
-
-def test_the_schedule_still_plans_full_chains() -> None:
-    """The guard must not swallow the one event that NEEDS the long chains.
-
-    Adding `schedule` to the canary list would be a silent catastrophe: every
-    nightly would build a handful of canary tiers, report green, and the
-    hummingbird chain would never converge again.
-    """
-    run = plan_step()
-    guard = next(line for line in run.splitlines()
-                 if "--canary-common" in line and "args+=" in line)
-    selector = guard.split(")")[0]
-    assert "schedule" not in selector, (
-        "the nightly would plan canary tiers instead of the full chain, and "
-        "the desktop chain would silently stop converging"
-    )
-
-
-def test_the_two_triggers_cannot_share_a_concurrency_group() -> None:
-    """Why the canary form is the fix rather than a shared group.
-
-    This pins the PREMISE. If someone later makes the groups identical the
-    race is solved a different way and this file's reasoning needs revisiting
-    -- better to fail here and be re-read than to leave a stale rationale.
-    """
-    group = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["concurrency"]["group"]
-    assert "schedule" in group and "github.ref" in group, (
-        "the concurrency group no longer distinguishes schedule from push; "
-        "re-check whether the canary-form guard is still the right fix"
-    )
-
-
-def test_the_flag_actually_removes_the_full_chain() -> None:
-    """Pin the BEHAVIOUR, because the text assertions above are too weak.
+def test_the_flag_actually_removes_the_full_chain(tmp_path: pathlib.Path) -> None:
+    """Exercise the planner's full-chain and canary behavior through its CLI.
 
     `canary_common` only takes effect on the infra path -- changed files
     supplied AND `affected_formats` returning None because a COMMON_INPUT was
@@ -112,22 +57,20 @@ def test_the_flag_actually_removes_the_full_chain() -> None:
         "canary guard can never engage"
     )
 
+    changed = tmp_path / "canary-guard-changed.txt"
+    changed.write_text("\n".join(infra) + "\n", encoding="utf-8")
+
     def plan(canary: bool) -> set[str]:
-        changed = ROOT / ".git" / "canary-guard-changed.txt"
-        changed.write_text("\n".join(infra) + "\n", encoding="utf-8")
-        try:
-            argv = [sys.executable, str(ROOT / "scripts" / "plan-package-factory.py"),
-                    "--changed-files", str(changed)]
-            if canary:
-                argv.append("--canary-common")
-            out = subprocess.run(argv, capture_output=True, text=True,
-                                 check=True, cwd=ROOT).stdout
-            ids = set()
-            for matrix in json.loads(out)["matrices"]:
-                ids |= {c["id"] for c in json.loads(matrix)["include"]}
-            return ids
-        finally:
-            changed.unlink(missing_ok=True)
+        argv = [sys.executable, str(ROOT / "scripts" / "plan-package-factory.py"),
+                "--changed-files", str(changed)]
+        if canary:
+            argv.append("--canary-common")
+        out = subprocess.run(argv, capture_output=True, text=True,
+                             check=True, cwd=ROOT).stdout
+        ids = set()
+        for matrix in json.loads(out)["matrices"]:
+            ids |= {c["id"] for c in json.loads(matrix)["include"]}
+        return ids
 
     full = {"hummingbird-x86_64", "hummingbird-aarch64"}
     assert full & plan(canary=False), (

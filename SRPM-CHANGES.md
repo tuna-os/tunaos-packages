@@ -67,6 +67,25 @@ them in `%files`.
 *   **Origin**: Backport from Rawhide.
 *   **Modifications**:
     *   Retained EL10-specific schema compilation triggers and `gio` module query triggers.
+    *   Removed versioned self-Obsoletes from the GNOME 50 bootstrap spec so
+        the published bootstrap package cannot replace EL10's system GLib.
+    *   Bumped the bootstrap release to ensure the safe rebuild supersedes
+        the stale artifact instead of reusing its NVR.
+
+### Package factory gate fixes
+
+The GNOME 50 and GNOME 51 Alma package-factory chains now:
+
+* accepts Mock's `rpmbuild --noprep` dynamic-buildrequires pass through the
+  native Alma compiler guard;
+* uses GitLab gzip archive endpoints for `libglib-testing` and
+  `libgsystemservice`, avoiding the factory downloader's HTTP 406 responses;
+* preserves HarfBuzz's no-exceptions C++ flags after EL10's compiler flags are
+  appended;
+* omits `libosinfo` from EL10 `localsearch` build requirements and builds the
+  GTK4 `colord-gtk` dependency after GTK4, avoiding an intra-tier BuildRequires
+  race; `gsound` remains in the GTK core tier.
+* wires the shared GTK4 dependencies into each track's native order and catalog.
 
 ### `gdk-pixbuf2`
 *   **Origin**: Custom / Backport from Rawhide.

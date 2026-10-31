@@ -3,6 +3,21 @@
 Candidates are not published supply. Keep failed attempts and check each
 architecture against its native base before publication.
 
+## Pinned factory runner exits 126
+
+**Symptom:** A consumer checks out an immutable commit, then reports
+`env: 'scripts/run-package-factory-cell.sh': Permission denied`.
+
+**Cause:** Git tracks the runner as mode `100644` in commit
+`c0998b94bd7b4fbc67360c239e439de6debf539b` and its parent.
+Factory workflows use `bash` and do not need an executable file.
+Consumers that execute the script through its shebang need that mode.
+
+**Fix:** Track the runner as executable (`100755`).
+Consumers can execute it directly or use Bash.
+Pin a commit with this fix. Do not change source hashes or chmod downloaded sources.
+The Bats test executes the runner through `env`.
+
 ## Old partial RPMs in a new candidate
 
 **SYMPTOM:** The candidate initializer reports that its repository is not empty.
@@ -67,3 +82,27 @@ installation must pass with signatures before this supply becomes ready.
 **Cause:** Repository-wide artifact metadata returns invalid JSON.
 
 **Fix:** Query exact workflow and source runs, then their artifacts. Retain authentication and the shared request limit.
+
+## Portable payload digest changes after extraction
+
+**Symptom:** `just check` fails
+`test_tideforge_intermediate.py::test_one_payload_digest_is_reused_by_two_target_plans`
+with expected tree digest
+`898945fe81d0a9aa5cd778e6cffb801cdca4b2a4a5fcffde88cdfbbc25836959`
+but actual digest
+`b71256f1f4aaf8dc42af9e95b3843f3b70e3869366167c0a8ae90cf31e6e3107`.
+
+**Cause:** The retained failing archive inventories three directories as `0775`
+and its `built once\n` message as `0664`. Python's `tarfile` data filter clears
+group-write from the message, extracting it as `0644`; it also ignores archived
+directory permissions and instead uses the extraction process's umask. The
+inventory includes permissions, so a byte-identical payload can fail verification.
+
+**Fix:** Verification and carrier extraction share `extract_payload`, which
+retains ordinary `0777` permission bits after the data filter's path, link, file
+type and ownership checks. Creation and extraction reject setuid, setgid and
+sticky modes instead of silently normalizing them. The consumer regression
+explicitly stages `0775` directories and a `0664` file, tests a different verifier
+umask and read-only file permissions, and retains rejection coverage for unsafe
+archive members. Do not replace the expected digest or drop modes from the
+inventory.

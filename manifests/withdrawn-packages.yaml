@@ -1,0 +1,135 @@
+# Packages withdrawn from a target's SERVED index: upstream now ships a
+# newer build and the consuming desktop manifests add our rebuild repository
+# at `priority: 5` -- absolute in dnf, not a tie-break -- so our older copy
+# would otherwise shadow upstream's fix on every image (tunaos-packages#525).
+#
+# Withdrawal here means EXCLUDED FROM REPODATA, not deleted from the bucket.
+# scripts/publish-rpm-wave.sh's --exclude-file turns each entry below into a
+# createrepo_c -x glob (scripts/plan-withdrawn-excludes.py does the turning),
+# so the next publish's regenerated index omits exactly the NEVR named here
+# while the RPM stays on disk untouched. That keeps the change reversible --
+# delete the entry, the next publish indexes the file back in -- and inert
+# against publish-rpm-wave.sh's NEVER SHRINK guard, which counts files on
+# disk and never observes a withdrawal: the file it already counted is still
+# there, just unlisted in repodata.
+#
+# Anchored on name + evr, not bare name, on purpose. The gap measurement
+# already stops asking the factory to REBUILD a name upstream ships (the
+# closure-minus-upstream rule in manifests/<target>-desktops.yaml), so an
+# entry here only ever matches the exact stale build that earned it. A
+# future rebuild at a different evr -- upstream dropping the package, or us
+# legitimately catching back up -- is a different glob and serves normally;
+# nothing here can accidentally suppress it.
+#
+# scripts/check-upstream-shadowing.py cross-references this file: a served
+# package older than upstream's but ALREADY listed here is reported as
+# pending (withdrawal recorded, waiting on the next publish to take effect)
+# rather than failing the run as an unactioned case. Remove an entry once
+# that script's `served_evr` for the package no longer matches it -- the next
+# publish has indexed it back in at a build no longer older than upstream's,
+# or the name dropped out of the overlap entirely.
+schema: 1
+targets:
+  hummingbird:
+    - name: bubblewrap
+      evr: "0.11.2-2.1.fc43"
+      reason: "public-hummingbird ships 0.13.1-0.1.hum1 (#525)"
+    - name: chrony
+      evr: "4.9-1.1.bfin1"
+      reason: "public-hummingbird ships 4.9-2.1.hum1 (#525)"
+    - name: dbus-python-devel
+      evr: "1.4.0-1.fc43"
+      reason: "public-hummingbird ships 1.5.0-1.hum1 (#525)"
+    - name: duktape
+      evr: "2.7.0-1.fc43"
+      reason: "public-hummingbird ships 2.7.0-12.1.hum1 (#525)"
+    - name: duktape-devel
+      evr: "2.7.0-1.fc43"
+      reason: "public-hummingbird ships 2.7.0-12.1.hum1 (#525)"
+    - name: firewall-applet
+      evr: "2.5.1-1.1.fc43"
+      reason: "public-hummingbird ships 2.5.2-1.hum1 (#525)"
+    - name: firewall-config
+      evr: "2.5.1-1.1.fc43"
+      reason: "public-hummingbird ships 2.5.2-1.hum1 (#525)"
+    - name: firewalld
+      evr: "2.5.1-1.1.fc43"
+      reason: "public-hummingbird ships 2.5.2-1.hum1 (#525)"
+    - name: firewalld-filesystem
+      evr: "2.5.1-1.1.fc43"
+      reason: "public-hummingbird ships 2.5.2-1.hum1 (#525)"
+    - name: firewalld-test
+      evr: "2.5.1-1.1.fc43"
+      reason: "public-hummingbird ships 2.5.2-1.hum1 (#525)"
+    - name: jsoncpp
+      evr: "1.9.7-2.1.fc43"
+      reason: "public-hummingbird ships 1.9.8-0.2.hum1 (#525)"
+    - name: jsoncpp-devel
+      evr: "1.9.7-2.1.fc43"
+      reason: "public-hummingbird ships 1.9.8-0.2.hum1 (#525)"
+    - name: jsoncpp-doc
+      evr: "1.9.7-2.1.fc43"
+      reason: "public-hummingbird ships 1.9.8-0.2.hum1 (#525)"
+    - name: lcms2
+      evr: "2.16-1.fc43"
+      reason: "public-hummingbird ships 2.19.1-0.1.hum1 (#525)"
+    - name: lcms2-devel
+      evr: "2.16-1.fc43"
+      reason: "public-hummingbird ships 2.19.1-0.1.hum1 (#525)"
+    - name: lcms2-utils
+      evr: "2.16-1.fc43"
+      reason: "public-hummingbird ships 2.19.1-0.1.hum1 (#525)"
+    - name: libndp
+      evr: "1.9-6.1.fc43"
+      reason: "public-hummingbird ships 1.9-6.1.hum1 (#525)"
+    - name: libndp-devel
+      evr: "1.9-6.1.fc43"
+      reason: "public-hummingbird ships 1.9-6.1.hum1 (#525)"
+    - name: libxkbcommon
+      evr: "1.13.1-3.fc43"
+      reason: "public-hummingbird ships 1.13.1-4.1.hum1 (#525)"
+    - name: libxkbcommon-devel
+      evr: "1.13.1-3.fc43"
+      reason: "public-hummingbird ships 1.13.1-4.1.hum1 (#525)"
+    - name: libxkbcommon-utils
+      evr: "1.13.1-3.fc43"
+      reason: "public-hummingbird ships 1.13.1-4.1.hum1 (#525)"
+    - name: libxkbcommon-x11
+      evr: "1.13.1-3.fc43"
+      reason: "public-hummingbird ships 1.13.1-4.1.hum1 (#525)"
+    - name: libxkbcommon-x11-devel
+      evr: "1.13.1-3.fc43"
+      reason: "public-hummingbird ships 1.13.1-4.1.hum1 (#525)"
+    - name: libxkbcommon-x11-utils
+      evr: "1.13.1-3.fc43"
+      reason: "public-hummingbird ships 1.13.1-4.1.hum1 (#525)"
+    - name: python3-dbus
+      evr: "1.4.0-1.fc43"
+      reason: "public-hummingbird ships 1.5.0-1.hum1 (#525)"
+    - name: python3-firewall
+      evr: "2.5.1-1.1.fc43"
+      reason: "public-hummingbird ships 2.5.2-1.hum1 (#525)"
+    - name: sudo
+      evr: "1.9.17-1.p2.fc43"
+      reason: "public-hummingbird ships 1.9.17-16.p2.3.hum1 (#525)"
+    - name: sudo-devel
+      evr: "1.9.17-1.p2.fc43"
+      reason: "public-hummingbird ships 1.9.17-16.p2.3.hum1 (#525)"
+    - name: sudo-logsrvd
+      evr: "1.9.17-1.p2.fc43"
+      reason: "public-hummingbird ships 1.9.17-16.p2.3.hum1 (#525)"
+    - name: sudo-python-plugin
+      evr: "1.9.17-1.p2.fc43"
+      reason: "public-hummingbird ships 1.9.17-16.p2.3.hum1 (#525)"
+    - name: userspace-rcu
+      evr: "0.15.6-2.1.fc43"
+      reason: "public-hummingbird ships 0.15.7-1.1.hum1 (#525)"
+    - name: userspace-rcu-devel
+      evr: "0.15.6-2.1.fc43"
+      reason: "public-hummingbird ships 0.15.7-1.1.hum1 (#525)"
+    - name: xkeyboard-config
+      evr: "2.48-1.fc43"
+      reason: "public-hummingbird ships 2.48-4.hum1 (#525)"
+    - name: xkeyboard-config-devel
+      evr: "2.48-1.fc43"
+      reason: "public-hummingbird ships 2.48-4.hum1 (#525)"

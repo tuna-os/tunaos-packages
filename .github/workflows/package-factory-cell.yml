@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.15'
       - name: Install planner dependency
@@ -124,6 +124,8 @@ jobs:
               --track '${{ matrix.track }}' --series '${{ matrix.series }}' \
               --source-date-epoch "$epoch" "${consumer_args[@]}")
           fi
+          mkdir -p '.factory/${{ matrix.id }}'
+          printf '%s\n' "$payload" > '.factory/${{ matrix.id }}/action-inputs.json'
           echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
           echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
           jq . <<<"$payload"
@@ -497,6 +499,7 @@ jobs:
           path: |
             .factory/${{ matrix.id }}/artifacts/
             .factory/${{ matrix.id }}/metadata/
+            .factory/${{ matrix.id }}/action-inputs.json
             .factory/${{ matrix.id }}/action-result.json
             .factory/${{ matrix.id }}/action-key.txt
           if-no-files-found: error
@@ -577,3 +580,24 @@ jobs:
             .factory/${{ matrix.id }}/artifacts/
             .factory/${{ matrix.id }}/action-key.txt
           if-no-files-found: warn
+      - name: Require complete output from a single attempt
+        if: always() && matrix.single_attempt == true
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          CACHE_HIT: ${{ steps.verdict.outputs.hit }}
+          CACHE_VERDICT: ${{ steps.verdict.outcome }}
+          CHAIN_DEFERRED: ${{ steps.build.outputs.chain_deferred }}
+        run: |
+          set -euo pipefail
+          if [ "$CHAIN_DEFERRED" = true ]; then
+            echo "::error::Single attempt retained partial evidence; full chain closure is unproven."
+            exit 1
+          fi
+          if [ "$CACHE_VERDICT" != success ]; then
+            echo "::error::Cache verification did not complete successfully."
+            exit 1
+          fi
+          case "$CACHE_HIT:$BUILD_OUTCOME:$CHAIN_DEFERRED" in
+            true:skipped:|false:success:) ;;
+            *) echo "::error::Single attempt has missing or contradictory completion evidence."; exit 1 ;;
+          esac

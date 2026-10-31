@@ -712,6 +712,40 @@ packages:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: colord-gtk
+    family: gnome50
+    packaging:
+      rpm:
+        native: src/deps/colord-gtk
+    upstream:
+      version: 0.3.1
+      source: https://github.com/hughsie/colord-gtk/archive/refs/tags/%{version}.tar.gz#/colord-gtk-%{version}.tar.gz
+      spec: src/deps/colord-gtk/colord-gtk.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: runtime
+    referenced_by:
+      - build-order.yml
+      - manifests/package-builds.yaml
+  - name: colord-gtk
+    family: gnome51
+    packaging:
+      rpm:
+        native: src/deps/colord-gtk
+    upstream:
+      version: 0.3.1
+      source: https://github.com/hughsie/colord-gtk/archive/refs/tags/%{version}.tar.gz#/colord-gtk-%{version}.tar.gz
+      spec: src/deps/colord-gtk/colord-gtk.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: runtime
+    referenced_by:
+      - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: colord-gtk
     family: hummingbird-desktops
     packaging:
       rpm:
@@ -3058,6 +3092,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: ghc-pandoc
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: ghc-pandoc
+    upstream:
+      distgit: ghc-pandoc
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: gi-docgen
     family: gnome50
     packaging:
@@ -3992,6 +4039,40 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: gsound
+    family: gnome50
+    packaging:
+      rpm:
+        native: src/deps/gsound
+    upstream:
+      version: 1.0.3
+      source: https://download.gnome.org/sources/gsound/1.0/gsound-%{version}.tar.xz
+      spec: src/deps/gsound/gsound.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: runtime
+    referenced_by:
+      - build-order.yml
+      - manifests/package-builds.yaml
+  - name: gsound
+    family: gnome51
+    packaging:
+      rpm:
+        native: src/deps/gsound
+    upstream:
+      version: 1.0.3
+      source: https://download.gnome.org/sources/gsound/1.0/gsound-%{version}.tar.xz
+      spec: src/deps/gsound/gsound.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: runtime
+    referenced_by:
+      - build-order-gnome51.yml
       - manifests/package-builds.yaml
   - name: gsound
     family: hummingbird-desktops
@@ -6961,7 +7042,7 @@ packages:
         native: src/deps/libglib-testing
     upstream:
       version: 0.1.0
-      source: https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.bz2
+      source: https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.gz
       spec: src/deps/libglib-testing/libglib-testing.spec
     targets:
       - alma10
@@ -6978,7 +7059,7 @@ packages:
         native: src/deps/libglib-testing
     upstream:
       version: 0.1.0
-      source: https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.bz2
+      source: https://gitlab.gnome.org/pwithnall/libglib-testing/-/archive/%{version}/%{name}-%{version}.tar.gz
       spec: src/deps/libglib-testing/libglib-testing.spec
     targets:
       - alma10
@@ -9225,6 +9306,20 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: orca
+    family: tideforge
+    packaging:
+      deb:
+        tideforge: packages/orca
+    upstream:
+      version: '50.3'
+      source: https://archive.ubuntu.com/ubuntu/pool/main/o/orca/orca_50.3.orig.tar.xz
+      sha256: cc13521037519e06125ec6eb0236ffd52a6d6ff7ef538323f786fca840a3dbda
+    targets:
+      - ubuntu
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: osinfo-db
     family: hummingbird-desktops
     packaging:
@@ -9292,6 +9387,19 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml
+  - name: pandoc-cli
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: pandoc-cli
+    upstream:
+      distgit: pandoc-cli
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: pango
     family: gnome50
     packaging:
@@ -11969,7 +12077,7 @@ packages:
       rpm:
         native: src/hummingbird/tuna-desktop
     upstream:
-      version: 1.0.0~beta.1
+      version: 1.0.0~beta.2
       source: '%{url}/archive/refs/tags/v%{upstream_version}.tar.gz#/tuna-desktop-%{upstream_version}.tar.gz'
       spec: src/hummingbird/tuna-desktop/tuna-desktop.spec
     targets:
@@ -11990,9 +12098,9 @@ packages:
       gpkg:
         tideforge: packages/tuna-desktop
     upstream:
-      version: 1.0.0~beta.1
-      source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.1.tar.gz
-      sha256: c346c0861da4894fd490a3681a039955a90c0a7aeb04b458a1170fa87a6e1ad2
+      version: 1.0.0~beta.2
+      source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.2.tar.gz
+      sha256: 1e8abf38f4959a171007c3c61865057b76deaeb92aa7cbb79bcade830ec999b3
     targets:
       - arch
       - debian
@@ -13703,6 +13811,40 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: yq
+    family: gnome50
+    packaging:
+      rpm:
+        native: src/deps/yq
+    upstream:
+      version: 4.53.6
+      source: https://github.com/mikefarah/yq/releases/download/v%{version}/yq_linux_amd64.tar.gz
+      spec: src/deps/yq/yq.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: build_tool
+    referenced_by:
+      - build-order.yml
+      - manifests/package-builds.yaml
+  - name: yq
+    family: gnome51
+    packaging:
+      rpm:
+        native: src/deps/yq
+    upstream:
+      version: 4.53.6
+      source: https://github.com/mikefarah/yq/releases/download/v%{version}/yq_linux_amd64.tar.gz
+      spec: src/deps/yq/yq.spec
+    targets:
+      - alma10
+      - alma10-kitten
+      - el10
+    membership: build_tool
+    referenced_by:
+      - build-order-gnome51.yml
       - manifests/package-builds.yaml
   - name: yyjson
     family: hummingbird-desktops

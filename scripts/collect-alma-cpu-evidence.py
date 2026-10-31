@@ -18,13 +18,17 @@ import json
 import os
 import re
 import resource
+import secrets
 import shlex
+import stat
 import subprocess
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
@@ -124,10 +128,14 @@ class SameOriginRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def fetch(url, destination, limit):
+def validate_download_url(url):
     parsed = urllib.parse.urlsplit(url)
     if parsed.scheme != 'https' or parsed.hostname not in ('repo.almalinux.org', 'kitten.repo.almalinux.org') or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise CollectionError('unapproved-native-url')
+
+
+def fetch(url, destination, limit):
+    validate_download_url(url)
     opener = urllib.request.build_opener(SameOriginRedirect())
     try:
         with opener.open(url, timeout=60) as response:
@@ -141,6 +149,100 @@ def fetch(url, destination, limit):
     destination.write_bytes(data)
     return {'url': url, 'path': str(destination), 'digest': digest(data),
             'bytes': len(data), 'lastModified': modified}
+
+
+@contextmanager
+def cache_directory(path):
+    """Open only our CAS directory; never follow cached directory symlinks."""
+    descriptors = []
+    directory = None
+    try:
+        if path is not None:
+            Path(path).mkdir(parents=True, exist_ok=True)
+            root = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            descriptors.append(root)
+            try:
+                os.mkdir('sha256', mode=0o755, dir_fd=root)
+            except FileExistsError:
+                pass
+            directory = os.open('sha256', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root)
+            descriptors.append(directory)
+    except OSError:
+        pass  # An unavailable cache is a miss, not an alternative proof source.
+    try:
+        yield directory
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
+def cached_blob(directory, name, limit, expected):
+    if directory is None:
+        return None
+    try:
+        descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        with os.fdopen(descriptor, 'rb') as source:
+            info = os.fstat(source.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+                return None
+            data = source.read(limit + 1)
+        if len(data) <= limit and digest(data) == expected:
+            return data
+    except OSError:
+        pass
+    return None
+
+
+def store_blob(directory, name, data):
+    if directory is None:
+        return
+    temporary = '.partial-' + secrets.token_hex(16)
+    created = False
+    try:
+        descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                             0o644, dir_fd=directory)
+        created = True
+        with os.fdopen(descriptor, 'wb') as target:
+            target.write(data)
+            target.flush()
+            os.fsync(target.fileno())
+        os.replace(temporary, name, src_dir_fd=directory, dst_dir_fd=directory)
+        os.fsync(directory)
+    except OSError:
+        pass
+    finally:
+        if created:
+            try:
+                os.unlink(temporary, dir_fd=directory)
+            except OSError:
+                pass
+
+
+def fetch_cached(url, destination, limit, expected, cache_dir=None):
+    """Reuse raw bytes only under a SHA256 freshly read from repository metadata."""
+    validate_download_url(url)
+    if not re.fullmatch(r'sha256:[0-9a-f]{64}', expected):
+        raise CollectionError('unsupported-cache-checksum')
+    with cache_directory(cache_dir) as directory:
+        data = cached_blob(directory, expected[7:], limit, expected)
+        if data is not None:
+            destination.write_bytes(data)
+            return {'url': url, 'path': str(destination), 'digest': expected,
+                    'bytes': len(data), 'lastModified': None, 'fromCache': True}
+        result = fetch(url, destination, limit)
+        data = bounded_file(destination, limit)
+        if digest(data) != expected or result['digest'] != expected:
+            raise CollectionError('native-download-digest-mismatch')
+        store_blob(directory, expected[7:], data)
+        return {**result, 'fromCache': False}
+
+
+def timed_call(timings, phase, operation, *args):
+    started = time.monotonic()
+    try:
+        return operation(*args)
+    finally:
+        timings[phase] = timings.get(phase, 0) + time.monotonic() - started
 
 
 def repository_url(url):
@@ -173,7 +275,7 @@ def identity_key(value):
 
 
 class Repository:
-    def __init__(self, url, output):
+    def __init__(self, url, output, cache_dir=None):
         self.url = repository_url(url)
         self.directory = output
         output.mkdir(parents=True, exist_ok=False)
@@ -192,7 +294,8 @@ class Repository:
             expected = checksum.text
             if checksum.get('type') != 'sha256' or not re.fullmatch('[0-9a-f]{64}', expected or ''):
                 raise CollectionError('unsupported-primary-checksum')
-            self.primary = fetch(relative_url(url, location), output / 'primary.xml.gz', MAX_PRIMARY)
+            self.primary = fetch_cached(relative_url(url, location), output / 'primary.xml.gz',
+                                        MAX_PRIMARY, 'sha256:' + expected, cache_dir)
             if self.primary['digest'] != 'sha256:' + expected:
                 raise CollectionError('primary-digest-mismatch')
         except (ET.ParseError, AttributeError, TypeError) as exc:
@@ -399,6 +502,9 @@ def collect(args, cpu):
                    'readiness': False, 'signatures': [], 'transformations': [], 'blockers': []}
     document = {'schemaVersion': 1, 'baseline': args.baseline, 'artifacts': []}
     payloads = {}
+    timings = observation['phaseSeconds'] = {}
+    started = time.monotonic()
+    cache_dir = getattr(args, 'cache_dir', None)
     try:
         if args.baseline != 'x86-64-v2':
             raise CollectionError('unsupported-native-arm-execution-profile')
@@ -426,10 +532,13 @@ def collect(args, cpu):
             require_installed(root, identity['name'] + '.' + identity['architecture'], identity)
             bodies = cpu.rpm_elfs(source)
             for name, body in bodies:
-                bind_installed_elf(root, name, body)
+                timed_call(timings, 'byte-binding', bind_installed_elf, root, name, body)
             artifact_digest = digest(bounded_file(source))
             if args.scope != 'unsigned':
-                observation['signatures'].append(verify_signature(source, Path(args.candidate_key), args.candidate_fingerprint, output / ('candidate-signature-' + str(index))))
+                observation['signatures'].append(timed_call(
+                    timings, 'signature-verification', verify_signature,
+                    source, Path(args.candidate_key), args.candidate_fingerprint,
+                    output / ('candidate-signature-' + str(index))))
             transformation = {'unsignedArtifactDigest': digest(bounded_file(original)),
                               'signedArtifactDigest': artifact_digest, 'nativeIdentity': identity,
                               'compilerObservationDigest': compiler_digest, 'nativePayloadUnchanged': True}
@@ -441,11 +550,13 @@ def collect(args, cpu):
             document['artifacts'].append(record)
             payloads[artifact_digest] = bodies
         key = output / 'alma10.asc'
-        observation['nativeKey'] = fetch(ALMA_KEY, key, 100000)
+        observation['nativeKey'] = timed_call(timings, 'input-acquisition', fetch, ALMA_KEY, key, 100000)
         native_arch = 'x86_64_v2' if args.baseline == 'x86-64-v2' else 'aarch64'
         if any('/' + native_arch + '/os/' not in repository_url(url) for url in args.repository):
             raise CollectionError('repository-architecture-baseline-mismatch')
-        repositories = [Repository(url, output / ('repository-' + str(i))) for i, url in enumerate(args.repository)]
+        repositories = [timed_call(timings, 'input-acquisition', Repository, url,
+                                   output / ('repository-' + str(i)), cache_dir)
+                        for i, url in enumerate(args.repository)]
         observation['repositories'] = [{'repomd': repo.observation, 'primary': repo.primary} for repo in repositories]
         by_identity = {identity_key(a['_nativeIdentity']): a for a in document['artifacts']}
         cursor = 0
@@ -462,19 +573,24 @@ def collect(args, cpu):
                     if record is None:
                         if len(by_identity) >= MAX_PACKAGES:
                             raise CollectionError('native-closure-exceeds-bound')
-                        matches = [(repo, match) for repo in repositories if (match := repo.find(identity))]
+                        matches = [(repo, match) for repo in repositories
+                                   if (match := timed_call(timings, 'primary-index', repo.find, identity))]
                         if len(matches) != 1:
                             raise CollectionError('missing-or-ambiguous-native-metadata-provider')
                         repo, match = matches[0]
                         native = vendor_input_path(output, len(by_identity))
-                        download = fetch(match['url'], native, MAX_RPM)
+                        download = timed_call(timings, 'input-acquisition', fetch_cached, match['url'],
+                                              native, MAX_RPM, match['digest'], cache_dir)
                         if download['digest'] != match['digest'] or cpu.rpm_identity(native) != identity:
                             raise CollectionError('native-rpm-identity-or-digest-mismatch')
-                        signature = verify_signature(native, key, ALMA_FINGERPRINT, output / ('native-signature-' + str(len(by_identity))))
+                        signature = timed_call(
+                            timings, 'signature-verification', verify_signature, native,
+                            key, ALMA_FINGERPRINT,
+                            output / ('native-signature-' + str(len(by_identity))))
                         signature_digest = save_json(output / ('native-signature-' + str(len(by_identity)) + '.json'), signature)
                         bodies = cpu.rpm_elfs(native)
                         for name, value in bodies:
-                            bind_installed_elf(root, name, value)
+                            timed_call(timings, 'byte-binding', bind_installed_elf, root, name, value)
                         elf_evidence = [{'path': name, **cpu.inspect_elf(value)} for name, value in bodies]
                         baseline_digest = save_json(output / ('native-elf-' + str(len(by_identity)) + '.json'), elf_evidence)
                         record = {'path': str(native), 'digest': download['digest'], '_nativeIdentity': identity,
@@ -502,7 +618,8 @@ def collect(args, cpu):
                 observation['blockers'].append('unsupported-native-arm-execution-profile')
             else:
                 try:
-                    restricted_evtest(cpu, document['artifacts'], payloads, output)
+                    timed_call(timings, 'restricted-execution', restricted_evtest, cpu,
+                               document['artifacts'], payloads, output)
                 except CollectionError as exc:
                     observation['blockers'].append(str(exc))
     except (CollectionError, cpu.BaselineError, OSError, ValueError) as exc:
@@ -518,6 +635,8 @@ def collect(args, cpu):
     observation['status'] = 'blocked' if observation['blockers'] or result['status'] != 'evidence-bound' else 'evidence-bound'
     observation['verifierInputDigest'] = digest((output / 'verifier-input.json').read_bytes())
     observation['verifierResultDigest'] = digest((output / 'verifier-result.json').read_bytes())
+    timings['collection-total'] = time.monotonic() - started
+    observation['phaseSeconds'] = {phase: round(seconds, 3) for phase, seconds in timings.items()}
     save_json(output / 'collection.json', observation)
     return observation
 
@@ -536,6 +655,8 @@ def main():
     parser.add_argument('--candidate-key')
     parser.add_argument('--candidate-fingerprint')
     parser.add_argument('--scope', choices=['unsigned', 'candidate', 'public'], required=True)
+    parser.add_argument('--cache-dir', type=Path,
+                        help='Optional raw SHA256 input cache; never caches proof or keys')
     parser.add_argument('--output', required=True)
     args = parser.parse_args()
     spec = importlib.util.spec_from_file_location('alma_cpu_verifier', Path(__file__).with_name('verify-cpu-baseline.py'))
@@ -545,7 +666,8 @@ def main():
         result = collect(args, cpu)
     except (CollectionError, OSError, ValueError) as exc:
         parser.exit(2, 'CPU collection blocked: ' + str(exc) + '\n')
-    print(json.dumps({key: result.get(key) for key in ('status', 'readiness', 'blockers')}, sort_keys=True))
+    print(json.dumps({key: result.get(key) for key in
+                      ('status', 'readiness', 'blockers', 'phaseSeconds')}, sort_keys=True))
     if result['status'] != 'evidence-bound':
         verifier_result = json.loads((Path(args.output) / 'verifier-result.json').read_text())
         print(json.dumps({'verifierBlockers': verifier_result.get('blockers', [])}, sort_keys=True))

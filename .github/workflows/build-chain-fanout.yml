@@ -322,6 +322,10 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+      - run: pip install --disable-pip-version-check PyYAML
       - name: Install tooling
         run: |
           sudo apt-get update -q
@@ -369,6 +373,10 @@ jobs:
           R2_PATH: hummingbird/20251124-x86_64
           STAGED: staged-x86_64
           DRY_RUN: ${{ inputs.dry_run }}
+          # manifests/withdrawn-packages.yaml's hummingbird entries (#525):
+          # a served build older than upstream's shadows upstream's fix at
+          # this factory's dnf priority 5, so the next index excludes it.
+          TARGET: hummingbird
         run: bash .github/scripts/fanout-publish-one.sh
       - name: Publish hummingbird-aarch64
         env:
@@ -376,6 +384,7 @@ jobs:
           R2_PATH: hummingbird/20251124-aarch64
           STAGED: staged-aarch64
           DRY_RUN: ${{ inputs.dry_run }}
+          TARGET: hummingbird
         run: bash .github/scripts/fanout-publish-one.sh
       - name: Report a dry run honestly
         if: ${{ inputs.dry_run }}

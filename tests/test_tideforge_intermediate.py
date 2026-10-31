@@ -5,6 +5,7 @@ import sys
 import tarfile
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,28 +45,128 @@ def intermediate_module():
     return module
 
 
-def run(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([sys.executable, str(SCRIPT), *args], cwd=ROOT, check=True, text=True, stdout=subprocess.PIPE)
+def run(*args: str, umask: int = -1) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([sys.executable, str(SCRIPT), *args], cwd=ROOT, check=True, text=True, stdout=subprocess.PIPE, umask=umask)
 
 
-def test_one_payload_digest_is_reused_by_two_target_plans(tmp_path: Path):
+@pytest.mark.parametrize(
+    ("directory_mode", "file_mode", "verify_umask"),
+    [
+        (0o755, 0o644, 0o077),
+        (0o775, 0o664, 0o002),
+        (0o750, 0o444, 0o022),
+    ],
+)
+def test_one_payload_digest_is_reused_by_two_target_plans(
+    tmp_path: Path, directory_mode: int, file_mode: int, verify_umask: int,
+):
     recipe = tmp_path / "package.yaml"
     write_recipe(recipe)
     root = tmp_path / "root"
     message = root / "usr/share/payload-canary/message"
     message.parent.mkdir(parents=True)
     message.write_text("built once\n")
+    for directory in (root / "usr", root / "usr/share", message.parent):
+        directory.chmod(directory_mode)
+    message.chmod(file_mode)
     intermediate = tmp_path / "payload.tfi.tar"
 
-    run("create", "--recipe", str(recipe), "--root", str(root), "--architecture", "x86_64", "--build-contract", "theory-sdk-v0", "--output", str(intermediate))
-    run("verify", str(intermediate))
+    created = json.loads(run("create", "--recipe", str(recipe), "--root", str(root), "--architecture", "x86_64", "--build-contract", "theory-sdk-v0", "--output", str(intermediate)).stdout)
+    verified = json.loads(run("verify", str(intermediate), umask=verify_umask).stdout)
+    assert verified["tree_sha256"] == created["tree_sha256"]
+    module = intermediate_module()
+    extracted = tmp_path / "extracted"
+    manifest = module.extract_payload(intermediate, extracted)
+    assert module.inventory(extracted / "payload") == manifest["files"]
     ubuntu = json.loads(run("plan", str(intermediate), "--recipe", str(recipe), "--target", "ubuntu").stdout)
     debian = json.loads(run("plan", str(intermediate), "--recipe", str(recipe), "--target", "debian").stdout)
 
     assert ubuntu["compile"] is debian["compile"] is False
-    assert ubuntu["payload_tree_sha256"] == debian["payload_tree_sha256"]
+    assert ubuntu["payload_tree_sha256"] == debian["payload_tree_sha256"] == created["tree_sha256"]
     assert ubuntu["declared_target_runtime_dependencies"] == ["ubuntu-runtime"]
     assert debian["declared_target_runtime_dependencies"] == ["debian-runtime"]
+
+
+@pytest.mark.parametrize(
+    ("name", "member_type", "linkname"),
+    [
+        ("payload/../../outside", tarfile.REGTYPE, ""),
+        ("payload/link", tarfile.SYMTYPE, "/etc/passwd"),
+        ("payload/link", tarfile.LNKTYPE, "/etc/passwd"),
+        ("payload/fifo", tarfile.FIFOTYPE, ""),
+    ],
+)
+def test_payload_extraction_retains_archive_safety_checks(
+    tmp_path: Path, name: str, member_type: bytes, linkname: str,
+):
+    recipe = tmp_path / "package.yaml"
+    write_recipe(recipe)
+    root = tmp_path / "root"
+    root.mkdir()
+    intermediate = tmp_path / "payload.tfi.tar"
+    run("create", "--recipe", str(recipe), "--root", str(root),
+        "--architecture", "noarch", "--build-contract", "theory-sdk-v0",
+        "--output", str(intermediate))
+    with tarfile.open(intermediate, "a") as archive:
+        member = tarfile.TarInfo(name)
+        member.type = member_type
+        member.linkname = linkname
+        archive.addfile(member)
+    with pytest.raises((SystemExit, tarfile.FilterError)):
+        intermediate_module().extract_payload(intermediate, tmp_path / "extracted")
+
+
+def test_verifier_rejects_changed_ordinary_permissions(tmp_path: Path):
+    recipe = tmp_path / "package.yaml"
+    write_recipe(recipe)
+    root = tmp_path / "root"
+    root.mkdir()
+    entry = root / "entry"
+    entry.write_text("payload\n")
+    entry.chmod(0o644)
+    intermediate = tmp_path / "payload.tfi.tar"
+    run("create", "--recipe", str(recipe), "--root", str(root),
+        "--architecture", "noarch", "--build-contract", "theory-sdk-v0",
+        "--output", str(intermediate))
+    with tarfile.open(intermediate, "a") as archive:
+        archive.add(entry, arcname="payload/entry", recursive=False,
+                    filter=lambda member: member.replace(mode=0o640, deep=False))
+    with pytest.raises(subprocess.CalledProcessError):
+        run("verify", str(intermediate))
+
+
+@pytest.mark.parametrize("mode", [0o4755, 0o2755, 0o1755])
+@pytest.mark.parametrize("is_directory", [False, True])
+def test_payload_rejects_privileged_modes(tmp_path: Path, mode: int, is_directory: bool):
+    recipe = tmp_path / "package.yaml"
+    write_recipe(recipe)
+    root = tmp_path / "root"
+    entry = root / "entry"
+    root.mkdir()
+    if is_directory:
+        entry.mkdir()
+    else:
+        entry.write_text("payload\n")
+    intermediate = tmp_path / "payload.tfi.tar"
+    run("create", "--recipe", str(recipe), "--root", str(root),
+        "--architecture", "noarch", "--build-contract", "theory-sdk-v0",
+        "--output", str(intermediate))
+
+    entry.chmod(mode)
+    rejected = tmp_path / "rejected.tfi.tar"
+    with pytest.raises(subprocess.CalledProcessError):
+        run("create", "--recipe", str(recipe), "--root", str(root),
+            "--architecture", "noarch", "--build-contract", "theory-sdk-v0",
+            "--output", str(rejected))
+    assert not rejected.exists()
+
+    with tarfile.open(intermediate, "a") as archive:
+        member = tarfile.TarInfo("payload/entry")
+        member.type = tarfile.DIRTYPE if is_directory else tarfile.REGTYPE
+        member.mode = mode
+        archive.addfile(member)
+    with pytest.raises(SystemExit, match="unsupported payload mode"):
+        intermediate_module().extract_payload(intermediate, tmp_path / "extracted")
 
 
 def test_handler_detects_portable_data_without_manifest_opt_in(tmp_path: Path):

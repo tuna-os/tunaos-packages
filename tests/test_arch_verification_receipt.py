@@ -60,6 +60,7 @@ def evidence(tmp_path):
     )
     (observations / "signature.sig").write_bytes(b"synthetic-unit-test-signature")
     directories = {item["destination"] for item in recipe["install"].get("directories", [])}
+    directories.add("usr/share/tuna-desktop/icons")
     files = set(recipe["files"]["common"]) - directories
     files |= {
         "usr/share/tuna-desktop/icons/Adwaita/UPSTREAM.json",
@@ -68,19 +69,14 @@ def evidence(tmp_path):
     }
     payload = ["archive\t" + "a" * 64]
     for path in sorted(files):
-        if path.startswith("usr/bin/roost-"):
-            payload.append(
-                "symlink\t" + path + "\t" + path.rsplit("/", 1)[1].replace("roost-", "tuna-")
-            )
-        else:
-            payload.append(
-                "file\t"
-                + path
-                + "\t"
-                + ("755" if path.startswith("usr/bin/") else "644")
-                + "\t"
-                + "b" * 64
-            )
+        payload.append(
+            "file\t"
+            + path
+            + "\t"
+            + ("755" if path.startswith("usr/bin/") else "644")
+            + "\t"
+            + "b" * 64
+        )
     (observations / "installed-payload.tsv").write_text("\n".join(payload) + "\n")
     deps = recipe["dependencies"]["runtime"]["targets"]["arch"]
     (observations / "package-info.txt").write_text(
@@ -344,6 +340,15 @@ def test_missing_portal_payload_is_not_a_pass(evidence):
         + "\n"
     )
     with pytest.raises(ValueError, match="required installed payload"):
+        check(evidence)
+
+
+def test_a_leftover_roost_binary_link_is_not_a_pass(evidence):
+    path = evidence[1] / "installed-payload.tsv"
+    path.write_text(
+        path.read_text() + "symlink\tusr/bin/roost-compositor\ttuna-compositor\n"
+    )
+    with pytest.raises(ValueError, match="roost"):
         check(evidence)
 
 

@@ -260,7 +260,7 @@ jobs:
             --volume "$PWD/scripts:/scripts:ro" \
             --volume "$PWD/public.gpg:/keys/tunaos-public.gpg:ro" \
             --volume "$PWD/evidence:/evidence" \
-            '${{ needs.plan.outputs.image }}' bash /scripts/arch-verify-published.sh
+            '${{ matrix.image }}' bash /scripts/arch-verify-published.sh
       - name: Bind Tuna Desktop served bytes to the verified build
         env:
           ARCH: ${{ matrix.arch }}

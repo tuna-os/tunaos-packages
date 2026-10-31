@@ -4,6 +4,19 @@ TunaOS Packages contains several packaging pipelines. Before changing a
 package, identify which pipeline owns it and preserve that pipeline's source,
 build, install, and runtime gates.
 
+<!-- hive-contribute-plea: donated-compute appeal, keep in sync across repos -->
+## Contribute compute — no code needed
+
+**[Donate time with your AI CLI](https://hub.tunaos.org/#contribute).**
+
+Your machine runs one task at a time using your signed-in AI coding CLI.
+The relay alternates between eligible **School** (OS) and **Reef** (apps)
+hives after each task. If one hive has no work, the other can continue.
+
+The guide covers prerequisites, verified `just` setup, credentials, provider
+costs, and how to stop with Ctrl+C. Your subscription quota or API charges apply.
+Never post account credentials or API keys in issues or pull requests.
+
 ## Get started
 
 1. Fork the repository and clone your fork.
@@ -27,6 +40,9 @@ Useful pipeline references:
   packaging
 - [Upstream parity register](docs/UPSTREAM_PARITY.md) — source and behavior
   differences that need explicit tracking
+- [Withdrawing a shadowed package](docs/WITHDRAWN-PACKAGES.md) — removing a
+  served build from a target's index without deleting it, when upstream
+  ships a newer one
 
 `AGENTS.md` contains additional GNOME 49/50 conventions. Its scope note lists
 the package families it does and does not cover.
@@ -123,10 +139,3 @@ publication commands or commit secrets from a contributor workstation.
 All contributions must follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Report
 vulnerabilities through the private process in [SECURITY.md](SECURITY.md), not
 through a public issue.
-
-<!-- hive-contribute-plea: donated-compute appeal, keep in sync across repos -->
-## Contribute compute — no code needed
-
-No time to write code? You can still push this project's backlog forward. A TunaOS AI-agent hive works on this repository. Lend the hive your AI subscription or API tokens, and your machine runs tasks from this project's backlog.
-
-- 🏫 [Contribute compute to the school hive](https://school.tunaos.org/contribute)

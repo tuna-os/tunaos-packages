@@ -24,8 +24,9 @@ What must stay true, and is asserted below:
 
   * the nightly, publish legs and fan-out never pass canary_common, so they
     still build everything;
-  * a cell whose OWN manifest or sources moved is never bounded -- a spec
-    change must build the real thing;
+  * an ordinary cell's OWN manifest or sources are never bounded -- a spec
+    change must build the real thing; build-tool-only sources are bounded to
+    their own first tier;
   * every family survives the bounding (see the canary_cells collapse hazard
     in test_every_family_survives_the_bounding);
   * every declared canary tier NAMES A REAL TIER -- a typo would build zero
@@ -118,6 +119,12 @@ def test_a_renderer_change_is_bounded_on_a_pull_request():
     unbounded = [c["id"] for c in cells if not c.get("tiers")]
     assert not unbounded, f"still building whole chains on a PR: {unbounded}"
 
+def test_planner_change_is_shared_input():
+    cells = plan(["scripts/plan-package-factory.py"], canary=True)
+    native = [cell for cell in cells if cell["engine"] == "build-chain"]
+    assert native, "a planner change must still gate native families"
+    assert all(cell.get("tiers") for cell in native)
+
 
 def test_the_bounding_drops_the_continuation_shards():
     """-c1/-c2 exist to resume a long chain; one tier has nothing to resume."""
@@ -149,6 +156,13 @@ def test_a_source_change_still_builds_the_real_chain():
             f"{cell['id']} was bounded, so the spec change was never really built"
         )
 
+
+def test_a_build_tool_source_change_is_bounded_to_its_first_tier():
+    cells = plan(["src/deps/yq/yq.spec"], canary=True)
+    assert cells, "a build-tool change must gate its owning families"
+    assert {cell["family"] for cell in cells} == {"gnome50", "gnome51"}
+    assert all(cell["id"].endswith("-canary") for cell in cells)
+    assert {cell["tiers"] for cell in cells} == {"base-tools"}
 
 def test_a_source_change_beside_a_renderer_change_still_builds_for_real():
     """Ordering matters: the owns-the-change check runs BEFORE the renderer

@@ -34,6 +34,7 @@ import json
 import lzma
 import pathlib
 import sys
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
@@ -82,6 +83,13 @@ def target_measurement(factory: dict, target_id: str) -> dict:
 
 
 def fetch(url: str, cache: pathlib.Path) -> bytes:
+    # A local tree is never cached: the publish gate indexes `repo/` with
+    # createrepo_c and then asks this engine about it in the same process
+    # tree, so a cache keyed by URL would answer the second question with
+    # the first question's bytes -- the one case where the index behind a
+    # URL legitimately changes within a run.
+    if url.startswith("file://"):
+        return pathlib.Path(urllib.parse.urlparse(url).path).read_bytes()
     key = hashlib.sha256(url.encode()).hexdigest()[:16]
     blob = cache / key
     if blob.exists():
@@ -582,6 +590,52 @@ def consumed_indexes(measurement: dict | None, arch: str, cache: pathlib.Path) -
     return out
 
 
+def measure_roots(roots: list[str], reference: dict, have: set[str],
+                  target_packages: dict, source_index: dict | None,
+                  membership: str) -> tuple[dict, set[str]]:
+    """Measure one declared package set and return its report and build set.
+
+    Desktop roots and target-wide retained packages use the same runtime
+    closure.  Keeping this in one function prevents a retained served package
+    from being rebuilt without the dependencies that made the old artifact
+    uninstallable.
+    """
+    roots = list(dict.fromkeys(roots))
+    already = sorted(name for name in roots if name in target_packages)
+    need_roots = [name for name in roots if name not in target_packages]
+    reachable, absent, unresolved = closure(
+        need_roots, reference, have,
+        source_index if membership == "selfhost" else None,
+    )
+    # A root the reference does not carry (quickshell, dms — packaged
+    # upstream, not in Fedora) is reported separately and cannot enter the
+    # build order, which resolves everything through Fedora dist-git.
+    need = sorted(
+        name
+        for name in reachable
+        if name not in have and name in reference["packages"]
+    )
+    tiers, cycles = tier_sources(need, reference, have, source_index)
+    sources = sorted({name for tier in tiers for name in tier})
+    return {
+        "roots": roots,
+        "roots_already_in_target": already,
+        "roots_missing_from_target": need_roots,
+        "roots_absent_from_reference": sorted(absent),
+        "closure_binary_packages": len(reachable),
+        "binary_packages_to_build": need,
+        "source_packages_to_build": sources,
+        "tiers": [{"index": i, "sources": tier} for i, tier in enumerate(tiers)],
+        # Multi-member BuildRequires cycles. Those packages need a bootstrap
+        # spec or a second --force pass.
+        "buildrequires_cycles": cycles,
+        "unresolved_capabilities": {
+            capability: sorted(set(users))
+            for capability, users in sorted(unresolved.items())
+        },
+    }, set(need)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -722,67 +776,46 @@ def main() -> None:
         "consumed_indexes": consumed,
         "desktops": {},
     }
-    build_tiers: dict[str, list[list[str]]] = {}
     union_need: set[str] = set()
 
     for desktop in wanted:
         definition = catalog["desktops"][desktop]
-        roots = list(
-            dict.fromkeys(
-                definition.get("required_packages", [])
-                + definition.get("install_packages", [])
-            )
+        roots = (
+            definition.get("required_packages", [])
+            + definition.get("install_packages", [])
         )
-        already = sorted(name for name in roots if name in target_index["packages"])
-        need_roots = [name for name in roots if name not in target_index["packages"]]
-        # Membership and ordering are separate questions.  'runtime'
-        # membership walks Requires: only -- the build order then contains
-        # exactly what images ship, and BuildRequires: (bison, transfig,
-        # gtk-doc, the Java documentation stack) are satisfied by the
-        # buildroot's inherited Rawhide fallback instead of being rebuilt
-        # here.  Ordering below always uses the real BuildRequires: graph
-        # regardless, so members that build-depend on each other still come
-        # up in the right tiers.
-        reachable, absent, unresolved = closure(
-            need_roots, reference_index, have,
-            source_index if membership == "selfhost" else None,
+        # Membership and ordering are separate questions. `runtime`
+        # membership walks Requires: only, while ordering always uses the real
+        # BuildRequires graph among members.
+        measured, need = measure_roots(
+            roots, reference_index, have, target_index["packages"],
+            source_index, membership,
         )
-        # A root the reference does not carry (quickshell, dms — packaged
-        # upstream, not in Fedora) is reported separately under
-        # roots_absent_from_reference and cannot enter the build order, which
-        # resolves everything through Fedora dist-git.
-        need = sorted(
-            name
-            for name in reachable
-            if name not in have and name in reference_index["packages"]
-        )
-        tiers, cycles = tier_sources(need, reference_index, have, source_index)
-        sources = sorted({name for tier in tiers for name in tier})
-        build_tiers[desktop] = tiers
-        union_need |= set(need)
-        report["desktops"][desktop] = {
-            "roots": roots,
-            "roots_already_in_target": already,
-            "roots_missing_from_target": need_roots,
-            "roots_absent_from_reference": sorted(absent),
-            "closure_binary_packages": len(reachable),
-            "binary_packages_to_build": need,
-            "source_packages_to_build": sources,
-            "tiers": [{"index": i, "sources": tier} for i, tier in enumerate(tiers)],
-            # Multi-member BuildRequires cycles.  These are the packages that
-            # cannot be built in one pass from a clean buildroot: one member
-            # needs a bootstrap spec (see src/gnome-50/glib2/glib2-bootstrap.spec
-            # for the pattern already used here) or a --nocheck first pass.
-            "buildrequires_cycles": cycles,
-            "unresolved_capabilities": {
-                capability: sorted(set(users))
-                for capability, users in sorted(unresolved.items())
-            },
-        }
+        union_need |= need
+        report["desktops"][desktop] = measured
         print(
-            f"{desktop:8} roots={len(roots)} already-in-target={len(already)} "
-            f"binaries-to-build={len(need)} sources-to-build={len(sources)} "
-            f"tiers={len(tiers)}",
+            f"{desktop:8} roots={len(measured['roots'])} "
+            f"already-in-target={len(measured['roots_already_in_target'])} "
+            f"binaries-to-build={len(measured['binary_packages_to_build'])} "
+            f"sources-to-build={len(measured['source_packages_to_build'])} "
+            f"tiers={len(measured['tiers'])}",
+            file=sys.stderr,
+        )
+
+    retained = catalog.get("retained_packages") or []
+    if retained:
+        measured, need = measure_roots(
+            retained, reference_index, have, target_index["packages"],
+            source_index, membership,
+        )
+        union_need |= need
+        report["retained_packages"] = measured
+        print(
+            f"{'retained':8} roots={len(measured['roots'])} "
+            f"already-in-target={len(measured['roots_already_in_target'])} "
+            f"binaries-to-build={len(measured['binary_packages_to_build'])} "
+            f"sources-to-build={len(measured['source_packages_to_build'])} "
+            f"tiers={len(measured['tiers'])}",
             file=sys.stderr,
         )
 
@@ -814,7 +847,8 @@ def main() -> None:
     }
     print(
         f"build order: {len(global_tiers)} layers over {len(union_need)} binary "
-        f"packages from {len(wanted)} desktops",
+        f"packages from {len(wanted)} desktops"
+        f"{' plus retained roots' if retained else ''}",
         file=sys.stderr,
     )
 
@@ -879,8 +913,9 @@ def emit_build_order(path, catalog, global_tiers, global_cycles, report, root,
         f"# GENERATED BY scripts/measure-target-gap.py --target {target_id} — DO NOT HAND-EDIT.",
         "#",
         "# Tiers are ONE topological order over the condensed BuildRequires:",
-        "# graph of every desktop at once -- not one order per desktop glued",
-        "# end to end, which is what this file used to be and which built 405",
+        "# graph of every desktop and retained served root at once -- not one",
+        "# order per desktop glued end to end, which is what this file used to",
+        "# be and which built 405",
         "# packages before something they BuildRequire.  Minus everything",
         f"# {target['id']} already ships.  Each tier builds in",
         "# parallel; tiers are sequential.  Regenerate with:",

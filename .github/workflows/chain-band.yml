@@ -71,11 +71,28 @@ jobs:
           find '.factory/${{ inputs.cell_id }}/artifacts' -maxdepth 1 -name '*.rpm' \
             -printf '%f\n' | sort > /tmp/rpms-before.txt
           wc -l < /tmp/rpms-before.txt
+      # A SERVED package is normally "done": the index is the durable record
+      # of what exists. The exception is a package the index serves and the
+      # target cannot install -- #629's `libm.so.6(GLIBC_2.44)` leak, built
+      # on the old Rawhide root, still served and still uninstallable seven
+      # weeks after the root moved, precisely BECAUSE "served" meant done.
+      # The installability checker names those packages; withholding them
+      # from the skip list is what makes the next wave rebuild them in the
+      # root they belong to.
       - name: List what the published index already serves
         run: |
           set -euo pipefail
+          except=()
+          if [ '${{ inputs.target }}' = hummingbird ]; then
+            pip install -q pyyaml zstandard
+            python3 scripts/check-hummingbird-installability.py \
+              --arch '${{ inputs.architecture }}' --print-rebuild-names \
+              > /tmp/rebuild-names.txt
+            echo "served but uninstallable, to rebuild: $(wc -l < /tmp/rebuild-names.txt)"
+            except=(--except-names /tmp/rebuild-names.txt)
+          fi
           python3 scripts/list-served-nvrs.py '${{ inputs.served_index_url }}' \
-            > /tmp/served-nvrs.txt
+            "${except[@]}" > /tmp/served-nvrs.txt
           echo "served NVRs: $(wc -l < /tmp/served-nvrs.txt)"
       # Hummingbird only: materialise the consumed utah-packages OCI image
       # into a file:// repo for the mock config's [utah] section. The pin

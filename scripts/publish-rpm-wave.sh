@@ -76,18 +76,19 @@
 #                   another road.
 set -euo pipefail
 
-STAGED="" REPO="" SUBDIR="" EVICT_FOREIGN=0
+STAGED="" REPO="" SUBDIR="" EVICT_FOREIGN=0 EXCLUDE_FILE=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--staged) STAGED="$2"; shift 2 ;;
 	--repo) REPO="$2"; shift 2 ;;
 	--subdir) SUBDIR="$2"; shift 2 ;;
 	--evict-foreign) EVICT_FOREIGN=1; shift ;;
+	--exclude-file) EXCLUDE_FILE="$2"; shift 2 ;;
 	*) echo "unknown argument: $1" >&2; exit 2 ;;
 	esac
 done
 [ -n "$STAGED" ] && [ -n "$REPO" ] && [ -n "$SUBDIR" ] || {
-	echo "usage: $0 --staged DIR --repo DIR --subdir NAME [--evict-foreign]" >&2
+	echo "usage: $0 --staged DIR --repo DIR --subdir NAME [--evict-foreign] [--exclude-file PATH]" >&2
 	exit 2
 }
 
@@ -246,7 +247,29 @@ if [ "$final" -lt $((baseline - superseded)) ]; then
 fi
 echo "==> repo now holds ${final} RPM(s)"
 
-createrepo_c --update "$REPO" 2>/dev/null || createrepo_c "$REPO"
+# WITHDRAWAL (tunaos-packages#525): one glob per line in EXCLUDE_FILE,
+# produced by scripts/plan-withdrawn-excludes.py from
+# manifests/withdrawn-packages.yaml. Passed straight to createrepo_c -x,
+# which filters its directory walk BEFORE comparing against the old
+# repodata it is updating -- a name-evr this run excludes is therefore
+# dropped from the regenerated index exactly like a file that went missing,
+# with the file itself untouched on disk. That keeps withdrawal invisible
+# to the NEVER SHRINK guard above (it counts files, and none were removed)
+# and reversible (delete the manifest entry, the next publish indexes the
+# file back in).
+excludes=()
+if [ -n "$EXCLUDE_FILE" ] && [ -f "$EXCLUDE_FILE" ]; then
+	while IFS= read -r pattern; do
+		[ -z "$pattern" ] && continue
+		case "$pattern" in '#'*) continue ;; esac
+		excludes+=(-x "$pattern")
+	done < "$EXCLUDE_FILE"
+	if [ "${#excludes[@]}" -gt 0 ]; then
+		echo "==> excluding ${#excludes[@]} withdrawn pattern(s) from repodata (files stay in the tree)"
+	fi
+fi
+
+createrepo_c --update "${excludes[@]}" "$REPO" 2>/dev/null || createrepo_c "${excludes[@]}" "$REPO"
 
 # Detached signature over repomd.xml, via the shared signer.
 #

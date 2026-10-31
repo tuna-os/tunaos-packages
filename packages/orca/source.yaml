@@ -1,0 +1,29 @@
+schema: 1
+source: orca
+version: 50.3-0ubuntu0.1
+downstream_version: 50.3-0ubuntu0.1+tuna1
+suite: resolute
+archive: https://archive.ubuntu.com/ubuntu/pool/main/o/orca/
+files:
+  - filename: orca_50.3-0ubuntu0.1.dsc
+    sha256: 903cc9a6209e184c948c0cd10fc7fd3d0d7602e6e2a73531d48b1588c0793ed6
+  - filename: orca_50.3.orig.tar.xz
+    sha256: cc13521037519e06125ec6eb0236ffd52a6d6ff7ef538323f786fca840a3dbda
+  - filename: orca_50.3-0ubuntu0.1.debian.tar.xz
+    sha256: 1cada256a356bb77b26221c2adda8f6867bc9f7cf543bb0cde6683fb4bf21422
+patches:
+  - path: patches/0001-tuna-native-password-deltas.patch
+    sha256: 8c9d226e66dd242fa6f25db00a941dd229ba97f0610d9f78d06fb05bd2a9db17
+policy: >-
+  Preserve Ubuntu's complete source packaging, including unity-a11y.patch,
+  Build-Depends, runtime relationships, install ownership and maintainer rules.
+  Add only the maintained Tuna quilt patch and a downstream changelog entry.
+  Ubuntu source checksums were retrieved from the primary archive; the orig and
+  Debian archive hashes match Checksums-Sha256 in the pinned signed dsc.
+  This provenance does not assert archive signature verification, successful
+  native compilation, installed-package identity, or spoken password feedback.
+retirement: >-
+  Keep this recipe only while the target-native Orca lacks the corrected
+  tuna-shell-gtk masked password-event handling. Re-evaluate against the
+  Ubuntu source revision before upgrading or retiring the maintained patch;
+  a version number alone does not prove that the behavioral gap has closed.
