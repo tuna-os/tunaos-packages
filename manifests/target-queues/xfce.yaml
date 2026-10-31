@@ -6,6 +6,12 @@ queues:
     build_order: build-order-xfce.yml
     roots: [gtk-layer-shell, xfwl4, xfce4-wayland, gtkgreet]
     gates: [mock-build, rpm-md-stage-install, greetd-login, xfce-wayland-session-smoke]
+  eln:
+    format: rpm
+    implementation: native-spec
+    build_order: build-order-xfce.yml
+    roots: [gtk-layer-shell, xfwl4, xfce4-wayland, gtkgreet]
+    gates: [mock-build, rpm-md-stage-install, greetd-login, xfce-wayland-session-smoke]
   fedora:
     format: rpm
     implementation: native-spec
