@@ -60,7 +60,7 @@ It also supports dependency workarounds that a generic recipe format does not ye
 | `src/xfce-wayland/` | Native XFCE/XFWL4 RPM packaging |
 | `build-order.yml` | GNOME 50 bootstrap/build dependency order |
 | `build-order-gnome51.yml` | GNOME 51 build dependency order |
-| `build-order-xfce*.yml` | XFCE/XFWL4 build order for EL10 and Fedora |
+| `build-order-xfce*.yml` | XFCE/XFWL4 build order for EL10, Fedora, and Fedora ELN |
 | `scripts/build-chain.sh` | Shared local/CI RPM build engine |
 | `.github/workflows/` | Per-package, distributed, validation, signing, and publication workflows |
 | `manifests/hummingbird-desktops.yaml` | Fedora Hummingbird desktop RPM catalog |
