@@ -1,2 +1,49 @@
 schema: 1
-quarantined_packages: []
+quarantined_packages:
+- package: wayland-protocols
+  target: alma10
+  architecture: aarch64
+  engine: tideforge
+  format: rpm
+  quarantined_at: '2026-10-31T14:01:05+00:00'
+  reason: 'Artifact digest divergence between independent builds: [{''actual_digest'':
+    ''sha256:1d026e7e6696d63b54f9d28518ab58bf851e676607ea3380bb04b056be3d23c7'', ''actual_size'':
+    9203, ''expected_digest'': ''sha256:904c37cab57650354b63ee762e222da831a744ef302015fb9470df1a9c4cc746'',
+    ''expected_size'': 9203, ''name'': ''build-inputs.json''}, {''actual_digest'':
+    ''sha256:254ee8280b5f49d103a12b63895ca6e8c1e71d344eb397b358570126166ea9e2'', ''actual_size'':
+    36104, ''expected_digest'': ''sha256:e1014c32137a365d5dec5b5176e3c401a67e439e9ce20b219a9e2a086e86fdff'',
+    ''expected_size'': 36104, ''name'': ''build.log''}, {''actual_digest'': ''sha256:c3ec6c06763bd64d238446542cb532060134a0a2cadf35f08b9eae0fa7e020f5'',
+    ''actual_size'': 3270, ''expected_digest'': ''sha256:e90afe28b8ca0f1641613af5d27024c156d6c79a7f521d302a43e2cf17c2cb61'',
+    ''expected_size'': 3270, ''name'': ''dependency-transaction.txt''}, {''actual_digest'':
+    ''sha256:44d3dfe2dcd224d7dbc8625d941624531a7eb65f5cd6000546b6c809b2354cfa'', ''actual_size'':
+    2165, ''expected_digest'': ''sha256:560cf68df85148ff23f21ea8844738c93a615402298133aa3ca379072476d71f'',
+    ''expected_size'': 2165, ''name'': ''repositories.txt''}, {''actual_digest'':
+    ''sha256:e2b0b94e38f864a3ec1836df2a4310f2a87fb93b7229030c556d7d0e5b4eafdc'', ''actual_size'':
+    154394, ''expected_digest'': ''sha256:6436eb7b6f99f7980365ef6fc52f14bafe93f8b5a02782f3ec9930283b6298bb'',
+    ''expected_size'': 154394, ''name'': ''wayland-protocols-1.49-1.el10.aarch64.rpm''}]'
+  divergent_artifacts:
+  - actual_digest: sha256:1d026e7e6696d63b54f9d28518ab58bf851e676607ea3380bb04b056be3d23c7
+    actual_size: 9203
+    expected_digest: sha256:904c37cab57650354b63ee762e222da831a744ef302015fb9470df1a9c4cc746
+    expected_size: 9203
+    name: build-inputs.json
+  - actual_digest: sha256:254ee8280b5f49d103a12b63895ca6e8c1e71d344eb397b358570126166ea9e2
+    actual_size: 36104
+    expected_digest: sha256:e1014c32137a365d5dec5b5176e3c401a67e439e9ce20b219a9e2a086e86fdff
+    expected_size: 36104
+    name: build.log
+  - actual_digest: sha256:c3ec6c06763bd64d238446542cb532060134a0a2cadf35f08b9eae0fa7e020f5
+    actual_size: 3270
+    expected_digest: sha256:e90afe28b8ca0f1641613af5d27024c156d6c79a7f521d302a43e2cf17c2cb61
+    expected_size: 3270
+    name: dependency-transaction.txt
+  - actual_digest: sha256:44d3dfe2dcd224d7dbc8625d941624531a7eb65f5cd6000546b6c809b2354cfa
+    actual_size: 2165
+    expected_digest: sha256:560cf68df85148ff23f21ea8844738c93a615402298133aa3ca379072476d71f
+    expected_size: 2165
+    name: repositories.txt
+  - actual_digest: sha256:e2b0b94e38f864a3ec1836df2a4310f2a87fb93b7229030c556d7d0e5b4eafdc
+    actual_size: 154394
+    expected_digest: sha256:6436eb7b6f99f7980365ef6fc52f14bafe93f8b5a02782f3ec9930283b6298bb
+    expected_size: 154394
+    name: wayland-protocols-1.49-1.el10.aarch64.rpm
