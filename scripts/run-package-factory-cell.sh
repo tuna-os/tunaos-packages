@@ -334,7 +334,7 @@ PY
           mkdir -p /work/artifacts/source
           cp ../*.dsc ../*.orig.tar.xz ../*.debian.tar.xz \
             ../*.changes ../*.buildinfo /work/artifacts/source/
-          cp -a ../original-source /work/artifacts/source/
+          cp -a ../original-source/. /work/artifacts/source/
         fi
         dpkg-buildpackage -us -uc -b
         mkdir -p /work/artifacts

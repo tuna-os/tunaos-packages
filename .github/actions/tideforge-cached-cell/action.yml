@@ -145,6 +145,10 @@ runs:
         python3 scripts/tideforge-action-cache.py result \
           --action-key "$KEY" "${artifacts[@]}" \
           > ".factory/${CELL_ID}/action-result.json"
+        python3 scripts/tideforge-action-cache.py verify \
+          --result ".factory/${CELL_ID}/action-result.json" \
+          --artifact-dir ".factory/${CELL_ID}/artifacts" \
+          --expected-action-key "$KEY"
     - name: Validate package installation and smoke contract
       # Unconditional, on a hit as much as a miss. Restoring bytes the gate
       # approved is not the same as proving they still install against today's
