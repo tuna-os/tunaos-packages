@@ -20,7 +20,12 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
+sys.path.insert(0, str(ROOT / "scripts"))
+import factory_contract  # noqa: E402
+
 VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom", "python"}
+NATIVE_ARCH_INPUT_BOUND = 1024 * 1024
+NATIVE_ARCH_PATCH_BOUND = 16
 DIST_GIT_RAW_REF = re.compile(r"https://src\.fedoraproject\.org/rpms/[^/]+/raw/([^/]+)/f/")
 # One upstream version, rendered verbatim as RPM `Version:` and Debian
 # upstream_version. A prerelease is written the way both of those already
@@ -780,6 +785,59 @@ def native_deb_source(recipe: dict) -> dict | None:
     return native
 
 
+def native_arch_pkgbuild(recipe: dict) -> dict | None:
+    """Keep maintained native Arch packaging instead of flattening split outputs."""
+    arch = recipe.get("outputs", {}).get("arch", {})
+    if "native_pkgbuild" not in arch:
+        return None
+    native = arch["native_pkgbuild"]
+    required = {"path", "sha256", "packages", "files"}
+    if (not isinstance(native, dict) or not required <= set(native)
+            or set(native) - required - {"optional_packages"}):
+        fail("outputs.arch.native_pkgbuild requires path, sha256, packages and files")
+    if recipe.get("targets") != ["arch"]:
+        fail("native Arch packaging requires the Arch target only")
+    packages = native["packages"]
+    optional = native.get("optional_packages", [])
+    if not isinstance(packages, list) or not packages or not isinstance(optional, list):
+        fail("native Arch required and optional packages must be lists")
+    names = packages + optional
+    if (not all(isinstance(name, str) and re.fullmatch(r"[a-z0-9][a-z0-9+._-]*", name)
+                for name in names)
+            or len(set(names)) != len(names) or recipe["name"] not in packages):
+        fail("native Arch packages must uniquely name the recipe and every split output")
+    if not isinstance(native["files"], list) or len(native["files"]) > NATIVE_ARCH_PATCH_BOUND:
+        fail("native Arch files must be a list of at most 16 patches")
+    directory = Path("packages") / recipe["name"]
+    inputs = [{"path": native["path"], "sha256": native["sha256"]}, *native["files"]]
+    names = set()
+    for index, item in enumerate(inputs):
+        if not isinstance(item, dict) or set(item) != {"path", "sha256"}:
+            fail("native Arch inputs require path and sha256")
+        path = Path(str(item["path"]))
+        expected_parent = directory if index == 0 else directory / "patches"
+        if (path.is_absolute() or ".." in path.parts or path.parent != expected_parent
+                or (index == 0 and path.name != "PKGBUILD")
+                or (index != 0 and path.suffix != ".patch") or path.name in names):
+            fail("native Arch inputs must be the recipe's PKGBUILD and distinct owned patches")
+        absolute = ROOT / path
+        if (not absolute.is_file() or absolute.is_symlink()
+                or not absolute.resolve().is_relative_to((ROOT / directory).resolve())):
+            fail("native Arch input must be a regular file inside its owned recipe")
+        with absolute.open("rb") as stream:
+            content = stream.read(NATIVE_ARCH_INPUT_BOUND + 1)
+        if len(content) > NATIVE_ARCH_INPUT_BOUND:
+            fail("native Arch input exceeds its 1 MiB bound")
+        if hashlib.sha256(content).hexdigest() != item["sha256"]:
+            fail("native Arch input checksum mismatch")
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError:
+            fail("native Arch input must be UTF-8 text")
+        names.add(path.name)
+    return native
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -826,6 +884,10 @@ def validate(recipe: dict, target: str | None = None) -> None:
     for item in requested:
         if item not in targets:
             fail(f"unknown target: {item}")
+        try:
+            factory_contract.recipe_architectures(recipe, item, targets[item])
+        except factory_contract.ContractError as error:
+            fail(str(error))
     if target and target not in requested:
         fail(f"recipe does not enable target: {target}")
     for source in source_entries(recipe)[1:]:
@@ -853,6 +915,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
         fail("files.common must list installed paths")
     validate_deb_packages(recipe)
     native_deb_source(recipe)
+    native_arch_pkgbuild(recipe)
     for item in recipe.get("install", {}).get("files", []) + recipe.get("install", {}).get("directories", []):
         if not isinstance(item, dict) or not isinstance(item.get("source"), str) or not isinstance(item.get("destination"), str):
             fail("install.files entries need source and destination")
@@ -1333,11 +1396,11 @@ License: {recipe['license']}
 
 
 def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
-    """Render an Arch PKGBUILD for the straightforward single-binary case.
-
-    Complex split packages and packaging hooks stay native until the recipe
-    schema can model them without hiding Arch-specific behaviour.
-    """
+    """Render ordinary boilerplate, or retain an explicitly owned native recipe."""
+    native = native_arch_pkgbuild(recipe)
+    if native is not None:
+        inputs = [{"path": native["path"]}, *native["files"]]
+        return {Path(item["path"]).name: (ROOT / item["path"]).read_bytes().decode("utf-8") for item in inputs}
     source_directory = recipe["source"].get("directory", f"{recipe['name']}-{recipe['version']}")
     makedepends = " ".join(f"'{dependency}'" for dependency in target_dependencies(recipe, target))
     depends = " ".join(f"'{dependency}'" for dependency in target_runtime_dependencies(recipe, target))

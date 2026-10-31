@@ -23,12 +23,14 @@ scripts/arch-clean-install.sh:
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -221,3 +223,109 @@ def test_served_install_requires_the_committed_signing_key():
     assert "4E5CC9F8B3B521793D95266E629BE6EA45188366" in text
     workflow = (ROOT / ".github/workflows/publish-tideforge-arch.yml").read_text(encoding="utf-8")
     assert '--volume "$PWD/public.gpg:/keys/tunaos-public.gpg:ro"' in workflow
+
+
+@pytest.fixture
+def admission_planner(tmp_path, monkeypatch):
+    specification = importlib.util.spec_from_file_location("arch_admission_publish", PLANNER)
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    monkeypatch.setattr(module.publisher_contract, "ROOT", tmp_path)
+    for name, admission in (("gdm", {"arch": ["x86_64"]}), ("demo", None), ("greetd", None)):
+        path = tmp_path / "packages" / name / "package.yaml"
+        path.parent.mkdir(parents=True)
+        data = {"name": name, "targets": ["arch"]}
+        if admission is not None:
+            data["architectures"] = admission
+        path.write_text(yaml.safe_dump(data))
+    return module
+
+
+def test_recipe_without_admission_keeps_all_publisher_architectures(admission_planner):
+    result = admission_planner.plan(["demo"], None)
+    assert result["arches"] == ["x86_64", "aarch64"]
+    assert [row["arch"] for row in result["build"]["include"]] == result["arches"]
+    assert [row["arch"] for row in result["publish"]["include"]] == result["arches"]
+    assert [row["packages"] for row in result["publish"]["include"]] == ["demo", "demo"]
+
+
+def test_gdm_defaults_to_only_its_admitted_architecture(admission_planner):
+    result = admission_planner.plan(["gdm"], None)
+    assert result["arches"] == ["x86_64"]
+    assert [(row["package"], row["arch"]) for row in result["build"]["include"]] == [
+        ("gdm", "x86_64"),
+    ]
+    assert [row["arch"] for row in result["publish"]["include"]] == ["x86_64"]
+    assert result["image"] == result["build"]["include"][0]["image"]
+    assert result["publish"]["include"][0]["packages"] == "gdm"
+
+
+@pytest.mark.parametrize("arches", [["aarch64"], ["x86_64", "aarch64"]])
+def test_explicit_unsupported_gdm_publication_is_rejected(admission_planner, arches):
+    with pytest.raises(SystemExit, match="gdm does not support.*aarch64"):
+        admission_planner.plan(["demo", "gdm"], arches)
+
+
+def test_mixed_default_wave_builds_per_recipe_and_publishes_only_built_arches(admission_planner):
+    result = admission_planner.plan(["gdm", "demo"], None)
+    assert [(row["package"], row["arch"]) for row in result["build"]["include"]] == [
+        ("gdm", "x86_64"), ("demo", "x86_64"), ("demo", "aarch64"),
+    ]
+    assert result["arches"] == ["x86_64", "aarch64"]
+    assert [row["arch"] for row in result["publish"]["include"]] == result["arches"]
+    assert [row["packages"] for row in result["publish"]["include"]] == ["gdm,demo", "demo"]
+    assert result["image"] == ""
+
+
+def test_explicit_supported_gdm_publication_is_admitted(admission_planner):
+    result = admission_planner.plan(["gdm", "demo"], ["x86_64"])
+    assert [row["arch"] for row in result["build"]["include"]] == ["x86_64", "x86_64"]
+    assert result["arches"] == ["x86_64"]
+    assert result["publish"]["include"][0]["packages"] == "gdm,demo"
+
+
+@pytest.mark.parametrize("admission,message", [
+    ({"unknown": ["x86_64"]}, "not in recipe targets"),
+    ({"arch": []}, "non-empty list"),
+    ({"arch": ["x86_64", "x86_64"]}, "must be unique"),
+    ({"arch": ["riscv64"]}, "unsupported"),
+])
+def test_invalid_recipe_admission_cannot_enter_a_publish_wave(
+    admission_planner, admission, message,
+):
+    path = admission_planner.publisher_contract.ROOT / "packages/gdm/package.yaml"
+    path.write_text(yaml.safe_dump({
+        "name": "gdm", "targets": ["arch"], "architectures": admission,
+    }))
+    with pytest.raises(SystemExit, match=message):
+        admission_planner.plan(["gdm"], None)
+
+
+@pytest.mark.parametrize("packages,expected", [
+    (["gdm", "greetd"], {"x86_64": "gdm,greetd", "aarch64": "greetd"}),
+    (["greetd", "gdm"], {"x86_64": "greetd,gdm", "aarch64": "greetd"}),
+])
+def test_served_verification_package_lists_match_actual_builds(
+    admission_planner, packages, expected,
+):
+    result = admission_planner.plan(packages, None)
+    assert {row["arch"]: row["packages"] for row in result["publish"]["include"]} == expected
+    for row in result["publish"]["include"]:
+        assert row["packages"].split(",") == [
+            build["package"] for build in result["build"]["include"]
+            if build["arch"] == row["arch"]
+        ]
+
+
+def test_served_verification_uses_the_architecture_specific_planned_packages():
+    jobs = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]
+    assert jobs["verify"]["strategy"]["matrix"] == jobs["publish"]["strategy"]["matrix"]
+    steps = [
+        step for step in jobs["verify"]["steps"]
+        if "arch-verify-published.sh" in step.get("run", "")
+    ]
+    assert steps
+    for step in steps:
+        assert step["env"]["PACKAGES"] == "${{ matrix.packages }}"
+        assert "--env PACKAGES" in step["run"]
+        assert "inputs.packages" not in step["run"]

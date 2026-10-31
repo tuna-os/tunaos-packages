@@ -25,7 +25,7 @@ on:
         default: greetd,libseat,dgop,danksearch
         required: true
       arches:
-        description: Comma-separated arches; empty means every arch the target declares
+        description: Comma-separated arches; empty means each recipe's admitted architectures
         default: ''
         required: false
 
@@ -231,7 +231,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install the published wave from the served repository
         env:
-          PACKAGES: ${{ inputs.packages }}
+          PACKAGES: ${{ matrix.packages }}
           URL: ${{ matrix.served }}
           REPO_NAME: ${{ matrix.repo_name }}
           TUNAOS_ARCHITECTURE: ${{ matrix.arch }}

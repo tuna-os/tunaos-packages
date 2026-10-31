@@ -246,3 +246,31 @@ def test_every_declared_target_keeps_its_build_inputs():
             assert key in view, (target_id, key)
         if spec.get("format") == "rpm" and "published_index" in spec:
             assert "published_index" in view, target_id
+
+
+def test_recipe_architectures_inherit_unspecified_targets_and_keep_order():
+    target = {"architectures": ["aarch64", "x86_64"]}
+    recipe = {"targets": ["arch", "el10"], "architectures": {"el10": ["x86_64"]}}
+    assert fc.recipe_architectures({"targets": ["arch"]}, "arch", target) == target["architectures"]
+    assert fc.recipe_architectures(recipe, "arch", target) == target["architectures"]
+    assert fc.recipe_architectures(recipe, "el10", target) == ["x86_64"]
+    recipe["architectures"]["arch"] = ["x86_64", "aarch64"]
+    assert fc.recipe_architectures(recipe, "arch", target) == ["x86_64", "aarch64"]
+
+
+@pytest.mark.parametrize("mapping,message", [
+    (None, "must be a mapping"),
+    (["x86_64"], "must be a mapping"),
+    ({"unknown": ["x86_64"]}, "not in recipe targets"),
+    ({"arch": []}, "non-empty list"),
+    ({"arch": "x86_64"}, "non-empty list"),
+    ({"arch": ["x86_64", 1]}, "list of strings"),
+    ({"arch": [""]}, "list of strings"),
+    ({"arch": ["x86_64", "x86_64"]}, "must be unique"),
+    ({"arch": ["riscv64"]}, "unsupported"),
+    ({"el10": []}, "non-empty list"),
+])
+def test_invalid_recipe_architecture_declarations_are_rejected(mapping, message):
+    recipe = {"targets": ["arch", "el10"], "architectures": mapping}
+    with pytest.raises(fc.ContractError, match=message):
+        fc.recipe_architectures(recipe, "arch", {"architectures": ["x86_64", "aarch64"]})

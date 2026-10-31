@@ -323,6 +323,28 @@ python3 scripts/tideforge.py plan packages/my-package/package.yaml --target el10
 python3 scripts/tideforge.py render packages/my-package/package.yaml --target ubuntu --output out/ubuntu
 ```
 
+Recipes inherit every architecture declared by each target unless their optional
+top-level `architectures` mapping narrows admission for that target:
+
+```yaml
+targets: [arch]
+architectures:
+  arch: [x86_64]
+```
+
+Mapping keys must belong to the recipe's `targets`; each value must be a
+nonempty list of unique architecture strings declared by that factory target.
+Targets omitted from the mapping retain their full architecture lists. Factory
+discovery and the Arch publisher share this admission contract. With no explicit
+publisher `--arches`, each recipe builds only its admitted architectures, and
+the wave publishes only architectures with builds. An explicit architecture
+selection must be supported by every requested recipe; unsupported selections
+fail instead of silently skipping a package.
+Each Arch publish matrix row carries its built recipe names as a comma-separated
+`packages` field. Served verification consumes that row-specific list, not the
+global dispatch input: a default `gdm,greetd` wave with x86-only GDM verifies both
+packages on x86_64 and only greetd on aarch64.
+
 Before adding a native dependency spelling to the catalog or promoting a
 recipe, probe it in the actual target container. This resolves recipe
 capabilities (for example `dbus-dev`) to native package names and checks the
@@ -370,6 +392,70 @@ demonstrably stale *root-package* entry in an otherwise pinned `Cargo.lock` may
 set `build.cargo_locked: false`, but it must include a specific
 `build.cargo_lock_reason` and is accepted only after the resulting lockfile
 diff has been reviewed in the target build.
+
+### Maintained native Arch split packages
+
+`outputs.arch.native_pkgbuild` is an explicit escape hatch for an owned
+native PKGBUILD, not a second generated split-package model. Its `path` and
+`sha256` pin `packages/<name>/PKGBUILD`; `files` pins at most sixteen distinct
+`.patch` files in that recipe's `patches/` directory. Inputs must be
+recipe-local regular UTF-8 files, at most 1 MiB each. Rendering retains
+their literal bytes, including line endings. The recipe directory and
+renderer already participate in the factory's content-addressed action key.
+
+`packages` lists every required output; `optional_packages` explicitly
+names additional outputs that normal makepkg configuration may generate.
+Verification rejects missing, duplicate or unknown outputs, mismatched
+versions/architectures and missing exact runtime dependencies. Optional
+symbols never substitute for a required runtime package.
+
+The first candidate is `packages/gdm/`: GDM/libgdm **51.1.1-1.1**, based on
+[Arch revision 36e76b2b](https://gitlab.archlinux.org/archlinux/packaging/packages/gdm/-/commit/36e76b2b4674dc196e611782c4f8f6d5e476e231).
+It retains Arch's PAM/conffile declarations, Meson checks, existing Xsession
+patch and split ownership. A checksum-locked release archive replaces the
+Git checkout; `prepare()` applies both maintained patches. GDM requires the
+exact libgdm version from the same source build. Optional `gdm-debug` may
+accompany, but cannot replace, that pair. Admission is explicitly x86_64;
+there is no ARM or CPU-baseline qualification claim.
+
+The normal-session patch sends the existing resolved
+`SetSessionName(get_session_name(self))` before `Open` starts account saving.
+Program sessions are unchanged; the explicit/saved/fallback resolver is
+not modified. In desktop run
+[41245509890](https://github.com/tuna-os/tuna-desktop/actions/runs/41245509890),
+both healthy header-only observers saw no User1001 session-setting calls.
+Worker markers remained unavailable/debug-disabled. This supports the
+candidate but does not prove its cause or establish real GDM/D-Bus runtime
+behavior.
+Source-only qualification applied both patches to the checksum-verified
+release archive: only `data/Xsession.in` and `daemon/gdm-session.c` changed.
+An approved throwaway C smoke executed the actual patched normal-open
+function and unchanged resolver: explicit, saved and fallback names reached
+the setter before `Open`; program sessions omitted the setter; a missing
+conversation emitted no calls. Its worker/default lookup stubs do not
+exercise real GDM, PAM, D-Bus or AccountsService, and the temporary source
+and binary were removed. Permanent tests cover recipe/render admission and
+complete package-pair metadata, not that extracted-function smoke.
+
+A bounded local x86_64 factory run has now built the real unsigned
+`gdm`/`libgdm` 51.1.1-1.1 pair and the normal optional `gdm-debug` package.
+Upstream Meson checks reported one pass, zero failures. The existing
+metadata validator accepted the complete matching pair, and the existing
+clean staged-repository verification installed it, checked its ELF runtime
+closure and passed the exact-version/ownership smoke. Both containers
+reported 8 GiB memory, zero swap and CPU quota 200%; cleanup completed.
+Build warnings about absent historical backup paths were retained, not
+suppressed or used to change upstream PAM/conffile declarations.
+This is package-build/install evidence, not a real GDM login or physical
+AccountsService record-creation proof.
+
+This source candidate does **not** enable signed publication or change image
+pins. Promotion through the existing signed Arch publisher remains a
+separate reviewed step after runtime qualification. Consumer cutover must
+select the pair and check both versions after its final `pacman -Syu`.
+Both unchanged complete fresh-account journeys must pass before calling
+the persistence issue fixed; source and isolated function checks are not
+that acceptance evidence.
 
 ### Queue-only pull requests and native canaries
 

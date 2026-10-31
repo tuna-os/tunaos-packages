@@ -3068,6 +3068,20 @@ packages:
     membership: runtime
     referenced_by:
       - manifests/target-queues/gnome.yaml
+  - name: gdm
+    family: tideforge
+    packaging:
+      pkg.tar.zst:
+        tideforge: packages/gdm
+    upstream:
+      version: 51.1.1
+      source: https://download.gnome.org/sources/gdm/51/gdm-51.1.1.tar.xz
+      sha256: 390ae9e7540f71db28a3dc64319a8f687f4d88bd4d5f1ff816b7a9f2249ab4aa
+    targets:
+      - arch
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: geoclue2
     family: hummingbird-desktops
     packaging:
