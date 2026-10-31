@@ -209,7 +209,7 @@ jobs:
 
       - name: Restore raw Alma CPU inputs
         id: alma-inputs
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.0.0
+        uses: actions/cache/restore@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ${{ runner.temp }}/alma-cpu-inputs/sha256
           key: alma-cpu-inputs-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/collect-alma-cpu-evidence.py', 'scripts/verify-alma-evtest-ci.sh') }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'trusted-default' }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -228,14 +228,14 @@ jobs:
 
       - name: Save raw Alma CPU inputs from trusted default branch
         if: success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.0.0
+        uses: actions/cache/save@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ${{ runner.temp }}/alma-cpu-inputs/sha256
           key: ${{ steps.alma-inputs.outputs.cache-primary-key }}
 
       - name: Save PR-local raw Alma CPU inputs
         if: success() && github.event_name == 'pull_request'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.0.0
+        uses: actions/cache/save@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: ${{ runner.temp }}/alma-cpu-inputs/sha256
           key: ${{ steps.alma-inputs.outputs.cache-primary-key }}
