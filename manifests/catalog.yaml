@@ -2622,6 +2622,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -2943,6 +2944,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -4189,6 +4191,7 @@ packages:
         implementation: native-spec
     targets:
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - manifests/target-queues/xfce.yaml
@@ -4221,6 +4224,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -4346,6 +4350,7 @@ packages:
         implementation: native-spec
     targets:
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - manifests/target-queues/xfce.yaml
@@ -4379,6 +4384,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -8287,6 +8293,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
       - fedora
     membership: runtime
     referenced_by:
@@ -8335,6 +8342,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -8367,6 +8375,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -8734,6 +8743,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -11220,6 +11230,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -11975,6 +11986,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -12067,6 +12079,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -12557,6 +12570,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -12933,6 +12947,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -12950,6 +12965,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -12967,6 +12983,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -12984,6 +13001,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13001,6 +13019,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: build_tool
     referenced_by:
       - build-order-xfce.yml
@@ -13018,6 +13037,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13035,6 +13055,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13052,6 +13073,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13084,6 +13106,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13101,6 +13124,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13118,6 +13142,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13135,6 +13160,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13152,6 +13178,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13184,6 +13211,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13216,6 +13244,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13233,6 +13262,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13265,6 +13295,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13276,6 +13307,7 @@ packages:
         implementation: native-spec
     targets:
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - manifests/target-queues/xfce.yaml
@@ -13291,6 +13323,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13308,6 +13341,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13340,6 +13374,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13411,6 +13446,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
       - fedora
     membership: runtime
     referenced_by:
@@ -13459,6 +13495,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
@@ -13479,6 +13516,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - fedora
     membership: runtime
     referenced_by:
@@ -13516,6 +13554,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - eln
       - fedora
     membership: runtime
     referenced_by:
