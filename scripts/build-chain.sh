@@ -144,8 +144,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 #
 # ("shellchecked" must not start this comment line: shellcheck parses any
 # comment beginning with "shellcheck" as a directive and fails with SC1073.)
+# shellcheck source-path=SCRIPTDIR
 # shellcheck source=lib/build-chain/podman.sh
 source "${SCRIPT_DIR}/lib/build-chain/podman.sh"
+# shellcheck source-path=SCRIPTDIR
 # shellcheck source=lib/build-chain/mock.sh
 source "${SCRIPT_DIR}/lib/build-chain/mock.sh"
 # shellcheck source-path=SCRIPTDIR
@@ -268,9 +270,12 @@ while [[ $# -gt 0 ]]; do
         --served-nvrs)   SERVED_NVRS_FILE="$2"; shift 2 ;;
         --with-checks)  WITH_CHECKS=true; shift ;;
         --dry-run)     DRY_RUN=true;     shift ;;
-        # Consumed by sourced backend modules.
-        # shellcheck disable=SC2034
-        --force)       FORCE=true;       shift ;;
+        --force)
+            # Consumed by sourced backend modules.
+            # shellcheck disable=SC2034
+            FORCE=true
+            shift
+            ;;
         --stream)      STREAM=true;      shift ;;
         --print-dist)  PRINT_DIST=true;  shift ;;
         *)
