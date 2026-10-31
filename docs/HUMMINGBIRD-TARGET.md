@@ -334,9 +334,11 @@ It fails closed. With `--allow-empty` it writes valid empty repodata
 for arches utah does not publish (aarch64 today).
 
 The chain-band workflow caches the tree by pin and mounts it for
-the build. `build-chain.sh` stops a hummingbird config without it.
-`tests/test_materialize_consumed_repo.py` covers the extractor, the
-fail-closed paths, and the empty-repo shape.
+the build. Its cache action is commit-pinned to a published release:
+an unresolved action reference stops every fan-out shard before the
+package build begins. `build-chain.sh` stops a hummingbird config
+without the tree. `tests/test_materialize_consumed_repo.py` covers the
+extractor, the fail-closed paths, and the empty-repo shape.
 
 ## 10. Why the leak outlived the root move, and what now stops it (2026-10-24)
 
