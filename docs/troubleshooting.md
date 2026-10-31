@@ -5,18 +5,18 @@ architecture against its native base before publication.
 
 ## Pinned factory runner exits 126
 
-**Symptom:** A consumer checking out an immutable factory commit reports
+**Symptom:** A consumer checks out an immutable commit, then reports
 `env: 'scripts/run-package-factory-cell.sh': Permission denied`.
 
-**Cause:** The runner was tracked as mode `100644`, including in the native
-Orca source commit `c0998b94bd7b4fbc67360c239e439de6debf539b`.
-The factory's own workflows used `bash` explicitly, hiding the missing mode
-from consumers that execute the shebang entry point directly.
+**Cause:** Git tracks the runner as mode `100644` in commit
+`c0998b94bd7b4fbc67360c239e439de6debf539b` and its parent.
+Factory workflows use `bash` and do not need an executable file.
+Consumers that execute the script through its shebang need that mode.
 
-**Fix:** Track the runner as executable (`100755`). Both direct execution and
-explicit Bash invocation are supported. Consumers must pin a commit containing
-the mode fix; do not change pinned source hashes or chmod downloaded sources.
-The factory runner Bats test exercises direct execution through `env`.
+**Fix:** Track the runner as executable (`100755`).
+Consumers can execute it directly or use Bash.
+Pin a commit with this fix. Do not change source hashes or chmod downloaded sources.
+The Bats test executes the runner through `env`.
 
 ## Old partial RPMs in a new candidate
 
