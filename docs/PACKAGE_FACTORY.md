@@ -332,18 +332,22 @@ architectures:
   arch: [x86_64]
 ```
 
-Mapping keys must belong to the recipe's `targets`; each value must be a
-nonempty list of unique architecture strings declared by that factory target.
-Targets omitted from the mapping retain their full architecture lists. Factory
-discovery and the Arch publisher share this admission contract. With no explicit
-publisher `--arches`, each recipe builds only its admitted architectures, and
-the wave publishes only architectures with builds. An explicit architecture
-selection must be supported by every requested recipe; unsupported selections
-fail instead of silently skipping a package.
-Each Arch publish matrix row carries its built recipe names as a comma-separated
-`packages` field. Served verification consumes that row-specific list, not the
-global dispatch input: a default `gdm,greetd` wave with x86-only GDM verifies both
-packages on x86_64 and only greetd on aarch64.
+Each key must name a target in the recipe's `targets`.
+Each value is a list of unique architectures from that target.
+The list cannot be empty.
+An omitted target keeps all its architectures.
+Factory discovery and the Arch publisher use the same rule.
+
+Without `--arches`, the publisher builds each recipe for its admitted architectures.
+It publishes each architecture that has a build.
+An explicit choice must support all selected recipes.
+The publisher rejects an unsupported choice; it does not skip a package.
+
+Each row for publication has a `packages` field.
+The field lists the recipes built for that architecture, separated by commas.
+The verifier uses that field, not the global input.
+For `gdm,greetd`, x86_64 verifies both packages.
+ARM verifies only greetd when GDM admits x86_64.
 
 Before adding a native dependency spelling to the catalog or promoting a
 recipe, probe it in the actual target container. This resolves recipe
@@ -395,67 +399,84 @@ diff has been reviewed in the target build.
 
 ### Maintained native Arch split packages
 
-`outputs.arch.native_pkgbuild` is an explicit escape hatch for an owned
-native PKGBUILD, not a second generated split-package model. Its `path` and
-`sha256` pin `packages/<name>/PKGBUILD`; `files` pins at most sixteen distinct
-`.patch` files in that recipe's `patches/` directory. Inputs must be
-recipe-local regular UTF-8 files, at most 1 MiB each. Rendering retains
-their literal bytes, including line endings. The recipe directory and
-renderer already participate in the factory's content-addressed action key.
+Use `outputs.arch.native_pkgbuild` to retain an owned PKGBUILD.
+Tideforge does not generate a model of split packages.
+Its `path` and `sha256` pin `packages/<name>/PKGBUILD`.
+The `files` list pins up to sixteen patches in that recipe's `patches/` directory.
 
-`packages` lists every required output; `optional_packages` explicitly
-names additional outputs that normal makepkg configuration may generate.
-Verification rejects missing, duplicate or unknown outputs, mismatched
-versions/architectures and missing exact runtime dependencies. Optional
-symbols never substitute for a required runtime package.
+Each input must be a regular UTF-8 file inside the recipe.
+Each file can contain at most 1 MiB.
+The renderer preserves all bytes and line breaks.
+The action key covers the recipe directory and the renderer.
+It also covers the shared code for admission.
 
-The first candidate is `packages/gdm/`: GDM/libgdm **51.1.1-1.1**, based on
-[Arch revision 36e76b2b](https://gitlab.archlinux.org/archlinux/packaging/packages/gdm/-/commit/36e76b2b4674dc196e611782c4f8f6d5e476e231).
-It retains Arch's PAM/conffile declarations, Meson checks, existing Xsession
-patch and split ownership. A checksum-locked release archive replaces the
-Git checkout; `prepare()` applies both maintained patches. GDM requires the
-exact libgdm version from the same source build. Optional `gdm-debug` may
-accompany, but cannot replace, that pair. Admission is explicitly x86_64;
-there is no ARM or CPU-baseline qualification claim.
+`packages` lists every required output.
+`optional_packages` lists other outputs that makepkg can generate.
+The verifier rejects missing, duplicate or unknown outputs.
+It rejects mismatched versions or architectures and checks exact dependencies.
+Optional symbols cannot replace a required package.
 
-The normal-session patch sends the existing resolved
-`SetSessionName(get_session_name(self))` before `Open` starts account saving.
-Program sessions are unchanged; the explicit/saved/fallback resolver is
-not modified. In desktop run
-[41245509890](https://github.com/tuna-os/tuna-desktop/actions/runs/41245509890),
-both healthy header-only observers saw no User1001 session-setting calls.
-Worker markers remained unavailable/debug-disabled. This supports the
-candidate but does not prove its cause or establish real GDM/D-Bus runtime
-behavior.
-Source-only qualification applied both patches to the checksum-verified
-release archive: only `data/Xsession.in` and `daemon/gdm-session.c` changed.
-An approved throwaway C smoke executed the actual patched normal-open
-function and unchanged resolver: explicit, saved and fallback names reached
-the setter before `Open`; program sessions omitted the setter; a missing
-conversation emitted no calls. Its worker/default lookup stubs do not
-exercise real GDM, PAM, D-Bus or AccountsService, and the temporary source
-and binary were removed. Permanent tests cover recipe/render admission and
-complete package-pair metadata, not that extracted-function smoke.
+`packages/gdm/` builds GDM and libgdm **51.1.1-1.1**.
+Its base is [Arch revision 36e76b2b](https://gitlab.archlinux.org/archlinux/packaging/packages/gdm/-/commit/36e76b2b4674dc196e611782c4f8f6d5e476e231).
+It keeps the PAM configuration and declarations for conffiles.
+It keeps the Meson checks, Xsession patch and split ownership.
+`prepare()` applies both patches to the release archive.
+Both archive and patches have fixed hashes.
 
-A bounded local x86_64 factory run has now built the real unsigned
-`gdm`/`libgdm` 51.1.1-1.1 pair and the normal optional `gdm-debug` package.
-Upstream Meson checks reported one pass, zero failures. The existing
-metadata validator accepted the complete matching pair, and the existing
-clean staged-repository verification installed it, checked its ELF runtime
-closure and passed the exact-version/ownership smoke. Both containers
-reported 8 GiB memory, zero swap and CPU quota 200%; cleanup completed.
-Build warnings about absent historical backup paths were retained, not
-suppressed or used to change upstream PAM/conffile declarations.
-This is package-build/install evidence, not a real GDM login or physical
-AccountsService record-creation proof.
+GDM needs the exact libgdm version from the same build.
+`gdm-debug` can accompany that pair.
+It cannot replace either package.
+The recipe admits x86_64 only.
+We do not claim ARM or CPU qualification.
 
-This source candidate does **not** enable signed publication or change image
-pins. Promotion through the existing signed Arch publisher remains a
-separate reviewed step after runtime qualification. Consumer cutover must
-select the pair and check both versions after its final `pacman -Syu`.
-Both unchanged complete fresh-account journeys must pass before calling
-the persistence issue fixed; source and isolated function checks are not
-that acceptance evidence.
+The patch sends `SetSessionName(get_session_name(self))` before `Open` starts to save account details.
+It does not change program sessions.
+It does not change the resolver for explicit, saved or fallback choices.
+
+In [run 41245509890](https://github.com/tuna-os/tuna-desktop/actions/runs/41245509890),
+two observers saw no calls to set the session for User1001.
+The result includes no markers from the worker.
+This evidence supports the candidate.
+It does not prove the cause or runtime behavior.
+
+We applied both patches to the verified archive.
+Only `data/Xsession.in` and `daemon/gdm-session.c` changed.
+We ran a C smoke with the patched function and original resolver.
+Explicit, saved and fallback names reached the setter before `Open`.
+Program sessions skipped the setter.
+A missing conversation emitted no calls.
+
+The smoke used stubs for the worker and default lookup.
+Those stubs do not test real GDM, PAM, D-Bus or AccountsService.
+We deleted the temporary source and binary.
+Tests check admission, bounds for rendered files, and metadata for both packages.
+The C smoke is not a permanent test.
+
+The factory built both unsigned packages on x86_64.
+It also built `gdm-debug`.
+Meson: one pass, zero failures.
+The validator accepted the pair.
+The verifier installed both packages from the staged repository.
+It checked their ELF closure, versions and owners.
+
+Both containers reported 8 GiB memory.
+Both reported zero swap and CPU quota 200%.
+We removed both containers.
+
+The build warned about backup paths that the package did not contain.
+We kept these warnings.
+We did not change upstream PAM configuration or declarations for conffiles.
+These checks do not prove login or creation of a physical record for AccountsService.
+
+This change does not enable signed publication.
+It does not change image pins.
+Runtime checks must pass before promotion.
+The consumer must select both packages after its last `pacman -Syu`.
+It must check both versions.
+Both journeys must pass before we call the issue fixed.
+
+Source checks and the C smoke do not prove those journeys.
+The package build and staged installation do not prove them.
 
 ### Queue-only pull requests and native canaries
 
