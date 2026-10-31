@@ -396,6 +396,64 @@ def test_provides_renders_in_rpm_deb_and_arch(recipe: dict) -> None:
     assert "provides=('cosmic-icons')" in pkgbuild
 
 
+def test_arch_native_metadata_is_literal_and_format_scoped(recipe: dict, tmp_path) -> None:
+    recipe["targets"].append("arch")
+    recipe["files"]["common"].append("etc/pam.d/legacy-lock")
+    recipe["outputs"] = {"arch": {
+        "conflicts": ["legacy-desktop<2"], "replaces": ["legacy-desktop"],
+        "backup": ["etc/pam.d/legacy-lock"],
+    }}
+    tideforge.validate(recipe, "arch")
+    pkgbuild = tmp_path / "PKGBUILD"
+    pkgbuild.write_text(tideforge.render(recipe, "arch")["PKGBUILD"])
+    result = subprocess.run(
+        ["bash", "-c", 'source "$1"; declare -p conflicts replaces backup', "bash", str(pkgbuild)],
+        capture_output=True, text=True, check=True,
+    )
+    assert 'declare -a conflicts=([0]="legacy-desktop<2")' in result.stdout
+    assert 'declare -a replaces=([0]="legacy-desktop")' in result.stdout
+    assert 'declare -a backup=([0]="etc/pam.d/legacy-lock")' in result.stdout
+    assert "legacy-desktop" not in tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "legacy-desktop" not in tideforge.render(recipe, "ubuntu")["debian/control"]
+
+
+@pytest.mark.parametrize("metadata", [
+    None, [], {"backups": []}, {"backup": "etc/pam.d/legacy-lock"},
+    {"backup": [None]}, {"backup": [""]},
+    {"backup": ["etc/pam.d/legacy-lock", "etc/pam.d/legacy-lock"]},
+    {"conflicts": ["legacy", "legacy"]}, {"replaces": "legacy"},
+])
+def test_arch_native_metadata_rejects_invalid_shape(recipe: dict, metadata) -> None:
+    recipe["outputs"] = {"arch": metadata}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
+@pytest.mark.parametrize("path", [
+    "/etc/pam.d/legacy-lock", "../etc/pam.d/legacy-lock",
+    "etc/../pam.d/legacy-lock", "etc//pam.d/legacy-lock",
+    "./etc/pam.d/legacy-lock", "etc/pam.d/*", "etc/pam.d/[ab]",
+    "etc/pam.d/legacy-lock\n", "etc/pam.d/legacy lock",
+    "etc\\pam.d\\legacy-lock", "etc/pam.d/missing-lock",
+])
+def test_arch_backup_requires_safe_exact_shipped_file(recipe: dict, path: str) -> None:
+    recipe["files"]["common"].append(path)
+    if path == "etc/pam.d/missing-lock":
+        recipe["files"]["common"].remove(path)
+    recipe["outputs"] = {"arch": {"backup": [path]}}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
+def test_tuna_desktop_retains_native_replacement_and_pam_backup() -> None:
+    recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
+    assert tideforge.arch_metadata(recipe) == {
+        "conflicts": ["roost"], "replaces": ["roost"],
+        "backup": ["etc/pam.d/tuna-lock", "etc/pam.d/roost-lock"],
+    }
+    assert recipe["outputs"]["gpkg"]["category"] == "gui-wm"
+
+
 def test_recipe_without_provides_renders_no_provides_lines(recipe: dict) -> None:
     """Recipes without the key keep clean spec/control output."""
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]

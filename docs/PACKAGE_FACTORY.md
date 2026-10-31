@@ -338,6 +338,18 @@ The tool emits target-native files because the package managers require them,
 but maintainers edit one recipe. A target override is limited to the dependency
 or build difference that cannot be made portable.
 
+Arch-only native transaction metadata belongs in `outputs.arch`: `conflicts`,
+`replaces`, and `backup` are lists rendered directly into PKGBUILD arrays.
+For example, `tuna-desktop` conflicts with and replaces `roost`, while backing
+up `etc/pam.d/tuna-lock` and `etc/pam.d/roost-lock`. Backup entries must be
+unique, exact, safe relative paths declared in `files.common`; glob patterns
+are not backup entries. These fields do not change RPM or Debian relations.
+`provides` alone does not authorize pacman to remove a differently named
+installed package. Adding backup metadata to a new archive cannot retroactively
+mark an old archive's files as configuration: qualify the real old-to-new
+transaction, including administrator edits, deletion and exact `NoExtract`
+policy, instead of inferring preservation from the generated PKGBUILD.
+
 When an upstream source archive omits required git submodules, use the optional
 `sources` list rather than an unpinned clone in a build command. Each auxiliary
 archive has an HTTPS URL, SHA-256, filename, destination below the primary
