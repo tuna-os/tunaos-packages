@@ -338,17 +338,19 @@ The tool emits target-native files because the package managers require them,
 but maintainers edit one recipe. A target override is limited to the dependency
 or build difference that cannot be made portable.
 
-Arch-only native transaction metadata belongs in `outputs.arch`: `conflicts`,
-`replaces`, and `backup` are lists rendered directly into PKGBUILD arrays.
-For example, `tuna-desktop` conflicts with and replaces `roost`, while backing
-up `etc/pam.d/tuna-lock` and `etc/pam.d/roost-lock`. Backup entries must be
-unique, exact, safe relative paths declared in `files.common`; glob patterns
-are not backup entries. These fields do not change RPM or Debian relations.
-`provides` alone does not authorize pacman to remove a differently named
-installed package. Adding backup metadata to a new archive cannot retroactively
-mark an old archive's files as configuration: qualify the real old-to-new
-transaction, including administrator edits, deletion and exact `NoExtract`
-policy, instead of inferring preservation from the generated PKGBUILD.
+Use `outputs.arch` for pacman metadata. Set `conflicts`, `replaces`, and `backup`
+to lists. Tideforge emits these as PKGBUILD arrays. These fields do not change
+RPM or Debian relations.
+
+`tuna-desktop` conflicts with and replaces `roost`. Its `backup` list names
+`etc/pam.d/tuna-lock` and `etc/pam.d/roost-lock`. Use exact relative paths from
+`files.common`. Do not repeat paths. Absolute paths, traversal, whitespace and
+glob patterns are invalid.
+
+`provides` alone does not let pacman remove another package. The `backup` field
+in a new archive does not change the old archive. Test the real transaction
+with administrator edits, deletion and exact `NoExtract` policy. A PKGBUILD
+is not transaction evidence.
 
 When an upstream source archive omits required git submodules, use the optional
 `sources` list rather than an unpinned clone in a build command. Each auxiliary
