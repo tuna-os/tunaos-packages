@@ -64,7 +64,7 @@ teardown() {
       SOURCE_DATE_EPOCH=1 \
       RECIPE=packages/wayland-protocols/package.yaml \
       FORMAT=deb \
-      bash "$3"
+      "$3"
   ' _ "${TEST_ROOT}" "${TEST_ROOT}/bin:${PATH}" "${RUNNER}"
 
   [ "$status" -eq 0 ]
