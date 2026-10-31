@@ -435,7 +435,8 @@ It does not change the resolver for explicit, saved or fallback choices.
 
 In [run 41245509890](https://github.com/tuna-os/tuna-desktop/actions/runs/41245509890),
 two observers saw no calls to set the session for User1001.
-The result includes no markers from the worker.
+Worker markers: unavailable; debug off.
+Their absence proves nothing about the save stage.
 This evidence supports the candidate.
 It does not prove the cause or runtime behavior.
 
