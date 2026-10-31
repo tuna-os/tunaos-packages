@@ -32,28 +32,22 @@ its toolkit is a red test, not a silent gap.
 """
 from __future__ import annotations
 
-import importlib.util
 import io
 import pathlib
+import sys
 import xml.etree.ElementTree as ET
 
 HERE = pathlib.Path(__file__).resolve().parent
+if str(HERE) not in sys.path:
+    sys.path.insert(0, str(HERE))
+from module_loader import load_script  # noqa: E402
 
 FORMATS = ("rpm", "deb", "pkg.tar.zst", "gpkg")
-
-_MODULES: dict[str, object] = {}
 
 
 def load(name: str, filename: str | None = None):
     """Import a sibling script once, hyphenated filenames included."""
-    if name not in _MODULES:
-        spec = importlib.util.spec_from_file_location(
-            name, HERE / (filename or f"{name}.py"))
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        _MODULES[name] = module
-    return _MODULES[name]
-
+    return load_script(name, filename)
 
 def version_module(fmt: str):
     """The comparator that is CORRECT for this format's versions."""
