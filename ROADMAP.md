@@ -75,12 +75,12 @@ transition; #488 carries the reasoning behind each row.
 
 | # | Step | Status | Tracking |
 |---|------|--------|----------|
-| 1 | Ruleset requires `Package factory gate`; drop the compatibility aliases | ✅ Done — cutover landed 09-02 | #483 |
-| 2 | Promotion behind the factory boundary (leased R2 ActionResult/blob publication) | ✅ Done — authoritative R2 CAS layout, lease mechanics, blobs-first promotion (#484) | #484 |
-| 3 | Native queue packages → first-class per-package recipe actions | 🟡 In progress — ledger row 1 done, row 2 blocked on engine version-awareness, rows 3–5 unstarted | #418, #426 |
-| 4 | Workflow consolidation — fold publishers, parameterize gap-drift, retire dormant builders | ✅ Done — closed 09-02; `upstream-drift.yml` is the parameterized matrix, and `build.yml`/`build-distributed.yml` stay break-glass until 2026-12-31 (census in RFC 011) | #487 |
-| 5 | Report-only CAS reachability / GC | 🔴 Not started | #485 |
-| 6 | Sampled reproducibility rebuilds + policy reporting | 🟡 In progress — tideforge verifier workflow, quarantine, and policy reporting landed; no sampled run recorded yet; build-chain cells not sampled (job ceiling) | #486 |
+| 1 | Ruleset requires `Package factory gate`; drop the compatibility aliases | ✅ Done — cutover landed 09-02 (PR #623) | #483 |
+| 2 | Promotion behind the factory boundary (leased R2 ActionResult/blob publication) | ✅ Done — authoritative R2 CAS layout, lease mechanics, blobs-first promotion landed (PR #771) | #484 |
+| 3 | Native queue packages → first-class per-package recipe actions | 🟡 In progress — ledger row 1 done, row 2 still needs version-aware satisfaction, rows 3–5 unstarted | #418, #426 |
+| 4 | Workflow consolidation — fold publishers, parameterize gap-drift, retire dormant builders | ✅ Done — closed 09-02; `upstream-drift.yml` is the parameterized matrix, and `build.yml`/`build-distributed.yml` stay break-glass until 2026-12-31 (PR #624) | #487 |
+| 5 | Report-only CAS reachability / GC | ✅ Done — report-only mark-and-sweep, age grace, and tombstones landed; deletion remains intentionally out of scope (PR #770) | #485 |
+| 6 | Sampled reproducibility rebuilds + policy reporting | 🟡 Operational follow-up — verifier workflow, quarantine, and policy reporting landed; no sampled run is recorded yet and build-chain cells remain unsampled because of the job ceiling (PR #769) | #486 |
 
 ### Priorities
 
@@ -88,11 +88,11 @@ transition; #488 carries the reasoning behind each row.
 |----------|------|----------|--------|
 | P0 | Desktop parity: successor tracker for the confirmed `marlin:kde` defect, and per-edition installed package sets so parity is diffable | #507, tunaos#1294 | 🔴 Open — #133 closed COMPLETED with the ask unmet |
 | P0 | Hummingbird desktops complete a full run — 6-hour cell ceiling | #412, #401, #629 | 🔴 Broken — #406 closed *not planned*, root cause already fixed in #407; the ceiling is the live defect |
-| P0 | Finish the #430 transition in #488's order — steps 3, 5, 6 remain | #488, #485, #486 | 🟡 In progress — steps 1 (#483), 2 (#484), 4 (#487) closed |
+| P0 | Finish the #430 transition in #488's order — step 3 and step 6's operational evidence remain | #488, #418, #426, #486 | 🟡 In progress — steps 1 (#483), 2 (#484), 4 (#487), and 5 (#485) are implemented |
 | P1 | aarch64 parity: resolve the two packaging decisions behind the red gnome cells | #480 | 🟡 In progress |
 | P1 | Retire COPR, including the personal unpinned COPR that Mock CI still depends on | #439, #391 | 🔴 Open |
 | P1 | Served-index correctness on repo.tunaos.org | #456, #519 | 🔴 Open — #458 (path decoding) closed 09-02; stale metadata and the ~160 lost package names remain |
-| P2 | RFC 011 conversion ledger rows 3–5 | #426 | ⬜ Not started |
+| P2 | RFC 011 conversion ledger rows 3–5 | #418 | ⬜ Not started |
 
 ---
 
