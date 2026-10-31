@@ -2,6 +2,20 @@
 
 This document tracks all manual modifications made to SRPM specifications and sources to enable GNOME 50 and GNOME 51 on CentOS Stream 10.
 
+## Hummingbird Tuna runtime providers (2026-10-31)
+
+No TuneD dependency is removed. Its bootc kernel-argument fallback uses
+rpm-ostree, so the native Tuna roots now build the real Fedora dist-git
+provider and its runtime closure. The generated build order imports
+rpm-ostree rather than inventing an RPM capability.
+
+Hummingbird also selects Fedora libcanberra packaging instead of the
+shared EL10 release-106 override. This preserves the actual sound
+library and backend packages while avoiding cross-target Obsoletes
+rules. Native build/publication evidence is still required; see
+[the causal failures and source commits](docs/HUMMINGBIRD-TARGET.md#11-native-tuna-power-and-sound-closure-2026-10-31).
+
+
 ## GNOME 51.0 release set
 
 The GNOME 51 tier moved from development snapshots to the coordinated
