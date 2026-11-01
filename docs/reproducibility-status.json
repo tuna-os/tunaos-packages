@@ -1,0 +1,141 @@
+{
+  "by_coordinate": {
+    "tideforge/rpm/aarch64": {
+      "divergent": 1,
+      "rate": 0.0,
+      "reproducible": 0,
+      "sampled": 1
+    }
+  },
+  "by_engine": {
+    "tideforge": {
+      "divergent": 1,
+      "rate": 0.0,
+      "reproducible": 0,
+      "sampled": 1
+    }
+  },
+  "by_format": {
+    "rpm": {
+      "divergent": 1,
+      "rate": 0.0,
+      "reproducible": 0,
+      "sampled": 1
+    }
+  },
+  "history": [],
+  "measured_at": "2026-11-01T14:42:37+00:00",
+  "quarantined": [
+    {
+      "architecture": "aarch64",
+      "divergent_artifacts": [
+        {
+          "actual_digest": "sha256:d18015b8da1ffdbb90e4f86711d26c09d2d3c276bd74c1711302e195d570f1a8",
+          "actual_size": 9203,
+          "expected_digest": "sha256:da0c826ee24a199d9acb1d22aab402041d88453fa02534dcc0044147fc6cfdba",
+          "expected_size": 9203,
+          "name": "build-inputs.json"
+        },
+        {
+          "actual_digest": "sha256:5ad45912e1e4fc331ee864d7f3768221eeb608e2106ff582be540dd920a697d3",
+          "actual_size": 36104,
+          "expected_digest": "sha256:846a01c28a4a0c626a1e38598fd588b4f30eec757c5cefa2d89f44f6759d5db7",
+          "expected_size": 36104,
+          "name": "build.log"
+        },
+        {
+          "actual_digest": "sha256:5591908485f8765172fe9be16e98f7742cb6a5e7558f25a6adcf2bc3bef97fc2",
+          "actual_size": 3270,
+          "expected_digest": "sha256:82848523002b6e3e865c7936660c4f6d2c0b9b10ea53c51a56036e8e8f1e90f7",
+          "expected_size": 3270,
+          "name": "dependency-transaction.txt"
+        },
+        {
+          "actual_digest": "sha256:2a367fafd4cc137bd2a691bf9726163c93819df4337c8a86631b4786a33c3da3",
+          "actual_size": 2165,
+          "expected_digest": "sha256:5fe688beb67d7294e034dbde94292a38636d4825a654c91292d38a4abdf0fd81",
+          "expected_size": 2165,
+          "name": "repositories.txt"
+        },
+        {
+          "actual_digest": "sha256:d6ebe29259d7a5ecb391a43c6e74643c07cd3d19c0b305890ffbf4db80534911",
+          "actual_size": 154394,
+          "expected_digest": "sha256:801f90f2d8ebd74abd60daf8087a48ebf4f8379ec782b2a56f28023ab01b95e6",
+          "expected_size": 154394,
+          "name": "wayland-protocols-1.49-1.el10.aarch64.rpm"
+        }
+      ],
+      "engine": "tideforge",
+      "format": "rpm",
+      "package": "wayland-protocols",
+      "quarantined_at": "2026-11-01T14:42:37+00:00",
+      "reason": "Artifact digest divergence between independent builds: [{'actual_digest': 'sha256:d18015b8da1ffdbb90e4f86711d26c09d2d3c276bd74c1711302e195d570f1a8', 'actual_size': 9203, 'expected_digest': 'sha256:da0c826ee24a199d9acb1d22aab402041d88453fa02534dcc0044147fc6cfdba', 'expected_size': 9203, 'name': 'build-inputs.json'}, {'actual_digest': 'sha256:5ad45912e1e4fc331ee864d7f3768221eeb608e2106ff582be540dd920a697d3', 'actual_size': 36104, 'expected_digest': 'sha256:846a01c28a4a0c626a1e38598fd588b4f30eec757c5cefa2d89f44f6759d5db7', 'expected_size': 36104, 'name': 'build.log'}, {'actual_digest': 'sha256:5591908485f8765172fe9be16e98f7742cb6a5e7558f25a6adcf2bc3bef97fc2', 'actual_size': 3270, 'expected_digest': 'sha256:82848523002b6e3e865c7936660c4f6d2c0b9b10ea53c51a56036e8e8f1e90f7', 'expected_size': 3270, 'name': 'dependency-transaction.txt'}, {'actual_digest': 'sha256:2a367fafd4cc137bd2a691bf9726163c93819df4337c8a86631b4786a33c3da3', 'actual_size': 2165, 'expected_digest': 'sha256:5fe688beb67d7294e034dbde94292a38636d4825a654c91292d38a4abdf0fd81', 'expected_size': 2165, 'name': 'repositories.txt'}, {'actual_digest': 'sha256:d6ebe29259d7a5ecb391a43c6e74643c07cd3d19c0b305890ffbf4db80534911', 'actual_size': 154394, 'expected_digest': 'sha256:801f90f2d8ebd74abd60daf8087a48ebf4f8379ec782b2a56f28023ab01b95e6', 'expected_size': 154394, 'name': 'wayland-protocols-1.49-1.el10.aarch64.rpm'}]",
+      "target": "alma10"
+    }
+  ],
+  "results": [
+    {
+      "action_key": "sha256:9b9721f0dff4198c75bf81a37e4df73ecf4b829ef13f0309b627a90907beabb4",
+      "architecture": "aarch64",
+      "cell_id": "tideforge-wayland-protocols-alma10-aarch64",
+      "engine": "tideforge",
+      "extra": [],
+      "format": "rpm",
+      "matching": [
+        "effective-flags.json",
+        "installed-buildroot.tsv",
+        "rpm-macros.txt",
+        "rpm-showrc.txt"
+      ],
+      "mismatches": [
+        {
+          "actual_digest": "sha256:d18015b8da1ffdbb90e4f86711d26c09d2d3c276bd74c1711302e195d570f1a8",
+          "actual_size": 9203,
+          "expected_digest": "sha256:da0c826ee24a199d9acb1d22aab402041d88453fa02534dcc0044147fc6cfdba",
+          "expected_size": 9203,
+          "name": "build-inputs.json"
+        },
+        {
+          "actual_digest": "sha256:5ad45912e1e4fc331ee864d7f3768221eeb608e2106ff582be540dd920a697d3",
+          "actual_size": 36104,
+          "expected_digest": "sha256:846a01c28a4a0c626a1e38598fd588b4f30eec757c5cefa2d89f44f6759d5db7",
+          "expected_size": 36104,
+          "name": "build.log"
+        },
+        {
+          "actual_digest": "sha256:5591908485f8765172fe9be16e98f7742cb6a5e7558f25a6adcf2bc3bef97fc2",
+          "actual_size": 3270,
+          "expected_digest": "sha256:82848523002b6e3e865c7936660c4f6d2c0b9b10ea53c51a56036e8e8f1e90f7",
+          "expected_size": 3270,
+          "name": "dependency-transaction.txt"
+        },
+        {
+          "actual_digest": "sha256:2a367fafd4cc137bd2a691bf9726163c93819df4337c8a86631b4786a33c3da3",
+          "actual_size": 2165,
+          "expected_digest": "sha256:5fe688beb67d7294e034dbde94292a38636d4825a654c91292d38a4abdf0fd81",
+          "expected_size": 2165,
+          "name": "repositories.txt"
+        },
+        {
+          "actual_digest": "sha256:d6ebe29259d7a5ecb391a43c6e74643c07cd3d19c0b305890ffbf4db80534911",
+          "actual_size": 154394,
+          "expected_digest": "sha256:801f90f2d8ebd74abd60daf8087a48ebf4f8379ec782b2a56f28023ab01b95e6",
+          "expected_size": 154394,
+          "name": "wayland-protocols-1.49-1.el10.aarch64.rpm"
+        }
+      ],
+      "missing": [],
+      "package": "wayland-protocols",
+      "reproducible": false,
+      "target": "alma10"
+    }
+  ],
+  "schema": 1,
+  "summary": {
+    "divergent": 1,
+    "quarantined": 1,
+    "reproducibility_rate": 0.0,
+    "reproducible": 0,
+    "sampled": 1
+  }
+}
