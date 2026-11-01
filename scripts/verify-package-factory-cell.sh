@@ -214,6 +214,8 @@ case ${FORMAT:?} in
         mkdir /factory-repo
         cp /artifacts/*.rpm /factory-repo/
         if command -v zypper >/dev/null; then
+          bash /scripts/zypper-refresh-with-retry.sh
+          zypper --non-interactive dup --no-allow-vendor-change
           zypper --non-interactive install createrepo_c
           createrepo_c /factory-repo
           zypper --non-interactive addrepo --no-gpgcheck --priority 1 file:///factory-repo tideforge

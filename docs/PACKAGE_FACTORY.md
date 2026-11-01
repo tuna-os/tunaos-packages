@@ -147,6 +147,15 @@ is the enforcement, in two workflows:
   stage them in an ephemeral repository, and clean-install them in a second
   container before running the recipe's command/file/service smoke check.
 
+The Tumbleweed build, RPM lint and clean-install containers first refresh their
+native repositories and run `zypper dup --no-allow-vendor-change`, before they
+add factory repositories or install dependencies. A container image
+can contain newer runtime libraries than the selected repository snapshot.
+An isolated dependency install can then fail on exact runtime/development
+version pairs. The native distribution transaction keeps that baseline
+consistent. It does not change recipe version requirements or accept broken
+dependencies. Factory repository priorities and package checks stay unchanged.
+
 Two engines produce the payloads inside that one boundary. `tideforge` cells
 build one recipe from `packages/<name>/package.yaml` for one target/arch.
 `build-chain` cells build a whole native-spec family (the EL10 GNOME
@@ -364,6 +373,20 @@ The tool emits target-native files because the package managers require them,
 but maintainers edit one recipe. A target override is limited to the dependency
 or build difference that cannot be made portable.
 
+Use `outputs.arch` for pacman metadata. Set `conflicts`, `replaces`, and `backup`
+to lists. Tideforge emits these as PKGBUILD arrays. These fields do not change
+RPM or Debian relations.
+
+`tuna-desktop` conflicts with and replaces `roost`. Its `backup` list names
+`etc/pam.d/tuna-lock` and `etc/pam.d/roost-lock`. Use exact relative paths from
+`files.common`. Do not repeat paths. Absolute paths, traversal, whitespace and
+glob patterns are invalid.
+
+`provides` alone does not let pacman remove another package. The `backup` field
+in a new archive does not change the old archive. Test the real transaction
+with administrator edits, deletion and combined effective `NoUpgrade` and
+`NoExtract` policy. A PKGBUILD is not transaction evidence.
+
 When an upstream source archive omits required git submodules, use the optional
 `sources` list rather than an unpinned clone in a build command. Each auxiliary
 archive has an HTTPS URL, SHA-256, filename, destination below the primary
@@ -401,6 +424,8 @@ diff has been reviewed in the target build.
 
 Use `outputs.arch.native_pkgbuild` to retain an owned PKGBUILD.
 Tideforge does not generate a model of split packages.
+The native contract is not a pacman metadata array.
+With this contract, the owned PKGBUILD supplies all arrays, including `backup`.
 Its `path` and `sha256` pin `packages/<name>/PKGBUILD`.
 The `files` list pins up to sixteen patches in that recipe's `patches/` directory.
 

@@ -838,6 +838,27 @@ def native_arch_pkgbuild(recipe: dict) -> dict | None:
     return native
 
 
+def arch_metadata(recipe: dict) -> dict[str, list[str]]:
+    """Native pacman replacement relations and exact config-file paths."""
+    metadata = recipe.get("outputs", {}).get("arch", {})
+    if not isinstance(metadata, dict) or set(metadata) - {"conflicts", "replaces", "backup", "native_pkgbuild"}:
+        fail("outputs.arch supports conflicts, replaces, backup and native_pkgbuild")
+    metadata = {key: values for key, values in metadata.items() if key != "native_pkgbuild"}
+    for key, values in metadata.items():
+        if not isinstance(values, list) or not all(isinstance(value, str) and value for value in values):
+            fail(f"outputs.arch.{key} must be a list of non-empty strings")
+        if len(values) != len(set(values)):
+            fail(f"outputs.arch.{key} must not repeat entries")
+        if key == "backup":
+            for value in values:
+                if (value.startswith("/") or any(part in {"", ".", ".."} for part in value.split("/"))
+                        or any(character.isspace() or ord(character) < 32 for character in value)
+                        or any(character in value for character in "*?[]\\")
+                        or value not in recipe["files"]["common"]):
+                    fail("outputs.arch.backup must name exact relative files in files.common")
+    return metadata
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -877,6 +898,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
     configure_options(recipe)
+    arch_metadata(recipe)
     targets = load_targets()
     requested = recipe["targets"]
     if not isinstance(requested, list) or not requested:
@@ -1405,6 +1427,10 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
     makedepends = " ".join(f"'{dependency}'" for dependency in target_dependencies(recipe, target))
     depends = " ".join(f"'{dependency}'" for dependency in target_runtime_dependencies(recipe, target))
     provides = " ".join(f"'{dependency}'" for dependency in provides_entries(recipe))
+    native_metadata = "\n".join(
+        f"{key}=({' '.join(shlex.quote(value) for value in values)})"
+        for key, values in arch_metadata(recipe).items()
+    )
     sources = source_entries(recipe, target)
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
@@ -1480,6 +1506,7 @@ license=({recipe['license']!r})
 makedepends=({makedepends})
 depends=({depends})
 provides=({provides})
+{native_metadata}
 source=(
 {source_lines}
 )

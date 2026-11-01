@@ -54,6 +54,21 @@ def test_real_recipe_validates_and_renders_native_bytes(recipe):
         assert hashlib.sha256(content).hexdigest() == item["sha256"]
 
 
+def test_native_input_contract_is_not_rendered_as_arch_metadata(recipe):
+    assert tideforge.arch_metadata(recipe) == {}
+    recipe["outputs"]["arch"]["backup"] = ["etc/pam.d/gdm-password"]
+    recipe["files"]["common"].append("etc/pam.d/gdm-password")
+    assert tideforge.arch_metadata(recipe) == {"backup": ["etc/pam.d/gdm-password"]}
+    tideforge.validate(recipe, "arch")
+    assert tideforge.render(recipe, "arch")["PKGBUILD"] == (ROOT / "packages/gdm/PKGBUILD").read_text()
+
+
+def test_native_recipe_still_rejects_invalid_arch_metadata(recipe):
+    recipe["outputs"]["arch"]["backup"] = ["/etc/pam.d/gdm-password"]
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe, "arch")
+
+
 @pytest.mark.parametrize("defect", [
     "unknown-key", "extra-target", "wrong-pkgbuild-path", "wrong-patch-path",
     "parent-traversal", "duplicate-patch", "missing-input", "symlink-input",
