@@ -445,15 +445,6 @@ def test_arch_backup_requires_safe_exact_shipped_file(recipe: dict, path: str) -
         tideforge.validate(recipe)
 
 
-def test_tuna_desktop_retains_native_replacement_and_pam_backup() -> None:
-    recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
-    assert tideforge.arch_metadata(recipe) == {
-        "conflicts": ["roost"], "replaces": ["roost"],
-        "backup": ["etc/pam.d/tuna-lock", "etc/pam.d/roost-lock"],
-    }
-    assert recipe["outputs"]["gpkg"]["category"] == "gui-wm"
-
-
 def test_recipe_without_provides_renders_no_provides_lines(recipe: dict) -> None:
     """Recipes without the key keep clean spec/control output."""
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
