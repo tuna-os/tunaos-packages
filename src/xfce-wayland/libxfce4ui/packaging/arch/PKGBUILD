@@ -7,7 +7,7 @@
 pkgname=libxfce4ui
 pkgver=4.21.7
 pkgrel=1
-_commit=a40aae0c713beb7f9ad5bf3c7cef47f25fccae05
+_commit=67733d038db7a4d727da90c2c2751e189b339908
 pkgdesc="Widget library for Xfce, including libxfce4kbd-private"
 arch=('x86_64')
 url="https://gitlab.xfce.org/xfce/libxfce4ui"
