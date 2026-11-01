@@ -350,6 +350,7 @@ glob patterns are invalid.
 `outputs.arch.options` carries native makepkg options such as `!lto`.
 For native install/upgrade hooks, declare
 `outputs.arch.install_script: {path: packages/NAME/NAME.install, sha256: HASH}`.
+
 Keep the file inside its recipe's directory. Use regular UTF-8 text.
 Tideforge rejects symlinks, traversal and payloads with a different hash.
 It copies the file into `NAME.install` and sets PKGBUILD `install=NAME.install`.
@@ -396,11 +397,11 @@ diff has been reviewed in the target build.
 
 ### GNOME 51 redirected smartcards: native SSSD
 
-Recipe `sssd` follows Arch revision
-`49a6c3408d0431606b99d1ddb035ce2e40c071ea`.
+Arch revision `49a6c3408d0431606b99d1ddb035ce2e40c071ea`
+is the base for `sssd`.
 It retains the paths from `configure`, the `sssd` user and `!lto`.
 It keeps sysusers, tmpfiles and the logrotate backup.
-Its native hooks restore groups and capabilities.
+The hooks restore the groups and capabilities.
 Version 2.13.1 adds two changes from SSSD:
 
 - [f2696b80](https://github.com/SSSD/sssd/commit/f2696b80a153d8ad61f66e4611efd2dff3c6410c)
@@ -411,10 +412,16 @@ Version 2.13.1 adds two changes from SSSD:
   grants only the dedicated SSSD user the upstream
   `org.gnome.remotedesktop.use-grd-pcscd` action.
 
+Version 2.13.1 keeps `state->sss_certmap_ctx` as unchanged context.
+See [the backport](../packages/sssd/f2696b80-grd-session-2.13.1.patch).
+See [the comparison](../packages/sssd/f2696b80-backport-provenance.json) for the hashes.
+Apply both patches with `--fuzz=0`.
+
 The build uses the source archive and two patches with fixed hashes.
 This does not prove a published package or a login with a card through GDM.
 Normal factory CI must build and install the package.
 GRD51/GDM51 consumers must test actual redirection.
+
 The package does not enroll a domain or change PAM or OpenSC configuration.
 It does not enable smartcards or start a listener. Administrators must opt in.
 Tests for password/NTLM transport, Kerberos PKINIT and PAM with cards are distinct.

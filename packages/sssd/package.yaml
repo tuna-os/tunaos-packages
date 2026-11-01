@@ -18,8 +18,9 @@ source:
   sha256: 05ea79e89f0be399983925b8874ac196d6dc5fd4416f83609557b9fc8ef798b5
   directory: sssd-2.13.1
 sources:
-  - url: https://github.com/SSSD/sssd/commit/f2696b80a153d8ad61f66e4611efd2dff3c6410c.patch
-    sha256: 758e404831424c56076df6e2f9c00686d5082208adee8767e42b2854c849329d
+  # Upstream f2696b80 implementation with only release-specific hunk context.
+  - url: https://raw.githubusercontent.com/tuna-os/tunaos-packages/43b1d8e3a3a2a4420ecee52deb258ea7b7a4c3f4/packages/sssd/f2696b80-grd-session-2.13.1.patch
+    sha256: 36bef0e0922bb3c60fd2f154e53f97490928dbe714dfcf943db8d65ff41fa04c
     filename: f2696b80-grd-session.patch
     destination: .tuna-patches/session.patch
     extract: false
