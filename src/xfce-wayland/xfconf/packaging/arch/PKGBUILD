@@ -14,7 +14,7 @@
 pkgname=xfconf
 pkgver=4.21.2
 pkgrel=1
-_commit=54d3657167cfb78f02865df1053c9507a374e293
+_commit=3aff21e01629f5daf55d180b481525e44a5ba10e
 pkgdesc="Xfce configuration daemon and library"
 arch=('x86_64')
 url="https://gitlab.xfce.org/xfce/xfconf"
