@@ -365,6 +365,10 @@ Tideforge rejects symlinks, traversal and payloads with a different hash.
 It copies the file into `NAME.install` and sets PKGBUILD `install=NAME.install`.
 Pacman runs the native hooks.
 
+Index native archives with either `.pkg.tar.zst` or `.pkg.tar.xz`.
+`arch-clean-install.sh` uses the same publisher before the package install.
+This checks the index, not the production signatures.
+
 
 `provides` alone does not let pacman remove another package. The `backup` field
 in a new archive does not change the old archive. Test the real transaction
