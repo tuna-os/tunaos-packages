@@ -11820,6 +11820,20 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: sssd
+    family: tideforge
+    packaging:
+      pkg.tar.zst:
+        tideforge: packages/sssd
+    upstream:
+      version: 2.13.1
+      source: https://github.com/SSSD/sssd/releases/download/2.13.1/sssd-2.13.1.tar.gz
+      sha256: 05ea79e89f0be399983925b8874ac196d6dc5fd4416f83609557b9fc8ef798b5
+    targets:
+      - arch
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
   - name: startup-notification
     family: hummingbird-desktops
     packaging:

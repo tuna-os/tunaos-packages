@@ -41,7 +41,8 @@ build:
     # Preserve the native Arch source preparations, including its disabled
     # flaky network test, rather than inventing a different distro build.
     - sed -i 's#/var/run/#/run/#' src/examples/logrotate
-    - sed -i 's#^u #u! #' contrib/sssd.sysusers
+    - >-
+      sed -i 's#^u #u! #' contrib/sssd.sysusers
     - sed '/AM_PROG_CC_C_O/ i AC_PROG_CPP' -i configure.ac
     - sed -i 's/^dbuspolicydir = $(sysconfdir)/dbuspolicydir = $(datadir)/' Makefile.in
     - sed '/fail_over-tests/d' -i Makefile.am

@@ -471,6 +471,12 @@ def test_arch_install_script_retains_native_hook_execution(recipe, tmp_path, mon
     assert (build / "hello-tuna.install").read_bytes() == script.read_bytes()
 
 
+def test_sssd_native_pkgbuild_parses_without_losing_shell_quotes() -> None:
+    recipe = tideforge.load_yaml(ROOT / "packages" / "sssd" / "package.yaml")
+    rendered = tideforge.render(recipe, "arch")["PKGBUILD"]
+    subprocess.run(["bash", "-n"], input=rendered, text=True, check=True)
+
+
 @pytest.mark.parametrize("path", [
     "/tmp/foreign.install", "../foreign.install",
     "packages/other-package/foreign.install", "packages/hello-tuna/missing.install",
