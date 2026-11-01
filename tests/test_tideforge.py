@@ -423,6 +423,52 @@ def test_real_recipes_keep_declared_runtime_metadata(
         assert dependency in metadata
 
 
+@pytest.mark.parametrize(
+    "target",
+    [
+        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "debian",
+        "trixie", "opensuse-tumbleweed", "gentoo",
+    ],
+)
+def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> None:
+    """D-Bus and spawned helpers cannot be inferred from ELF dependencies (#341)."""
+    recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
+    tideforge.validate(recipe, target)
+    rendered = tideforge.render(recipe, target)
+    expected = {"colord", "gnome-color-manager"}
+    if target == "arch":
+        depends = next(
+            line for line in rendered["PKGBUILD"].splitlines()
+            if line.startswith("depends=(")
+        )
+        dependencies = set(depends.removeprefix("depends=(").removesuffix(")").replace("'", "").split())
+    elif target in {"ubuntu", "debian", "trixie"}:
+        depends = next(
+            line for line in rendered["debian/control"].splitlines()
+            if line.startswith("Depends:")
+        )
+        dependencies = {item.strip() for item in depends.removeprefix("Depends:").split(",")}
+    elif target == "gentoo":
+        ebuild = next(value for name, value in rendered.items() if name.endswith(".ebuild"))
+        dependencies = set(ebuild.split('RDEPEND="', 1)[1].split('"', 1)[0].split())
+        expected = {"x11-misc/colord", "gnome-extra/gnome-color-manager"}
+    else:
+        spec = rendered["tuna-desktop.spec"].split("%description", 1)[0]
+        dependencies = {
+            line.removeprefix("Requires:").strip()
+            for line in spec.splitlines() if line.startswith("Requires:")
+        }
+    assert expected <= dependencies
+
+
+def test_tuna_desktop_colour_runtime_contract_covers_every_factory_target() -> None:
+    recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
+    assert set(recipe["targets"]) == {
+        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "debian",
+        "trixie", "opensuse-tumbleweed", "gentoo",
+    }
+
+
 def test_dms_greeter_is_an_arch_recipe_with_runtime_closure() -> None:
     recipe = tideforge.load_yaml(ROOT / "packages" / "dms-greeter" / "package.yaml")
     tideforge.validate(recipe, "arch")

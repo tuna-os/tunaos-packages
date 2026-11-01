@@ -165,7 +165,7 @@ dependencies:
       # xdg-desktop-portal-gnome, orca, ...) are optdepends upstream; the
       # recipe schema has no optdepends, so the Marlin image installs them
       # itself.
-      arch: [dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg, glycin, fontconfig, adwaita-fonts, gtk4, gtk4-layer-shell, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, sound-theme-freedesktop, systemd-libs, wayland]
+      arch: [colord, gnome-color-manager, dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg, glycin, fontconfig, adwaita-fonts, gtk4, gtk4-layer-shell, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa, pipewire, seatd, sound-theme-freedesktop, systemd-libs, wayland]
       # The same depends in Fedora/EL package names. RPM derives the ELF
       # library requirements itself; listing them keeps the version floors
       # and the packages it cannot see: libpam is dlopen()ed by the lock
@@ -173,10 +173,10 @@ dependencies:
       # D-Bus, the dbus and pipewire daemons are services, not links, and the
       # settings-daemon plugins, session targets, SVG loader and sound theme
       # are started or loaded at run time, as in the Arch list.
-      fedora: [dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg2, fontconfig, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, sound-theme-freedesktop, systemd-libs, libwayland-client, libwayland-server, pam]
-      rawhide: [dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg2, fontconfig, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, sound-theme-freedesktop, systemd-libs, libwayland-client, libwayland-server, pam]
-      eln: [dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg2, fontconfig, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, sound-theme-freedesktop, systemd-libs, libwayland-client, libwayland-server, pam]
-      el10: [dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg2, fontconfig, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, sound-theme-freedesktop, systemd-libs, libwayland-client, libwayland-server, pam]
+      fedora: [colord, gnome-color-manager, dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg2, fontconfig, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, sound-theme-freedesktop, systemd-libs, libwayland-client, libwayland-server, pam]
+      rawhide: [colord, gnome-color-manager, dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg2, fontconfig, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, sound-theme-freedesktop, systemd-libs, libwayland-client, libwayland-server, pam]
+      eln: [colord, gnome-color-manager, dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg2, fontconfig, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, sound-theme-freedesktop, systemd-libs, libwayland-client, libwayland-server, pam]
+      el10: [colord, gnome-color-manager, dbus, glib2, gnome-settings-daemon, gnome-session, gdk-pixbuf2, librsvg2, fontconfig, gtk4 >= 4.12, gtk4-layer-shell >= 1.1, libadwaita, libcanberra, libdrm, libinput, libsecret, libxkbcommon, libxkbcommon-x11, mesa-libEGL, mesa-libgbm, pipewire, libseat, sound-theme-freedesktop, systemd-libs, libwayland-client, libwayland-server, pam]
       # Upstream's own .deb Depends (scripts/tuna-release at the tag), beside
       # the ${shlibs:Depends} ELF closure debhelper computes: the GTK 4.12 and
       # gtk4-layer-shell 1.1 floors, the dlopen()ed libpam, the event-sound
@@ -184,20 +184,20 @@ dependencies:
       # settings-daemon schemas and secret-tool. dbus-bin is gone:
       # tuna-os/tuna-desktop#691 dropped the session's
       # dbus-update-activation-environment call.
-      ubuntu: [gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk4-layer-shell0 (>= 1.1)", "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
-      debian: [gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk4-layer-shell0 (>= 1.1)", "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
+      ubuntu: [colord, gnome-color-manager, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk4-layer-shell0 (>= 1.1)", "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
+      debian: [colord, gnome-color-manager, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk4-layer-shell0 (>= 1.1)", "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
       # The Fedora list in openSUSE's shared-library package names (glib2 ->
       # libglib-2_0-0, mesa-libEGL -> Mesa-libEGL1, systemd-libs ->
       # libsystemd0 + libudev1, librsvg2 -> gdk-pixbuf-loader-rsvg), for the
       # same reasons: the floors, the dlopen()ed pam, and the services.
-      opensuse-tumbleweed: [dbus-1, libglib-2_0-0, gnome-settings-daemon, gnome-session-core, gdk-pixbuf-loader-rsvg, fontconfig, libgtk-4-1 >= 4.12, libgtk4-layer-shell0 >= 1.1, libadwaita-1-0, libcanberra0, libdrm2, libinput10, libsecret-1-0, libxkbcommon0, libxkbcommon-x11-0, Mesa-libEGL1, libgbm1, pipewire, libseat1, sound-theme-freedesktop, libsystemd0, libudev1, libwayland-client0, libwayland-server0, pam]
+      opensuse-tumbleweed: [colord, gnome-color-manager, dbus-1, libglib-2_0-0, gnome-settings-daemon, gnome-session-core, gdk-pixbuf-loader-rsvg, fontconfig, libgtk-4-1 >= 4.12, libgtk4-layer-shell0 >= 1.1, libadwaita-1-0, libcanberra0, libdrm2, libinput10, libsecret-1-0, libxkbcommon0, libxkbcommon-x11-0, Mesa-libEGL1, libgbm1, pipewire, libseat1, sound-theme-freedesktop, libsystemd0, libudev1, libwayland-client0, libwayland-server0, pam]
       # The sid list without libgtk4-layer-shell0: the private copy ships in
       # this package, and its own ELF needs (libgtk-4-1, libwayland-client0)
       # come through ${shlibs:Depends}.
-      trixie: [gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
+      trixie: [colord, gnome-color-manager, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
       # The Fedora list in Gentoo atoms, with the same floors and the
       # dlopen()ed pam.
-      gentoo: [sys-apps/dbus, "dev-libs/glib:2", gnome-base/gnome-settings-daemon, gnome-base/gnome-session, "x11-libs/gdk-pixbuf:2", "gnome-base/librsvg:2", media-libs/fontconfig, ">=gui-libs/gtk-4.12:4[wayland]", ">=gui-libs/gtk4-layer-shell-1.1", "gui-libs/libadwaita:1", media-libs/libcanberra, x11-libs/libdrm, dev-libs/libinput, app-crypt/libsecret, "x11-libs/libxkbcommon[X]", media-libs/mesa, media-video/pipewire, sys-auth/seatd, x11-themes/sound-theme-freedesktop, virtual/libudev, dev-libs/wayland, sys-libs/pam]
+      gentoo: [x11-misc/colord, gnome-extra/gnome-color-manager, sys-apps/dbus, "dev-libs/glib:2", gnome-base/gnome-settings-daemon, gnome-base/gnome-session, "x11-libs/gdk-pixbuf:2", "gnome-base/librsvg:2", media-libs/fontconfig, ">=gui-libs/gtk-4.12:4[wayland]", ">=gui-libs/gtk4-layer-shell-1.1", "gui-libs/libadwaita:1", media-libs/libcanberra, x11-libs/libdrm, dev-libs/libinput, app-crypt/libsecret, "x11-libs/libxkbcommon[X]", media-libs/mesa, media-video/pipewire, sys-auth/seatd, x11-themes/sound-theme-freedesktop, virtual/libudev, dev-libs/wayland, sys-libs/pam]
 install:
   commands:
     - install -Dm0755 target/release/tuna-compositor {destdir}/usr/bin/tuna-compositor
