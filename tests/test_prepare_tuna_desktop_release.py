@@ -1,17 +1,17 @@
 """The tuna-desktop recipe tracks one upstream tag, and the fill-in script keeps it that way."""
 from __future__ import annotations
 
-import importlib.util
 import gzip
 import hashlib
+import importlib.util
 import io
 import json
 import os
 import subprocess
 import sys
 import tarfile
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml

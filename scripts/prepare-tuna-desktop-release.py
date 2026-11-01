@@ -22,8 +22,8 @@ every one must match exactly once or the script stops without writing.
 from __future__ import annotations
 
 import argparse
-import json
 import hashlib
+import json
 import re
 import shutil
 import subprocess
