@@ -147,6 +147,15 @@ is the enforcement, in two workflows:
   stage them in an ephemeral repository, and clean-install them in a second
   container before running the recipe's command/file/service smoke check.
 
+The Tumbleweed build, RPM lint and clean-install containers first refresh their
+native repositories and run `zypper dup --no-allow-vendor-change`, before they
+add factory repositories or install dependencies. A container image
+can contain newer runtime libraries than the selected repository snapshot.
+An isolated dependency install can then fail on exact runtime/development
+version pairs. The native distribution transaction keeps that baseline
+consistent. It does not change recipe version requirements or accept broken
+dependencies. Factory repository priorities and package checks stay unchanged.
+
 Two engines produce the payloads inside that one boundary. `tideforge` cells
 build one recipe from `packages/<name>/package.yaml` for one target/arch.
 `build-chain` cells build a whole native-spec family (the EL10 GNOME
