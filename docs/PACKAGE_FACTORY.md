@@ -347,6 +347,15 @@ RPM or Debian relations.
 `files.common`. Do not repeat paths. Absolute paths, traversal, whitespace and
 glob patterns are invalid.
 
+`outputs.arch.options` carries native makepkg options such as `!lto`.
+For a package that needs native install/upgrade hooks, declare
+`outputs.arch.install_script: {path: packages/NAME/NAME.install, sha256: HASH}`.
+The reviewed regular UTF-8 file must stay inside that recipe's directory;
+symlinks, traversal and changed payloads are rejected. Rendering preserves
+its contents in `NAME.install` and sets PKGBUILD `install=NAME.install`.
+It does not turn the script into an array or replace pacman's hook lifecycle.
+
+
 `provides` alone does not let pacman remove another package. The `backup` field
 in a new archive does not change the old archive. Test the real transaction
 with administrator edits, deletion and exact `NoExtract` policy. A PKGBUILD
@@ -384,6 +393,31 @@ demonstrably stale *root-package* entry in an otherwise pinned `Cargo.lock` may
 set `build.cargo_locked: false`, but it must include a specific
 `build.cargo_lock_reason` and is accepted only after the resulting lockfile
 diff has been reviewed in the target build.
+
+### GNOME 51 redirected smartcards: native SSSD
+
+The Arch `sssd` recipe preserves upstream packaging revision
+`49a6c3408d0431606b99d1ddb035ce2e40c071ea`: configure/user paths, `!lto`,
+the logrotate backup, sysusers/tmpfiles and the original install/upgrade
+script's group/capability restoration. Version 2.13.1 receives exactly two
+upstream-reviewed changes:
+
+- [f2696b80](https://github.com/SSSD/sssd/commit/f2696b80a153d8ad61f66e4611efd2dff3c6410c)
+  forwards allowlisted, validated `GDM_AUTH_SESSION_ID` through the PAM
+  request and into `p11_child`/`krb5_child`. Without it, the system SSSD
+  responder cannot select GRD's per-session redirected card.
+- [b1f2ffc7](https://github.com/SSSD/sssd/commit/b1f2ffc7d3f74d5fd1c0091d98c19f5401b4013b)
+  grants only the dedicated SSSD user the upstream
+  `org.gnome.remotedesktop.use-grd-pcscd` action.
+
+The source archive and both patches are checksum-locked. These are native
+package build inputs, not a claim that a published package or configured
+GDM smartcard login has passed. Normal factory CI, clean installation and
+actual GRD51/GDM51 redirected-card evidence remain required. Installation
+does not enroll a domain, modify PAM/OpenSC configuration, enable GDM
+smartcards or start a listener. Administrators explicitly opt into that
+configuration; password/NTLM transport, Kerberos PKINIT and a redirected
+GDM card-PAM login are distinct proofs.
 
 ### Queue-only pull requests and native canaries
 
