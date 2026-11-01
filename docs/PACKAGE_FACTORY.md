@@ -149,11 +149,11 @@ is the enforcement, in two workflows:
 
 The Tumbleweed build, RPM lint and clean-install containers first refresh their
 native repositories and run `zypper dup --no-allow-vendor-change`, before they
-add factory repositories or install dependencies. A rolling container image
+add factory repositories or install dependencies. A container image
 can contain newer runtime libraries than the selected repository snapshot.
 An isolated dependency install can then fail on exact runtime/development
 version pairs. The native distribution transaction keeps that baseline
-consistent without changing recipe version requirements or accepting broken
+consistent. It does not change recipe version requirements or accept broken
 dependencies. Factory repository priorities and package checks stay unchanged.
 
 Two engines produce the payloads inside that one boundary. `tideforge` cells
