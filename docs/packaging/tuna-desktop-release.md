@@ -57,11 +57,11 @@ Each smoke runs every binary and checks `--version` against `want=`.
 
 ## Colour runtime dependency contract
 
-Every target explicitly requires the **colord daemon**, not just its client
+Every target needs the **colord daemon**, not only its client
 library, and **GNOME Color Manager** for Settings' `gcm-viewer` profile view.
 The ColourManager uses colord's system D-Bus service;
 neither that service nor a session helper is discoverable through ELF
-dependency scanning. These are hard runtime dependencies, including on
+dependency checks. These are hard runtime dependencies, including on
 minimal images that omit recommended packages.
 
 Native package identities are `colord` and `gnome-color-manager` on Arch,
@@ -73,7 +73,7 @@ The source-backed package metadata is available from:
   (also declares the `colord` daemon dependency).
 - [Fedora dist-git](https://src.fedoraproject.org/rpms/gnome-color-manager/raw/rawhide/f/gnome-color-manager.spec)
   and this factory's `manifests/catalog.yaml` runtime entries for both packages.
-- [EL10 AppStream package metadata](https://rpmfind.net/linux/rpm2html/search.php?query=gnome-color-manager&system=almalinux&arch=)
+- [Package metadata from EL10 AppStream](https://rpmfind.net/linux/rpm2html/search.php?query=gnome-color-manager&system=almalinux&arch=)
   and [colord](https://www.rpmfind.net/linux/RPM/almalinux/10.2/appstream/s390x/colord-1.4.7-6.el10.s390x.html).
 - [Debian trixie](https://packages.debian.org/trixie/gnome-color-manager)
   (also links sid and identifies `colord` as the system daemon).
@@ -92,9 +92,9 @@ GNOME 51 calibration does not launch `gcm-calibrate`. Its
 [`panels/color/cc-color-calibrate.c`](https://github.com/GNOME/gnome-control-center/blob/51.0/panels/color/cc-color-calibrate.c)
 calls `org.gnome.Mutter.ColorManager.CalibrateMonitor` and the returned
 session's gamma-LUT methods, then starts colord's session-bus ColorHelper.
-The candidate compositor implements the former in `color_manager.rs`;
+The candidate compositor provides the former in `color_manager.rs`;
 `runtime/color.rs` applies and reports its calibration state.
-The [native Debian colord payload](https://packages.debian.org/trixie/amd64/colord/filelist)
+The [`colord` package on Debian](https://packages.debian.org/trixie/amd64/colord/filelist)
 provides `/usr/libexec/colord-session`,
 `/usr/share/dbus-1/services/org.freedesktop.ColorHelper.service` and
 `/usr/lib/systemd/user/colord-session.service`, alongside the system daemon.
@@ -107,8 +107,8 @@ GNOME 51's
 function `gcm_prefs_profile_view` spawns `gcm-viewer --profile <id>
 --parent-window <handle>` through `G_SPAWN_SEARCH_PATH`; toolbar refresh gates
 the View button on `g_find_program_in_path ("gcm-viewer")`. This is the
-manager package's concrete consumer. Profile import instead calls
-`cd_client_import_profile_sync` directly, not `gcm-import`.
+manager package's concrete consumer. For profile import, Settings calls
+`cd_client_import_profile_sync`, not `gcm-import`.
 
 
 ## RPM targets
