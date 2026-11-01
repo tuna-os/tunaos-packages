@@ -22,6 +22,7 @@ every one must match exactly once or the script stops without writing.
 from __future__ import annotations
 
 import argparse
+import json
 import hashlib
 import re
 import shutil
@@ -30,6 +31,7 @@ import sys
 import tarfile
 import tempfile
 from pathlib import Path
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 import yaml
@@ -40,6 +42,7 @@ import tideforge  # noqa: E402
 
 UPSTREAM = "tuna-os/tuna-desktop"
 PACKAGES = "tuna-os/tunaos-packages"
+GITHUB_HOST = "github.com"
 RECIPE = ROOT / "packages" / "tuna-desktop" / "package.yaml"
 VENDOR_FILENAME = "tuna-desktop-vendor.tar.gz"
 TAG = re.compile(r"v([0-9]+\.[0-9]+\.[0-9]+)(?:-([A-Za-z][0-9A-Za-z.]*))?")
@@ -176,11 +179,19 @@ def offline_metadata(archive: Path, vendor: Path, top: str, cargo_config: str, w
 
 
 def release_asset_sha(tag: str, workdir: Path) -> str | None:
-    exists = subprocess.run(
-        ["gh", "release", "view", vendor_release(tag), "-R", PACKAGES],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-    ).returncode == 0
-    return download(vendor_url(tag), workdir / "published-vendor.tar.gz") if exists else None
+    result = subprocess.run(
+        ["gh", "api", "--hostname", GITHUB_HOST, "--method", "GET",
+         f"repos/{PACKAGES}/releases/tags/{quote(vendor_release(tag), safe='')}",
+         "--include", "--silent"],
+        stdout=subprocess.PIPE, text=True,
+    )
+    statuses = re.findall(r"^HTTP/\S+ (\d{3})[^\r\n]*", result.stdout, flags=re.M)
+    status = int(statuses[-1]) if statuses else None
+    if status == 404 and result.returncode != 0:
+        return None
+    if result.returncode != 0 or status != 200:
+        fail(f"vendor release lookup failed (HTTP {status or 'unknown'}, gh exit {result.returncode})")
+    return download(vendor_url(tag), workdir / "published-vendor.tar.gz")
 
 
 def publish(tag: str, vendor: Path, digest: str) -> None:
@@ -193,10 +204,28 @@ def publish(tag: str, vendor: Path, digest: str) -> None:
         "contains source dependencies, not an installable desktop release.\n\n"
         f"SHA-256: `{digest}`."
     )
+    result = subprocess.run(
+        ["gh", "api", "--hostname", GITHUB_HOST, "--method", "POST",
+         f"repos/{PACKAGES}/releases", "--input", "-"],
+        input=json.dumps({
+            "tag_name": vendor_release(tag),
+            "name": f"tuna-desktop vendor {tag}",
+            "body": notes,
+            "draft": False,
+            "prerelease": False,
+            "make_latest": "false",
+        }),
+        text=True, stdout=subprocess.PIPE, check=True,
+    )
+    release = json.loads(result.stdout)
+    upload_url = release["upload_url"].split("{", 1)[0]
+    if upload_url != f"https://uploads.github.com/repos/{PACKAGES}/releases/{release['id']}/assets":
+        fail("created release returned an unexpected upload URL")
     subprocess.run(
-        ["gh", "release", "create", vendor_release(tag), str(vendor), "-R", PACKAGES,
-         "--title", f"tuna-desktop vendor {tag}", "--notes", notes, "--latest=false"],
-        check=True,
+        ["gh", "api", "--hostname", GITHUB_HOST, "--method", "POST",
+         f"{upload_url}?name={quote(VENDOR_FILENAME, safe='')}",
+         "--header", "Content-Type: application/gzip", "--input", str(vendor)],
+        check=True, stdout=subprocess.DEVNULL,
     )
 
 
