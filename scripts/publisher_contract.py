@@ -78,3 +78,22 @@ def recipe(package: str, target_name: str, fail: Any) -> dict[str, Any]:
     if target_name not in (data.get("targets") or []):
         fail(f"{package} does not target {target_name}; refusing to publish it there")
     return data
+
+
+def recipe_architectures(
+    package: str, data: dict[str, Any], target_name: str,
+    spec: dict[str, Any], selected: list[str] | None, fail: Any,
+) -> list[str]:
+    """Default to recipe admission; explicit publication must fit it entirely."""
+    try:
+        supported = factory_contract.recipe_architectures(data, target_name, spec)
+    except factory_contract.ContractError as error:
+        fail(f"{package}: {error}")
+        raise AssertionError("fail callback returned")
+    if selected:
+        missing = sorted(set(selected) - set(supported))
+        if missing:
+            fail(f"{package} does not support arch(es) {missing} for {target_name}; "
+                 f"recipe declares {supported}")
+        return selected
+    return supported

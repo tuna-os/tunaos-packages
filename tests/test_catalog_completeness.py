@@ -32,6 +32,20 @@ def test_committed_catalog_is_generator_fixpoint() -> None:
     )
 
 
+def test_queue_payloads_require_the_recipes_actual_target_admission() -> None:
+    targets = yaml.safe_load(FACTORY.read_text())["targets"]
+    for entry in catalog_builder.collect().values():
+        if not entry["family"].startswith("queue-"):
+            continue
+        for package_format, packaging in entry["packaging"].items():
+            if "tideforge" not in packaging:
+                continue
+            recipe = yaml.safe_load((ROOT / packaging["tideforge"] / "package.yaml").read_text())
+            applicable = {target for target in entry["targets"]
+                          if targets[target]["format"] == package_format}
+            assert applicable <= set(recipe["targets"]), (entry["name"], applicable, recipe["targets"])
+
+
 def test_catalog_contains_every_executed_package() -> None:
     catalog_names = {entry["name"] for entry in catalog()}
     planned_names = {

@@ -84,6 +84,37 @@ def load_targets(path: pathlib.Path = FACTORY) -> dict[str, dict[str, Any]]:
         raise ContractError(f"{path}: target entries must be mappings: {malformed}")
     return targets
 
+
+def recipe_architectures(
+    recipe: dict[str, Any], target_id: str, target_data: dict[str, Any]
+) -> list[str]:
+    """Resolve optional per-target recipe admission, preserving declared order.
+
+    Omitted targets inherit the factory's full architecture list. A recipe may
+    narrow that list, but cannot introduce a target or architecture.
+    """
+    overrides = recipe.get("architectures", {})
+    if not isinstance(overrides, dict):
+        raise ContractError("recipe architectures must be a mapping")
+    targets = recipe.get("targets") or []
+    for name, values in overrides.items():
+        if name not in targets:
+            raise ContractError(f"recipe architectures target {name!r} is not in recipe targets")
+        if (not isinstance(values, list) or not values
+                or any(not isinstance(value, str) or not value for value in values)):
+            raise ContractError(f"recipe architectures for {name} must be a non-empty list of strings")
+        if len(values) != len(set(values)):
+            raise ContractError(f"recipe architectures for {name} must be unique")
+    declared = list(target_data.get("architectures") or [])
+    selected = overrides.get(target_id, declared)
+    unsupported = sorted(set(selected) - set(declared))
+    if unsupported:
+        raise ContractError(
+            f"recipe architectures for {target_id} include unsupported arch(es) "
+            f"{unsupported}; target declares {declared}"
+        )
+    return list(selected)
+
 # Inert for every format: nothing in any build or verify path reads these.
 #   r2_path / r2_path_aarch64  bucket WRITE paths, read by the publishers and
 #                              scripts/generate-distributed-workflow.py
