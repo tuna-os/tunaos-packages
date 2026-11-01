@@ -372,8 +372,8 @@ This checks the index, not the production signatures.
 
 `provides` alone does not let pacman remove another package. The `backup` field
 in a new archive does not change the old archive. Test the real transaction
-with administrator edits, deletion and exact `NoExtract` policy. A PKGBUILD
-is not transaction evidence.
+with administrator edits, deletion and combined effective `NoUpgrade` and
+`NoExtract` policy. A PKGBUILD is not transaction evidence.
 
 When an upstream source archive omits required git submodules, use the optional
 `sources` list rather than an unpinned clone in a build command. Each auxiliary
