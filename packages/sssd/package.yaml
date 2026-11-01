@@ -80,7 +80,7 @@ dependencies:
       arch: [docbook-xsl, doxygen, python, samba, systemd, tevent, ldb, bc, python-setuptools, autoconf, automake, libtool, gettext, pkgconf, patch, libcap]
   runtime:
     targets:
-      arch: [bind, c-ares, cyrus-sasl-gssapi, ding-libs, libnl, libunistring, smbclient, nfsidmap, jansson, jose, libtevent.so, libldb.so, curl, pcre2, libfido2, systemd, libcap]
+      arch: [bind, c-ares, cyrus-sasl-gssapi, ding-libs, libnl, libunistring, smbclient, nfsidmap, jansson, jose, libtevent.so, libldb.so, curl, pcre2, libfido2, systemd, libcap, libverto]
 outputs:
   arch:
     backup: [etc/logrotate.d/sssd]

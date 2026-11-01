@@ -402,6 +402,9 @@ is the base for `sssd`.
 It retains the paths from `configure`, the `sssd` user and `!lto`.
 It keeps sysusers, tmpfiles and the logrotate backup.
 The hooks restore the groups and capabilities.
+
+The Kerberos plugins link `libverto`. Declare it as a runtime dependency.
+
 Version 2.13.1 adds two changes from SSSD:
 
 - [f2696b80](https://github.com/SSSD/sssd/commit/f2696b80a153d8ad61f66e4611efd2dff3c6410c)
