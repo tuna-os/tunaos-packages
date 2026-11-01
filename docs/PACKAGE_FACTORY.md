@@ -347,6 +347,20 @@ The tool emits target-native files because the package managers require them,
 but maintainers edit one recipe. A target override is limited to the dependency
 or build difference that cannot be made portable.
 
+Use `outputs.arch` for pacman metadata. Set `conflicts`, `replaces`, and `backup`
+to lists. Tideforge emits these as PKGBUILD arrays. These fields do not change
+RPM or Debian relations.
+
+`tuna-desktop` conflicts with and replaces `roost`. Its `backup` list names
+`etc/pam.d/tuna-lock` and `etc/pam.d/roost-lock`. Use exact relative paths from
+`files.common`. Do not repeat paths. Absolute paths, traversal, whitespace and
+glob patterns are invalid.
+
+`provides` alone does not let pacman remove another package. The `backup` field
+in a new archive does not change the old archive. Test the real transaction
+with administrator edits, deletion and combined effective `NoUpgrade` and
+`NoExtract` policy. A PKGBUILD is not transaction evidence.
+
 When an upstream source archive omits required git submodules, use the optional
 `sources` list rather than an unpinned clone in a build command. Each auxiliary
 archive has an HTTPS URL, SHA-256, filename, destination below the primary
