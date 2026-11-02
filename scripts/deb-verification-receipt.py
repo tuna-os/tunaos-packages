@@ -31,6 +31,7 @@ SPEC.loader.exec_module(cache)
 SIGNER = "4E5CC9F8B3B521793D95266E629BE6EA45188366"
 TARGETS = {
     "ubuntu": "ubuntu",
+    "ubuntu-noble": "ubuntu-noble",
     "debian-sid": "debian",
     "debian-trixie": "trixie",
 }

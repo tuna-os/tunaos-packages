@@ -12153,6 +12153,21 @@ packages:
       - rawhide
       - trixie
       - ubuntu
+      - ubuntu-noble
+    membership: runtime
+    referenced_by:
+      - .github/workflows/package-factory.yml
+  - name: tunaos-rust192
+    family: tideforge
+    packaging:
+      deb:
+        tideforge: packages/tunaos-rust192
+    upstream:
+      version: 1.92.0
+      source: https://static.rust-lang.org/dist/rustc-1.92.0-src.tar.xz
+      sha256: ebee170bfe4c4dfc59521a101de651e5534f4dae889756a5c97ca9ea40d0c307
+    targets:
+      - ubuntu-noble
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml
