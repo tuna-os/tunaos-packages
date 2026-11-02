@@ -42,7 +42,11 @@ The script:
 1. Downloads `archive/refs/tags/<tag>.tar.gz` and records its sha256. It checks that the top-level directory is `tuna-desktop-<tag without v>`.
 2. Runs `cargo vendor --locked --versioned-dirs` in the extracted tag. It packs `vendor/` as a deterministic tar: `--sort=name --format=gnu --owner=0 --group=0 --numeric-owner`, normalized modes, the tag commit's time as `--mtime`, and `gzip -n -9`. It packs twice and stops if the two hashes differ.
 3. Extracts the tag archive again into a fresh directory, unpacks the vendor tar there, and writes the recipe's own `cargo_config` to `.cargo/config.toml`. Then it runs `cargo metadata --locked --offline`.
-4. Looks for release `tuna-desktop-vendor-<tag>` in this repo. With `--publish` it creates the release when it is missing. In either case it downloads the published asset and needs the same sha256 as the local build. Without `--publish`, a missing release stops the script before the recipe changes.
+4. Finds release `tuna-desktop-vendor-<tag>` in `tuna-os/tunaos-packages` through `gh api` REST requests on `github.com`. It does not use `gh release` or GraphQL. Only HTTP 404 means that the release is absent. Authentication, rate-limit, server or transport errors stop the script before it edits the recipe.
+
+   With `--publish`, it creates a missing release, not a draft, prerelease or latest release. It uploads the exact gzip bytes with the fixed asset name. The API supplies the URL on `uploads.github.com`. The script does not overwrite assets or retry uploads.
+
+   It then downloads the asset from its public URL. The SHA-256 must equal the local build's hash. Without `--publish`, a missing release stops the script before it edits the recipe. Creation, upload or hash errors also stop it before it edits the recipe.
 5. Rewrites only the six fields and deletes the `# PLACEHOLDER:` comments. Each edit must match exactly once. Then it validates the result with Tideforge and the tag-consistency check before it writes the file.
 
 Use `--keep DIR` to keep the downloads and the vendor tar for inspection. Run
