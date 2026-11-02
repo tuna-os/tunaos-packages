@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "scope": "One-time static source comparison only; not native build, installation, redirection or login evidence",
+  "release": {
+    "version": "2.13.1",
+    "commit": "7116806484d141b0f6cb051883041b059b6ab29c"
+  },
+  "upstream_patch": {
+    "commit": "f2696b80a153d8ad61f66e4611efd2dff3c6410c",
+    "url": "https://github.com/SSSD/sssd/commit/f2696b80a153d8ad61f66e4611efd2dff3c6410c.patch",
+    "sha256": "758e404831424c56076df6e2f9c00686d5082208adee8767e42b2854c849329d"
+  },
+  "backport": {
+    "path": "packages/sssd/f2696b80-grd-session-2.13.1.patch",
+    "source_commit": "43b1d8e3a3a2a4420ecee52deb258ea7b7a4c3f4",
+    "sha256": "36bef0e0922bb3c60fd2f154e53f97490928dbe714dfcf943db8d65ff41fa04c"
+  },
+  "comparison": {
+    "added_and_deleted_implementation_lines_byte_identical": true,
+    "context_file": "src/responder/pam/pamsrv_p11.c",
+    "context_line_added": "    state->sss_certmap_ctx = sss_certmap_ctx;",
+    "upstream_hunk": "@@ -880,6 +893,13 @@",
+    "release_hunk": "@@ -880,7 +893,14 @@",
+    "other_implementation_changes": false,
+    "strict_patch_fuzz": 0
+  }
+}

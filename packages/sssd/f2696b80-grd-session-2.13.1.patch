@@ -1,0 +1,1122 @@
+From f2696b80a153d8ad61f66e4611efd2dff3c6410c Mon Sep 17 00:00:00 2001
+From: Joan Torres Lopez <joantolo@redhat.com>
+Date: Mon, 15 Jun 2026 13:27:20 +0200
+Subject: [PATCH] pam: Forward GDM_AUTH_SESSION_ID from PAM client to child
+ processes
+
+Smartcard authentication via remote desktop sessions requires
+redirecting PCSC commands to a remote provider instead of the local
+pcscd daemon. This is done by setting environment variables like
+GDM_AUTH_SESSION_ID in the PAM session. A PCSC provider other than
+libpcsclite uses this variable to route smartcard operations to the
+remote session. However, these variables do not cross the Unix socket
+boundary to the sssd_pam responder, so p11_child and krb5_child
+never see them.
+
+Add a new PAM request item SSS_PAM_ITEM_CLIENT_ENVS that carries
+allowlisted environment variables from pam_sss.so to sssd_pam.
+pam_sss.so reads the variables, packs them as NUL-separated
+KEY=VALUE pairs, and sssd_pam parses and filters them through
+a hardcoded allowlist before passing them as --set-env arguments
+when spawning p11_child or krb5_child.
+
+:relnote: SSSD now forwards the GDM_AUTH_SESSION_ID environment
+variable from PAM clients to p11_child and krb5_child processes,
+enabling smartcard authentication in remote desktop sessions where
+PCSC operations must be redirected to a remote provider.
+
+Reviewed-by: Alexey Tikhonov <atikhono@redhat.com>
+Reviewed-by: Scott Poore <spoore@redhat.com>
+Reviewed-by: Sumit Bose <sbose@redhat.com>
+Backport context for SSSD 2.13.1 (7116806484d141b0f6cb051883041b059b6ab29c).
+Upstream: https://github.com/SSSD/sssd/commit/f2696b80a153d8ad61f66e4611efd2dff3c6410c
+Upstream patch SHA256: 758e404831424c56076df6e2f9c00686d5082208adee8767e42b2854c849329d
+
+The release retains state->sss_certmap_ctx after state->ev. Add that
+unchanged line to the third pamsrv_p11.c hunk's trailing context and adjust
+the hunk counts. All upstream added/deleted implementation lines remain
+byte-identical. Apply with --fuzz=0; do not skip failed hunks.
+
+---
+ Makefile.am                             |   7 +
+ src/p11_child/p11_child_common.c        |  19 +++
+ src/providers/krb5/krb5_auth.h          |   1 +
+ src/providers/krb5/krb5_child.c         |  19 +++
+ src/providers/krb5/krb5_child_handler.c |  20 ++-
+ src/providers/krb5/krb5_common.h        |   1 +
+ src/responder/pam/pamsrv_cmd.c          |  29 ++++
+ src/responder/pam/pamsrv_p11.c          |  23 ++-
+ src/sbus/codegen/sbus_CodeGen.py        |   2 +-
+ src/sss_client/pam_message.c            |   6 +
+ src/sss_client/pam_message.h            |   2 +
+ src/sss_client/pam_sss.c                |  72 +++++++++
+ src/sss_client/sss_cli.h                |   1 +
+ src/sss_iface/sbus_sss_symbols.c        |   4 +-
+ src/sss_iface/sss_iface_types.c         |  61 +++++++-
+ src/tests/cmocka/test_krb5_common.c     |  14 +-
+ src/util/client_envs.c                  |  49 ++++++
+ src/util/client_envs.h                  |  36 +++++
+ src/util/sss_client_envs.c              | 188 ++++++++++++++++++++++++
+ src/util/sss_client_envs.h              |  39 +++++
+ src/util/sss_pam_data.c                 |   8 +
+ src/util/sss_pam_data.h                 |   1 +
+ 22 files changed, 587 insertions(+), 15 deletions(-)
+ create mode 100644 src/util/client_envs.c
+ create mode 100644 src/util/client_envs.h
+ create mode 100644 src/util/sss_client_envs.c
+ create mode 100644 src/util/sss_client_envs.h
+
+diff --git a/Makefile.am b/Makefile.am
+index 19d208b9c34..c5c25f68f16 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -695,6 +695,8 @@ dist_noinst_HEADERS = \
+     src/util/safe-format-string.h \
+     src/util/session_recording.h \
+     src/util/strtonum.h \
++    src/util/client_envs.h \
++    src/util/sss_client_envs.h \
+     src/util/sss_cli_cmd.h \
+     src/util/sss_chain_id_tevent.h \
+     src/util/sss_chain_id.h \
+@@ -1260,6 +1262,8 @@ libsss_util_la_SOURCES = \
+     src/util/atomic_io.c \
+     src/util/authtok.c \
+     src/util/authtok-utils.c \
++    src/util/client_envs.c \
++    src/util/sss_client_envs.c \
+     src/util/domain_info_utils.c \
+     src/util/util_lock.c \
+     src/util/util_errors.c \
+@@ -4195,6 +4199,7 @@ pam_sss_la_SOURCES = \
+     src/sss_client/sss_cli.h \
+     src/util/atomic_io.c \
+     src/util/authtok-utils.c \
++    src/util/client_envs.c \
+     src/util/memory_erase.c \
+     src/sss_client/sss_pam_macros.h \
+     src/sss_client/sss_pam_compat.h
+@@ -4725,6 +4730,7 @@ krb5_child_SOURCES = \
+     src/util/sss_chain_id.c \
+     src/util/strtonum.c \
+     src/util/util_errors.c \
++    src/util/client_envs.c \
+     src/sss_client/common.c \
+     src/krb5_plugin/common/utils.c \
+     src/krb5_plugin/idp/idp_utils.c \
+@@ -4860,6 +4866,7 @@ p11_child_SOURCES = \
+     src/util/util_ext.c \
+     src/util/sss_chain_id.c \
+     src/util/sss_prctl.c \
++    src/util/client_envs.c \
+     $(NULL)
+ p11_child_SOURCES += src/p11_child/p11_child_openssl.c
+ 
+diff --git a/src/p11_child/p11_child_common.c b/src/p11_child/p11_child_common.c
+index e830dcff74c..632b68ee232 100644
+--- a/src/p11_child/p11_child_common.c
++++ b/src/p11_child/p11_child_common.c
+@@ -35,6 +35,7 @@
+ #include "util/crypto/sss_crypto.h"
+ #include "util/cert.h"
+ #include "util/sss_chain_id.h"
++#include "util/client_envs.h"
+ #include "p11_child/p11_child.h"
+ 
+ static const char *op_mode_str(enum op_mode mode)
+@@ -165,6 +166,7 @@ int main(int argc, const char *argv[])
+     long timeout = -1;
+     bool wait_for_card = false;
+     char *uri = NULL;
++    char *set_env = NULL;
+ 
+     struct poptOption long_options[] = {
+         SSSD_BASIC_CHILD_OPTS
+@@ -194,6 +196,8 @@ int main(int argc, const char *argv[])
+          _("PKCS#11 URI to restrict selection"), NULL},
+         {"timeout", 0, POPT_ARG_LONG, &timeout,
+          0, _("OCSP communication timeout"), NULL},
++        {"set-env", 0, POPT_ARG_STRING, &set_env, 'e',
++         _("Set environment variable (KEY=VALUE)"), NULL},
+         POPT_TABLEEND
+     };
+ 
+@@ -264,6 +268,21 @@ int main(int argc, const char *argv[])
+         case 'w':
+             wait_for_card = true;
+             break;
++        case 'e':
++            if (set_env != NULL && strchr(set_env, '=') != NULL) {
++                char *env = set_env;
++                char *val = strchr(set_env, '=');
++                *val = '\0';
++                val++;
++                if (!is_client_env_allowed(env)) {
++                    fprintf(stderr, "\nEnvironment variable '%s' is not allowed\n\n", env);
++                    poptPrintUsage(pc, stderr, 0);
++                    _exit(-1);
++                }
++                setenv(env, val, 1);
++                set_env = NULL;
++            }
++            break;
+         default:
+             fprintf(stderr, "\nInvalid option %s: %s\n\n",
+                   poptBadOption(pc, 0), poptStrerror(opt));
+diff --git a/src/providers/krb5/krb5_auth.h b/src/providers/krb5/krb5_auth.h
+index c2d802d87a0..1cfb107dd98 100644
+--- a/src/providers/krb5/krb5_auth.h
++++ b/src/providers/krb5/krb5_auth.h
+@@ -46,6 +46,7 @@
+ #define CHILD_OPT_CANONICALIZE "canonicalize"
+ #define CHILD_OPT_SSS_CREDS_PASSWORD "sss-creds-password"
+ #define CHILD_OPT_CHECK_PAC "check-pac"
++#define CHILD_OPT_SET_ENV "set-env"
+ 
+ struct krb5child_req {
+     struct pam_data *pd;
+diff --git a/src/providers/krb5/krb5_child.c b/src/providers/krb5/krb5_child.c
+index a7bbcde6af3..7ef651bdf3b 100644
+--- a/src/providers/krb5/krb5_child.c
++++ b/src/providers/krb5/krb5_child.c
+@@ -40,6 +40,7 @@
+ #include "util/find_uid.h"
+ #include "util/sss_chain_id.h"
+ #include "util/sss_ptr_hash.h"
++#include "util/client_envs.h"
+ #include "src/util/util_errors.h"
+ #include "providers/backend.h"
+ #include "providers/krb5/krb5_auth.h"
+@@ -4300,6 +4301,7 @@ int main(int argc, const char *argv[])
+     struct cli_opts cli_opts = { 0 };
+     int sss_creds_password = 0;
+     long dummy_long = 0;
++    char *set_env = NULL;
+ 
+     /* Don't touch PR_SET_DUMPABLE as 'krb5_child' handles host keytab.
+      * Rely on system settings instead: this flag "is reset to the
+@@ -4329,6 +4331,8 @@ int main(int argc, const char *argv[])
+          0, _("Use custom version of krb5_get_init_creds_password"), NULL},
+         {CHILD_OPT_CHECK_PAC, 0, POPT_ARG_LONG, &dummy_long, 0,
+          _("Check PAC flags"), NULL},
++        {CHILD_OPT_SET_ENV, 0, POPT_ARG_STRING, &set_env, 'e',
++         _("Set environment variable (KEY=VALUE)"), NULL},
+         POPT_TABLEEND
+     };
+ 
+@@ -4347,6 +4351,21 @@ int main(int argc, const char *argv[])
+         case 'C':
+             cli_opts.canonicalize = true;
+             break;
++        case 'e':
++            if (set_env != NULL && strchr(set_env, '=') != NULL) {
++                char *env = set_env;
++                char *val = strchr(set_env, '=');
++                *val = '\0';
++                val++;
++                if (!is_client_env_allowed(env)) {
++                    fprintf(stderr, "\nEnvironment variable '%s' is not allowed\n\n", env);
++                    poptPrintUsage(pc, stderr, 0);
++                    _exit(-1);
++                }
++                setenv(env, val, 1);
++                set_env = NULL;
++            }
++            break;
+         default:
+         fprintf(stderr, "\nInvalid option %s: %s\n\n",
+                   poptBadOption(pc, 0), poptStrerror(opt));
+diff --git a/src/providers/krb5/krb5_child_handler.c b/src/providers/krb5/krb5_child_handler.c
+index 6d19f9db029..76f9ef9cb7e 100644
+--- a/src/providers/krb5/krb5_child_handler.c
++++ b/src/providers/krb5/krb5_child_handler.c
+@@ -253,10 +253,12 @@ static errno_t create_send_buffer(struct krb5child_req *kr,
+ 
+ errno_t set_extra_args(TALLOC_CTX *mem_ctx, struct krb5_ctx *krb5_ctx,
+                        struct sss_domain_info *domain,
++                       struct pam_data *pd,
+                        const char ***krb5_child_extra_args)
+ {
+     const char **extra_args;
+     const char *krb5_realm;
++    size_t num_extra_args;
+     size_t c = 0;
+     int ret;
+ 
+@@ -264,7 +266,14 @@ errno_t set_extra_args(TALLOC_CTX *mem_ctx, struct krb5_ctx *krb5_ctx,
+         return EINVAL;
+     }
+ 
+-    extra_args = talloc_zero_array(mem_ctx, const char *, 10);
++    num_extra_args = 10; /* base existing args */
++    if (pd != NULL && pd->client_envs != NULL) {
++        for (size_t i = 0; pd->client_envs[i] != NULL; i++) {
++            num_extra_args += 2; /* --set-env + value */
++        }
++    }
++
++    extra_args = talloc_zero_array(mem_ctx, const char *, num_extra_args);
+     if (extra_args == NULL) {
+         DEBUG(SSSDBG_OP_FAILURE, "talloc_zero_array failed.\n");
+         return ENOMEM;
+@@ -377,6 +386,13 @@ errno_t set_extra_args(TALLOC_CTX *mem_ctx, struct krb5_ctx *krb5_ctx,
+         c++;
+     }
+ 
++    if (pd != NULL && pd->client_envs != NULL) {
++        for (size_t i = 0; pd->client_envs[i] != NULL; i++) {
++            extra_args[c++] = pd->client_envs[i];
++            extra_args[c++] = "--" CHILD_OPT_SET_ENV;
++        }
++    }
++
+     extra_args[c] = NULL;
+ 
+     *krb5_child_extra_args = extra_args;
+@@ -424,7 +440,7 @@ static errno_t start_krb5_child(struct tevent_req *req)
+     ev = child_state->ev;
+     kr = child_state->kr;
+ 
+-    ret = set_extra_args(kr, kr->krb5_ctx, kr->dom, &krb5_child_extra_args);
++    ret = set_extra_args(kr, kr->krb5_ctx, kr->dom, kr->pd, &krb5_child_extra_args);
+     if (ret != EOK) {
+         DEBUG(SSSDBG_OP_FAILURE, "set_extra_args failed.\n");
+         return ret;
+diff --git a/src/providers/krb5/krb5_common.h b/src/providers/krb5/krb5_common.h
+index 80552abc79f..7df97801bbb 100644
+--- a/src/providers/krb5/krb5_common.h
++++ b/src/providers/krb5/krb5_common.h
+@@ -245,5 +245,6 @@ krb5_error_code copy_keytab_into_memory(TALLOC_CTX *mem_ctx, krb5_context kctx,
+ 
+ errno_t set_extra_args(TALLOC_CTX *mem_ctx, struct krb5_ctx *krb5_ctx,
+                        struct sss_domain_info *domain,
++                       struct pam_data *pd,
+                        const char ***krb5_child_extra_args);
+ #endif /* __KRB5_COMMON_H__ */
+diff --git a/src/responder/pam/pamsrv_cmd.c b/src/responder/pam/pamsrv_cmd.c
+index c289023dfa7..7bc6afd86f1 100644
+--- a/src/responder/pam/pamsrv_cmd.c
++++ b/src/responder/pam/pamsrv_cmd.c
+@@ -40,6 +40,7 @@
+ #include "responder/pam/pamsrv_json.h"
+ #include "responder/pam/pamsrv_passkey.h"
+ #include "responder/pam/pam_helpers.h"
++#include "util/sss_client_envs.h"
+ #include "responder/common/cache_req/cache_req.h"
+ 
+ enum pam_verbosity {
+@@ -279,6 +280,29 @@ static int pd_set_primary_name(const struct ldb_message *msg,struct pam_data *pd
+     return EOK;
+ }
+ 
++static int extract_client_envs(TALLOC_CTX *mem_ctx,
++                               const char ***_envs, size_t size, uint8_t *body,
++                               size_t blen, size_t *c)
++{
++    const char **envs = NULL;
++    uint8_t *data;
++    size_t count;
++    int ret;
++
++    if (*c + size > blen || SIZE_T_OVERFLOW(*c, size)) return EINVAL;
++
++    data = body + (*c);
++    if (size == 0 || data[size - 1] != '\0') return EINVAL;
++
++    ret = parse_client_env_list(mem_ctx, data, size, &envs, &count);
++    if (ret != EOK) return ret;
++
++    *_envs = envs;
++    *c += size;
++
++    return EOK;
++}
++
+ static int pam_parse_in_data_v2(struct pam_data *pd,
+                                 uint8_t *body, size_t blen)
+ {
+@@ -408,6 +432,11 @@ static int pam_parse_in_data_v2(struct pam_data *pd,
+                                          blen, &c);
+                     if (ret != EOK) return ret;
+                     break;
++                case SSS_PAM_ITEM_CLIENT_ENVS:
++                    ret = extract_client_envs(pd, &pd->client_envs,
++                                              size, body, blen, &c);
++                    if (ret != EOK) return ret;
++                    break;
+                 default:
+                     DEBUG(SSSDBG_CRIT_FAILURE,
+                           "Ignoring unknown data type [%d].\n", type);
+diff --git a/src/responder/pam/pamsrv_p11.c b/src/responder/pam/pamsrv_p11.c
+index 29a6edc0563..8c8fcaa7b18 100644
+--- a/src/responder/pam/pamsrv_p11.c
++++ b/src/responder/pam/pamsrv_p11.c
+@@ -771,7 +771,8 @@ struct tevent_req *pam_check_cert_send(TALLOC_CTX *mem_ctx,
+     struct tevent_req *req;
+     struct tevent_req *subreq;
+     struct pam_check_cert_state *state;
+-    const char *extra_args[22] = { NULL };
++    const char **extra_args = NULL;
++    size_t num_extra_args;
+     uint8_t *write_buf = NULL;
+     size_t write_buf_len = 0;
+     size_t arg_c;
+@@ -800,6 +801,18 @@ struct tevent_req *pam_check_cert_send(TALLOC_CTX *mem_ctx,
+ 
+     state->pam_data = pd;
+ 
++    num_extra_args = 22; /* base slots for existing args + NULL terminator */
++    if (pd->client_envs != NULL) {
++        for (size_t i = 0; pd->client_envs[i] != NULL; i++) {
++            num_extra_args += 2; /* --set-env + value */
++        }
++    }
++    extra_args = talloc_zero_array(state, const char *, num_extra_args);
++    if (extra_args == NULL) {
++        ret = ENOMEM;
++        goto done;
++    }
++
+     /* extra_args are added in revers order */
+     arg_c = 0;
+ 
+@@ -880,7 +893,14 @@ struct tevent_req *pam_check_cert_send(TALLOC_CTX *mem_ctx,
+         goto done;
+     }
+ 
++    if (pd->client_envs != NULL) {
++        for (size_t i = 0; pd->client_envs[i] != NULL; i++) {
++            extra_args[arg_c++] = pd->client_envs[i];
++            extra_args[arg_c++] = "--set-env";
++        }
++    }
++
+     state->ev = ev;
+     state->sss_certmap_ctx = sss_certmap_ctx;
+ 
+     ret = sss_child_start(state, ev,
+@@ -933,6 +953,7 @@ struct tevent_req *pam_check_cert_send(TALLOC_CTX *mem_ctx,
+     ret = EOK;
+ 
+ done:
++    talloc_free(extra_args);
+     if (ret != EOK) {
+         tevent_req_error(req, ret);
+         tevent_req_post(req, ev);
+diff --git a/src/sbus/codegen/sbus_CodeGen.py b/src/sbus/codegen/sbus_CodeGen.py
+index b799da93af5..2b45106a275 100644
+--- a/src/sbus/codegen/sbus_CodeGen.py
++++ b/src/sbus/codegen/sbus_CodeGen.py
+@@ -246,7 +246,7 @@ def InitializeDataTypes():
+ 
+     # Custom types
+     DataType.Create("pam_data", "struct pam_data *",
+-                    DBusType="issssssuayuayiu", RequireTalloc=True)
++                    DBusType="issssssuayuayiuuuay", RequireTalloc=True)
+     DataType.Create("pam_response", "struct pam_data *",
+                     DBusType="uua(uay)", RequireTalloc=True)
+     DataType.Create("ifp_extra", "hash_table_t *",
+diff --git a/src/sss_client/pam_message.c b/src/sss_client/pam_message.c
+index e98192c1188..a771df32c04 100644
+--- a/src/sss_client/pam_message.c
++++ b/src/sss_client/pam_message.c
+@@ -132,6 +132,8 @@ int pack_message_v3(struct pam_items *pi, size_t *size, uint8_t **buffer)
+             2*sizeof(uint32_t) + pi->json_auth_msg_size : 0;
+     len += *pi->json_auth_selected != '\0' ?
+             2*sizeof(uint32_t) + pi->json_auth_selected_size : 0;
++    len += (pi->client_envs != NULL && pi->client_envs_size > 0) ?
++            2*sizeof(uint32_t) + pi->client_envs_size : 0;
+ 
+     /* optional child_pid */
+     if(pi->child_pid > 0) {
+@@ -186,6 +188,10 @@ int pack_message_v3(struct pam_items *pi, size_t *size, uint8_t **buffer)
+                           pi->json_auth_msg_size, &buf[rp]);
+     rp += add_string_item(SSS_PAM_ITEM_JSON_AUTH_SELECTED, pi->json_auth_selected,
+                           pi->json_auth_selected_size, &buf[rp]);
++    if (pi->client_envs != NULL && pi->client_envs_size > 0) {
++        rp += add_string_item(SSS_PAM_ITEM_CLIENT_ENVS, (const char *)pi->client_envs,
++                              pi->client_envs_size, &buf[rp]);
++    }
+ 
+     SAFEALIGN_SETMEM_UINT32(buf + rp, SSS_END_OF_PAM_REQUEST, &rp);
+ 
+diff --git a/src/sss_client/pam_message.h b/src/sss_client/pam_message.h
+index c145b8a51f5..4ad7d1f447e 100644
+--- a/src/sss_client/pam_message.h
++++ b/src/sss_client/pam_message.h
+@@ -71,6 +71,8 @@ struct pam_items {
+     const char *json_auth_selected;
+     size_t json_auth_selected_size;
+     bool password_prompting;
++    uint8_t *client_envs;
++    size_t client_envs_size;
+ 
+     bool user_name_hint;
+     struct cert_auth_info *cert_list;
+diff --git a/src/sss_client/pam_sss.c b/src/sss_client/pam_sss.c
+index 607aa55dd3a..d2b68de694a 100644
+--- a/src/sss_client/pam_sss.c
++++ b/src/sss_client/pam_sss.c
+@@ -73,6 +73,7 @@
+ 
+ #include "sss_pam_compat.h"
+ #include "sss_pam_macros.h"
++#include "util/client_envs.h"
+ 
+ #include "sss_cli.h"
+ #include "pam_message.h"
+@@ -252,6 +253,9 @@ static void overwrite_and_free_pam_items(struct pam_items *pi)
+ 
+     pc_list_free(pi->pc);
+     pi->pc = NULL;
++
++    free(pi->client_envs);
++    pi->client_envs = NULL;
+ }
+ 
+ static int null_strcmp(const char *s1, const char *s2) {
+@@ -1453,6 +1457,71 @@ bool is_string_empty_or_whitespace(const char *str)
+     return true;
+ }
+ 
++static int collect_client_envs(pam_handle_t *pamh, struct pam_items *pi)
++{
++    const size_t n_envs = get_allowed_client_envs_count();
++    char *found_envs[n_envs];
++    uint8_t *client_envs;
++    uint8_t *p;
++    size_t total_size;
++    int ret;
++
++    pi->client_envs = NULL;
++    pi->client_envs_size = 0;
++
++    /* Initialize all elements to NULL (0) */
++    memset(found_envs, 0, sizeof(found_envs));
++
++    total_size = 0;
++    for (size_t i = 0; i < n_envs; i++) {
++        const char *env = allowed_client_envs[i];
++        const char *val = getenv(env);
++
++        if (val != NULL) {
++            char *found = NULL;
++
++            if (asprintf(&found, "%s=%s", env, val) == -1) {
++                D(("asprintf failed."));
++                ret = PAM_BUF_ERR;
++                goto done;
++            }
++            total_size += strlen(found) + 1;
++            found_envs[i] = found;
++        }
++    }
++
++    if (total_size == 0) {
++        ret = PAM_SUCCESS;
++        goto done;
++    }
++
++    client_envs = malloc(total_size);
++    if (client_envs == NULL) {
++        D(("malloc failed."));
++        ret = PAM_BUF_ERR;
++        goto done;
++    }
++    p = client_envs;
++    for (size_t i = 0; i < n_envs; i++) {
++        if (found_envs[i] != NULL) {
++            size_t len = strlen(found_envs[i]) + 1;
++            memcpy(p, found_envs[i], len);
++            p += len;
++        }
++    }
++
++    pi->client_envs_size = total_size;
++    pi->client_envs = client_envs;
++
++    ret = PAM_SUCCESS;
++
++done:
++    for (size_t i = 0; i < n_envs; i++) {
++        free(found_envs[i]);
++    }
++    return ret;
++}
++
+ static int get_pam_items(pam_handle_t *pamh, uint32_t flags,
+                          struct pam_items *pi)
+ {
+@@ -1544,6 +1613,9 @@ static int get_pam_items(pam_handle_t *pamh, uint32_t flags,
+     if (pi->json_auth_selected == NULL) pi->json_auth_selected = "";
+     pi->json_auth_selected_size = strlen(pi->json_auth_selected) + 1;
+ 
++    ret = collect_client_envs(pamh, pi);
++    if (ret != PAM_SUCCESS) return ret;
++
+     return PAM_SUCCESS;
+ }
+ 
+diff --git a/src/sss_client/sss_cli.h b/src/sss_client/sss_cli.h
+index 57e1ead4543..45729bc4f50 100644
+--- a/src/sss_client/sss_cli.h
++++ b/src/sss_client/sss_cli.h
+@@ -425,6 +425,7 @@ enum pam_item_type {
+     SSS_PAM_ITEM_FLAGS,
+     SSS_PAM_ITEM_JSON_AUTH_INFO,
+     SSS_PAM_ITEM_JSON_AUTH_SELECTED,
++    SSS_PAM_ITEM_CLIENT_ENVS,
+ };
+ 
+ #define PAM_CLI_FLAGS_USE_FIRST_PASS (1 << 0)
+diff --git a/src/sss_iface/sbus_sss_symbols.c b/src/sss_iface/sbus_sss_symbols.c
+index 0219f370d34..c476ffc57f3 100644
+--- a/src/sss_iface/sbus_sss_symbols.c
++++ b/src/sss_iface/sbus_sss_symbols.c
+@@ -173,7 +173,7 @@ _sbus_sss_args_sssd_DataProvider_Failover_ListServices = {
+ const struct sbus_method_arguments
+ _sbus_sss_args_sssd_ProxyChild_Auth_PAM = {
+     .input = (const struct sbus_argument[]){
+-        {.type = "issssssuayuayiu", .name = "pam_data"},
++        {.type = "issssssuayuayiuuuay", .name = "pam_data"},
+         {NULL}
+     },
+     .output = (const struct sbus_argument[]){
+@@ -285,7 +285,7 @@ _sbus_sss_args_sssd_dataprovider_hostHandler = {
+ const struct sbus_method_arguments
+ _sbus_sss_args_sssd_dataprovider_pamHandler = {
+     .input = (const struct sbus_argument[]){
+-        {.type = "issssssuayuayiu", .name = "pam_data"},
++        {.type = "issssssuayuayiuuuay", .name = "pam_data"},
+         {NULL}
+     },
+     .output = (const struct sbus_argument[]){
+diff --git a/src/sss_iface/sss_iface_types.c b/src/sss_iface/sss_iface_types.c
+index 978f4ac4e11..c340e597374 100644
+--- a/src/sss_iface/sss_iface_types.c
++++ b/src/sss_iface/sss_iface_types.c
+@@ -26,12 +26,59 @@
+ 
+ #include "util/util.h"
+ #include "util/sss_utf8.h"
++#include "util/sss_client_envs.h"
+ #include "sss_iface/sss_iface_types.h"
+ #include "sbus/interface/sbus_iterator_readers.h"
+ #include "sbus/interface/sbus_iterator_writers.h"
+ 
++static errno_t sbus_iterator_read_client_envs(TALLOC_CTX *mem_ctx,
++                                              DBusMessageIter *iterator,
++                                              const char ***_envs)
++{
++    uint8_t *data = NULL;
++    size_t count;
++    errno_t ret;
++
++    ret = sbus_iterator_read_ay(mem_ctx, iterator, &data);
++    if (ret != EOK) {
++        return ret;
++    }
++
++    if (data == NULL) {
++        *_envs = NULL;
++        return EOK;
++    }
++
++    ret = parse_client_env_list(mem_ctx, data,
++                                talloc_array_length(data),
++                                _envs, &count);
++    talloc_free(data);
++
++    return ret;
++}
++
++static errno_t sbus_iterator_write_client_envs(DBusMessageIter *iterator,
++                                               TALLOC_CTX *tmp_ctx,
++                                               const char **envs)
++{
++    uint8_t *buf = NULL;
++    size_t len = 0;
++    errno_t ret;
++
++    ret = serialize_client_env_list(tmp_ctx, envs, &buf, &len);
++    if (ret != EOK) {
++        return ret;
++    }
++
++    ret = sbus_iterator_write_basic_array_len(iterator, DBUS_TYPE_BYTE,
++                                              uint8_t, buf, (int) len);
++    talloc_free(buf);
++
++    return ret;
++}
++
+ /**
+- * D-Bus signature: issssssuayuayiu
++ * D-Bus signature: issssssuayuayiuuuay
+  */
+ errno_t sbus_iterator_read_pam_data(TALLOC_CTX *mem_ctx,
+                                     DBusMessageIter *iterator,
+@@ -124,6 +171,11 @@ errno_t sbus_iterator_read_pam_data(TALLOC_CTX *mem_ctx,
+         goto done;
+     }
+ 
++    ret = sbus_iterator_read_client_envs(pd, iterator, &pd->client_envs);
++    if (ret != EOK) {
++        goto done;
++    }
++
+     pd->authtok = sss_authtok_new(pd);
+     if (pd->authtok == NULL) {
+         ret = ENOMEM;
+@@ -167,7 +219,7 @@ errno_t sbus_iterator_read_pam_data(TALLOC_CTX *mem_ctx,
+ }
+ 
+ /**
+- * D-Bus signature: issssssuayuayiu
++ * D-Bus signature: issssssuayuayiuuuay
+  */
+ errno_t sbus_iterator_write_pam_data(DBusMessageIter *iterator,
+                                      struct pam_data *pd)
+@@ -264,6 +316,11 @@ errno_t sbus_iterator_write_pam_data(DBusMessageIter *iterator,
+         goto done;
+     }
+ 
++    ret = sbus_iterator_write_client_envs(iterator, pd, pd->client_envs);
++    if (ret != EOK) {
++        goto done;
++    }
++
+     ret = EOK;
+ 
+ done:
+diff --git a/src/tests/cmocka/test_krb5_common.c b/src/tests/cmocka/test_krb5_common.c
+index 25b49f736a0..b65a005cfd8 100644
+--- a/src/tests/cmocka/test_krb5_common.c
++++ b/src/tests/cmocka/test_krb5_common.c
+@@ -85,20 +85,20 @@ void test_set_extra_args(void **state)
+     struct krb5_ctx *krb5_ctx;
+     const char **krb5_child_extra_args;
+ 
+-    ret = set_extra_args(NULL, NULL, NULL, NULL);
++    ret = set_extra_args(NULL, NULL, NULL, NULL, NULL);
+     assert_int_equal(ret, EINVAL);
+ 
+     krb5_ctx = talloc_zero(global_talloc_context, struct krb5_ctx);
+     assert_non_null(krb5_ctx);
+ 
+-    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL,
++    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL, NULL,
+                          &krb5_child_extra_args);
+     assert_int_equal(ret, EOK);
+     assert_null(krb5_child_extra_args[0]);
+     talloc_free(krb5_child_extra_args);
+ 
+     krb5_ctx->canonicalize = true;
+-    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL,
++    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL, NULL,
+                          &krb5_child_extra_args);
+     assert_int_equal(ret, EOK);
+     assert_string_equal(krb5_child_extra_args[0], "--canonicalize");
+@@ -106,7 +106,7 @@ void test_set_extra_args(void **state)
+     talloc_free(krb5_child_extra_args);
+ 
+     krb5_ctx->realm = discard_const(TEST_REALM);
+-    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL,
++    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL, NULL,
+                          &krb5_child_extra_args);
+     assert_int_equal(ret, EOK);
+     assert_string_equal(krb5_child_extra_args[0], "--realm=" TEST_REALM);
+@@ -116,7 +116,7 @@ void test_set_extra_args(void **state)
+ 
+     /* --fast-principal will be only set if FAST is used */
+     krb5_ctx->fast_principal = discard_const(TEST_FAST_PRINC);
+-    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL,
++    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL, NULL,
+                          &krb5_child_extra_args);
+     assert_int_equal(ret, EOK);
+     assert_string_equal(krb5_child_extra_args[0], "--realm=" TEST_REALM);
+@@ -125,7 +125,7 @@ void test_set_extra_args(void **state)
+     talloc_free(krb5_child_extra_args);
+ 
+     krb5_ctx->use_fast_str = discard_const(TEST_FAST_STR);
+-    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL,
++    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL, NULL,
+                          &krb5_child_extra_args);
+     assert_int_equal(ret, EOK);
+     assert_string_equal(krb5_child_extra_args[0], "--realm=" TEST_REALM);
+@@ -138,7 +138,7 @@ void test_set_extra_args(void **state)
+ 
+     krb5_ctx->lifetime_str = discard_const(TEST_LIFE_STR);
+     krb5_ctx->rlife_str = discard_const(TEST_RLIFE_STR);
+-    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL,
++    ret = set_extra_args(global_talloc_context, krb5_ctx, NULL, NULL,
+                          &krb5_child_extra_args);
+     assert_int_equal(ret, EOK);
+     assert_string_equal(krb5_child_extra_args[0], "--realm=" TEST_REALM);
+diff --git a/src/util/client_envs.c b/src/util/client_envs.c
+new file mode 100644
+index 00000000000..99aae1dd530
+--- /dev/null
++++ b/src/util/client_envs.c
+@@ -0,0 +1,49 @@
++/*
++    SSSD
++
++    Client environment variable allowlist
++
++    Copyright (C) Red Hat, 2026
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++#include <string.h>
++#include <stdbool.h>
++#include "util/client_envs.h"
++
++const char *allowed_client_envs[] = {
++    "GDM_AUTH_SESSION_ID",
++};
++
++size_t get_allowed_client_envs_count(void)
++{
++    return (sizeof(allowed_client_envs) / sizeof(allowed_client_envs[0]));
++}
++
++bool is_client_env_allowed(const char *env_name)
++{
++    size_t n_envs;
++
++    if (env_name == NULL) return false;
++
++    n_envs = get_allowed_client_envs_count();
++    for (size_t i = 0; i < n_envs; i++) {
++        if (strcmp(env_name, allowed_client_envs[i]) == 0) {
++            return true;
++        }
++    }
++
++    return false;
++}
+diff --git a/src/util/client_envs.h b/src/util/client_envs.h
+new file mode 100644
+index 00000000000..9c478784c31
+--- /dev/null
++++ b/src/util/client_envs.h
+@@ -0,0 +1,36 @@
++/*
++    SSSD
++
++    Client environment variable allowlist
++
++    Copyright (C) Red Hat, 2026
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++#ifndef __CLIENT_ENVS_H__
++#define __CLIENT_ENVS_H__
++
++#include <stddef.h>
++#include <stdbool.h>
++
++/* Allowed environment variables to forward to child processes */
++extern const char *allowed_client_envs[];
++
++size_t get_allowed_client_envs_count(void);
++
++/* Check if an environment variable name is in the allowlist */
++bool is_client_env_allowed(const char *env_name);
++
++#endif /* __CLIENT_ENVS_H__ */
+diff --git a/src/util/sss_client_envs.c b/src/util/sss_client_envs.c
+new file mode 100644
+index 00000000000..09fb1637932
+--- /dev/null
++++ b/src/util/sss_client_envs.c
+@@ -0,0 +1,188 @@
++/*
++    SSSD
++
++    Client environment variable parsing and serialization
++
++    Copyright (C) Red Hat, 2026
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++#include <ctype.h>
++#include <string.h>
++
++#include "util/util.h"
++#include "util/client_envs.h"
++#include "util/sss_client_envs.h"
++
++static bool is_session_id_valid(const char *id)
++{
++    if (id == NULL || *id == '\0') return false;
++
++    for (const char *p = id; *p != '\0'; p++) {
++        if (!isalnum((unsigned char)*p)) {
++            return false;
++        }
++    }
++
++    return true;
++}
++
++static bool is_client_env_valid(const char *env)
++{
++    char **parts = NULL;
++    bool valid = false;
++    int num_parts;
++    int ret;
++
++    if (env == NULL) return false;
++
++    ret = split_on_separator(NULL, env, '=', false, false, &parts, &num_parts);
++    if (ret != EOK || num_parts != 2) {
++        DEBUG(SSSDBG_OP_FAILURE,
++              "Invalid env format: %s\n", env);
++        goto done;
++    }
++
++    if (!is_client_env_allowed(parts[0])) {
++        DEBUG(SSSDBG_OP_FAILURE,
++              "Environment variable '%s' is not allowed\n", parts[0]);
++        goto done;
++    }
++
++    /* Special validation for GDM_AUTH_SESSION_ID */
++    if (strcmp(parts[0], "GDM_AUTH_SESSION_ID") == 0) {
++        if (!is_session_id_valid(parts[1])) {
++            goto done;
++        }
++    }
++
++    valid = true;
++
++done:
++    talloc_free(parts);
++    return valid;
++}
++
++static size_t count_null_terminated_strings(const uint8_t *data, size_t size)
++{
++    size_t count = 0;
++
++    for (size_t i = 0; i < size; i++) {
++        if (data[i] == '\0') {
++            count++;
++        }
++    }
++
++    return count;
++}
++
++int parse_client_env_list(TALLOC_CTX *mem_ctx, const uint8_t *data,
++                          size_t size, const char ***_envs, size_t *_count)
++{
++    const char **envs;
++    const char *p;
++    const char *end;
++    size_t count;
++    size_t idx;
++
++    if (size == 0) {
++        *_envs = NULL;
++        *_count = 0;
++        return EOK;
++    }
++
++    if (data[size - 1] != '\0') {
++        DEBUG(SSSDBG_OP_FAILURE,
++              "Client env list is not null-terminated\n");
++        return EINVAL;
++    }
++
++    count = count_null_terminated_strings(data, size);
++    if (count == 0) {
++        *_envs = NULL;
++        *_count = 0;
++        return EOK;
++    }
++
++    const char *valid_envs[count + 1];
++
++    idx = 0;
++    p = (const char *)data;
++    end = (const char *)data + size;
++    while (p < end && idx < count) {
++        size_t len = strlen(p);
++        if (len == 0) return EINVAL;
++
++        if (is_client_env_valid(p)) {
++            valid_envs[idx++] = p;
++        }
++
++        p += len + 1;
++    }
++    valid_envs[idx] = NULL;
++
++    if (idx == 0) {
++        *_envs = NULL;
++        *_count = 0;
++        return EOK;
++    }
++
++    envs = dup_string_list(mem_ctx, valid_envs);
++    if (envs == NULL) return ENOMEM;
++
++    *_envs = envs;
++    *_count = idx;
++
++    return EOK;
++}
++
++int serialize_client_env_list(TALLOC_CTX *mem_ctx, const char **envs,
++                              uint8_t **_buf, size_t *_len)
++{
++    uint8_t *buf;
++    uint8_t *p;
++    size_t total = 0;
++
++    if (envs == NULL) {
++        *_buf = NULL;
++        *_len = 0;
++        return EOK;
++    }
++
++    for (size_t i = 0; envs[i] != NULL; i++) {
++        total += strlen(envs[i]) + 1;
++    }
++
++    if (total == 0) {
++        *_buf = NULL;
++        *_len = 0;
++        return EOK;
++    }
++
++    buf = talloc_array(mem_ctx, uint8_t, total);
++    if (buf == NULL) return ENOMEM;
++
++    p = buf;
++    for (size_t i = 0; envs[i] != NULL; i++) {
++        size_t len = strlen(envs[i]) + 1;
++        memcpy(p, envs[i], len);
++        p += len;
++    }
++
++    *_buf = buf;
++    *_len = total;
++
++    return EOK;
++}
+diff --git a/src/util/sss_client_envs.h b/src/util/sss_client_envs.h
+new file mode 100644
+index 00000000000..c3ec107cd48
+--- /dev/null
++++ b/src/util/sss_client_envs.h
+@@ -0,0 +1,39 @@
++/*
++    SSSD
++
++    Client environment variable parsing and serialization
++
++    Copyright (C) Red Hat, 2026
++
++    This program is free software; you can redistribute it and/or modify
++    it under the terms of the GNU General Public License as published by
++    the Free Software Foundation; either version 3 of the License, or
++    (at your option) any later version.
++
++    This program is distributed in the hope that it will be useful,
++    but WITHOUT ANY WARRANTY; without even the implied warranty of
++    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++    GNU General Public License for more details.
++
++    You should have received a copy of the GNU General Public License
++    along with this program.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++#ifndef __SSSD_CLIENT_ENVS_H__
++#define __SSSD_CLIENT_ENVS_H__
++
++#include <talloc.h>
++#include <stdint.h>
++
++/* Parse a buffer of null-terminated strings ("KEY=val\0KEY=val\0") into
++ * a NULL-terminated array of strings, keeping only those that are in the
++ * allowed list and pass validation. Returns EOK on success. */
++int parse_client_env_list(TALLOC_CTX *mem_ctx, const uint8_t *data,
++                          size_t size, const char ***_envs, size_t *_count);
++
++/* Serialize a NULL-terminated array of strings into a buffer of
++ * null-terminated strings ("KEY=val\0KEY=val\0"). Returns EOK on success. */
++int serialize_client_env_list(TALLOC_CTX *mem_ctx, const char **envs,
++                              uint8_t **_buf, size_t *_len);
++
++#endif /* __SSSD_CLIENT_ENVS_H__ */
+diff --git a/src/util/sss_pam_data.c b/src/util/sss_pam_data.c
+index da7a9f19f3c..7ea9a87aa6e 100644
+--- a/src/util/sss_pam_data.c
++++ b/src/util/sss_pam_data.c
+@@ -152,6 +152,14 @@ errno_t copy_pam_data(TALLOC_CTX *mem_ctx, struct pam_data *src,
+         }
+     }
+ 
++    if (src->client_envs != NULL) {
++        pd->client_envs = dup_string_list(pd, src->client_envs);
++        if (pd->client_envs == NULL) {
++            ret = ENOMEM;
++            goto failed;
++        }
++    }
++
+     *dst = pd;
+ 
+     return EOK;
+diff --git a/src/util/sss_pam_data.h b/src/util/sss_pam_data.h
+index fa83c4a1cf2..34925f2c7e1 100644
+--- a/src/util/sss_pam_data.h
++++ b/src/util/sss_pam_data.h
+@@ -77,6 +77,7 @@ struct pam_data {
+     bool passkey_local_done;
+     char *json_auth_msg;
+     char *json_auth_selected;
++    const char **client_envs;
+ };
+ 
+ /**

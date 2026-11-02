@@ -445,6 +445,67 @@ def test_arch_backup_requires_safe_exact_shipped_file(recipe: dict, path: str) -
         tideforge.validate(recipe)
 
 
+def test_arch_install_script_retains_native_hook_execution(recipe, tmp_path, monkeypatch):
+    script = tmp_path / "packages/hello-tuna/native.install"
+    script.parent.mkdir(parents=True)
+    script.write_text('post_install() { printf "%s" installed > "$1"; }\n')
+    monkeypatch.setattr(tideforge, "ROOT", tmp_path)
+    recipe["targets"].append("arch")
+    recipe["outputs"] = {"arch": {
+        "options": ["!lto"],
+        "install_script": {"path": "packages/hello-tuna/native.install",
+                           "sha256": hashlib.sha256(script.read_bytes()).hexdigest()},
+    }}
+    tideforge.validate(recipe, "arch")
+    rendered = tideforge.render(recipe, "arch")
+    build = tmp_path / "build"
+    build.mkdir()
+    for name, content in rendered.items():
+        (build / name).write_text(content)
+    receipt = tmp_path / "hook-receipt"
+    subprocess.run(["bash", "-c",
+                    'source PKGBUILD; source "$install"; post_install "$1"; '
+                    'test "${options[0]}" = "!lto"',
+                    "bash", str(receipt)], cwd=build, check=True)
+    assert receipt.read_text() == "installed"
+    assert (build / "hello-tuna.install").read_bytes() == script.read_bytes()
+
+
+def test_sssd_native_pkgbuild_parses_without_losing_shell_quotes() -> None:
+    recipe = tideforge.load_yaml(ROOT / "packages" / "sssd" / "package.yaml")
+    rendered = tideforge.render(recipe, "arch")["PKGBUILD"]
+    subprocess.run(["bash", "-n"], input=rendered, text=True, check=True)
+
+
+@pytest.mark.parametrize("path", [
+    "/tmp/foreign.install", "../foreign.install",
+    "packages/other-package/foreign.install", "packages/hello-tuna/missing.install",
+])
+def test_arch_install_script_cannot_escape_its_recipe(recipe, tmp_path, monkeypatch, path):
+    monkeypatch.setattr(tideforge, "ROOT", tmp_path)
+    recipe["outputs"] = {"arch": {"install_script": {"path": path, "sha256": "a" * 64}}}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
+def test_arch_install_script_rejects_symlink_and_changed_payload(recipe, tmp_path, monkeypatch):
+    owner = tmp_path / "packages/hello-tuna"
+    owner.mkdir(parents=True)
+    script = owner / "native.install"
+    script.write_text("post_install() { :; }\n")
+    monkeypatch.setattr(tideforge, "ROOT", tmp_path)
+    recipe["outputs"] = {"arch": {"install_script": {
+        "path": "packages/hello-tuna/native.install", "sha256": "a" * 64}}}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+    expected = hashlib.sha256(script.read_bytes()).hexdigest()
+    script.rename(owner / "target.install")
+    script.symlink_to(owner / "target.install")
+    recipe["outputs"]["arch"]["install_script"]["sha256"] = expected
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
 def test_recipe_without_provides_renders_no_provides_lines(recipe: dict) -> None:
     """Recipes without the key keep clean spec/control output."""
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
@@ -470,6 +531,41 @@ def test_real_recipes_keep_declared_runtime_metadata(
     metadata = "\n".join(rendered.values())
     for dependency in expected:
         assert dependency in metadata
+
+
+@pytest.mark.parametrize(
+    "target",
+    tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")["targets"],
+)
+def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> None:
+    """D-Bus and spawned helpers cannot be inferred from ELF dependencies (#341)."""
+    recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
+    tideforge.validate(recipe, target)
+    rendered = tideforge.render(recipe, target)
+    expected = {"colord", "gnome-color-manager"}
+    if target == "arch":
+        depends = next(
+            line for line in rendered["PKGBUILD"].splitlines()
+            if line.startswith("depends=(")
+        )
+        dependencies = set(depends.removeprefix("depends=(").removesuffix(")").replace("'", "").split())
+    elif "debian/control" in rendered:
+        depends = next(
+            line for line in rendered["debian/control"].splitlines()
+            if line.startswith("Depends:")
+        )
+        dependencies = {item.strip() for item in depends.removeprefix("Depends:").split(",")}
+    elif target == "gentoo":
+        ebuild = next(value for name, value in rendered.items() if name.endswith(".ebuild"))
+        dependencies = set(ebuild.split('RDEPEND="', 1)[1].split('"', 1)[0].split())
+        expected = {"x11-misc/colord", "gnome-extra/gnome-color-manager"}
+    else:
+        spec = rendered["tuna-desktop.spec"].split("%description", 1)[0]
+        dependencies = {
+            line.removeprefix("Requires:").strip()
+            for line in spec.splitlines() if line.startswith("Requires:")
+        }
+    assert expected <= dependencies
 
 
 def test_dms_greeter_is_an_arch_recipe_with_runtime_closure() -> None:
