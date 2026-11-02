@@ -10,7 +10,8 @@ targets, and publishes only validated repositories to Cloudflare R2.
 |---|---|---|---|
 | EL10 | RPM | rpm-md | supported |
 | Fedora ELN | RPM | rpm-md | supported |
-| Ubuntu | DEB | APT | supported foundation |
+| Ubuntu 26.04 Resolute (`ubuntu`) | DEB | APT | supported foundation |
+| Ubuntu 24.04 Noble (`ubuntu-noble`) | DEB | APT | native source candidate; signed index and qualification pending |
 | Debian Sid | DEB | APT | supported foundation |
 | openSUSE Tumbleweed | RPM | rpm-md | supported foundation |
 | Arch | pkg.tar.zst | pacman | scaffold |
