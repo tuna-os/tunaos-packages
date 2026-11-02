@@ -403,3 +403,40 @@ scripts/check-hummingbird-installability.py --arch aarch64 --write-baseline
 
 and commit the diff — a baseline that refreshes itself is a gate that
 ratchets nothing.
+
+## 11. Native Tuna power and sound closure (2026-10-31)
+
+Image run `tunaOS/41213419115`, job `124573016129`, stops in the
+Tuna package transaction. Both the native and Utah TuneD 2.28 packages
+need `(rpm-ostree if bootc)`. Commit
+`552f03c0fd7fbd62e62d7a1e89c4fa7bb01a291f` in Fedora TuneD dist-git gives
+the reason. The bootloader plugin uses rpm-ostree to manage kernel arguments
+when the native bootc API `loader-entries set-options-for-source` is not
+available. The dependency is real. Do not remove it, fabricate a capability
+or drop the power-profile provider.
+
+The Tuna roots now explicitly include the real `rpm-ostree` source.
+At commit `daf6d42a0d7c21f60fb770ddd56bd7bf7cab442c`, the Fedora dist-git
+spec builds rpm-ostree 2026.3 with its vendored Rust source. The
+existing native chain imports and builds it in the Fedora 44 plus
+Hummingbird root. The image gets no Fedora binary repository.
+The generated order includes its runtime closure and the real BuildRequires
+order. It does not assume that a rich dependency became a build root.
+
+Tuna Desktop beta.2 release 2 built in run `41213268502`, but the
+publisher refused to sync: `libcanberra` was a new unresolved Tuna
+requirement. A signature on the unpublished tree did not publish it. The
+baseline stays unchanged. The roots now explicitly include libcanberra and
+use the Fedora dist-git spec for it, not the EL10 replacement rules in
+`src/deps/libcanberra`. The inspected upstream commit was
+`58ede5c70d9f6885b0d5e24695fc50c258ebe5c8`.
+The generated chain builds libvorbis before libcanberra and keeps its
+real ALSA, GStreamer and PulseAudio backend packages.
+
+The source change is not a package or image qualification receipt.
+Native build CI must produce the real RPMs. Then the signed publisher must
+pass its unchanged regression gate and serve the new index.
+Only then may tunaOS advance its package pin and run image and runtime
+qualification. Existing image PR `tunaOS#3885` retains its manual merge
+fence and the observed beta.1 pin until that served evidence exists.
+

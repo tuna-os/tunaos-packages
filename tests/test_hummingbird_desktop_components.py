@@ -97,6 +97,30 @@ def test_required_packages_stay_inside_install_packages() -> None:
         assert not orphans, f"{desktop}: required but never installed: {orphans}"
 
 
+def test_tuna_native_runtime_closure_keeps_real_power_and_sound_providers() -> None:
+    data = catalog()
+    tuna = data["desktops"]["tuna"]
+    assert {"tuna-desktop", "rpm-ostree", "libcanberra"} <= set(tuna["required_packages"])
+    assert {"gdm", "tuned-ppd", "rpm-ostree", "libcanberra"} <= set(tuna["install_packages"])
+    assert {"greetd", "gtkgreet", "cage", "liberation-fonts"}.isdisjoint(tuna["install_packages"])
+    for name in ("rpm-ostree", "libcanberra"):
+        assert {"fedora_distgit": name} in tuna["sources"]
+    assert "libcanberra" in data["prefer_distgit"], "the EL10 shared spec is not the native source"
+
+
+def test_native_provider_sources_are_in_the_generated_build_order() -> None:
+    order = yaml.safe_load((ROOT / "build-order-hummingbird-desktops.yml").read_text())
+    packages = {
+        package["path"]: (index, package)
+        for index, tier in enumerate(order["tiers"])
+        for package in tier["packages"]
+    }
+    for name in ("rpm-ostree", "libcanberra", "libvorbis"):
+        assert packages[f"src/hummingbird/{name}"][1]["distgit"] == name
+    assert "src/deps/libcanberra" not in packages
+    assert packages["src/hummingbird/libvorbis"][0] < packages["src/hummingbird/libcanberra"][0]
+
+
 def write_catalog(tmp_path: Path, data: dict) -> Path:
     # The validator resolves `root` as the catalog's parent-of-parent and
     # checks `local:` sources against it, so mirror the repo layout.
