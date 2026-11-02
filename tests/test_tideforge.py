@@ -568,6 +568,24 @@ def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> No
     assert expected <= dependencies
 
 
+def test_tuna_desktop_deb_runtime_requires_session_data_and_daemon_executables() -> None:
+    """A no-recommends install must supply the units and workers Tuna starts."""
+    recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
+    targets = tideforge.load_targets()
+    for target in recipe["targets"]:
+        if targets[target]["format"] != "deb":
+            continue
+        control = tideforge.render(recipe, target)["debian/control"]
+        depends = next(line for line in control.splitlines() if line.startswith("Depends:"))
+        dependencies = {item.strip() for item in depends.removeprefix("Depends:").split(",")}
+        assert {
+            "gnome-session-bin",
+            "gnome-session-common",
+            "gnome-settings-daemon",
+            "gnome-settings-daemon-common",
+        } <= dependencies, target
+
+
 def test_dms_greeter_is_an_arch_recipe_with_runtime_closure() -> None:
     recipe = tideforge.load_yaml(ROOT / "packages" / "dms-greeter" / "package.yaml")
     tideforge.validate(recipe, "arch")

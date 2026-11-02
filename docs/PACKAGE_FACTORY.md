@@ -136,8 +136,16 @@ Noble's Tuna consumer builds the pinned private GTK4 layer-shell source with
 its upstream layer/lock tests, packages its runtime and license, and installs
 all six Tuna executables, cursor assets, schemas/session dependencies, portal
 descriptor/routing, native colord/profile-manager supply and canberra
-player/Pulse/theme dependencies. The Noble
-publisher label is `ubuntu-noble`; its served index remains pending until the
+player/Pulse/theme dependencies. All DEB targets hard-depend on native
+`gnome-session-bin`, `gnome-session-common` and `gnome-settings-daemon`, rather
+than relying on recommendations or an already-installed GNOME desktop. Real
+`--no-install-recommends` transactions exposed missing runtime providers in
+Noble and in the separate Ubuntu 26.04, Debian sid and Trixie roots.
+In Noble, `gnome-session-bin` alone does not pull in the common data package
+that owns the session targets required by Tuna. Installed verification follows the shipped Tuna
+target's direct `Wants=`/`BindsTo=` unit requirements and refuses missing native
+unit files; package-name availability alone cannot satisfy this runtime gate.
+The Noble publisher label is `ubuntu-noble`; its served index remains pending until the
 first verified signed publication. Bootstrap publication must precede the
 consumer build because an unpublished build dependency cannot resolve from the
 normal factory index. Neither declaration qualifies Gurnard.

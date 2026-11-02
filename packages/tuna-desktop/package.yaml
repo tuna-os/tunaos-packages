@@ -194,8 +194,8 @@ dependencies:
       # settings-daemon schemas and secret-tool. dbus-bin is gone:
       # tuna-os/tuna-desktop#691 dropped the session's
       # dbus-update-activation-environment call.
-      ubuntu: [colord, gnome-color-manager, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk4-layer-shell0 (>= 1.1)", "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
-      debian: [colord, gnome-color-manager, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk4-layer-shell0 (>= 1.1)", "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
+      ubuntu: [colord, gnome-color-manager, gnome-session-bin, gnome-session-common, gnome-settings-daemon, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk4-layer-shell0 (>= 1.1)", "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
+      debian: [colord, gnome-color-manager, gnome-session-bin, gnome-session-common, gnome-settings-daemon, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk4-layer-shell0 (>= 1.1)", "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
       # The Fedora list in openSUSE's shared-library package names (glib2 ->
       # libglib-2_0-0, mesa-libEGL -> Mesa-libEGL1, systemd-libs ->
       # libsystemd0 + libudev1, librsvg2 -> gdk-pixbuf-loader-rsvg), for the
@@ -204,8 +204,8 @@ dependencies:
       # The sid list without libgtk4-layer-shell0: the private copy ships in
       # this package, and its own ELF needs (libgtk-4-1, libwayland-client0)
       # come through ${shlibs:Depends}.
-      trixie: [colord, gnome-color-manager, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
-      ubuntu-noble: [colord, gnome-color-manager, dbus, gnome-session-bin, gnome-settings-daemon, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, fontconfig, "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
+      trixie: [colord, gnome-color-manager, gnome-session-bin, gnome-session-common, gnome-settings-daemon, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
+      ubuntu-noble: [colord, gnome-color-manager, dbus, gnome-session-bin, gnome-session-common, gnome-settings-daemon, gnome-session-canberra, libcanberra-pulse, sound-theme-freedesktop, librsvg2-common, fontconfig, "libgtk-4-1 (>= 4.12)", "libadwaita-1-0 (>= 1.0)", libpam0g, gsettings-desktop-schemas, gnome-settings-daemon-common, libsecret-tools, libxkbcommon0, libxkbcommon-x11-0, libegl1, libgl1, libgbm1, libseat1, libinput10, libudev1, libdrm2, libpipewire-0.3-0t64, libglib2.0-0t64]
       # The Fedora list in Gentoo atoms, with the same floors and the
       # dlopen()ed pam.
       gentoo: [x11-misc/colord, gnome-extra/gnome-color-manager, sys-apps/dbus, "dev-libs/glib:2", gnome-base/gnome-settings-daemon, gnome-base/gnome-session, "x11-libs/gdk-pixbuf:2", "gnome-base/librsvg:2", media-libs/fontconfig, ">=gui-libs/gtk-4.12:4[wayland]", ">=gui-libs/gtk4-layer-shell-1.1", "gui-libs/libadwaita:1", media-libs/libcanberra, x11-libs/libdrm, dev-libs/libinput, app-crypt/libsecret, "x11-libs/libxkbcommon[X]", media-libs/mesa, media-video/pipewire, sys-auth/seatd, x11-themes/sound-theme-freedesktop, virtual/libudev, dev-libs/wayland, sys-libs/pam]
@@ -285,6 +285,9 @@ verify:
   # lock-screen PAM services, the session target, the portal backend and the
   # cursor fallback are installed. The version is the last word of
   # --version, cut with shell expansion: the Tumbleweed image has no awk.
+  # Follow the installed target's real direct dependencies. In Noble,
+  # gnome-session-bin only recommends the package owning the session targets;
+  # a clean --no-install-recommends transaction must still supply every unit.
   smoke: >-
     want=1.0.0-beta.2;
     for b in compositor session shell-host shell-gtk ibus-bridge wallpaper-svg;
@@ -302,6 +305,12 @@ verify:
     && grep -qx 'Interfaces=org.freedesktop.impl.portal.Lockdown;' /usr/share/xdg-desktop-portal/portals/tuna.portal
     && grep -qx 'org.freedesktop.impl.portal.Lockdown=tuna;' /usr/share/xdg-desktop-portal/tuna-portals.conf
     && test -f /usr/share/tuna-desktop/icons/Adwaita/index.theme
+    && while IFS= read -r unit_line; do
+    case "$unit_line" in Wants=*|BindsTo=*)
+    for required_unit in ${unit_line#*=}; do
+    test -r "/usr/lib/systemd/user/$required_unit" ||
+    { echo "missing native session unit: $required_unit" >&2; exit 1; };
+    done;; esac; done < /usr/lib/systemd/user/tuna-session.target
 # The ebuild's category in the tunaos overlay: gui-wm/tuna-desktop.
 outputs:
   arch:
