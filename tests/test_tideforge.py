@@ -890,15 +890,21 @@ def test_custom_deb_does_not_emit_test_override(recipe: dict) -> None:
     assert "override_dh_auto_test:" not in rules
 
 
-def test_data_deb_disables_debhelper_build_system_autodetection(recipe: dict) -> None:
-    """Data recipes must pin --buildsystem=none.
+@pytest.mark.parametrize("build_system", ["data", "custom"])
+def test_recipe_owned_deb_disables_debhelper_autodetection(recipe: dict, build_system: str) -> None:
+    """Recipe-owned lifecycles must pin --buildsystem=none.
 
     Plain "dh $@" auto-detects a build system from whatever upstream ships.
     oversteer-udev installs only udev rules but upstream carries a meson.build,
     so debhelper ran dh_auto_configure under meson and failed with exit code 25
     — while the same recipe built fine as an RPM, which bypasses debhelper.
+    Rust's custom bootstrap similarly owns bootstrap.toml; auto-configure
+    refuses an existing file when resuming and cannot own that lifecycle.
     """
-    recipe["build_system"] = "data"
+    recipe["build_system"] = build_system
+    if build_system == "custom":
+        recipe["build"] = {"commands": ["python3 x.py build --stage 2"]}
+        recipe["install"] = {"commands": ["DESTDIR={destdir} python3 x.py install --stage 2"]}
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
     assert "dh $@ --buildsystem=none" in rules
 
