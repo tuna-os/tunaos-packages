@@ -19,7 +19,7 @@ build:
   commands:
     - |
       python3 - <<'PY'
-      import json, os, pathlib, shlex, subprocess
+      import json, os, pathlib, subprocess
       release = dict(line.split('=', 1) for line in pathlib.Path('/etc/os-release').read_text().splitlines() if '=' in line)
       if release.get('ID', '').strip('"') != 'ubuntu' or release.get('VERSION_ID', '').strip('"') != '24.04':
           raise SystemExit('Ubuntu Noble native buildroot required')
@@ -44,12 +44,12 @@ build:
       configuration = '\n'.join([
           'profile = "dist"', 'change-id = "ignore"', '[build]',
           'build = ' + q(host), 'host = [' + q(host) + ']', 'target = [' + q(host) + ']',
+          'jobs = ' + os.environ.get('CARGO_BUILD_JOBS', '2'),
           'rustc = "/usr/bin/rustc-1.91"', 'cargo = "/usr/bin/cargo-1.91"',
           'vendor = true', 'locked-deps = true', 'submodules = false',
           'docs = false', 'compiler-docs = false', 'extended = true', 'tools = ["cargo"]',
           '[install]', 'prefix = "/opt/tunaos/rust-1.92"', 'libdir = "lib"',
           '[rust]', 'channel = "stable"', 'download-rustc = false',
-          'rustflags = ' + q(shlex.split(os.environ.get('RUSTFLAGS', ''))),
           '[llvm]', 'download-ci-llvm = false', 'ninja = true',
           'targets = ' + q('X86' if os.uname().machine == 'x86_64' else 'AArch64'),
           'cflags = ' + q(os.environ.get('CFLAGS', '')),

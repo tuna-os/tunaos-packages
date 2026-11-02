@@ -118,6 +118,19 @@ That observation is not an archive-byte measurement, successful native build,
 std/ELF ABI proof or signed publication. Historical #834 comments described the
 then-missing recipe, not a permanent ban on this source bootstrap.
 
+The local native attempt additionally downloaded and checksum-verified the
+archive, rendered the package, and installed Noble-primary's native
+`rustc-1.91`, `cargo-1.91` and std packages at
+`1.91.1+dfsg~24.04-0ubuntu0.24.04.3` in the pinned Noble root. It exposed two
+real integration defects: unsupported `[rust].rustflags` in bootstrap
+configuration and debhelper auto-running upstream `configure` over a resumed
+`bootstrap.toml`. The Noble recipe removes the unsupported field; custom DEB
+builds now use `--buildsystem=none`, with configuration/build/tests/install
+owned by the declared custom scripts. Neither attempt completed a Rust 1.92
+compiler/std package, clean install or full Tuna consumer. Preserved native
+state is not a qualified provider and must resume only when the shared local
+build resource is handed back by the parent qualification owner.
+
 Noble's Tuna consumer builds the pinned private GTK4 layer-shell source with
 its upstream layer/lock tests, packages its runtime and license, and installs
 all six Tuna executables, cursor assets, schemas/session dependencies, portal
