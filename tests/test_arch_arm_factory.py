@@ -50,7 +50,7 @@ def test_missing_or_mismatched_native_input_blocks(architecture, mutation):
         build_context(target, architecture)
 
 
-def test_every_arch_recipe_emits_both_native_legs():
+def test_every_arch_recipe_emits_all_admitted_native_legs():
     cells = planner.tideforge_cells(ROOT)
     by_recipe = {}
     for cell in cells:
@@ -62,7 +62,12 @@ def test_every_arch_recipe_emits_both_native_legs():
         if cell['architecture'] == 'aarch64':
             assert cell['runner'] == 'ubuntu-24.04-arm'
     assert by_recipe
-    assert all(architectures == {'x86_64', 'aarch64'} for architectures in by_recipe.values())
+    for path, architectures in by_recipe.items():
+        recipe = yaml.safe_load((ROOT / path).read_text())
+        admitted = recipe.get('architectures', {}).get('arch', ['x86_64', 'aarch64'])
+        assert architectures == set(admitted), path
+        if 'arch' not in recipe.get('architectures', {}):
+            assert architectures == {'x86_64', 'aarch64'}, path
 
 
 def helper(tmp_path, architecture='aarch64', global_policy='Required DatabaseOptional',

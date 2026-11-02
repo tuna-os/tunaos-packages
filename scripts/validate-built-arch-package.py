@@ -46,7 +46,51 @@ def runtime_dependencies(recipe: dict) -> set[str]:
     return dependency_names(dependencies)
 
 
+def validate_native(recipe: dict, info: str, native: dict) -> None:
+    """Every native split output must exist, agree in version and obey admission."""
+    records = [record for record in re.split(r"\n[ \t]*\n", info.strip()) if record.strip()]
+    packages = {}
+    for record in records:
+        name = field(record, "Name")
+        if name in packages:
+            fail("built native Arch metadata repeats a package")
+        packages[name] = record
+    required = set(native["packages"])
+    permitted = required | set(native.get("optional_packages", []))
+    if not required <= set(packages) or not set(packages) <= permitted:
+        fail("built native Arch outputs do not match the complete split package set")
+    expected_version = f"{tideforge.pacman_version(recipe['version'])}-{recipe.get('release', 1)}"
+    allowed = tideforge.factory_contract.recipe_architectures(
+        recipe, "arch", tideforge.load_targets()["arch"]
+    )
+    observed_architectures = set()
+    for record in packages.values():
+        if field(record, "Version") != expected_version:
+            fail("built native Arch split package version does not match the recipe")
+        architecture = field(record, "Architecture")
+        if architecture not in allowed:
+            fail("built native Arch split package has an unadmitted architecture")
+        observed_architectures.add(architecture)
+    if len(observed_architectures) != 1:
+        fail("built native Arch split packages disagree on architecture")
+    main = packages[recipe["name"]]
+    dependencies = re.search(r"^Depends On[ \t]*:[ \t]*([^\n]*(?:\n[ \t]+[^\n]*)*)", main, re.MULTILINE)
+    if dependencies is None:
+        fail("built native Arch metadata is missing Depends On")
+    built = set(dependencies.group(1).split())
+    built_names = dependency_names(list(built))
+    for dependency in tideforge.target_runtime_dependencies(recipe, "arch"):
+        if ((re.search(r"[<>=]", dependency) and dependency not in built)
+                or re.split(r"[<>=]", dependency, maxsplit=1)[0] not in built_names):
+            fail(f"built native Arch package is missing exact runtime requirement: {dependency}")
+
+
 def validate(recipe: dict, info: str) -> None:
+    native = tideforge.native_arch_pkgbuild(recipe)
+    if native is not None:
+        validate_native(recipe, info, native)
+        print("Built native Arch split packages: valid")
+        return
     if field(info, "Name") != recipe["name"]:
         fail("built package name does not match recipe")
     if not field(info, "Version").startswith(f"{tideforge.pacman_version(recipe['version'])}-"):

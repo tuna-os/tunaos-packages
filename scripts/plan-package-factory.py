@@ -29,6 +29,7 @@ COMMON_INPUTS = {
     "scripts/verify-package-factory-cell.sh",
     "scripts/tideforge-action-cache.py",
     "scripts/tideforge.py",
+    "scripts/factory_contract.py",
     "scripts/target_platform.py",
     "scripts/run-alma-rpm.sh",
     "scripts/alma-compiler-policy.sh",
@@ -112,7 +113,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
             package_format = target.get("format")
             if not package_format:
                 raise ValueError(f"{recipe_path}: incomplete target contract {target_id}")
-            architectures = target.get("architectures") or []
+            architectures = factory_contract.recipe_architectures(recipe, target_id, target)
             for architecture in architectures:
                 context = build_context(target, str(architecture))
                 image = context["image"]
