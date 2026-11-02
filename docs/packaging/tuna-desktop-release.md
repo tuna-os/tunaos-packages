@@ -122,7 +122,8 @@ The `fedora`, `rawhide`, `eln`, `el10` and `opensuse-tumbleweed` build lists use
 by capability as dnf does). Fedora 44, Rawhide, ELN and Tumbleweed supply all
 dependencies. `rawhide` is its own target (buildroot `fedora:rawhide`, served
 at `rpm/rawhide/{arch}`) because `fedora` builds in a Fedora 44 root, whose
-packages cannot qualify bonito-rawhide.
+packages cannot qualify for bonito-rawhide.
+
 On `el10`, the factory supplies `gtk4-layer-shell-devel` from
 `packages/gtk4-layer-shell`. The build gets it from the published index of the
 target, so `publish-tideforge-rpms.yml` must publish that package for `el10`

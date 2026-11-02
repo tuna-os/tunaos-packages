@@ -1,10 +1,9 @@
 # RFC 011 Phase 1 — build-order conversion ledger
 
-Phase 1's gate, per [the RFC](rfc/rfc011-unified-gap-driven-factory.md):
-for each family, the generated order must equal the curated one
-**exact-or-explained** in that family's conversion PR; only then is the
-curated file deleted and the generated one committed with its provenance
-header. This ledger tracks that, family by family, in the RFC's order —
+Under [the RFC](rfc/rfc011-unified-gap-driven-factory.md), Phase 1 needs
+exact or explained parity between generated and curated orders.
+Only then do we delete the curated file and commit the generated file
+with its provenance header. This ledger tracks that, family by family, in the RFC's order —
 so "converted" is a recorded verdict with evidence, not a memory.
 
 A family is DONE only when all four columns are yes. Rows may only move
@@ -27,20 +26,20 @@ disabled) reopens the row.
   reference_index, source_reference_index). The engine
   (`scripts/measure-target-gap.py --target <id>`) refuses to run without
   it, loudly, which is the point.
-- **Drift detector**: the `gap-drift.yml` pattern — compare
-  the live index revision against the last committed measurement,
-  re-measure only on change, open a review PR with adds/drops and
-  provenance. Dispatch-only until the family's regeneration gate passes;
-  a cron re-measuring an unconverted family would open PRs nobody can
-  act on.
-- **Regeneration exact-or-explained**: run the engine, diff against the
-  curated file, and either they match or every difference is defended in
-  the conversion PR (a package the target now ships; a stale pin; an
-  engine capability gap like row 2's version-awareness).
+- **Drift detector**: use the `gap-drift.yml` pattern.
+  Compare the live index revision against the last committed measurement.
+  Re-measure only on change.
+  Open a review PR with adds, drops, and provenance.
+  Keep dispatch-only until the regeneration gate passes;
+  cron runs on an unconverted family open unusable PRs.
+- **Regeneration exact-or-explained**: run the engine and diff against the
+  curated file. The files must match, or the conversion PR must defend
+  every difference. Examples include a package in the target, a
+  stale pin, or a gap in the engine as in row 2.
 
 ## Known engine gaps this ledger has already surfaced
 
-1. **Version-aware satisfaction** (row 2, blocking): `closure()` stops at
+1. **Version-aware satisfaction** (row 2, blocker): `closure()` stops at
    any requirement the target index provides *by name*. xfce-fedora's
    whole reason to exist is `>= 4.21` pins against Fedora's 4.20 — name
    presence is exactly the wrong test there. The fix belongs in the
