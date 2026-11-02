@@ -785,6 +785,33 @@ def native_deb_source(recipe: dict) -> dict | None:
     return native
 
 
+def arch_install_script(recipe: dict) -> tuple[str, str] | None:
+    """Return a reviewed recipe-owned pacman scriptlet without regenerating it."""
+    metadata = recipe.get("outputs", {}).get("arch", {})
+    if not isinstance(metadata, dict) or "install_script" not in metadata:
+        return None
+    script = metadata["install_script"]
+    if not isinstance(script, dict) or set(script) != {"path", "sha256"}:
+        fail("outputs.arch.install_script requires path and sha256")
+    path = Path(str(script["path"]))
+    owner = ROOT / "packages" / recipe["name"]
+    source = ROOT / path
+    if (path.is_absolute() or any(part in {"", ".", ".."} for part in str(path).split("/"))
+            or not path.name.endswith(".install") or source.is_symlink()
+            or not source.resolve().is_relative_to(owner.resolve()) or not source.is_file()):
+        fail("Arch install script must be a recipe-owned regular .install file")
+    payload = source.read_bytes()
+    if hashlib.sha256(payload).hexdigest() != script["sha256"]:
+        fail("Arch install script checksum mismatch")
+    if b"\0" in payload:
+        fail("Arch install script must be UTF-8 shell text")
+    try:
+        content = payload.decode("utf-8")
+    except UnicodeDecodeError:
+        fail("Arch install script must be UTF-8 shell text")
+    return f"{recipe['name']}.install", content
+
+
 def native_arch_pkgbuild(recipe: dict) -> dict | None:
     """Keep maintained native Arch packaging instead of flattening split outputs."""
     arch = recipe.get("outputs", {}).get("arch", {})
@@ -841,10 +868,11 @@ def native_arch_pkgbuild(recipe: dict) -> dict | None:
 def arch_metadata(recipe: dict) -> dict[str, list[str]]:
     """Native pacman replacement relations and exact config-file paths."""
     metadata = recipe.get("outputs", {}).get("arch", {})
-    if not isinstance(metadata, dict) or set(metadata) - {"conflicts", "replaces", "backup", "native_pkgbuild"}:
-        fail("outputs.arch supports conflicts, replaces, backup and native_pkgbuild")
-    metadata = {key: values for key, values in metadata.items() if key != "native_pkgbuild"}
-    for key, values in metadata.items():
+    if not isinstance(metadata, dict) or set(metadata) - {"conflicts", "replaces", "backup", "options", "install_script", "native_pkgbuild"}:
+        fail("outputs.arch supports conflicts, replaces, backup, options, install_script and native_pkgbuild")
+    arch_install_script(recipe)
+    arrays = {key: value for key, value in metadata.items() if key not in {"install_script", "native_pkgbuild"}}
+    for key, values in arrays.items():
         if not isinstance(values, list) or not all(isinstance(value, str) and value for value in values):
             fail(f"outputs.arch.{key} must be a list of non-empty strings")
         if len(values) != len(set(values)):
@@ -856,7 +884,7 @@ def arch_metadata(recipe: dict) -> dict[str, list[str]]:
                         or any(character in value for character in "*?[]\\")
                         or value not in recipe["files"]["common"]):
                     fail("outputs.arch.backup must name exact relative files in files.common")
-    return metadata
+    return arrays
 
 
 def validate(recipe: dict, target: str | None = None) -> None:
@@ -1431,6 +1459,9 @@ def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
         f"{key}=({' '.join(shlex.quote(value) for value in values)})"
         for key, values in arch_metadata(recipe).items()
     )
+    script = arch_install_script(recipe)
+    if script:
+        native_metadata += f"\ninstall={shlex.quote(script[0])}"
     sources = source_entries(recipe, target)
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
@@ -1525,7 +1556,10 @@ package() {{
   {install}
 }}
 """
-    return {"PKGBUILD": pkgbuild}
+    files = {"PKGBUILD": pkgbuild}
+    if script:
+        files[script[0]] = script[1]
+    return files
 
 
 GENTOO_REPO_NAME = "tunaos"

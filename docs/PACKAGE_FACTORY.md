@@ -382,6 +382,20 @@ RPM or Debian relations.
 `files.common`. Do not repeat paths. Absolute paths, traversal, whitespace and
 glob patterns are invalid.
 
+`outputs.arch.options` carries native makepkg options such as `!lto`.
+For native install/upgrade hooks, declare
+`outputs.arch.install_script: {path: packages/NAME/NAME.install, sha256: HASH}`.
+
+Keep the file inside its recipe's directory. Use regular UTF-8 text.
+Tideforge rejects symlinks, traversal and payloads with a different hash.
+It copies the file into `NAME.install` and sets PKGBUILD `install=NAME.install`.
+Pacman runs the native hooks.
+
+Index native archives with either `.pkg.tar.zst` or `.pkg.tar.xz`.
+`arch-clean-install.sh` uses the same publisher before the package install.
+This checks the index, not the production signatures.
+
+
 `provides` alone does not let pacman remove another package. The `backup` field
 in a new archive does not change the old archive. Test the real transaction
 with administrator edits, deletion and combined effective `NoUpgrade` and
@@ -420,6 +434,39 @@ set `build.cargo_locked: false`, but it must include a specific
 `build.cargo_lock_reason` and is accepted only after the resulting lockfile
 diff has been reviewed in the target build.
 
+### GNOME 51 redirected smartcards: native SSSD
+
+Arch revision `49a6c3408d0431606b99d1ddb035ce2e40c071ea`
+is the base for `sssd`.
+It retains the paths from `configure`, the `sssd` user and `!lto`.
+It keeps sysusers, tmpfiles and the logrotate backup.
+The hooks restore the groups and capabilities.
+
+The Kerberos plugins link `libverto`. Declare it as a runtime dependency.
+
+Version 2.13.1 adds two changes from SSSD:
+
+- [f2696b80](https://github.com/SSSD/sssd/commit/f2696b80a153d8ad61f66e4611efd2dff3c6410c)
+  forwards allowlisted, validated `GDM_AUTH_SESSION_ID` through the PAM
+  request and into `p11_child`/`krb5_child`. The responder can then select
+  the card from the correct GRD session.
+- [b1f2ffc7](https://github.com/SSSD/sssd/commit/b1f2ffc7d3f74d5fd1c0091d98c19f5401b4013b)
+  grants only the dedicated SSSD user the upstream
+  `org.gnome.remotedesktop.use-grd-pcscd` action.
+
+Version 2.13.1 keeps `state->sss_certmap_ctx` as unchanged context.
+See [the backport](../packages/sssd/f2696b80-grd-session-2.13.1.patch).
+See [the comparison](../packages/sssd/f2696b80-backport-provenance.json) for the hashes.
+Apply both patches with `--fuzz=0`.
+
+The build uses the source archive and two patches with fixed hashes.
+This does not prove a published package or a login with a card through GDM.
+Normal factory CI must build and install the package.
+GRD51/GDM51 consumers must test actual redirection.
+
+The package does not enroll a domain or change PAM or OpenSC configuration.
+It does not enable smartcards or start a listener. Administrators must opt in.
+Tests for password/NTLM transport, Kerberos PKINIT and PAM with cards are distinct.
 ### Maintained native Arch split packages
 
 Use `outputs.arch.native_pkgbuild` to retain an owned PKGBUILD.
