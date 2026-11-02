@@ -53,6 +53,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 # and the contract call the same distribution.
 DISTRO_TARGETS = {
     "ubuntu": "ubuntu",
+    "ubuntu-noble": "ubuntu-noble",
     "debian-sid": "debian",
     "debian-trixie": "trixie",
 }

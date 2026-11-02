@@ -101,6 +101,40 @@ upstream commit/tag, license, patches, and target compatibility. TunaOS rebuilds
 the package itself; it never enables an upstream COPR, PPA, or binary repository
 in a produced image.
 
+This does not ban first-party source-built compilers. `ubuntu-noble` is a
+separate Ubuntu 24.04 root, not the `ubuntu` target's Resolute 26.04 root.
+Its `tunaos-rust192` recipe rebuilds official Rust 1.92.0 source using
+Noble-primary's signed native versioned Rust/Cargo 1.91 packages. Upstream's
+`src/stage0` declares `compiler_version=1.91.0`; the build checks that predecessor
+and the native host before building compiler, Cargo and std at stage 2.
+The isolated `/opt/tunaos/rust-1.92` prefix never replaces system compiler paths.
+Vendored dependencies are offline and locked; LLVM is source-built and CI
+compiler/LLVM/GCC downloads are disabled. Alma's separate Rust 1.93 recipe and
+its native 1.92 predecessor requirement are unchanged.
+
+The official `.sha256` metadata advertises
+`ebee170bfe4c4dfc59521a101de651e5534f4dae889756a5c97ca9ea40d0c307`.
+That observation is not an archive-byte measurement, successful native build,
+std/ELF ABI proof or signed publication. Historical #834 comments described the
+then-missing recipe, not a permanent ban on this source bootstrap.
+
+Noble's Tuna consumer builds the pinned private GTK4 layer-shell source with
+its upstream layer/lock tests, packages its runtime and license, and installs
+all six Tuna executables, cursor assets, schemas/session dependencies, portal
+descriptor/routing and canberra player/Pulse/theme dependencies. The Noble
+publisher label is `ubuntu-noble`; its served index remains pending until the
+first verified signed publication. Bootstrap publication must precede the
+consumer build because an unpublished build dependency cannot resolve from the
+normal factory index. Neither declaration qualifies Gurnard.
+
+The existing workflow-path manual fence applies **before workflow edits or
+publication**: obtain explicit maintainer approval to amend
+`.github/workflows/publish-tideforge-debs.yml` for the new `ubuntu-noble` label
+and to run its normal signed native provider/consumer publication train.
+This change does not modify that workflow, grant approval, bypass review, or
+authorize a dispatch. Full installed-image Tuna journey proof and the parent
+v1 release approval remain required independently.
+
 The current Bluefin, Aurora, and Zirconium parity inventory and delivery order
 are maintained in [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).
 

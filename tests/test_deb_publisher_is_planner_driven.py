@@ -182,3 +182,23 @@ def test_an_empty_package_list_is_refused_rather_than_planned_empty():
     result = run("--packages", "")
     assert result.returncode != 0
     assert "no packages requested" in result.stderr
+
+
+def test_noble_provider_and_consumer_use_only_the_noble_root():
+    d = planned("--packages", "tunaos-rust192,tuna-desktop", "--distros", "ubuntu-noble")
+    assert d["count"] == 4
+    rows = d["matrix"]["include"]
+    assert {r["target"] for r in rows} == {"ubuntu-noble"}
+    assert {r["distro"] for r in rows} == {"ubuntu-noble"}
+    assert {r["arch"] for r in rows} == {"amd64", "arm64"}
+    assert all(r["image"].startswith("docker.io/library/ubuntu:noble@sha256:") for r in rows)
+    assert {(r["distro"], r["arch"]) for r in d["verify_matrix"]["include"]} == {
+        ("ubuntu-noble", "amd64"), ("ubuntu-noble", "arm64"),
+    }
+
+
+def test_noble_bootstrap_is_not_publishable_to_resolute_or_debian():
+    for distro in ("ubuntu", "debian-sid", "debian-trixie"):
+        result = run("--packages", "tunaos-rust192", "--distros", distro)
+        assert result.returncode != 0
+        assert "does not target" in result.stderr
