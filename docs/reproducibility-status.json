@@ -1,0 +1,55 @@
+{
+  "by_coordinate": {
+    "tideforge/deb/amd64": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    }
+  },
+  "by_engine": {
+    "tideforge": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    }
+  },
+  "by_format": {
+    "deb": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
+      "sampled": 1
+    }
+  },
+  "history": [],
+  "measured_at": "2026-11-06T15:22:26+00:00",
+  "quarantined": [],
+  "results": [
+    {
+      "action_key": "sha256:644bbb2a5abb2eaa56e53dd0cbbf40480174447d703198ffff4a3504f2c48ae8",
+      "architecture": "amd64",
+      "cell_id": "tideforge-wayland-protocols-debian-amd64",
+      "engine": "tideforge",
+      "extra": [],
+      "format": "deb",
+      "matching": [
+        "wayland-protocols_1.49-1_amd64.deb"
+      ],
+      "mismatches": [],
+      "missing": [],
+      "package": "wayland-protocols",
+      "reproducible": true,
+      "target": "debian"
+    }
+  ],
+  "schema": 1,
+  "summary": {
+    "divergent": 0,
+    "quarantined": 0,
+    "reproducibility_rate": 100.0,
+    "reproducible": 1,
+    "sampled": 1
+  }
+}
