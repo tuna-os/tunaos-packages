@@ -258,6 +258,41 @@ def test_consumed_indexes_fold_into_have(tmp_path, monkeypatch):
     assert gap.consumed_indexes(None, "x86_64", tmp_path) == []
 
 
+def test_json_report_drops_private_consumed_index_sets(monkeypatch, capsys):
+    empty = {"packages": {}, "provides": {}, "provides_evr": {}, "files": set()}
+
+    def fake_primary_of(url, cache, arch=None):
+        return b"", {"baseurl": url, "revision": "test"}
+
+    def fake_consumed_indexes(measurement, arch, cache):
+        return [{
+            "id": "utah-packages",
+            "baseurl": "https://consumed/",
+            "binary_packages": 0,
+            "_have": set(),
+            "_have_evr": {"capability": {"1-1"}},
+        }]
+
+    monkeypatch.setattr(chk.gap, "primary_of", fake_primary_of)
+    monkeypatch.setattr(chk.gap, "parse_primary", lambda blob: empty)
+    monkeypatch.setattr(chk.gap, "consumed_indexes", fake_consumed_indexes)
+
+    assert chk.main([
+        "--target-index", "https://target/",
+        "--published-index", "https://published/",
+        "--consumed-index", "https://consumed/",
+        "--desktop", "gnome",
+        "--json",
+    ]) == 0
+
+    report = json.loads(capsys.readouterr().out)
+    assert report["consumed_indexes"] == [{
+        "baseurl": "https://consumed/",
+        "binary_packages": 0,
+        "id": "utah-packages",
+    }]
+
+
 def index_of(*packages: tuple[str, list[str], list[str]]) -> dict:
     """A parsed-primary lookalike: name -> (provides, requires)."""
     out = {"packages": {}, "provides": {}, "provides_evr": {}, "files": set()}

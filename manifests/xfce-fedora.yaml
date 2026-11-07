@@ -12,12 +12,13 @@
 # (xfconf, libxfce4ui, xfwl4), and its own header records why: xfwl4's -sys
 # crates pin `libxfconf-0 >= 4.21.2` and `libxfce4kbd-private-3 >= 4.21.4`
 # while Fedora 44 ships 4.20.x — package PRESENCE was never evidence of
-# version ADEQUACY. Today's closure() stops at anything the target index
-# `have`s by NAME, so a naive regeneration will emit xfwl4 alone and drop the
-# two version-forced rebuilds. That is the expected, explained diff this
-# family's conversion PR must resolve — by teaching the engine version-aware
-# requirement satisfaction — before the curated file may be deleted per the
-# Phase 1 gate ("generated == curated, exact-or-explained").
+# version ADEQUACY. The gap engine now compares recorded target capability
+# EVRs against versioned requirements, so a naive regeneration no longer
+# drops xfconf and libxfce4ui merely because Fedora has those names. The
+# remaining conversion blocker is the local xfwl4 root: Rawhide does not
+# carry it, so the reference index cannot supply its package metadata or
+# dependency closure. That local-payload gap must be resolved before the
+# curated file may be deleted per the Phase 1 gate.
 schema: 1
 
 # The xfce family builds from reviewed specs only; a package the engine
@@ -46,6 +47,7 @@ desktops:
     required_packages:
       # The deliverable: the Wayland XFCE compositor stack. Its
       # version-pinned build inputs (xfconf 4.21, libxfce4ui 4.21) are NOT
-      # roots — whether they must be rebuilt is exactly the question the gap
-      # engine answers, once it can compare versions and not just names.
+      # roots — the version-aware gap engine decides whether Fedora's
+      # providers satisfy those floors. The local xfwl4 root remains outside
+      # the Rawhide reference and needs explicit local-payload handling.
       - xfwl4
