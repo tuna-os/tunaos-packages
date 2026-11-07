@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 
+import pytest
 import yaml
 
 SAMPLE_MANIFEST = {
@@ -12,6 +13,7 @@ SAMPLE_MANIFEST = {
             'name': 'core',
             'packages': [
                 {'path': 'src/core/systemd'},
+                {'copr_name': 'external-core'},
                 {'path': 'src/core/glibc'},
             ],
         },
@@ -34,6 +36,58 @@ def _run_parse_build_order(manifest_path, *args):
         capture_output=True, text=True
     )
     return result.stdout, result.stderr, result.returncode
+
+
+@pytest.fixture
+def cli_manifest(tmp_path):
+    manifest_path = tmp_path / 'build-order.yml'
+    manifest_path.write_text(yaml.safe_dump(SAMPLE_MANIFEST))
+    return manifest_path
+
+
+def test_all_tab_separated_output(cli_manifest):
+    """Preserve manifest order, empty spec columns, and spec overrides."""
+    stdout, stderr, rc = _run_parse_build_order(cli_manifest, '--all')
+
+    assert rc == 0
+    assert stderr == ''
+    assert stdout == (
+        'src/core/systemd\t\n'
+        'src/core/glibc\t\n'
+        'src/desktop/gnome-shell\t\n'
+        'src/desktop/mutter\tmutter.spec\n'
+    )
+
+
+@pytest.mark.parametrize(('tiers_filter', 'expected'), [
+    ('core', 'src/core/systemd\t\nsrc/core/glibc\t\n'),
+    (' desktop ', 'src/desktop/gnome-shell\t\nsrc/desktop/mutter\tmutter.spec\n'),
+    (' , core, , missing, ', 'src/core/systemd\t\nsrc/core/glibc\t\n'),
+    (' desktop, core ', (
+        'src/core/systemd\t\n'
+        'src/core/glibc\t\n'
+        'src/desktop/gnome-shell\t\n'
+        'src/desktop/mutter\tmutter.spec\n'
+    )),
+    ('nonexistent', ''),
+])
+def test_all_tiers_filter(cli_manifest, tiers_filter, expected):
+    """Select exact tier names, ignoring comma padding and empty names."""
+    stdout, stderr, rc = _run_parse_build_order(
+        cli_manifest, '--all', '--tiers-filter', tiers_filter,
+    )
+
+    assert rc == 0
+    assert stderr == ''
+    assert stdout == expected
+
+
+def test_tier_skips_copr_name_only_entries(cli_manifest):
+    stdout, stderr, rc = _run_parse_build_order(cli_manifest, '--tier', 'core')
+
+    assert rc == 0
+    assert stderr == ''
+    assert stdout == 'src/core/systemd\t\nsrc/core/glibc\t\n'
 
 
 def test_list_all_tiers(tmp_path):
