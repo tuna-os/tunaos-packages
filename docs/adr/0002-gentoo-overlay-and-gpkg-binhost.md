@@ -2,11 +2,11 @@
 
 - Status: accepted
 - Date: 2026-10-16
-- Tracking issue: [#838](https://github.com/tuna-os/tunaos-packages/issues/838)
+- Issue: [#838](https://github.com/tuna-os/tunaos-packages/issues/838)
 - Sign-off: hanthor (maintainer) delegated approval for the Tuna Desktop
   v1.0.0-beta.1 rollout (tuna-desktop ADR 0008)
-- Policy: tunaOS RFC lifecycle (ADR 0004): a new package format and publish
-  route is a package-sourcing change, so it is recorded here.
+- Policy: tunaOS RFC lifecycle (ADR 0004). A new package format and
+  publish route changes package supply. We record the decision here.
 
 ## Context
 
@@ -20,49 +20,45 @@ Every tuna-desktop dependency is already stable on amd64 in `::gentoo`
 
 ## Decision
 
-1. **The recipe stays the source of truth.** `tideforge.py render --target
-   gentoo` writes a one-package overlay (`profiles/repo_name` = `tunaos`,
-   `masters = gentoo`, thin Manifests) with an EAPI 8 ebuild at
-   `<outputs.gpkg.category>/<name>/<name>-<PV>.ebuild`. The recipe version
-   maps to PMS (`1.0.0~beta.1` → `1.0.0_beta1`), SPDX licenses map to Gentoo
-   names, and the recipe's own `custom` build and install commands run
-   unchanged. A recipe that needs the `rust` capability inherits
-   `cargo.eclass`: its `RUST_DEPEND` (at `build.rust_version`, as
-   `RUST_MIN_VER`) is that capability's Gentoo spelling, and the build runs
-   under `cargo_env`. Sources are the recipe's pinned archives, renamed
-   `${P}-<filename>` so an unversioned asset cannot collide in a shared
-   DISTDIR; the Manifest is generated from the bytes the recipe's sha256
-   already verified.
-2. **One `gentoo` target, format `gpkg`.** The cell emerges the overlay's
-   ebuild inside the desktop/systemd stage3 (the profile guppy converts to),
-   taking dependencies from `::gentoo` and Gentoo's signed binhost, and
-   keeps the gpkg. Its verify installs that gpkg into a fresh stage3 with no
-   overlay, so the package can only arrive as the binary under test.
-3. **Publish a signed binhost and the overlay.** `publish-tideforge-gentoo.yml`
-   signs each gpkg with the factory key (`gpkg-sign`), regenerates `Packages`
-   from the whole tree (`emaint binhost --fix`), and serves it at
-   `https://repo.tunaos.org/gentoo/binpkgs/<arch>/`. The overlay of every
-   recipe targeting gentoo is served as one zip at
-   `https://repo.tunaos.org/gentoo/overlay/tunaos-overlay.zip` for
-   `sync-type = zipfile`. Its verify trusts the factory key the way getuto
-   trusts Gentoo's, requires signatures on every binary package, and
-   installs from the served URL.
+1. **The recipe stays the source of truth.** The command `tideforge.py
+   render --target gentoo` writes a one-package overlay (`profiles/repo_name` =
+   `tunaos`, `masters = gentoo`, thin Manifests). It outputs an EAPI 8 ebuild
+   at `<outputs.gpkg.category>/<name>/<name>-<PV>.ebuild`. The recipe version
+   maps to PMS (`1.0.0~beta.1` → `1.0.0_beta1`). SPDX licenses map to Gentoo
+   names. The recipe custom build and install commands run unchanged. A recipe
+   with the `rust` capability inherits `cargo.eclass`. Its `RUST_DEPEND` maps
+   to `build.rust_version`, and the build runs under `cargo_env`. Sources use
+   pinned archives renamed to `${P}-<filename>` to prevent collision in
+   `DISTDIR`. The renderer writes the Manifest from verified sha256 bytes.
+2. **One `gentoo` target, format `gpkg`.** The cell emerges the ebuild
+   inside the desktop/systemd stage3 (the profile guppy uses). It takes
+   dependencies from `::gentoo` and Gentoo's signed binhost. Then it saves the
+   gpkg. Verification installs that gpkg into a fresh stage3 without an overlay.
+   Thus, the package arrives only as the binary under test.
+3. **Publish a signed binhost and overlay.** The workflow
+   `publish-tideforge-gentoo.yml` signs each gpkg with the factory key
+   (`gpkg-sign`). It regenerates `Packages` with `emaint binhost --fix`. It
+   publishes the binhost to `https://repo.tunaos.org/gentoo/binpkgs/<arch>/`.
+   The publisher serves the Gentoo overlay as a zip file at
+   `https://repo.tunaos.org/gentoo/overlay/tunaos-overlay.zip`. Verification
+   trusts the factory key, needs signatures on binary packages, and installs
+   from the served URL.
 
 **Considered options:**
 
 - **A hand-written ebuild in a separate overlay repository**: rejected. It
-  duplicates the recipe's sources, commands and install layout, so the
-  Gentoo build would drift from the eight targets that render from it.
+  duplicates recipe sources, commands, and layout. The Gentoo build would
+  drift from the other eight targets.
 - **Ship only an overlay and let guppy compile**: rejected. guppy builds
-  from binaries because @world from source does not fit its CI time; a
-  Rust build of tuna-desktop in every image build is the same cost again.
-- **Rendered overlay plus signed binhost**: chosen.
+  from binaries because `@world` from source exceeds the limit for CI time. A
+  build of tuna-desktop from source in every image repeats that cost.
+- **Rendered overlay with signed binhost**: chosen.
 
 ## Consequences
 
-- The ebuild renderer supports `build_system: custom` only, the one
-  tuna-desktop uses; other build systems fail rather than render untested
-  ebuilds. Widening it is a separate change with its own gate cells.
+- The ebuild renderer supports `build_system: custom` only. Other build
+  systems fail to prevent untested ebuilds. Support for other
+  build systems is a separate change with its own gates.
 - A consumer enables the binhost (`binrepos.conf`, `verify-signature = true`,
   the factory key lsigned in `/etc/portage/gnupg`) and, to rebuild from
   source, the overlay (`repos.conf`, `sync-type = zipfile`).

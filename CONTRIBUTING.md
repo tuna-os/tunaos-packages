@@ -1,6 +1,6 @@
 # Contributing
 
-TunaOS Packages contains several packaging pipelines. Before changing a
+TunaOS Packages contains several package pipelines. Before you change a
 package, identify which pipeline owns it and preserve that pipeline's source,
 build, install, and runtime gates.
 
@@ -32,14 +32,13 @@ Useful pipeline references:
 
 - [Package factory contract](docs/PACKAGE_FACTORY.md) — supported targets,
   source policy, promotion gates, and `packages/*/package.yaml` recipes
-- [Patch policy](docs/PATCH_POLICY.md) — when and how downstream patches may
-  be carried
+- [Patch policy](docs/PATCH_POLICY.md) — when and how to carry downstream patches
 - [GNOME 50 repository publication](docs/GNOME50-REPO-PUBLISH.md) — operator
   steps for the native EL10 repository
-- [XFWL4 porting guide](docs/XFWL4-PORTING.md) — target-specific XFCE/XFWL4
-  packaging
+- [XFWL4 port guide](docs/XFWL4-PORTING.md) — target-specific XFCE/XFWL4
+  packages
 - [Upstream parity register](docs/UPSTREAM_PARITY.md) — source and behavior
-  differences that need explicit tracking
+  differences that need explicit records
 - [Withdrawing a shadowed package](docs/WITHDRAWN-PACKAGES.md) — removing a
   served build from a target's index without deleting it, when upstream
   ships a newer one
@@ -49,8 +48,8 @@ the package families it does and does not cover.
 
 ## Choose the correct package layout
 
-Do not create a generic source directory or tarball unless the package's spec
-actually requires one. Existing packages use one of these layouts:
+Do not create a generic source directory or tarball unless the package spec
+needs one. Existing packages use one of these layouts:
 
 | Path | Use |
 | --- | --- |
@@ -63,14 +62,14 @@ actually requires one. Existing packages use one of these layouts:
 Start from a nearby package in the same family. If adding a package-factory
 recipe, use `packages/_template/package.yaml` and declare only targets the
 recipe can build and verify. Keep native EL10 compatibility work in the native
-RPM pipeline until the package-factory promotion contract is satisfied.
+RPM pipeline until the package meets the promotion contract.
 
-When changing a native spec:
+When you change a native spec:
 
 - keep the package after its build-time dependencies in the applicable
   `build-order*.yml` file;
 - place patches beside the owning spec and follow `docs/PATCH_POLICY.md`;
-- record manual GNOME spec or source changes in `SRPM-CHANGES.md` where that
+- record manual changes to GNOME specs or sources in `SRPM-CHANGES.md` where that
   log applies; and
 - add a focused regression test for compatibility or pipeline behavior that
   is not evident from a successful build alone.
@@ -83,14 +82,14 @@ Install Python test dependencies with:
 python3 -m pip install pytest pyyaml jsonschema
 ```
 
-Run focused tests while developing. For example:
+Run focused tests during development. For example:
 
 ```bash
 python3 -m pytest tests/test_parse_build_order.py -v
 python3 scripts/parse-build-order.py build-order.yml --validate
 ```
 
-Run the repository's combined fast checks before submitting:
+Run the repository's combined fast checks before you submit:
 
 ```bash
 just check
@@ -110,7 +109,7 @@ For a local RPM build, use the target declared by the owning pipeline:
 
 Container and Mock builds are slower than the fast checks. Run the relevant
 build when practical and state clearly in the pull request when it was not run.
-A build alone is not a release gate: package promotion also requires a clean
+A build alone is not a release gate: package promotion also needs a clean
 staged install and the applicable runtime or desktop validation.
 
 ## Pull requests
@@ -124,9 +123,9 @@ Include in the pull request description:
 - staged install or runtime checks run, or why they remain for CI or an
   operator.
 
-Keep unrelated package updates separate. Automated source updates must open
-review pull requests and must not publish directly. Signing and publication
-credentials belong only in trusted GitHub environments; never use production
+Do not combine unrelated updates in one pull request. Automated source updates must open
+review pull requests and must not publish directly. Credentials for signatures and publication
+belong only in trusted GitHub environments; never use production
 publication commands or commit secrets from a contributor workstation.
 
 ## Style
@@ -134,7 +133,7 @@ publication commands or commit secrets from a contributor workstation.
 - Shell: use `set -euo pipefail` and satisfy ShellCheck.
 - Python: follow PEP 8 and add focused pytest coverage.
 - YAML: use two-space indentation and validate the affected manifest.
-- Commits: use imperative subjects and explain non-obvious packaging choices.
+- Commits: use imperative subjects and explain choices that are not obvious.
 
 All contributions must follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Report
 vulnerabilities through the private process in [SECURITY.md](SECURITY.md), not
