@@ -109,18 +109,19 @@ def test_the_terminal_verdict_does_not_claim_the_desktop_boots() -> None:
 def test_the_build_order_is_read_the_way_the_index_answers() -> None:
     """Names, not paths: the index has never heard of src/gnome-51.
 
-    gtk4 and mutter were the witnesses until 2026-09-02; they are consumed
-    from utah-packages now (#629) and no longer in the order at all. gjs and
-    nautilus are the GNOME packages still built here from src/gnome-51."""
+    Utah supplies GNOME only. Shared dependencies such as gtk4 can still
+    appear in the order for other desktops that cannot consume Utah.
+    gjs and nautilus use local specs under src/gnome-51."""
     names = converge.wanted_names(
         REPO / "build-order-hummingbird-desktops.yml"
     )
     assert names
     assert not any("/" in name for name in names)
     assert "gjs" in names and "nautilus" in names
-    assert "gtk4" not in names and "mutter" not in names, (
-        "utah-packages ships these; the order rebuilding them means the "
-        "consumed index stopped counting as had"
+    report = json.loads((REPO / "docs/hummingbird-desktop-gap.json").read_text())
+    gnome_need = report["desktops"]["gnome"]["source_packages_to_build"]
+    assert "gtk4" not in gnome_need and "mutter" not in gnome_need, (
+        "GNOME's measurement must count its consumed Utah packages as available"
     )
     assert len(names) == len(set(names))
 

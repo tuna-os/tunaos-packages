@@ -585,9 +585,19 @@ def consumed_indexes(measurement: dict | None, arch: str, cache: pathlib.Path) -
             "id": spec["id"],
             **provenance,
             "binary_packages": len(index["packages"]),
+            "serves": spec.get("serves"),
             "_have": set(index["provides"]) | set(index["packages"]),
         })
     return out
+
+
+def desktop_available(have: set[str], consumed: list[dict], desktop: str) -> set[str]:
+    """A GNOME-only consumed repository cannot supply COSMIC's firmware."""
+    available = set(have)
+    for entry in consumed:
+        if entry.get("serves") is None or desktop in entry["serves"]:
+            available |= entry["_have"]
+    return available
 
 
 def measure_roots(roots: list[str], reference: dict, have: set[str],
@@ -752,7 +762,6 @@ def main() -> None:
     # resolved through a consumed repository's BuildRequires.
     consumed = consumed_indexes(measurement, args.arch, args.cache)
     for entry in consumed:
-        have |= entry.pop("_have")
         print(
             f"consumed     {entry['id']}: {entry['binary_packages']} binary "
             f"packages counted as had ({entry['baseurl']})",
@@ -773,7 +782,10 @@ def main() -> None:
         "tier_ordering": "buildrequires" if source_index else "runtime-requires",
         "membership": membership,
         "target_binary_packages": len(target_index["packages"]),
-        "consumed_indexes": consumed,
+        "consumed_indexes": [
+            {key: value for key, value in entry.items() if key != "_have"}
+            for entry in consumed
+        ],
         "desktops": {},
     }
     union_need: set[str] = set()
@@ -788,7 +800,8 @@ def main() -> None:
         # membership walks Requires: only, while ordering always uses the real
         # BuildRequires graph among members.
         measured, need = measure_roots(
-            roots, reference_index, have, target_index["packages"],
+            roots, reference_index, desktop_available(have, consumed, desktop),
+            target_index["packages"],
             source_index, membership,
         )
         union_need |= need

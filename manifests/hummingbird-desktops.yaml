@@ -91,12 +91,13 @@ desktops:
     # other desktop's. The GNOME 51 spec tree stays, as EL10's `next` track.
     # Decided in #629; docs/HUMMINGBIRD-TARGET.md §7.
     consumed_from: utah-packages
-    required_packages: [gdm, gjs, gnome-control-center, gnome-initial-setup, gnome-session, gnome-settings-daemon, gnome-shell, mutter, nautilus, xdg-desktop-portal-gnome]
+    # Laptop audio roots (tuna-os/tunaos#2064); linux-firmware omits these.
+    required_packages: [alsa-sof-firmware, alsa-firmware, gdm, gjs, gnome-control-center, gnome-initial-setup, gnome-session, gnome-settings-daemon, gnome-shell, mutter, nautilus, xdg-desktop-portal-gnome]
     # Contract surface tunaOS's desktop gate checks by command/path/unit, which
     # the required_packages list above does not name: gnome-keyring-daemon,
     # gvfsd, the pipewire/wireplumber user units and the dconf distro database.
     # LUKS run 31100096864 job 92611346523 failed on exactly these.
-    install_packages: [ModemManager, gjs, gnome-session, NetworkManager-adsl, NetworkManager-openconnect-gnome, NetworkManager-openvpn-gnome, NetworkManager-ppp, NetworkManager-ssh-gnome, NetworkManager-vpnc-gnome, NetworkManager-wwan, avahi, dconf, fprintd-pam, gdm, glib-networking, gnome-backgrounds, gnome-bluetooth, gnome-browser-connector, gnome-classic-session, gnome-color-manager, gnome-control-center, gnome-disk-utility, gnome-initial-setup, gnome-keyring, gnome-remote-desktop, gnome-session-wayland-session, gnome-settings-daemon, gnome-shell, gnome-system-monitor, gnome-user-docs, gnome-user-share, gsettings-desktop-schemas, gtk4, gvfs, gvfs-afc, gvfs-fuse, gvfs-goa, gvfs-gphoto2, gvfs-mtp, gvfs-smb, libadwaita, librsvg2, libsane-hpaio, mesa-dri-drivers, mesa-libEGL, mesa-vulkan-drivers, mutter, nautilus, pinentry-gnome3, pipewire, polkit, ptyxis, wireplumber, xdg-desktop-portal, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, yelp]
+    install_packages: [alsa-sof-firmware, alsa-firmware, ModemManager, gjs, gnome-session, NetworkManager-adsl, NetworkManager-openconnect-gnome, NetworkManager-openvpn-gnome, NetworkManager-ppp, NetworkManager-ssh-gnome, NetworkManager-vpnc-gnome, NetworkManager-wwan, avahi, dconf, fprintd-pam, gdm, glib-networking, gnome-backgrounds, gnome-bluetooth, gnome-browser-connector, gnome-classic-session, gnome-color-manager, gnome-control-center, gnome-disk-utility, gnome-initial-setup, gnome-keyring, gnome-remote-desktop, gnome-session-wayland-session, gnome-settings-daemon, gnome-shell, gnome-system-monitor, gnome-user-docs, gnome-user-share, gsettings-desktop-schemas, gtk4, gvfs, gvfs-afc, gvfs-fuse, gvfs-goa, gvfs-gphoto2, gvfs-mtp, gvfs-smb, libadwaita, librsvg2, libsane-hpaio, mesa-dri-drivers, mesa-libEGL, mesa-vulkan-drivers, mutter, nautilus, pinentry-gnome3, pipewire, polkit, ptyxis, wireplumber, xdg-desktop-portal, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, xdg-user-dirs-gtk, yelp]
   kde:
     release: latest
     sources: [{fedora_distgit: plasma-desktop}, {fedora_distgit: plasma-workspace}, {fedora_distgit: kde-cli-tools}, {fedora_distgit: plasma-systemsettings}, {fedora_distgit: sddm}, {fedora_distgit: xdg-desktop-portal-kde}]
@@ -105,8 +106,9 @@ desktops:
   cosmic:
     release: latest
     sources: [{fedora_distgit: cosmic-session}, {fedora_distgit: cosmic-comp}, {fedora_distgit: cosmic-greeter}, {fedora_distgit: cosmic-settings}, {fedora_distgit: xdg-desktop-portal-cosmic}]
-    required_packages: [cosmic-session, cosmic-comp, cosmic-greeter, cosmic-settings, xdg-desktop-portal-cosmic]
-    install_packages: [cosmic-session, cosmic-comp, cosmic-panel, cosmic-app-library, cosmic-applets, cosmic-bg, cosmic-files, cosmic-idle, cosmic-launcher, cosmic-notifications, cosmic-osd, cosmic-randr, cosmic-screenshot, cosmic-settings, cosmic-settings-daemon, cosmic-term, cosmic-wallpapers, cosmic-workspaces, cosmic-greeter, cosmic-icon-theme, greetd, xdg-desktop-portal-cosmic]
+    # Laptop audio roots (tuna-os/tunaos#2064); linux-firmware omits these.
+    required_packages: [alsa-sof-firmware, alsa-firmware, cosmic-session, cosmic-comp, cosmic-greeter, cosmic-settings, xdg-desktop-portal-cosmic]
+    install_packages: [alsa-sof-firmware, alsa-firmware, cosmic-session, cosmic-comp, cosmic-panel, cosmic-app-library, cosmic-applets, cosmic-bg, cosmic-files, cosmic-idle, cosmic-launcher, cosmic-notifications, cosmic-osd, cosmic-randr, cosmic-screenshot, cosmic-settings, cosmic-settings-daemon, cosmic-term, cosmic-wallpapers, cosmic-workspaces, cosmic-greeter, cosmic-icon-theme, greetd, xdg-desktop-portal-cosmic]
   niri:
     release: latest
     sources: [{fedora_distgit: niri}, {upstream_rpm: https://github.com/outfoxxed/quickshell}, {upstream_rpm: https://github.com/AvengeMedia/DankMaterialShell}, {fedora_distgit: greetd}]
@@ -193,7 +195,8 @@ desktops:
 # component from its desktop's install_packages, so the availability audit
 # is an invariant of the manifest rather than a one-off measurement.
 components:
-  gnome: [NetworkManager-openvpn-gnome, NetworkManager-openconnect-gnome, NetworkManager-wwan, gnome-keyring, nautilus, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk]
+  cosmic: [alsa-sof-firmware, alsa-firmware]
+  gnome: [alsa-sof-firmware, alsa-firmware, NetworkManager-openvpn-gnome, NetworkManager-openconnect-gnome, NetworkManager-wwan, gnome-keyring, nautilus, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk]
   kde: [xdg-desktop-portal-kde]
   niri: [NetworkManager-tui, blueman, brightnessctl, playerctl, pavucontrol, gnome-keyring, nautilus, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, SwayNotificationCenter, waybar, fuzzel]
   xfce: [greetd, gtkgreet, cage, xdg-desktop-portal-gtk]

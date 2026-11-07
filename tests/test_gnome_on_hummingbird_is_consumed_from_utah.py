@@ -289,3 +289,14 @@ def test_the_checker_reads_the_contracts_consumed_indexes_by_default():
     text = (ROOT / "scripts" / "check-hummingbird-installability.py").read_text()
     assert 'target.get("gap_measurement")' in text and "consumed_indexes" in text
     assert "--consumed-index" in text
+
+
+def test_gnome_consumed_firmware_does_not_hide_cosmic_build_roots():
+    consumed = [{"serves": ["gnome"], "_have": {"alsa-firmware"}}]
+    target = {"systemd"}
+    assert "alsa-firmware" in gap.desktop_available(target, consumed, "gnome")
+    assert "alsa-firmware" not in gap.desktop_available(target, consumed, "cosmic")
+    assert target == {"systemd"}
+    # Entries without a serves restriction remain target-wide.
+    consumed.append({"_have": {"shared-firmware"}})
+    assert "shared-firmware" in gap.desktop_available(target, consumed, "cosmic")
