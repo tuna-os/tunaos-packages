@@ -38,6 +38,16 @@ def bcond_block() -> str:
     assert match, "the bcond block is gone from build-chain.sh"
     return match.group(0)
 
+def backend_sources() -> str:
+    return "\n".join(
+        (ROOT / path).read_text()
+        for path in (
+            "scripts/lib/build-chain/podman.sh",
+            "scripts/lib/build-chain/mock.sh",
+        )
+    )
+
+
 
 def evaluate(with_checks: bool) -> tuple[list[str], str]:
     """Run the real block for a given --with-checks and report what it built."""
@@ -83,7 +93,7 @@ echo ok
 
 def test_the_srpm_build_carries_the_bconds():
     """mock's builddep reads the SRPM header, so the SRPM must be built with them."""
-    text = SCRIPT.read_text()
+    text = backend_sources()
     srpm_builds = re.findall(
         r"rpmbuild -bs .*?(?=\n\n)", text, re.S
     )
@@ -97,7 +107,7 @@ def test_the_srpm_build_carries_the_bconds():
 
 def test_every_mock_invocation_carries_the_bconds():
     """And the chroot has to agree with the header it was handed."""
-    text = SCRIPT.read_text()
+    text = backend_sources()
     invocations = [
         line for line in text.splitlines() if re.search(r"\$\{mock_check_flag\}", line)
     ]

@@ -89,7 +89,14 @@ def test_nevra_parsing_survives_dashes_in_names():
 
 def test_the_chain_records_manifests_only_when_asked():
     """Opt-in by env var, non-fatal on failure, wired in both mock backends."""
-    chain = (ROOT / "scripts" / "build-chain.sh").read_text()
+    chain = "\n".join(
+        (ROOT / path).read_text()
+        for path in (
+            "scripts/build-chain.sh",
+            "scripts/lib/build-chain/podman.sh",
+            "scripts/lib/build-chain/mock.sh",
+        )
+    )
     assert chain.count('record_buildroot_manifest "$resultdir" "$pkg_name"') == 2
     assert 'BUILDROOT_MANIFESTS:-' in chain, "must be opt-in"
     assert "non-fatal" in chain

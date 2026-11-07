@@ -86,8 +86,14 @@ def test_every_chain_records_a_diffable_buildroot():
     """rpm from mock's own logs, deb from dpkg-query; one differ reads
     both conventions (tests/test_buildroot_manifests.py holds the
     per-format parsing pins)."""
-    assert "record_buildroot_manifest" in (
-        ROOT / "scripts" / "build-chain.sh").read_text()
+    assert "record_buildroot_manifest" in "\n".join(
+        (ROOT / path).read_text()
+        for path in (
+            "scripts/build-chain.sh",
+            "scripts/lib/build-chain/podman.sh",
+            "scripts/lib/build-chain/mock.sh",
+        )
+    )
     assert "buildroot.txt" in (
         ROOT / "scripts" / "build-deb-chain.sh").read_text()
 

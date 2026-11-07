@@ -28,7 +28,7 @@ import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CHAIN = ROOT / "scripts" / "build-chain.sh"
+CHAIN = ROOT / "scripts/lib/build-chain/podman.sh"
 
 
 def guard_source() -> str:
