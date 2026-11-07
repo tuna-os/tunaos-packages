@@ -273,3 +273,23 @@ def test_the_overwrite_has_the_permission_it_needs():
             f"{path.name}: actions permission is {perms.get('actions')!r}; "
             "the shared-partial overwrite will be rejected"
         )
+
+
+def test_pull_requests_do_not_continue_alma10_cells():
+    """Off main an alma10 continuation has no resume: it would rebuild the chain
+    from tier 0. Other families keep theirs, and the nightly (which never passes
+    the flag) keeps every one."""
+    cells = {c["id"]: c for c in plan_args()[0] if c["engine"] == "build-chain"}
+    alma = [i for i, c in cells.items() if str(c.get("mock_config", "")).startswith("alma10-")]
+    assert alma, "no alma10 cell in the nightly plan: the fixture moved"
+    nightly = plan_args()
+    on_pr = plan_args("--no-unresumable-continuations")
+    for index, suffix in ((1, "-c1"), (2, "-c2")):
+        nightly_ids = {c["id"] for c in nightly[index]}
+        pr_ids = {c["id"] for c in on_pr[index]}
+        for cell_id in alma:
+            assert f"{cell_id}{suffix}" in nightly_ids
+            assert f"{cell_id}{suffix}" not in pr_ids
+        others = [i for i, c in cells.items() if i not in alma and not c.get("tiers") and not c.get("canary")]
+        assert others
+        assert all(f"{i}{suffix}" in pr_ids for i in others), "non-alma continuations must survive"
