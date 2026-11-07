@@ -193,8 +193,9 @@ jobs:
 
       - name: Install native CPU proof tools
         run: |
+          pip install pytest pyyaml jsonschema
           sudo apt-get update
-          sudo apt-get install -y rpm rpm2cpio gnupg binutils gcc libc6-dev qemu-user-static createrepo-c debhelper fakeroot dpkg-dev make
+          sudo apt-get install -y libarchive-tools rpm rpm2cpio gnupg binutils gcc libc6-dev qemu-user-static createrepo-c debhelper fakeroot dpkg-dev make
 
       - name: Run pytest
         env:
