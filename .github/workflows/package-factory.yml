@@ -116,6 +116,16 @@ on:
 #
 # github.event.inputs rather than the inputs context: it is readable from any
 # expression that can read github, including this workflow-level block.
+# A pull_request gets its OWN group, keyed on the PR number rather than
+# github.ref. Measured 2026-10-31..11-06: for a MERGED PR the `closed` run
+# (see on.pull_request.types) did not land in the PR's refs/pull/N/merge
+# group. It landed beside the push-to-main run created one second earlier:
+# in 5 of 6 merges the closed no-op cancelled that push run within seconds,
+# and in the sixth the push run cancelled the closed run. Either way the PR's
+# own build kept running for 14-17 h after the merge (19.6k job-min in the
+# week, ~56% of this workflow's pull_request minutes). The PR number is the
+# same on opened/synchronize/reopened/closed, so the closed event now
+# supersedes the PR's build as intended and stops colliding with main.
 concurrency:
   group: >-
     package-factory-${{ github.event_name == 'schedule'
@@ -124,6 +134,8 @@ concurrency:
       && format('dispatch-{0}-{1}-{2}-{3}-{4}', github.ref,
                 github.event.inputs.cell, github.event.inputs.selector,
                 github.event.inputs.batch_index, github.event.inputs.parent_run_id)
+      || github.event_name == 'pull_request'
+      && format('pr-{0}', github.event.pull_request.number)
       || github.ref }}
   cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
@@ -281,6 +293,9 @@ jobs:
           # builds on merge, and the weekly schedule builds every family.
           if [ "$EVENT_NAME" = pull_request ]; then
             args+=(--round-robin-size "$ROUND_ROBIN_SIZE" --round-robin-seed "$RUN_NUMBER")
+            # alma10 -c1/-c2 have no resume off main: they would rebuild the
+            # chain from tier 0 and repeat build-0's result.
+            args+=(--no-unresumable-continuations)
           fi
           [ -z "$REQUESTED_SELECTOR" ] || args+=(--selector "$REQUESTED_SELECTOR")
           python3 scripts/plan-package-factory.py "${args[@]}" > factory-plan.json

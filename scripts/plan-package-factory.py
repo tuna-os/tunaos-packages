@@ -725,6 +725,11 @@ def main() -> int:
         default=0,
         help="pull requests: build only this many shared-input cells, rotated by --round-robin-seed",
     )
+    parser.add_argument(
+        "--no-unresumable-continuations",
+        action="store_true",
+        help="pull requests: do not emit -c1/-c2 for alma10-* cells, which have no resume path off main",
+    )
     parser.add_argument("--round-robin-seed", type=int, default=0, help="rotation seed (the run number)")
     parser.add_argument("--github-output", type=pathlib.Path)
     parser.add_argument("--consumer-contracts", type=pathlib.Path)
@@ -857,6 +862,15 @@ def main() -> int:
                       "dropping would silently halve chain throughput",
                       file=sys.stderr)
                 return 2
+            # A pull_request has no authenticated Alma candidate resume (the
+            # workflow's "Prepare authenticated Alma candidate resume" step runs
+            # only for dispatch/push/schedule, and the generic partial resume
+            # skips alma10-*), so an alma10 continuation restarts the chain from
+            # tier 0 and repeats the previous shard's work. Measured
+            # 2026-10-31..11-06: 8.3k job-min across 88 such PR continuations,
+            # every one red.
+            if args.no_unresumable_continuations and str(cell.get("mock_config", "")).startswith("alma10-"):
+                continue
             shards[shard_index].append(_continuation(cell, suffix))
 
     matrices = [json.dumps({"include": shard}, separators=(",", ":")) for shard in shards]
