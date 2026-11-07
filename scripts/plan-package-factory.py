@@ -58,7 +58,8 @@ def load_yaml(path: pathlib.Path) -> dict[str, Any]:
     return value
 def native_manifest_packages(
     root: pathlib.Path, manifest: str
-) -> list[tuple[str, bool]]:
+) -> list[tuple[str, bool, str]]:
+    """(package path, build_tool, tier name) for every package in the manifest."""
     data = load_yaml(root / manifest)
     packages = []
     for tier in data.get("tiers") or []:
@@ -69,19 +70,21 @@ def native_manifest_packages(
                 continue
             path = package.get("path")
             if isinstance(path, str) and path:
-                packages.append((path.rstrip("/"), bool(package.get("build_tool"))))
+                packages.append(
+                    (path.rstrip("/"), bool(package.get("build_tool")), str(tier.get("name") or ""))
+                )
     return packages
 
 
 def owned_native_sources(
     root: pathlib.Path, cell: dict[str, Any], changed: set[str]
-) -> list[tuple[str, bool]]:
+) -> list[tuple[str, bool, str]]:
     packages = native_manifest_packages(root, str(cell["manifest"]))
     owned = []
     for path in changed:
-        for package_path, build_tool in packages:
+        for package_path, build_tool, tier in packages:
             if path == package_path or path.startswith(f"{package_path}/"):
-                owned.append((path, build_tool))
+                owned.append((path, build_tool, tier))
                 break
     return owned
 
@@ -414,7 +417,19 @@ def select_cells(
                 owned = owned_native_sources(root, cell, changed)
                 owns_change = cell["manifest"] in changed or bool(owned)
             if owns_change:
-                if canary_common and owned and all(build_tool for _, build_tool in owned):
+                # The PR gate may bound this cell to its canary tier(s) only when
+                # that still builds every changed package: each changed source is
+                # a build tool (exercised in its own first tier) or itself lives
+                # in a canary tier (the canary builds that whole tier). A change
+                # to the cell's own manifest, or to a package in any later tier,
+                # still builds the real chain.
+                canary_tiers = {t for t in str(cell.get("canary_tiers") or "").split(",") if t}
+                if (
+                    canary_common
+                    and owned
+                    and cell["manifest"] not in changed
+                    and all(build_tool or tier in canary_tiers for _, build_tool, tier in owned)
+                ):
                     renderer_only.append(cell)
                 else:
                     selected.append(cell)
