@@ -10,7 +10,8 @@ targets, and publishes only validated repositories to Cloudflare R2.
 |---|---|---|---|
 | EL10 | RPM | rpm-md | supported |
 | Fedora ELN | RPM | rpm-md | supported |
-| Ubuntu | DEB | APT | supported foundation |
+| Ubuntu 26.04 Resolute (`ubuntu`) | DEB | APT | supported foundation |
+| Ubuntu 24.04 Noble (`ubuntu-noble`) | DEB | APT | native source candidate; signed index and qualification pending |
 | Debian Sid | DEB | APT | supported foundation |
 | openSUSE Tumbleweed | RPM | rpm-md | supported foundation |
 | Arch | pkg.tar.zst | pacman | scaffold |
@@ -100,6 +101,62 @@ source and packaging metadata only. Before importing a package, record its
 upstream commit/tag, license, patches, and target compatibility. TunaOS rebuilds
 the package itself; it never enables an upstream COPR, PPA, or binary repository
 in a produced image.
+
+This does not ban first-party source-built compilers. `ubuntu-noble` is a
+separate Ubuntu 24.04 root, not the `ubuntu` target's Resolute 26.04 root.
+Its `tunaos-rust192` recipe rebuilds official Rust 1.92.0 source using
+Noble-primary's signed native versioned Rust/Cargo 1.91 packages. Upstream's
+`src/stage0` declares `compiler_version=1.91.0`; the build checks that predecessor
+and the native host before building compiler, Cargo and std at stage 2.
+The isolated `/opt/tunaos/rust-1.92` prefix never replaces system compiler paths.
+Vendored dependencies are offline and locked; LLVM is source-built and CI
+compiler/LLVM/GCC downloads are disabled. Alma's separate Rust 1.93 recipe and
+its native 1.92 predecessor requirement are unchanged.
+
+The official `.sha256` metadata advertises
+`ebee170bfe4c4dfc59521a101de651e5534f4dae889756a5c97ca9ea40d0c307`.
+That observation is not an archive-byte measurement, successful native build,
+std/ELF ABI proof or signed publication. Historical #834 comments described the
+then-missing recipe, not a permanent ban on this source bootstrap.
+
+The local native attempt additionally downloaded and checksum-verified the
+archive, rendered the package, and installed Noble-primary's native
+`rustc-1.91`, `cargo-1.91` and std packages at
+`1.91.1+dfsg~24.04-0ubuntu0.24.04.3` in the pinned Noble root. It exposed two
+real integration defects: unsupported `[rust].rustflags` in bootstrap
+configuration and debhelper auto-running upstream `configure` over a resumed
+`bootstrap.toml`. The Noble recipe removes the unsupported field; custom DEB
+builds now use `--buildsystem=none`, with configuration/build/tests/install
+owned by the declared custom scripts. Neither attempt completed a Rust 1.92
+compiler/std package, clean install or full Tuna consumer. Preserved native
+state is not a qualified provider and must resume only when the shared local
+build resource is handed back by the parent qualification owner.
+
+Noble's Tuna consumer builds the pinned private GTK4 layer-shell source with
+its upstream layer/lock tests, packages its runtime and license, and installs
+all six Tuna executables, cursor assets, schemas/session dependencies, portal
+descriptor/routing, native colord/profile-manager supply and canberra
+player/Pulse/theme dependencies. All DEB targets hard-depend on native
+`gnome-session-bin`, `gnome-session-common` and `gnome-settings-daemon`, rather
+than relying on recommendations or an already-installed GNOME desktop. Real
+`--no-install-recommends` transactions exposed missing runtime providers in
+Noble and in the separate Ubuntu 26.04, Debian sid and Trixie roots.
+In Noble, `gnome-session-bin` alone does not pull in the common data package
+that owns the session targets required by Tuna. Installed verification follows the shipped Tuna
+target's direct `Wants=`/`BindsTo=` unit requirements and refuses missing native
+unit files; package-name availability alone cannot satisfy this runtime gate.
+The Noble publisher label is `ubuntu-noble`; its served index remains pending until the
+first verified signed publication. Bootstrap publication must precede the
+consumer build because an unpublished build dependency cannot resolve from the
+normal factory index. Neither declaration qualifies Gurnard.
+
+The existing workflow-path manual fence applies **before workflow edits or
+publication**: obtain explicit maintainer approval to amend
+`.github/workflows/publish-tideforge-debs.yml` for the new `ubuntu-noble` label
+and to run its normal signed native provider/consumer publication train.
+This change does not modify that workflow, grant approval, bypass review, or
+authorize a dispatch. Full installed-image Tuna journey proof and the parent
+v1 release approval remain required independently.
 
 The current Bluefin, Aurora, and Zirconium parity inventory and delivery order
 are maintained in [`UPSTREAM_PARITY.md`](UPSTREAM_PARITY.md).

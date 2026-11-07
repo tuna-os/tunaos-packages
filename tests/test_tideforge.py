@@ -535,10 +535,7 @@ def test_real_recipes_keep_declared_runtime_metadata(
 
 @pytest.mark.parametrize(
     "target",
-    [
-        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "debian",
-        "trixie", "opensuse-tumbleweed", "gentoo",
-    ],
+    tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")["targets"],
 )
 def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> None:
     """D-Bus and spawned helpers cannot be inferred from ELF dependencies (#341)."""
@@ -552,7 +549,7 @@ def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> No
             if line.startswith("depends=(")
         )
         dependencies = set(depends.removeprefix("depends=(").removesuffix(")").replace("'", "").split())
-    elif target in {"ubuntu", "debian", "trixie"}:
+    elif "debian/control" in rendered:
         depends = next(
             line for line in rendered["debian/control"].splitlines()
             if line.startswith("Depends:")
@@ -571,12 +568,22 @@ def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> No
     assert expected <= dependencies
 
 
-def test_tuna_desktop_colour_runtime_contract_covers_every_factory_target() -> None:
+def test_tuna_desktop_deb_runtime_requires_session_data_and_daemon_executables() -> None:
+    """A no-recommends install must supply the units and workers Tuna starts."""
     recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
-    assert set(recipe["targets"]) == {
-        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "debian",
-        "trixie", "opensuse-tumbleweed", "gentoo",
-    }
+    targets = tideforge.load_targets()
+    for target in recipe["targets"]:
+        if targets[target]["format"] != "deb":
+            continue
+        control = tideforge.render(recipe, target)["debian/control"]
+        depends = next(line for line in control.splitlines() if line.startswith("Depends:"))
+        dependencies = {item.strip() for item in depends.removeprefix("Depends:").split(",")}
+        assert {
+            "gnome-session-bin",
+            "gnome-session-common",
+            "gnome-settings-daemon",
+            "gnome-settings-daemon-common",
+        } <= dependencies, target
 
 
 def test_dms_greeter_is_an_arch_recipe_with_runtime_closure() -> None:
@@ -997,15 +1004,21 @@ def test_custom_deb_does_not_emit_test_override(recipe: dict) -> None:
     assert "override_dh_auto_test:" not in rules
 
 
-def test_data_deb_disables_debhelper_build_system_autodetection(recipe: dict) -> None:
-    """Data recipes must pin --buildsystem=none.
+@pytest.mark.parametrize("build_system", ["data", "custom"])
+def test_recipe_owned_deb_disables_debhelper_autodetection(recipe: dict, build_system: str) -> None:
+    """Recipe-owned lifecycles must pin --buildsystem=none.
 
     Plain "dh $@" auto-detects a build system from whatever upstream ships.
     oversteer-udev installs only udev rules but upstream carries a meson.build,
     so debhelper ran dh_auto_configure under meson and failed with exit code 25
     — while the same recipe built fine as an RPM, which bypasses debhelper.
+    Rust's custom bootstrap similarly owns bootstrap.toml; auto-configure
+    refuses an existing file when resuming and cannot own that lifecycle.
     """
-    recipe["build_system"] = "data"
+    recipe["build_system"] = build_system
+    if build_system == "custom":
+        recipe["build"] = {"commands": ["python3 x.py build --stage 2"]}
+        recipe["install"] = {"commands": ["DESTDIR={destdir} python3 x.py install --stage 2"]}
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
     assert "dh $@ --buildsystem=none" in rules
 
