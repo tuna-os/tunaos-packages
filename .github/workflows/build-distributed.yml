@@ -44,7 +44,7 @@ jobs:
 
           echo "Downloading existing repo from R2..."
 
-          rclone sync "r2:${R2_BUCKET}/repo/10-stream-x86_64/" "local-repo/" --exclude "repodata/**" || true
+          rclone sync "r2:${R2_BUCKET}/repo/10-stream-x86_64/" "local-repo/" --exclude "repodata/**"
 
           createrepo_c local-repo
 
@@ -1388,7 +1388,7 @@ jobs:
 
           echo "RPMs in local-repo: ${RPM_COUNT}"
 
-          if [ "${RPM_COUNT}" -eq 0 ]; then echo "::error::0 RPMs in local-repo — refusing to sync. rclone sync makes the destination match its source EXACTLY, so this would DELETE the published repo rather than fail to update it. See INCIDENT-repo-wipe-gnome.md."; exit 1; fi
+          if [ "${RPM_COUNT}" -eq 0 ] || [ ! -f local-repo/repodata/repomd.xml ]; then echo "::error::local-repo has no RPMs or no repodata — refusing to sync. rclone sync makes the destination match its source EXACTLY, so this would DELETE the published repo rather than fail to update it. See INCIDENT-repo-wipe-gnome.md."; exit 1; fi
 
           '
       - name: Upload to R2

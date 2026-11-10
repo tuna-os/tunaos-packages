@@ -107,8 +107,11 @@ jobs:
         run: |
           mkdir -p "${LOCAL_REPO}"
           echo "Downloading existing repo from R2 (10-stream-x86_64)..."
+          # No `|| true`: the upload below is `rclone sync`, which deletes
+          # every published object missing from LOCAL_REPO. A failed seed
+          # must stop the job, not publish a partial tree. See #627.
           rclone sync "r2:${R2_BUCKET}/repo/10-stream-x86_64/" "${LOCAL_REPO}/" \
-            --exclude "repodata/**" || true
+            --exclude "repodata/**"
           echo "Initializing local repo metadata..."
           createrepo_c "${LOCAL_REPO}"
 
@@ -140,6 +143,15 @@ jobs:
           find "${LOCAL_REPO}" -name "*.rpm" -newer "${LOCAL_REPO}/repodata/repomd.xml" \
             -exec rpmsign --addsign {} \;
           createrepo_c --update "${LOCAL_REPO}"
+
+      - name: Refuse to publish an empty result
+        run: |
+          RPM_COUNT=$(find "${LOCAL_REPO}" -name "*.rpm" ! -name "*.src.rpm" | wc -l)
+          echo "RPMs in ${LOCAL_REPO}: ${RPM_COUNT}"
+          if [ "${RPM_COUNT}" -eq 0 ] || [ ! -f "${LOCAL_REPO}/repodata/repomd.xml" ]; then
+            echo "::error::${LOCAL_REPO} has no RPMs or no repodata — refusing to sync. rclone sync makes the destination match its source EXACTLY, so this would DELETE the published repo rather than fail to update it. See INCIDENT-repo-wipe-gnome.md."
+            exit 1
+          fi
 
       - name: Upload to R2
         run: |
