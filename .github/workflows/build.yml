@@ -140,6 +140,9 @@ jobs:
           find "${LOCAL_REPO}" -name "*.rpm" -newer "${LOCAL_REPO}/repodata/repomd.xml" \
             -exec rpmsign --addsign {} \;
           createrepo_c --update "${LOCAL_REPO}"
+          # The upload is `rclone sync`: without a fresh repomd.xml.asc it
+          # deletes the served one and repo_gpgcheck=1 clients fail (#509).
+          bash scripts/sign-repomd.sh "${LOCAL_REPO}"
 
       - name: Upload to R2
         run: |
