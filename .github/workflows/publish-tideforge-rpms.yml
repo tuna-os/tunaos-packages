@@ -73,12 +73,18 @@ jobs:
           python-version: '3.15'
       - run: pip install pyyaml==6.0.3
       - id: plan
+        # Inputs go through env, never into the script text: an input with a
+        # quote in it must stay a value, not become shell. See #659.
+        env:
+          TARGET: ${{ inputs.target }}
+          PACKAGES: ${{ inputs.packages }}
+          ARCHES: ${{ inputs.arches }}
         run: |
           set -euo pipefail
           python3 scripts/plan-rpm-publish.py \
-            --target '${{ inputs.target }}' \
-            --packages '${{ inputs.packages }}' \
-            --arches '${{ inputs.arches }}' \
+            --target "$TARGET" \
+            --packages "$PACKAGES" \
+            --arches "$ARCHES" \
             --github-output "$GITHUB_OUTPUT"
 
   build:
