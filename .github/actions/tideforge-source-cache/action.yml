@@ -14,10 +14,12 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        echo "key=tideforge-src-v1-$(python3 scripts/tideforge_cache.py key '${{ inputs.recipe }}')" >> "$GITHUB_OUTPUT"
+        echo "key=tideforge-src-v1-$(python3 scripts/tideforge_cache.py key "${INPUTS_RECIPE}")" >> "$GITHUB_OUTPUT"
+      env:
+        INPUTS_RECIPE: ${{ inputs.recipe }}
     - id: restore
       # actions/cache v6.0.0
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      uses: actions/cache@v6.1.0  # zizmor: ignore[unpinned-uses] exact tag locked in actions.lock through the workflows that call this action as $/
       with:
         path: ~/.cache/tideforge/sources
         key: ${{ steps.key.outputs.key }}

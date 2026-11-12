@@ -21,8 +21,6 @@ on:
 permissions:
   contents: read
   actions: read
-  id-token: write
-  attestations: write
 
 jobs:
   unit:
@@ -31,8 +29,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: |
@@ -47,11 +47,17 @@ jobs:
         architecture: [x86_64, aarch64]
     runs-on: ${{ matrix.architecture == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - name: Install native CI tools
@@ -71,7 +77,7 @@ jobs:
       - name: Attest completed native candidate inputs
         id: attestation
         if: always() && steps.chain.outputs.created == 'true'
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4.2.2
         with:
           subject-path: .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/native-snapshot/snapshot.json
       - name: Stage attestation bundle
@@ -83,14 +89,14 @@ jobs:
           cp "$BUNDLE_PATH" '.factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/native-snapshot/bundle.jsonl'
       - name: Retain immutable candidate snapshot
         if: always() && steps.attestation.outcome == 'success'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}-alma-candidate-${{ github.run_id }}-${{ github.run_attempt }}-chain
           path: .factory/tideforge-chain-${{ matrix.target }}-${{ matrix.architecture }}/native-snapshot/
           if-no-files-found: error
       - name: Retain public build and installation evidence
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: alma-chain-evidence-${{ matrix.target }}-${{ matrix.architecture }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
