@@ -307,9 +307,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p evidence
+          # public.gpg is ASCII-armored. apt's signed-by ignores an armored
+          # file named .gpg ("unsupported filetype"), and gpg --keyring
+          # cannot read it either, so mount a binary keyring (#951).
+          gpg --dearmor < public.gpg > "$RUNNER_TEMP/tunaos-public.gpg"
           docker run --rm --env PACKAGES --env URL --env EVIDENCE_DIR --env KEYRING \
             --volume "$PWD/scripts:/scripts:ro" \
-            --volume "$PWD/public.gpg:/keys/tunaos-public.gpg:ro" \
+            --volume "$RUNNER_TEMP/tunaos-public.gpg:/keys/tunaos-public.gpg:ro" \
             --volume "$PWD/evidence:/evidence" \
             "${MATRIX_IMAGE}" bash /scripts/deb-verify-published.sh
       - name: Bind Tuna Desktop served bytes to the verified build
