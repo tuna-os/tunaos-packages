@@ -37,8 +37,10 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
       any: ${{ steps.plan.outputs.any }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install --disable-pip-version-check --quiet PyYAML
@@ -83,7 +85,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Compare the live revision with the committed measurement
         id: drift
@@ -115,7 +119,7 @@ jobs:
             echo "drifted=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v7.1.0
         if: steps.drift.outputs.drifted == 'true'
         with:
           python-version: '3.15'
@@ -129,24 +133,31 @@ jobs:
       - name: Re-measure the gap against the live indexes
         if: steps.drift.outputs.drifted == 'true'
         run: |
-          python3 scripts/measure-target-gap.py --target '${{ matrix.target }}' \
-            --report-json '${{ matrix.report_json }}' \
-            --build-order '${{ matrix.build_order }}'
+          python3 scripts/measure-target-gap.py --target "${MATRIX_TARGET}" \
+            --report-json "${MATRIX_REPORT_JSON}" \
+            --build-order "${MATRIX_BUILD_ORDER}"
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_REPORT_JSON: ${{ matrix.report_json }}
+          MATRIX_BUILD_ORDER: ${{ matrix.build_order }}
 
       - name: Exhibit the diff against the curated order
         if: steps.drift.outputs.drifted == 'true'
         run: |
           set -euo pipefail
           echo "::group::generated vs curated"
-          diff -u '${{ matrix.compare_to }}' '${{ matrix.build_order }}' || true
+          diff -u "${MATRIX_COMPARE_TO}" "${MATRIX_BUILD_ORDER}" || true
           echo "::endgroup::"
+        env:
+          MATRIX_COMPARE_TO: ${{ matrix.compare_to }}
+          MATRIX_BUILD_ORDER: ${{ matrix.build_order }}
           # The diff is the deliverable while the conversion row is open —
           # exact-or-explained is judged by a human in the conversion PR,
           # so this job never fails on a difference; it exhibits it.
 
       - name: Upload the exhibit measurement
         if: steps.drift.outputs.drifted == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.target }}-gap-measurement
           path: |

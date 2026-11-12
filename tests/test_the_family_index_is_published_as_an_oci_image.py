@@ -104,7 +104,8 @@ def test_a_dry_run_publishes_nothing_in_either_channel(steps):
 def test_the_image_is_signed_by_digest(steps):
     sign = _step(steps, "Sign the published image")
     assert "cosign sign" in sign["run"]
-    assert "steps.oci.outputs.digest" in sign["run"]
+    assert sign["env"]["STEPS_OCI_OUTPUTS_DIGEST"] == "${{ steps.oci.outputs.digest }}"
+    assert '@${STEPS_OCI_OUTPUTS_DIGEST}"' in sign["run"]
     assert (
         _index(steps, "Publish the family index as an OCI image")
         < _index(steps, "Install cosign")

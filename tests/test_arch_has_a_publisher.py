@@ -169,7 +169,8 @@ def test_indexing_happens_inside_the_arch_container():
         run = step["run"]
         where = step.get("name", "<unnamed>")
         assert "docker run" in run, f"{where}: wave script must run in the Arch container"
-        assert "matrix.image" in run, f"{where}: must use the exact planned native Arch image"
+        assert '"${MATRIX_IMAGE}"' in run and step["env"]["MATRIX_IMAGE"] == "${{ matrix.image }}", (
+            f"{where}: must use the exact planned native Arch image")
         assert "needs.plan.outputs.image" not in run, f"{where}: cannot use one image for both architectures"
         assert "--env TUNAOS_ARCHITECTURE" in run, f"{where}: must bind the requested native architecture"
         # The container path proves the mount, and a host-relative path would

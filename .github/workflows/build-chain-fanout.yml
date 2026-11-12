@@ -84,7 +84,9 @@ jobs:
       bands: ${{ steps.bands.outputs.bands }}
       epoch: ${{ steps.epoch.outputs.epoch }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - name: Plan bands and shards
         id: bands
         env:
@@ -108,7 +110,7 @@ jobs:
 
   band0-x86:
     needs: plan
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-x86_64
       target: hummingbird
@@ -129,7 +131,7 @@ jobs:
     # built; the next band must consume that and keep going. Only a
     # cancelled run stops the chain.
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-x86_64
       target: hummingbird
@@ -150,7 +152,7 @@ jobs:
     # built; the next band must consume that and keep going. Only a
     # cancelled run stops the chain.
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-x86_64
       target: hummingbird
@@ -171,7 +173,7 @@ jobs:
     # built; the next band must consume that and keep going. Only a
     # cancelled run stops the chain.
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-x86_64
       target: hummingbird
@@ -192,7 +194,7 @@ jobs:
     # built; the next band must consume that and keep going. Only a
     # cancelled run stops the chain.
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-x86_64
       target: hummingbird
@@ -209,7 +211,7 @@ jobs:
 
   band0-arm:
     needs: plan
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-aarch64
       target: hummingbird
@@ -230,7 +232,7 @@ jobs:
     # built; the next band must consume that and keep going. Only a
     # cancelled run stops the chain.
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-aarch64
       target: hummingbird
@@ -251,7 +253,7 @@ jobs:
     # built; the next band must consume that and keep going. Only a
     # cancelled run stops the chain.
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-aarch64
       target: hummingbird
@@ -272,7 +274,7 @@ jobs:
     # built; the next band must consume that and keep going. Only a
     # cancelled run stops the chain.
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-aarch64
       target: hummingbird
@@ -293,7 +295,7 @@ jobs:
     # built; the next band must consume that and keep going. Only a
     # cancelled run stops the chain.
     if: ${{ !cancelled() && needs.plan.result == 'success' }}
-    uses: ./.github/workflows/chain-band.yml
+    uses: $/.github/workflows/chain-band.yml
     with:
       cell_id: hummingbird-aarch64
       target: hummingbird
@@ -321,8 +323,10 @@ jobs:
       group: publish-rpms
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install --disable-pip-version-check PyYAML
@@ -333,7 +337,7 @@ jobs:
           curl -fsSL https://rclone.org/install.sh | sudo bash
       - name: Import GPG key
         id: import-gpg
-        uses: crazy-max/ghaction-import-gpg@v7
+        uses: crazy-max/ghaction-import-gpg@v7.0.0
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -342,10 +346,11 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          STEPS_IMPORT_GPG_OUTPUTS_KEYID: ${{ steps.import-gpg.outputs.keyid }}
         run: |
           set -euo pipefail
           echo "%_signature gpg" > ~/.rpmmacros
-          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%_gpg_name ${STEPS_IMPORT_GPG_OUTPUTS_KEYID}" >> ~/.rpmmacros
           echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
           mkdir -p ~/.config/rclone
           umask 077
@@ -358,12 +363,12 @@ jobs:
           endpoint = ${R2_ENDPOINT}
           EOF
       - name: Fetch the x86_64 wave
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           name: fanout-repo-hummingbird-x86_64
           path: staged-x86_64
       - name: Fetch the aarch64 wave
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           name: fanout-repo-hummingbird-aarch64
           path: staged-aarch64
@@ -396,7 +401,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - name: The published indexes answer over HTTPS
         run: |
           set -euo pipefail
