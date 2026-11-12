@@ -172,7 +172,8 @@ def test_the_partial_is_named_by_base_id_and_overwritable():
 
 def test_the_restore_searches_by_base_id():
     text = CELL.read_text()
-    assert "--cell-id '${{ matrix.base_id || matrix.id }}'" in text
+    assert '--cell-id "${MATRIX_BASE_ID_OR_ID}"' in text
+    assert "MATRIX_BASE_ID_OR_ID: ${{ matrix.base_id || matrix.id }}" in text
 
 
 def _gate_script() -> str:
@@ -267,10 +268,15 @@ def test_the_overwrite_has_the_permission_it_needs():
     partial upload would have 403'd at exactly the hand-off the whole design
     depends on, at runtime, tonight. A called workflow cannot request more
     than its caller grants, so BOTH files must say write."""
-    for path in (CELL, FACTORY):
-        perms = yaml.safe_load(path.read_text()).get("permissions", {})
+    grants = [yaml.safe_load(CELL.read_text()).get("permissions", {})]
+    # The caller grants per job: every job that calls the cell needs write.
+    grants += [job.get("permissions", {})
+               for job in yaml.safe_load(FACTORY.read_text())["jobs"].values()
+               if "package-factory-cell.yml" in str(job.get("uses", ""))]
+    assert len(grants) > 1, "no job calls the cell workflow"
+    for perms in grants:
         assert perms.get("actions") == "write", (
-            f"{path.name}: actions permission is {perms.get('actions')!r}; "
+            f"actions permission is {perms.get('actions')!r}; "
             "the shared-partial overwrite will be rejected"
         )
 

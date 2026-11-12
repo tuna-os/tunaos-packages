@@ -67,8 +67,10 @@ jobs:
       image: ${{ steps.plan.outputs.image }}
       target: ${{ steps.plan.outputs.target }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install pyyaml==6.0.3
@@ -76,10 +78,14 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/plan-rpm-publish.py \
-            --target '${{ inputs.target }}' \
-            --packages '${{ inputs.packages }}' \
-            --arches '${{ inputs.arches }}' \
+            --target "${INPUTS_TARGET}" \
+            --packages "${INPUTS_PACKAGES}" \
+            --arches "${INPUTS_ARCHES}" \
             --github-output "$GITHUB_OUTPUT"
+        env:
+          INPUTS_TARGET: ${{ inputs.target }}
+          INPUTS_PACKAGES: ${{ inputs.packages }}
+          INPUTS_ARCHES: ${{ inputs.arches }}
 
   build:
     name: ${{ matrix.package }} (${{ matrix.arch }})
@@ -96,21 +102,22 @@ jobs:
       RECIPE: packages/${{ matrix.package }}/package.yaml
       IMAGE: ${{ matrix.image }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v7
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install pyyaml==6.0.3
       - name: Restore the content-addressed source cache
-        uses: ./.github/actions/tideforge-source-cache
+        uses: $/.github/actions/tideforge-source-cache
         with:
           recipe: ${{ env.RECIPE }}
       - name: Pull the build image, retrying transient registry failures
         run: scripts/pull-container-image.sh "$IMAGE"
       - name: Restore the gated build, or build it if there is none
-        uses: ./.github/actions/tideforge-cached-cell
+        uses: $/.github/actions/tideforge-cached-cell
         with:
           cell-id: ${{ matrix.cell_id }}
           package: ${{ matrix.package }}
@@ -119,7 +126,7 @@ jobs:
           format: rpm
           architecture: ${{ matrix.arch }}
           image: ${{ matrix.image }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: publish-rpm-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.package }}
           path: .factory/${{ env.CELL_ID }}/artifacts/*.rpm
@@ -135,7 +142,9 @@ jobs:
       max-parallel: 1
       matrix: ${{ fromJSON(needs.plan.outputs.publish_matrix) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - name: Install tooling
         run: |
           sudo apt-get update -q
@@ -143,7 +152,7 @@ jobs:
           curl -fsSL https://rclone.org/install.sh | sudo bash
       - name: Import GPG key
         id: import-gpg
-        uses: crazy-max/ghaction-import-gpg@v7
+        uses: crazy-max/ghaction-import-gpg@v7.0.0
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -152,10 +161,11 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          STEPS_IMPORT_GPG_OUTPUTS_KEYID: ${{ steps.import-gpg.outputs.keyid }}
         run: |
           set -euo pipefail
           echo "%_signature gpg" > ~/.rpmmacros
-          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%_gpg_name ${STEPS_IMPORT_GPG_OUTPUTS_KEYID}" >> ~/.rpmmacros
           echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
           mkdir -p ~/.config/rclone
           umask 077
@@ -171,7 +181,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p repo
-          src='${{ matrix.src }}'
+          src="${MATRIX_SRC}"
           echo "src=$src" >> "$GITHUB_ENV"
           # NOT `|| true`. The sync-up later in this job makes the bucket MATCH
           # repo/, so any object that failed to come down here is DELETED from
@@ -209,7 +219,7 @@ jobs:
           # download; a prefix this workflow CREATES starts empty by design
           # and carries min_rpms 0, because a minimum would make the first
           # publish impossible. The planner decides which is which.
-          min_rpms='${{ matrix.min_rpms }}'
+          min_rpms="${MATRIX_MIN_RPMS}"
           if [ "${min_rpms:-0}" -gt 0 ]; then
             count=$(find repo -name '*.rpm' | wc -l)
             if [ "$count" -lt "$min_rpms" ]; then
@@ -217,7 +227,10 @@ jobs:
               exit 1
             fi
           fi
-      - uses: actions/download-artifact@v8
+        env:
+          MATRIX_SRC: ${{ matrix.src }}
+          MATRIX_MIN_RPMS: ${{ matrix.min_rpms }}
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: publish-rpm-${{ needs.plan.outputs.target }}-${{ matrix.arch }}-*
           path: staged
@@ -239,10 +252,12 @@ jobs:
           rclone sync repo/ "r2:${R2_BUCKET}/${src}/"
           # el10 x86_64 additionally mirrors into the legacy COPR prefix that
           # buildroots actually read. Only that one row declares a mirror.
-          mirror='${{ matrix.mirror }}'
+          mirror="${MATRIX_MIRROR}"
           if [ -n "$mirror" ]; then
             rclone sync repo/ "r2:${R2_BUCKET}/${mirror}/"
           fi
+        env:
+          MATRIX_MIRROR: ${{ matrix.mirror }}
 
   # The anti-#179 job, from the FIRST publish: install every published
   # package from the SERVED URL on a clean image-contract container, in the
@@ -265,10 +280,12 @@ jobs:
         env:
           PACKAGES: ${{ inputs.packages }}
           TARGET: ${{ needs.plan.outputs.target }}
+          MATRIX_SERVED: ${{ matrix.served }}
+          MATRIX_IMAGE: ${{ matrix.image }}
         run: |
           set -euo pipefail
-          url='${{ matrix.served }}'
-          docker run --rm --env PACKAGES --env TARGET --env URL="$url" '${{ matrix.image }}' bash -lc '
+          url="${MATRIX_SERVED}"
+          docker run --rm --env PACKAGES --env TARGET --env URL="$url" "${MATRIX_IMAGE}" bash -lc '
             set -euo pipefail
             if [[ "$TARGET" == opensuse-tumbleweed ]]; then
               zypper --non-interactive addrepo --no-gpgcheck --priority 200 "$URL" tunaos

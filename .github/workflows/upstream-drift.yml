@@ -50,8 +50,7 @@ on:
         default: false
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   # Serialise, and do NOT cancel in progress: a half-finished measurement that
@@ -72,8 +71,10 @@ jobs:
       any: ${{ steps.check.outputs.any }}
       matrix: ${{ steps.check.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install --disable-pip-version-check PyYAML
@@ -109,13 +110,17 @@ jobs:
     if: needs.detect.outputs.any == 'true' || inputs.force
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      # create-pull-request pushes the branch and opens the PR.
+      contents: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
         target: ${{ fromJSON(needs.detect.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1  # zizmor: ignore[artipacked] create-pull-request later in this job uses the persisted git credentials
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
 
@@ -128,7 +133,7 @@ jobs:
       - name: Re-measure ${{ matrix.target }} against live upstream
         run: |
           set -euo pipefail
-          python3 - "${{ matrix.target }}" <<'PY' > /tmp/drift-args
+          python3 - "${MATRIX_TARGET}" <<'PY' > /tmp/drift-args
           import shlex, sys, yaml
           t = sys.argv[1]
           gap = yaml.safe_load(open("manifests/package-factory.yaml"))["targets"][t]["gap_measurement"]
@@ -140,6 +145,8 @@ jobs:
           PY
           # shellcheck disable=SC2046
           python3 scripts/measure-target-gap.py $(cat /tmp/drift-args)
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
 
       - name: Summarize adds and drops
         env:
@@ -160,7 +167,7 @@ jobs:
           cat /tmp/pr-body.md
 
       - name: Propose the regenerated measurement
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@v8.1.3
         with:
           branch: upstream-drift/${{ matrix.target }}
           delete-branch: true
@@ -202,12 +209,14 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/check-upstream-shadowing.py \
-            --target '${{ matrix.target }}' \
-            --report-json "shadowing-${{ matrix.target }}.json"
+            --target "${MATRIX_TARGET}" \
+            --report-json "shadowing-${MATRIX_TARGET}.json"
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
 
       - name: Keep the shadowing report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: upstream-shadowing-${{ matrix.target }}
           path: shadowing-${{ matrix.target }}.json
