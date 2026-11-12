@@ -84,7 +84,7 @@ runs:
         echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
         jq . <<<"$payload"
     - id: restore
-      uses: ./.github/actions/tideforge-action-cache
+      uses: $/.github/actions/tideforge-action-cache
       with:
         operation: restore
         action-key: ${{ steps.identity.outputs.key }}
@@ -168,7 +168,7 @@ runs:
       # existence a proof of passing verify rather than merely of compiling.
       if: steps.verdict.outputs.hit != 'true'
       continue-on-error: true
-      uses: ./.github/actions/tideforge-action-cache
+      uses: $/.github/actions/tideforge-action-cache
       with:
         operation: save
         action-key: ${{ steps.identity.outputs.key }}
