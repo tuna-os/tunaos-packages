@@ -35,9 +35,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           submodules: false
+          persist-credentials: false
 
       - name: Install host dependencies
         run: |
@@ -49,7 +50,7 @@ jobs:
 
       - name: Cache CentOS Stream 10 container image
         id: cache-cs10
-        uses: actions/cache@v6
+        uses: actions/cache@v6.1.0
         with:
           path: /tmp/cs10-image.tar
           key: cs10-image-${{ hashFiles('mock/centos-stream-10-ci.cfg') }}
@@ -66,7 +67,7 @@ jobs:
           fi
 
       - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v7
+        uses: crazy-max/ghaction-import-gpg@v7.0.0
         id: import-gpg
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -77,8 +78,10 @@ jobs:
       - name: Configure RPM macros
         run: |
           echo "%_signature gpg" > ~/.rpmmacros
-          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%_gpg_name ${STEPS_IMPORT_GPG_OUTPUTS_KEYID}" >> ~/.rpmmacros
           echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
+        env:
+          STEPS_IMPORT_GPG_OUTPUTS_KEYID: ${{ steps.import-gpg.outputs.keyid }}
 
       - name: Configure rclone for R2
         env:
@@ -167,7 +170,7 @@ jobs:
           rclone copyto contrib/install.sh "r2:${R2_BUCKET}/install.sh"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: rpm-builds
