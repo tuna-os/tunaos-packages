@@ -176,7 +176,7 @@ def test_the_waves_pass_the_publishing_secrets() -> None:
     declared = yaml.safe_load(FANOUT.read_text(encoding="utf-8"))[True]["workflow_call"]["secrets"]
     for wave in WAVES:
         assert JOBS[wave].get("secrets") == {
-            name: "${{ secrets.%s }}" % name for name in declared}, wave
+            name: f"${{{{ secrets.{name} }}}}" for name in declared}, wave
 
 
 def test_the_loop_does_not_take_the_publish_concurrency_group() -> None:
