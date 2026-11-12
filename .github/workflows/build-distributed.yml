@@ -1424,6 +1424,10 @@ jobs:
           createrepo_c --update local-repo
 
           '
+      - name: Sign repository metadata
+        run: 'bash scripts/sign-repomd.sh local-repo
+
+          '
       - name: Configure rclone
         env:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
