@@ -91,8 +91,9 @@ def test_workflow_dispatch_remains_native_candidate_only():
     assert native['strategy']['matrix'] == {'target':['alma10','alma10-kitten'],
                                           'architecture':['x86_64','aarch64']}
     assert 'ubuntu-24.04-arm' in native['runs-on']
-    assert workflow['permissions'] == {'contents':'read','actions':'read',
-                                      'id-token':'write','attestations':'write'}
+    assert workflow['permissions'] == {'contents':'read','actions':'read'}
+    assert native['permissions'] == {'contents':'read','actions':'read',
+                                     'id-token':'write','attestations':'write'}
     text=WORKFLOW.read_text()
     assert 'secrets.' not in text and 'rclone' not in text
     wrapper=WRAPPER.read_text()
