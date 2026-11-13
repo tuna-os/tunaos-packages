@@ -747,6 +747,7 @@ def measure_roots(roots: list[str], reference: dict, have: set[str],
                   membership: str,
                   have_evr: dict[str, set[str]] | None = None,
                   source_versioned_index: dict | None = None,
+                  target_evr: dict[str, set[str]] | None = None,
                   ) -> tuple[dict, set[str]]:
     """Measure one declared package set and return its report and build set.
 
@@ -754,6 +755,13 @@ def measure_roots(roots: list[str], reference: dict, have: set[str],
     closure.  Keeping this in one function prevents a retained served package
     from being rebuilt without the dependencies that made the old artifact
     uninstallable.
+
+    `have_evr` holds every EVR the target AND its consumed repositories offer:
+    it answers whether a versioned requirement is satisfied.  `target_evr`
+    holds the target's own index only, and is the one that drives
+    version-driven rebuilds.  A consumed package is never rebuilt here, so the
+    EVR it carries (utah's gnome-shell 51~beta-1 against Rawhide's 51.1) is no
+    reason to build it.
     """
     roots = list(dict.fromkeys(roots))
     already = sorted(name for name in roots if name in target_packages)
@@ -767,18 +775,20 @@ def measure_roots(roots: list[str], reference: dict, have: set[str],
     )
 
     def needs_package(name: str) -> bool:
-        # Absent from the target, or the target only carries an EVR older
-        # than the reference: either way the factory must build it.
+        # Absent from the target and every consumed repository, or the
+        # target only carries an EVR older than the reference: either way the
+        # factory must build it.  A name only a consumed repository carries is
+        # had, and its EVR is not compared -- see `target_evr` above.
         if name not in have:
             return True
-        target_evrs = (have_evr or {}).get(name, ())
+        own_evrs = (target_evr or {}).get(name, ())
         reference_evrs = reference.get("provides_evr", {}).get(name, ())
-        if not target_evrs or not reference_evrs:
+        if not own_evrs or not reference_evrs:
             return False
         return any(
-            RPM_VERCMP.compare_evr(reference_evr, target_evr) > 0
+            RPM_VERCMP.compare_evr(reference_evr, own_evr) > 0
             for reference_evr in reference_evrs
-            for target_evr in target_evrs
+            for own_evr in own_evrs
         )
 
     # A root the reference does not carry (quickshell, dms — packaged
@@ -919,10 +929,14 @@ def main() -> None:
         )
 
     have = set(target_index["provides"]) | set(target_index["packages"])
-    have_evr = {
+    # Two maps on purpose.  `target_evr` is the target's own index and is the
+    # only one version-driven rebuilds read; `have_evr` also takes consumed
+    # repositories' EVRs below, for satisfying versioned requirements.
+    target_evr = {
         capability: set(evrs)
         for capability, evrs in target_index.get("provides_evr", {}).items()
     }
+    have_evr = {capability: set(evrs) for capability, evrs in target_evr.items()}
     print(
         f"target ships {len(target_index['packages'])} binary packages, "
         f"{len(target_index['provides'])} capabilities",
@@ -978,6 +992,7 @@ def main() -> None:
             source_index, membership,
             have_evr=have_evr,
             source_versioned_index=source_versioned_index,
+            target_evr=target_evr,
         )
         union_need |= need
         report["desktops"][desktop] = measured
@@ -997,6 +1012,7 @@ def main() -> None:
             source_index, membership,
             have_evr=have_evr,
             source_versioned_index=source_versioned_index,
+            target_evr=target_evr,
         )
         union_need |= need
         report["retained_packages"] = measured
