@@ -46,7 +46,7 @@ jobs:
           sudo apt-get install -y -q \
             podman createrepo-c rpm python3-yaml \
             gpg gpgconf
-          curl -fsSL https://rclone.org/install.sh | sudo bash
+          rclone_installer=$(mktemp) && curl -fsSL -o "$rclone_installer" https://rclone.org/install.sh && sudo bash "$rclone_installer" && rm -f "$rclone_installer"
 
       - name: Cache CentOS Stream 10 container image
         id: cache-cs10
