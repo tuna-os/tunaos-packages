@@ -183,6 +183,30 @@ def test_native_key_tracks_only_declared_source_trees(tmp_path):
     assert cache.action_key(cache.native_action_inputs(args)) != before
 
 
+@pytest.mark.parametrize("module", ["podman.sh", "mock.sh", "native.sh"])
+def test_native_key_changes_for_a_build_chain_backend_module(tmp_path, module):
+    base = fixture(tmp_path)
+    lib = tmp_path / "scripts" / "lib" / "build-chain"
+    lib.mkdir(parents=True)
+    for name in ("podman.sh", "mock.sh", "native.sh"):
+        (lib / name).write_text(f"# {name}\n", encoding="utf-8")
+    manifest = tmp_path / "order.yml"
+    manifest.write_text("tiers: []\n")
+    source = tmp_path / "src"
+    source.mkdir()
+    args = argparse.Namespace(
+        root=base.root, factory=base.factory, identity="native",
+        manifest=str(manifest), input=[str(source)], target="fedora",
+        arch="x86_64", image=base.image, source_date_epoch=base.source_date_epoch,
+        dependency_tree="", target_queue="", track="stable", series="",
+    )
+    inputs = cache.native_action_inputs(args)
+    assert f"scripts/lib/build-chain/{module}" in inputs["renderer_inputs"]
+    before = cache.action_key(inputs)
+    (lib / module).write_text(f"# {module} changed\n", encoding="utf-8")
+    assert cache.action_key(cache.native_action_inputs(args)) != before
+
+
 def test_native_distgit_importer_is_hashed_only_when_declared(tmp_path):
     base = fixture(tmp_path)
     manifest = tmp_path / "order.yml"

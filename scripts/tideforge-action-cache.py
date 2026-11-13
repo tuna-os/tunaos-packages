@@ -260,6 +260,11 @@ def native_action_inputs(args: argparse.Namespace) -> dict[str, Any]:
             }
         )
     native_renderers = ["scripts/build-chain.sh", "scripts/run-package-factory-cell.sh"]
+    # Backend modules sourced by build-chain.sh (podman, host mock, native).
+    native_renderers.extend(
+        path.relative_to(root).as_posix()
+        for path in sorted((root / "scripts" / "lib" / "build-chain").glob("*.sh"))
+    )
     if "distgit:" in pathlib.Path(args.manifest).read_text(encoding="utf-8"):
         native_renderers.append("scripts/import-fedora-distgit.py")
     if args.target in {"alma10", "alma10-kitten"}:
