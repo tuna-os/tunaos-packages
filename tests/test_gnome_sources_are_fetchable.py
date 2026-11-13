@@ -65,7 +65,7 @@ def built_spec_dirs() -> set[Path]:
 
     Scoped deliberately. src/ also holds specs nothing builds — a
     distgit-imported mutter-rawhide.spec whose sources come from Fedora's
-    lookaside cache, a hello-world fixture — and for those a bare filename is
+    lookaside cache — and for those a bare filename is
     not a defect because no tier ever fetches them. A rule that flagged them
     would be noise, and noise gets suppressed rather than fixed.
     """

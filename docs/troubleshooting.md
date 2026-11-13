@@ -1,6 +1,6 @@
 # Package build failures
 
-Candidates are not published supply. Keep failed attempts and check each
+Candidates do not form published supply. Keep failed tries and check each
 architecture against its native base before publication.
 
 ## Pinned factory runner exits 126
@@ -24,11 +24,11 @@ The Bats test executes the runner through `env`.
 [CI run 38073315753](https://github.com/tuna-os/tunaos-packages/actions/runs/38073315753)
 failed at this check.
 
-**CAUSE:** The workflow restored RPMs from an earlier attempt. A new attempt
-uses a new signing key; those RPMs are not authenticated inputs.
+**CAUSE:** The workflow restored RPMs from an earlier try. A new try
+uses a new key for signatures; those RPMs lack authentication as inputs.
 
-**FIX:** Initial Alma builds start with an empty repository. Resuming requires
-an authenticated immutable dependency snapshot. Keep the earlier artifacts.
+**FIX:** Initial Alma builds start with an empty repository. To resume, you need
+an authenticated snapshot of immutable dependencies. Keep the earlier artifacts.
 
 ## Kitten release package
 
@@ -48,7 +48,7 @@ reached the native repository and failed during bootstrap.
 satisfies the requested CPU baseline.
 
 **FIX:** Read `collection.json` and `verifier-result.json` in the CI evidence
-artifact. Repair the reported input or dependency; retain the failing gate.
+artifact. Repair the reported input or dependency; retain the failure gate.
 The public key, signed RPM bytes and compiler observation must survive failure.
 
 ## Mock bootstrap cannot read its candidate key
@@ -106,3 +106,27 @@ explicitly stages `0775` directories and a `0664` file, tests a different verifi
 umask and read-only file permissions, and retains rejection coverage for unsafe
 archive members. Do not replace the expected digest or drop modes from the
 inventory.
+
+## Source archives after an upstream rename
+
+**Symptom:** The source URL still works, but its archive fails the hash check.
+
+**Cause:** GitHub changed the root path in each archive after three repositories moved from `AvengeMedia` to `duxlabs-dev`.
+
+**Fix:** Use the commit URLs in the recipes. Keep the hash check.
+
+We restored the old root paths and ran `gzip -n -6`.
+Each result matched its original SHA-256 hash.
+
+We then compared each commit archive with its original archive.
+We compared paths without the root prefix.
+File bytes, types, modes, owners, times and link targets matched for every entry.
+The recipes retain their versions, releases and targets.
+A future repository rename can still change archive paths.
+
+| Package | Original SHA-256 | Commit | Entries |
+| --- | --- | --- | --- |
+| `danksearch` | `9454a2935c149ca3eb64106d59c266f513daff90438bac8b58e3a66b477521a9` | `1269b4688cc94cbd271e1cbbf19a6e7caa2293de` | 65 |
+| `dgop` | `afd2f9542ce25c739b13d6213fdfbc5493bce537d5afec309b4df945e318ff1a` | `ac77511bbb9ae52ae8f04b9d7e15116a4d4838eb` | 131 |
+| `dms-cli` | `2fa4fccb9e3fd259fb5e2c8d6e5fe329096f893ca6b8ac9766c699061e0b347c` | `74896fb87cb9e4bb866dbabcfd754e3e649ad0c7` | 1804 |
+

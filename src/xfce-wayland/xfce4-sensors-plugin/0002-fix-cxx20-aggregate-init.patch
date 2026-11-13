@@ -1,0 +1,28 @@
+--- a/xfce4++/util/gtk.h
++++ b/xfce4++/util/gtk.h
+@@ -63,21 +63,25 @@
+ 
+ struct PluginSize {
+     bool rectangle; /* Whether the panel plugin size is forced to be a square. Otherwise, the plugin can be a rectangle. */
++    constexpr explicit PluginSize(bool rectangle) : rectangle(rectangle) {}
+     PluginSize() = delete;
+ };
+ 
+ struct Propagation {
+     bool stop; /* Whether to prevent the event from propagating to other handlers */
++    constexpr explicit Propagation(bool stop) : stop(stop) {}
+     Propagation() = delete;
+ };
+ 
+ struct TimeoutResponse {
+     bool again; /* Invoke the timeout handler again, otherwise stop the timer */
++    constexpr explicit TimeoutResponse(bool again) : again(again) {}
+     TimeoutResponse() = delete;
+ };
+ 
+ struct TooltipTime {
+     bool now; /* Whether to show the tooltip now or later */
++    constexpr explicit TooltipTime(bool now) : now(now) {}
+     TooltipTime() = delete;
+ };
+ 

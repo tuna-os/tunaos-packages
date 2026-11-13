@@ -47,7 +47,9 @@ jobs:
       matrix:
         shard: ${{ fromJSON(inputs.shards_json) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - name: Install native build tools
         run: |
           sudo apt-get update -q
@@ -57,18 +59,22 @@ jobs:
           # ship it off, but a no-op re-set is cheaper than assuming.
           sudo sysctl -e -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Pull the declared build image
-        run: docker pull -q '${{ inputs.image }}'
+        env:
+          INPUTS_IMAGE: ${{ inputs.image }}
+        run: docker pull -q "${INPUTS_IMAGE}"
       - name: Restore the cumulative band repo
         if: ${{ inputs.band_index != 0 }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           name: fanout-repo-${{ inputs.cell_id }}
           path: .factory/${{ inputs.cell_id }}/artifacts
       - name: Index what was restored
+        env:
+          INPUTS_CELL_ID: ${{ inputs.cell_id }}
         run: |
           set -euo pipefail
-          mkdir -p '.factory/${{ inputs.cell_id }}/artifacts'
-          find '.factory/${{ inputs.cell_id }}/artifacts' -maxdepth 1 -name '*.rpm' \
+          mkdir -p ".factory/${INPUTS_CELL_ID}/artifacts"
+          find ".factory/${INPUTS_CELL_ID}/artifacts" -maxdepth 1 -name '*.rpm' \
             -printf '%f\n' | sort > /tmp/rpms-before.txt
           wc -l < /tmp/rpms-before.txt
       # A SERVED package is normally "done": the index is the durable record
@@ -80,18 +86,22 @@ jobs:
       # from the skip list is what makes the next wave rebuild them in the
       # root they belong to.
       - name: List what the published index already serves
+        env:
+          INPUTS_TARGET: ${{ inputs.target }}
+          INPUTS_ARCHITECTURE: ${{ inputs.architecture }}
+          INPUTS_SERVED_INDEX_URL: ${{ inputs.served_index_url }}
         run: |
           set -euo pipefail
           except=()
-          if [ '${{ inputs.target }}' = hummingbird ]; then
+          if [ "${INPUTS_TARGET}" = hummingbird ]; then
             pip install -q pyyaml zstandard
             python3 scripts/check-hummingbird-installability.py \
-              --arch '${{ inputs.architecture }}' --print-rebuild-names \
+              --arch "${INPUTS_ARCHITECTURE}" --print-rebuild-names \
               > /tmp/rebuild-names.txt
             echo "served but uninstallable, to rebuild: $(wc -l < /tmp/rebuild-names.txt)"
             except=(--except-names /tmp/rebuild-names.txt)
           fi
-          python3 scripts/list-served-nvrs.py '${{ inputs.served_index_url }}' \
+          python3 scripts/list-served-nvrs.py "${INPUTS_SERVED_INDEX_URL}" \
             "${except[@]}" > /tmp/served-nvrs.txt
           echo "served NVRs: $(wc -l < /tmp/served-nvrs.txt)"
       # Hummingbird only: materialise the consumed utah-packages OCI image
@@ -102,7 +112,7 @@ jobs:
       # only), which dnf falls through exactly as it does today.
       - name: Restore cached utah repo
         if: inputs.target == 'hummingbird'
-        uses: actions/cache@v8
+        uses: actions/cache@v6.1.0
         with:
           path: /tmp/utah-root
           key: ${{ runner.os }}-utah-repo-${{ hashFiles('manifests/package-factory.yaml') }}-${{ inputs.architecture }}
@@ -155,18 +165,20 @@ jobs:
         run: bash scripts/run-package-factory-cell.sh
       - name: Stage only what this shard built
         if: always()
+        env:
+          INPUTS_CELL_ID: ${{ inputs.cell_id }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/shard-new
-          find '.factory/${{ inputs.cell_id }}/artifacts' -maxdepth 1 -name '*.rpm' \
+          find ".factory/${INPUTS_CELL_ID}/artifacts" -maxdepth 1 -name '*.rpm' \
             -printf '%f\n' | sort > /tmp/rpms-after.txt
           comm -13 /tmp/rpms-before.txt /tmp/rpms-after.txt | while IFS= read -r f; do
-            cp ".factory/${{ inputs.cell_id }}/artifacts/$f" /tmp/shard-new/
+            cp ".factory/${INPUTS_CELL_ID}/artifacts/$f" /tmp/shard-new/
           done
           # Failure logs and buildroot manifests ride along for diagnosis.
           for extra in failure-logs buildroots; do
-            if [ -d ".factory/${{ inputs.cell_id }}/artifacts/$extra" ]; then
-              cp -r ".factory/${{ inputs.cell_id }}/artifacts/$extra" /tmp/shard-new/
+            if [ -d ".factory/${INPUTS_CELL_ID}/artifacts/$extra" ]; then
+              cp -r ".factory/${INPUTS_CELL_ID}/artifacts/$extra" /tmp/shard-new/
             fi
           done
           echo "new RPMs: $(find /tmp/shard-new -maxdepth 1 -name '*.rpm' | wc -l)"
@@ -174,7 +186,7 @@ jobs:
       # publishing the built ones is the whole point (#563's lesson, applied
       # at shard granularity). warn: a shard whose every package was already
       # served has nothing new, and that is success, not error.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: fanout-new-${{ inputs.cell_id }}-b${{ inputs.band_index }}-s${{ strategy.job-index }}
@@ -191,12 +203,12 @@ jobs:
     steps:
       - name: Restore the cumulative band repo
         if: ${{ inputs.band_index != 0 }}
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           name: fanout-repo-${{ inputs.cell_id }}
           path: repo
       - name: Merge every shard's new packages
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           pattern: fanout-new-${{ inputs.cell_id }}-b${{ inputs.band_index }}-s*
           path: shards
@@ -217,7 +229,7 @@ jobs:
           done
           createrepo_c repo/
           echo "cumulative RPMs after band ${{ inputs.band_index }}: $(find repo -maxdepth 1 -name '*.rpm' | wc -l)"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: fanout-repo-${{ inputs.cell_id }}
           path: repo/

@@ -6,9 +6,9 @@ summary: Dank Linux indexed filesystem search
 description: Fast indexed filesystem search service and command-line client for the Dank Linux desktop suite.
 license: MIT
 source:
-  url: https://github.com/AvengeMedia/danksearch/archive/refs/tags/v0.3.2.tar.gz
-  sha256: 9454a2935c149ca3eb64106d59c266f513daff90438bac8b58e3a66b477521a9
-  directory: danksearch-0.3.2
+  url: https://github.com/duxlabs-dev/dux-search/archive/1269b4688cc94cbd271e1cbbf19a6e7caa2293de.tar.gz
+  sha256: 5840eaaee6525d8b7d086317a9b860fcd48d79995dafaeec801e28f4ea815799
+  directory: dux-search-1269b4688cc94cbd271e1cbbf19a6e7caa2293de
 build_system: go
 build:
   go_package: ./cmd/dsearch

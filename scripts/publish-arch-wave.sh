@@ -77,14 +77,14 @@ fi
 rm -f "$repo/$name".db* "$repo/$name".files*
 sign_args=()
 [ -n "$key" ] && sign_args+=(--sign --key "$key")
-repo-add "${sign_args[@]+"${sign_args[@]}"}" "$repo/$name.db.tar.gz" "$repo"/*.pkg.tar.zst
+repo-add "${sign_args[@]+"${sign_args[@]}"}" "$repo/$name.db.tar.gz" "$repo"/*.pkg.tar.zst "$repo"/*.pkg.tar.xz
 
 # repo-add writes <name>.db.tar.gz, but pacman requests <name>.db. On a local
 # filesystem that is a symlink repo-add creates; over HTTP from an object
 # store there are no symlinks, so the db must exist under the requested name
 # as a real object. Remove the destination first: cp otherwise follows the
-# repo-add symlink and refuses to copy a file onto itself. arch-clean-install.sh hit exactly this and copies the file
-# for the same reason. Same for .files, which pacman -F requests.
+# repo-add symlink and refuses to copy a file onto itself.
+# The same applies to .files, which pacman -F requests.
 cp -f --remove-destination "$repo/$name.db.tar.gz" "$repo/$name.db"
 [ -f "$repo/$name.files.tar.gz" ] && cp -f --remove-destination "$repo/$name.files.tar.gz" "$repo/$name.files"
 if [ -n "$key" ]; then

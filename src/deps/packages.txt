@@ -1,4 +1,0 @@
-umockdev
-python-dbusmock
-gnome50-el10-compat
-selinux-policy

@@ -50,14 +50,16 @@ def local_calls() -> list[tuple[pathlib.Path, str, pathlib.Path]]:
         document = yaml.safe_load(caller.read_text(encoding="utf-8")) or {}
         for job_name, job in (document.get("jobs") or {}).items():
             uses = str((job or {}).get("uses") or "")
-            if not uses.startswith("./.github/workflows/"):
+            # `$/` is GitHub's same-repository form; `./` is the older one.
+            prefix = next((p for p in ("./", "$/") if uses.startswith(p + ".github/workflows/")), None)
+            if prefix is None:
                 continue
             # removeprefix, NOT lstrip("./"): lstrip strips every leading
             # character in the set, so "./.github/..." loses the dot of
             # ".github" and becomes "github/...", which does not exist. The
             # first version of this scan did exactly that and silently found
             # nothing -- reporting no violations because it checked nothing.
-            callee = ROOT / uses.removeprefix("./")
+            callee = ROOT / uses.removeprefix(prefix)
             if callee.exists():
                 calls.append((caller, job_name, callee))
     return calls
@@ -104,12 +106,17 @@ def test_the_factory_caller_grants_what_the_cell_requests():
         (WORKFLOWS / "package-factory.yml").read_text(encoding="utf-8"))
     callee = yaml.safe_load(
         (WORKFLOWS / "package-factory-cell.yml").read_text(encoding="utf-8"))
-    caller_grant = permissions(caller).get("actions")
     callee_grant = permissions(callee).get("actions")
-    assert callee_grant == caller_grant, (
-        f"cell requests actions: {callee_grant!r} but the caller grants "
-        f"{caller_grant!r} — GitHub rejects the whole file at parse time"
-    )
+    # A job-level block replaces the workflow-level one for that job.
+    callers = [job for job in caller["jobs"].values()
+               if "package-factory-cell.yml" in str(job.get("uses", ""))]
+    assert callers, "no job calls package-factory-cell.yml"
+    for job in callers:
+        caller_grant = (permissions(job) or permissions(caller)).get("actions")
+        assert callee_grant == caller_grant, (
+            f"cell requests actions: {callee_grant!r} but the caller grants "
+            f"{caller_grant!r} — GitHub rejects the whole file at parse time"
+        )
     assert callee_grant in ("read", "write"), (
         "the resume step needs at least read; none/absent silently degrades "
         "every resume to a full rebuild"

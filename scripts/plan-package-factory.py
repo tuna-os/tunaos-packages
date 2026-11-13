@@ -29,6 +29,7 @@ COMMON_INPUTS = {
     "scripts/verify-package-factory-cell.sh",
     "scripts/tideforge-action-cache.py",
     "scripts/tideforge.py",
+    "scripts/factory_contract.py",
     "scripts/target_platform.py",
     "scripts/run-alma-rpm.sh",
     "scripts/alma-compiler-policy.sh",
@@ -57,7 +58,8 @@ def load_yaml(path: pathlib.Path) -> dict[str, Any]:
     return value
 def native_manifest_packages(
     root: pathlib.Path, manifest: str
-) -> list[tuple[str, bool]]:
+) -> list[tuple[str, bool, str]]:
+    """(package path, build_tool, tier name) for every package in the manifest."""
     data = load_yaml(root / manifest)
     packages = []
     for tier in data.get("tiers") or []:
@@ -68,19 +70,21 @@ def native_manifest_packages(
                 continue
             path = package.get("path")
             if isinstance(path, str) and path:
-                packages.append((path.rstrip("/"), bool(package.get("build_tool"))))
+                packages.append(
+                    (path.rstrip("/"), bool(package.get("build_tool")), str(tier.get("name") or ""))
+                )
     return packages
 
 
 def owned_native_sources(
     root: pathlib.Path, cell: dict[str, Any], changed: set[str]
-) -> list[tuple[str, bool]]:
+) -> list[tuple[str, bool, str]]:
     packages = native_manifest_packages(root, str(cell["manifest"]))
     owned = []
     for path in changed:
-        for package_path, build_tool in packages:
+        for package_path, build_tool, tier in packages:
             if path == package_path or path.startswith(f"{package_path}/"):
-                owned.append((path, build_tool))
+                owned.append((path, build_tool, tier))
                 break
     return owned
 
@@ -112,7 +116,7 @@ def tideforge_cells(root: pathlib.Path) -> list[dict[str, Any]]:
             package_format = target.get("format")
             if not package_format:
                 raise ValueError(f"{recipe_path}: incomplete target contract {target_id}")
-            architectures = target.get("architectures") or []
+            architectures = factory_contract.recipe_architectures(recipe, target_id, target)
             for architecture in architectures:
                 context = build_context(target, str(architecture))
                 image = context["image"]
@@ -413,7 +417,19 @@ def select_cells(
                 owned = owned_native_sources(root, cell, changed)
                 owns_change = cell["manifest"] in changed or bool(owned)
             if owns_change:
-                if canary_common and owned and all(build_tool for _, build_tool in owned):
+                # The PR gate may bound this cell to its canary tier(s) only when
+                # that still builds every changed package: each changed source is
+                # a build tool (exercised in its own first tier) or itself lives
+                # in a canary tier (the canary builds that whole tier). A change
+                # to the cell's own manifest, or to a package in any later tier,
+                # still builds the real chain.
+                canary_tiers = {t for t in str(cell.get("canary_tiers") or "").split(",") if t}
+                if (
+                    canary_common
+                    and owned
+                    and cell["manifest"] not in changed
+                    and all(build_tool or tier in canary_tiers for _, build_tool, tier in owned)
+                ):
                     renderer_only.append(cell)
                 else:
                     selected.append(cell)
@@ -724,6 +740,11 @@ def main() -> int:
         default=0,
         help="pull requests: build only this many shared-input cells, rotated by --round-robin-seed",
     )
+    parser.add_argument(
+        "--no-unresumable-continuations",
+        action="store_true",
+        help="pull requests: do not emit -c1/-c2 for alma10-* cells, which have no resume path off main",
+    )
     parser.add_argument("--round-robin-seed", type=int, default=0, help="rotation seed (the run number)")
     parser.add_argument("--github-output", type=pathlib.Path)
     parser.add_argument("--consumer-contracts", type=pathlib.Path)
@@ -856,6 +877,15 @@ def main() -> int:
                       "dropping would silently halve chain throughput",
                       file=sys.stderr)
                 return 2
+            # A pull_request has no authenticated Alma candidate resume (the
+            # workflow's "Prepare authenticated Alma candidate resume" step runs
+            # only for dispatch/push/schedule, and the generic partial resume
+            # skips alma10-*), so an alma10 continuation restarts the chain from
+            # tier 0 and repeats the previous shard's work. Measured
+            # 2026-10-31..11-06: 8.3k job-min across 88 such PR continuations,
+            # every one red.
+            if args.no_unresumable_continuations and str(cell.get("mock_config", "")).startswith("alma10-"):
+                continue
             shards[shard_index].append(_continuation(cell, suffix))
 
     matrices = [json.dumps({"include": shard}, separators=(",", ":")) for shard in shards]

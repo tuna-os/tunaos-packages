@@ -137,3 +137,24 @@ def test_the_two_fedora_configs_keep_the_same_mock_pkgid_workaround():
 
 def test_the_fedora_arches_publish_to_distinct_prefixes():
     assert cells()["xfce-fedora-aarch64"]["r2_path"] != cells()["xfce-fedora-x86_64"]["r2_path"]
+
+
+def test_the_eln_aarch64_cell_exists_too():
+    assert "xfce-eln-aarch64" in cells()
+
+
+def test_the_eln_aarch64_cell_uses_its_own_mock_config():
+    c = cells()["xfce-eln-aarch64"]
+    assert c["mock_config"] == "fedora-eln-ci-aarch64"
+    assert c["runner"] == "ubuntu-24.04-arm"
+    assert (ROOT / "mock" / "fedora-eln-ci-aarch64.cfg").is_file()
+
+
+def test_the_eln_mock_config_includes_the_aarch64_base_chroot():
+    text = (ROOT / "mock" / "fedora-eln-ci-aarch64.cfg").read_text(encoding="utf-8")
+    assert "include('/etc/mock/fedora-eln-aarch64.cfg')" in text
+    assert "fedora-eln-x86_64.cfg" not in text
+
+
+def test_the_eln_arches_publish_to_distinct_prefixes():
+    assert cells()["xfce-eln-aarch64"]["r2_path"] != cells()["xfce-eln-x86_64"]["r2_path"]

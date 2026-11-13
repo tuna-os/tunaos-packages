@@ -58,25 +58,30 @@ jobs:
     # wrong versions.
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install pyyaml==6.0.3
 
       - name: Measure the gap and regenerate the build order
+        env:
+          GITHUB_EVENT_INPUTS_TARGET: ${{ github.event.inputs.target }}
         run: |
           set -euo pipefail
           python3 scripts/measure-deb-backport-gap.py \
             --manifest manifests/gnome51-deb.yaml \
-            --target '${{ github.event.inputs.target }}' \
-            --report-json 'gap-${{ github.event.inputs.target }}.json' \
-            --build-order 'order-${{ github.event.inputs.target }}.yml'
+            --target "${GITHUB_EVENT_INPUTS_TARGET}" \
+            --report-json "gap-${GITHUB_EVENT_INPUTS_TARGET}.json" \
+            --build-order "order-${GITHUB_EVENT_INPUTS_TARGET}.yml"
           echo '## Measured gap' >> "$GITHUB_STEP_SUMMARY"
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import json
-          report = json.load(open('gap-${{ github.event.inputs.target }}.json'))
-          entry = report['targets']['${{ github.event.inputs.target }}']
+          import json, os
+          target = os.environ['GITHUB_EVENT_INPUTS_TARGET']
+          report = json.load(open(f'gap-{target}.json'))
+          entry = report['targets'][target]
           donors = ' + '.join(entry['donor_suites'])
           print(f"`{entry['target_suite']}` <- `{donors}`: "
                 f"**{entry['needed_count']}** source packages, {len(entry['tiers'])} tiers")
@@ -86,9 +91,11 @@ jobs:
 
       - name: Report a chain with nothing left to do
         id: empty
+        env:
+          GITHUB_EVENT_INPUTS_TARGET: ${{ github.event.inputs.target }}
         run: |
           set -euo pipefail
-          count=$(python3 -c "import yaml,sys; o=yaml.safe_load(open(sys.argv[1])); print(sum(len(t.get('packages') or []) for t in o.get('tiers') or []))" 'order-${{ github.event.inputs.target }}.yml')
+          count=$(python3 -c "import yaml,sys; o=yaml.safe_load(open(sys.argv[1])); print(sum(len(t.get('packages') or []) for t in o.get('tiers') or []))" "order-${GITHUB_EVENT_INPUTS_TARGET}.yml")
           echo "count=$count" >> "$GITHUB_OUTPUT"
           # Not a failure. A target that has caught up is the engine working:
           # the measurement retires itself and there is nothing to rebuild.
@@ -96,20 +103,23 @@ jobs:
 
       - name: Rebuild the chain
         if: steps.empty.outputs.count != '0'
+        env:
+          GITHUB_EVENT_INPUTS_TARGET: ${{ github.event.inputs.target }}
+          GITHUB_EVENT_INPUTS_TIER: ${{ github.event.inputs.tier }}
         run: |
           set -euo pipefail
-          image=$(python3 -c "import yaml;print(yaml.safe_load(open('manifests/package-factory.yaml'))['targets']['${{ github.event.inputs.target }}']['probe_image'])")
+          image=$(python3 -c "import yaml;print(yaml.safe_load(open('manifests/package-factory.yaml'))['targets']['${GITHUB_EVENT_INPUTS_TARGET}']['probe_image'])")
           echo "buildroot image: $image"
-          args=(--order 'order-${{ github.event.inputs.target }}.yml' --image "$image"
-                --out '.factory/backport-${{ github.event.inputs.target }}')
-          if [ -n '${{ github.event.inputs.tier }}' ]; then
-            args+=(--tier '${{ github.event.inputs.tier }}')
+          args=(--order "order-${GITHUB_EVENT_INPUTS_TARGET}.yml" --image "$image"
+                --out ".factory/backport-${GITHUB_EVENT_INPUTS_TARGET}")
+          if [ -n "${GITHUB_EVENT_INPUTS_TIER}" ]; then
+            args+=(--tier "${GITHUB_EVENT_INPUTS_TIER}")
           fi
           bash scripts/build-deb-chain.sh "${args[@]}"
 
       - name: Upload the order, the report and whatever was built
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: backport-${{ github.event.inputs.target }}-${{ github.event.inputs.architecture }}
           path: |

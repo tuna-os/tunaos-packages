@@ -180,3 +180,47 @@ def test_the_nightly_is_never_bounded():
     assert cells
     bounded = [c["id"] for c in cells if c.get("tiers")]
     assert not bounded, f"the nightly must build everything: {bounded}"
+
+
+# --- owned sources inside a canary tier --------------------------------------
+
+def test_a_package_inside_the_canary_tier_is_built_by_the_canary():
+    """selinux-policy lives in base-tools, the canary tier of every gnome cell
+    that lists it: the canary builds that whole tier, so the changed package is
+    built for real and the later 18 tiers add nothing about THIS diff."""
+    cells = plan(["src/deps/selinux-policy/selinux-policy.spec"], canary=True)
+    owners = [c for c in cells if c["engine"] == "build-chain"]
+    assert owners, "a package in a canary tier must still gate its families"
+    for cell in owners:
+        assert cell["id"].endswith("-canary"), f"{cell['id']} builds the whole chain"
+        assert cell["tiers"] == "base-tools"
+
+
+def test_a_package_outside_the_canary_tier_still_builds_the_real_chain():
+    """gtk4 is in a later tier: the canary would never build it."""
+    cells = plan(["src/gnome-51/gtk4/gtk4.spec"], canary=True)
+    owners = [c for c in cells if c["engine"] == "build-chain"]
+    assert owners
+    assert not any(c.get("tiers") for c in owners)
+
+
+def test_a_manifest_edit_beside_a_canary_tier_package_builds_the_real_chain():
+    """Editing the cell's own manifest can move packages between tiers."""
+    cells = plan(["build-order-gnome51.yml", "src/deps/selinux-policy/selinux-policy.spec"], canary=True)
+    owner = [c for c in cells if c["id"].startswith("gnome51-el10-x86_64")]
+    assert owner
+    assert not any(c.get("tiers") for c in owner)
+
+
+def test_a_mixed_diff_builds_the_real_chain_for_the_later_tier_package():
+    cells = plan(["src/deps/selinux-policy/selinux-policy.spec", "src/gnome-51/gtk4/gtk4.spec"], canary=True)
+    owner = [c for c in cells if c["id"].startswith("gnome51-el10-x86_64")]
+    assert owner
+    assert not any(c.get("tiers") for c in owner)
+
+
+def test_the_nightly_still_builds_the_canary_tier_package_in_full():
+    cells = plan(["src/deps/selinux-policy/selinux-policy.spec"], canary=False)
+    owners = [c for c in cells if c["engine"] == "build-chain"]
+    assert owners
+    assert not any(c.get("tiers") for c in owners)

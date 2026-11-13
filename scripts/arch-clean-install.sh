@@ -49,13 +49,10 @@ bash "$policy" configure "${TUNAOS_ARCHITECTURE:-$(uname -m)}"
 native_repositories=$(bash "$policy" repositories)
 pacman -Sy --noconfirm pacman-contrib pkgconf
 
-repo-add /tmp/tideforge.db.tar.gz "$artifacts"/*.pkg.tar.*
-mkdir -p /var/lib/tideforge
-cp "$artifacts"/*.pkg.tar.* /var/lib/tideforge/
-# pacman resolves a repository named "tideforge" as tideforge.db. repo-add
-# writes a compressed archive, so expose it under the name the file://
-# repository client actually requests.
-cp /tmp/tideforge.db.tar.gz /var/lib/tideforge/tideforge.db
+# Exercise the publication indexer with the actual native candidate archives.
+# The fresh local CI repository remains deliberately unsigned.
+bash "$(dirname "$0")/publish-arch-wave.sh" \
+  --staged "$artifacts" --repo /var/lib/tideforge --name tideforge
 
 # CI artifacts are deliberately unsigned. Production promotion has a separate
 # signing gate; this isolated repository exists solely to prove pacman's

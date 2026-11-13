@@ -6,9 +6,9 @@ summary: DankMaterialShell command-line service
 description: Command-line client and service helper for DankMaterialShell and its greeter integration.
 license: GPL-3.0-or-later
 source:
-  url: https://github.com/AvengeMedia/DankMaterialShell/archive/refs/tags/v1.5.2.tar.gz
-  sha256: 2fa4fccb9e3fd259fb5e2c8d6e5fe329096f893ca6b8ac9766c699061e0b347c
-  directory: DankMaterialShell-1.5.2
+  url: https://github.com/duxlabs-dev/dux-shell/archive/74896fb87cb9e4bb866dbabcfd754e3e649ad0c7.tar.gz
+  sha256: 2ef271bf89cee85efa469eaa1aba4ffc89334554d8f6b89eba6dbd806126d7c2
+  directory: dux-shell-74896fb87cb9e4bb866dbabcfd754e3e649ad0c7
 build_system: go
 build:
   working_directory: core

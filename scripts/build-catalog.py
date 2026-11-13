@@ -248,7 +248,9 @@ def collect() -> dict:
     # again -- the #139 defect class. publish-tideforge-debs.yml below is a
     # publisher, not a gate, and stays a separate family.
     unified_rel = ".github/workflows/package-factory.yml"
-    for cell in tideforge_cells(pathlib.Path(ROOT)):
+    executed_tideforge = tideforge_cells(pathlib.Path(ROOT))
+    recipe_targets = {(cell["package"], cell["target"]) for cell in executed_tideforge}
+    for cell in executed_tideforge:
         name = cell["package"]
         e = entry(name, "tideforge")
         target = cell["target"]
@@ -338,7 +340,8 @@ def collect() -> dict:
                     e["referenced_by"].append(rel)
                 pk = e["packaging"].setdefault(fmt, {})
                 recipe_dir = os.path.join(ROOT, "packages", name)
-                if impl.startswith("tideforge") and os.path.isdir(recipe_dir):
+                if (impl.startswith("tideforge") and (name, target) in recipe_targets
+                        and os.path.isdir(recipe_dir)):
                     pk.setdefault("tideforge", f"packages/{name}")
                     if not e["upstream"].get("version"):
                         e["upstream"].update(tideforge_upstream(recipe_dir))

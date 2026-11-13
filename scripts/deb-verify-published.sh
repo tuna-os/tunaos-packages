@@ -46,7 +46,11 @@ apt-get install -y --no-install-recommends "${package_names[@]}"
 
 curl --fail --location --silent --show-error --retry 3 \
     "${url%/}/InRelease" -o "$evidence/InRelease"
-gpg --batch --no-options --no-default-keyring --keyring "$keyring" \
+# --no-options stops gpg from creating its home directory, and a clean
+# container has none, so gpg would exit "Fatal: /root/.gnupg: directory does
+# not exist" before it reports the signature (#951).
+gnupg_home=$(mktemp -d)
+gpg --homedir "$gnupg_home" --batch --no-options --no-default-keyring --keyring "$keyring" \
     --status-fd 1 --verify "$evidence/InRelease" \
     > "$evidence/signature-status.txt" 2> "$evidence/signature.stderr"
 curl --fail --location --silent --show-error --retry 3 \

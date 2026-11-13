@@ -27,13 +27,13 @@ runs:
     - id: restore
       if: inputs.operation == 'restore'
       # actions/cache v6.0.0
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      uses: actions/cache/restore@v6.1.0  # zizmor: ignore[unpinned-uses] exact tag locked in actions.lock through the workflows that call this action as $/
       with:
         path: ${{ inputs.path }}
         key: tideforge-action-v1-${{ inputs.action-key }}
     - if: inputs.operation == 'save'
       # actions/cache v6.0.0
-      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      uses: actions/cache/save@v6.1.0  # zizmor: ignore[unpinned-uses] exact tag locked in actions.lock through the workflows that call this action as $/
       with:
         path: ${{ inputs.path }}
         key: tideforge-action-v1-${{ inputs.action-key }}

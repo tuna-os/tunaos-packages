@@ -433,6 +433,10 @@ warn() { echo "WARNING: $*" >&2; }
 # centos-stream-10-x86_64 and gets .el10, build-order-xfce-fedora.yml says
 # fedora-44-x86_64 and gets .fc44 — no caller has to keep the two in sync.
 derive_dist() {
+    if [[ "${MOCK_CONFIG:-}" == fedora-eln* ]]; then
+        echo ".eln159"
+        return 0
+    fi
     local target
     target="$(sed -n 's/^target:[[:space:]]*//p' "$MANIFEST" 2>/dev/null | head -1)"
     case "$target" in

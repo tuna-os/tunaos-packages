@@ -1,0 +1,30 @@
+From: TunaOS Package Factory <packages@tunaos.org>
+Subject: [PATCH] session: pass the resolved normal session name before opening
+
+A normal session can use its saved or fallback name without an explicit
+SelectSession request. Open initiates saving the worker's account settings,
+so send the already-resolved name before Open rather than only when the
+session menu is used. Keep program-session settings and session selection
+precedence unchanged.
+
+Source: GDM 51.1.1 (d643e68963ab74564955025b554ec23cd794770d)
+---
+ daemon/gdm-session.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+--- a/daemon/gdm-session.c
++++ b/daemon/gdm-session.c
+@@ -2995,6 +2995,13 @@ gdm_session_open_session (GdmSession *self,
+                 send_display_mode (self, conversation);
+                 send_session_type (self, conversation);
+ 
++                if (!self->is_program_session) {
++                        gdm_dbus_worker_call_set_session_name (conversation->worker_proxy,
++                                                               get_session_name (self),
++                                                               conversation->worker_cancellable,
++                                                               NULL, NULL);
++                }
++
+                 gdm_dbus_worker_call_open (conversation->worker_proxy,
+                                            conversation->worker_cancellable,
+                                            (GAsyncReadyCallback) on_opened, conversation);

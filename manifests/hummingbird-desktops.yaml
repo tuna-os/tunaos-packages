@@ -35,7 +35,10 @@ distgit_prefix: src/hummingbird
 # published".  That is right for EL10 and wrong for a Rawhide rebuild, which
 # gets 0.8.8.  Without this line the next scheduled re-measure would have
 # quietly moved libnotify onto the EL10 pin.
-prefer_distgit: [libnotify]
+# libcanberra's shared src/deps spec is also an EL10 override (release 106,
+# forced Obsoletes). Hummingbird needs the native Fedora packaging, including
+# its real sound backends, rather than inheriting that cross-target override.
+prefer_distgit: [libnotify, libcanberra]
 # What the generated build order contains. `runtime` builds only what images
 # ship; BuildRequires-only tools (bison, transfig, gtk-doc, the Java stack the
 # documentation toolchains drag in) come from the Fedora 44 + Hummingbird
@@ -131,9 +134,14 @@ desktops:
   # what a hummingbird:tuna image installs, not only the session package.
   tuna:
     release: latest
-    sources: [{local: src/hummingbird/tuna-desktop}]
-    required_packages: [tuna-desktop]
-    install_packages: [tuna-desktop, dbus-tools, orca, greetd, gtkgreet, cage, xorg-x11-server-Xwayland, ibus, gnome-shell, gnome-settings-daemon, gnome-control-center, gnome-keyring, evolution-data-server, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, xdg-user-dirs, gvfs, nautilus, ptyxis, NetworkManager, libsecret, pipewire, wireplumber, pipewire-gstreamer, gstreamer1-plugins-good, tuned-ppd, upower, flatpak, plymouth, adwaita-icon-theme, google-noto-sans-fonts, google-noto-color-emoji-fonts, dejavu-sans-fonts, liberation-fonts]
+    # TuneD 2.28 uses rpm-ostree for bootc kernel-argument management when
+    # bootc's native source-options API is unavailable. Build the real
+    # provider, not a dummy capability or a waived power-profile contract.
+    # libcanberra is now an explicit Tuna runtime dependency; the beta.2
+    # publisher rejected its absence in run 41213268502.
+    sources: [{local: src/hummingbird/tuna-desktop}, {fedora_distgit: rpm-ostree}, {fedora_distgit: libcanberra}]
+    required_packages: [tuna-desktop, rpm-ostree, libcanberra]
+    install_packages: [tuna-desktop, rpm-ostree, libcanberra, dbus-tools, orca, gdm, xorg-x11-server-Xwayland, ibus, gnome-shell, gnome-settings-daemon, gnome-control-center, gnome-keyring, evolution-data-server, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, xdg-user-dirs, gvfs, nautilus, ptyxis, NetworkManager, libsecret, pipewire, wireplumber, pipewire-gstreamer, gstreamer1-plugins-good, tuned-ppd, upower, flatpak, plymouth, adwaita-icon-theme, google-noto-sans-fonts, google-noto-color-emoji-fonts, dejavu-sans-fonts]
   # Bluefin's own package contract, layered on top of any desktop by
   # hanthor/utah's "Bluefin on Hummingbird" build (`dnf install` of
   # packages/bluefin.toml's [fedora] + [multimedia_overrides] + [fedora_v43]

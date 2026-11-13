@@ -92,7 +92,9 @@ jobs:
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - name: Resolve the requested cells
         id: plan
         env:
@@ -128,7 +130,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - name: Install native build tools
         run: |
           sudo apt-get update -q
@@ -155,14 +159,25 @@ jobs:
       #     publishing the additive increment (publish-rpm-wave.sh merges
       #     against the synced-down repo, so partial publishes only grow it).
       - name: Pull the declared build image
-        run: docker pull -q '${{ matrix.image }}'
+        env:
+          MATRIX_IMAGE: ${{ matrix.image }}
+        run: docker pull -q "${MATRIX_IMAGE}"
       - id: identity
         name: Resolve immutable inputs and action key
         env:
           SOURCE_PATHS: ${{ toJSON(matrix.source_paths) }}
+          MATRIX_IMAGE: ${{ matrix.image }}
+          MATRIX_ID: ${{ matrix.id }}
+          MATRIX_MANIFEST: ${{ matrix.manifest }}
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
+          MATRIX_DEPENDENCY_TREE: ${{ matrix.dependency_tree }}
+          MATRIX_TARGET_QUEUE: ${{ matrix.target_queue }}
+          MATRIX_TRACK: ${{ matrix.track }}
+          MATRIX_SERIES: ${{ matrix.series }}
         run: |
           set -euo pipefail
-          image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          image=$(docker image inspect --format '{{json .RepoDigests}}' "${MATRIX_IMAGE}" | jq -r 'sort | .[0]')
           mapfile -t source_paths < <(jq -r '.[]' <<<"$SOURCE_PATHS")
           # %at, not %ct -- author date survives rebases; the nightly's key
           # uses it and this key must MATCH the nightly's or the bridge is a
@@ -183,7 +198,7 @@ jobs:
           # This is #529's own lesson one file over -- a fix that closed one
           # of two paths and was named for both.
           if [ "${#source_paths[@]}" -eq 0 ]; then
-            echo "::error::cell '${{ matrix.id }}' declares no source_paths, so" \
+            echo "::error::cell '${MATRIX_ID}' declares no source_paths, so" \
                  "SOURCE_DATE_EPOCH cannot be derived from them; refusing rather" \
                  "than falling back to the repository's last commit, which would" \
                  "re-key this cell on EVERY commit"
@@ -192,13 +207,13 @@ jobs:
           epoch=$(git log -1 --format=%at -- "${source_paths[@]}")
           args=()
           for path in "${source_paths[@]}"; do args+=(--input "$path"); done
-          payload=$(python3 scripts/tideforge-action-cache.py native-key             --identity '${{ matrix.id }}' --manifest '${{ matrix.manifest }}'             "${args[@]}" --target '${{ matrix.target }}'             --arch '${{ matrix.architecture }}' --image "$image"             --dependency-tree '${{ matrix.dependency_tree }}'             --target-queue '${{ matrix.target_queue }}'             --track '${{ matrix.track }}' --series '${{ matrix.series }}'             --source-date-epoch "$epoch")
+          payload=$(python3 scripts/tideforge-action-cache.py native-key             --identity "${MATRIX_ID}" --manifest "${MATRIX_MANIFEST}"             "${args[@]}" --target "${MATRIX_TARGET}"             --arch "${MATRIX_ARCHITECTURE}" --image "$image"             --dependency-tree "${MATRIX_DEPENDENCY_TREE}"             --target-queue "${MATRIX_TARGET_QUEUE}"             --track "${MATRIX_TRACK}" --series "${MATRIX_SERIES}"             --source-date-epoch "$epoch")
           echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
           echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
-          mkdir -p '.factory/${{ matrix.id }}'
-          jq -r .action_key <<<"$payload" > '.factory/${{ matrix.id }}/action-key.txt'
+          mkdir -p ".factory/${MATRIX_ID}"
+          jq -r .action_key <<<"$payload" > ".factory/${MATRIX_ID}/action-key.txt"
       - id: restore
-        uses: ./.github/actions/tideforge-action-cache
+        uses: $/.github/actions/tideforge-action-cache
         with:
           operation: restore
           action-key: ${{ steps.identity.outputs.key }}
@@ -208,21 +223,27 @@ jobs:
             .factory/${{ matrix.id }}/package-info.txt
       - id: verdict
         name: Verify restored output
+        env:
+          STEPS_RESTORE_OUTPUTS_CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
+          MATRIX_ID: ${{ matrix.id }}
+          STEPS_IDENTITY_OUTPUTS_KEY: ${{ steps.identity.outputs.key }}
         run: |
           set -euo pipefail
           hit=false
-          if [ '${{ steps.restore.outputs.cache-hit }}' = true ]; then
-            python3 scripts/tideforge-action-cache.py verify               --result '.factory/${{ matrix.id }}/action-result.json'               --artifact-dir '.factory/${{ matrix.id }}/artifacts'               --expected-action-key '${{ steps.identity.outputs.key }}'
+          if [ "${STEPS_RESTORE_OUTPUTS_CACHE_HIT}" = true ]; then
+            python3 scripts/tideforge-action-cache.py verify               --result ".factory/${MATRIX_ID}/action-result.json"               --artifact-dir ".factory/${MATRIX_ID}/artifacts"               --expected-action-key "${STEPS_IDENTITY_OUTPUTS_KEY}"
             hit=true
           fi
           echo "hit=$hit" >> "$GITHUB_OUTPUT"
-          echo "::notice title=action-cache::$([ "$hit" = true ] && echo hit || echo miss) ${{ matrix.id }}"
+          echo "::notice title=action-cache::$([ "$hit" = true ] && echo hit || echo miss) ${MATRIX_ID}"
       - name: Resume from a previous attempt's partial output
         if: steps.verdict.outputs.hit != 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          MATRIX_ID: ${{ matrix.id }}
+          STEPS_IDENTITY_OUTPUTS_KEY: ${{ steps.identity.outputs.key }}
         run: |
-          python3 scripts/restore-partial-chain-output.py             --cell-id '${{ matrix.id }}'             --action-key '${{ steps.identity.outputs.key }}'             --out-dir '.factory/${{ matrix.id }}'
+          python3 scripts/restore-partial-chain-output.py             --cell-id "${MATRIX_ID}"             --action-key "${STEPS_IDENTITY_OUTPUTS_KEY}"             --out-dir ".factory/${MATRIX_ID}"
       # What the published index already serves, so the chain skips it.
       #
       # Without this, "already built" means only the local repo, seeded from
@@ -250,20 +271,21 @@ jobs:
           R2_PATH: ${{ matrix.r2_path }}
           TARGET: ${{ matrix.target }}
           ARCH: ${{ matrix.architecture }}
+          MATRIX_ID: ${{ matrix.id }}
         run: |
           set -euo pipefail
           except=()
           if [[ "$TARGET" == hummingbird ]]; then
             pip install -q pyyaml zstandard
             python3 scripts/check-hummingbird-installability.py --arch "$ARCH" \
-              --print-rebuild-names > /tmp/rebuild-names-${{ matrix.id }}.txt
-            echo "served but uninstallable, to rebuild: $(wc -l < /tmp/rebuild-names-${{ matrix.id }}.txt)"
-            except=(--except-names /tmp/rebuild-names-${{ matrix.id }}.txt)
+              --print-rebuild-names > /tmp/rebuild-names-"${MATRIX_ID}".txt
+            echo "served but uninstallable, to rebuild: $(wc -l < /tmp/rebuild-names-"${MATRIX_ID}".txt)"
+            except=(--except-names /tmp/rebuild-names-"${MATRIX_ID}".txt)
           fi
           python3 scripts/list-served-nvrs.py \
             "https://repo.tunaos.org/${R2_PATH}/" "${except[@]}" \
-            > /tmp/served-nvrs-${{ matrix.id }}.txt
-          echo "served NVRs for ${{ matrix.id }}: $(wc -l < /tmp/served-nvrs-${{ matrix.id }}.txt)"
+            > /tmp/served-nvrs-"${MATRIX_ID}".txt
+          echo "served NVRs for ${MATRIX_ID}: $(wc -l < /tmp/served-nvrs-"${MATRIX_ID}".txt)"
       # Hummingbird's mock config resolves utah-shipped BuildRequires (gtk4,
       # libadwaita) from a file:// [utah] repo, and build-chain.sh refuses a
       # hummingbird-ci* config without UTAH_REPO_DIR. Materialise the pinned
@@ -320,18 +342,21 @@ jobs:
       # is admitted too, because the restored output was already verified.
       - name: Refuse an empty wave
         if: steps.verdict.outputs.hit == 'true' || steps.build.outcome == 'success'
+        env:
+          MATRIX_ID: ${{ matrix.id }}
+          INPUTS_TIERS: ${{ inputs.tiers }}
         run: |
           set -euo pipefail
-          dir='.factory/${{ matrix.id }}/artifacts'
+          dir=".factory/${MATRIX_ID}/artifacts"
           count=0
           if [ -d "$dir" ]; then
             count=$(find "$dir" -maxdepth 1 -type f -name '*.rpm' | wc -l)
           fi
           if [ "$count" -eq 0 ]; then
-            echo "::error::cell '${{ matrix.id }}' banked 0 RPMs in $dir/ after a successful build, so there is nothing for the publish job to download (its download-artifact step would fail with 'Artifact not found'). This usually means every queued package was already served by the published index -- tiers input was '${{ inputs.tiers }}' (empty builds the full order). Re-dispatch with tiers that still have unserved packages, or without 'tiers'."
+            echo "::error::cell '${MATRIX_ID}' banked 0 RPMs in $dir/ after a successful build, so there is nothing for the publish job to download (its download-artifact step would fail with 'Artifact not found'). This usually means every queued package was already served by the published index -- tiers input was '${INPUTS_TIERS}' (empty builds the full order). Re-dispatch with tiers that still have unserved packages, or without 'tiers'."
             exit 1
           fi
-          echo "cell '${{ matrix.id }}' banked $count RPM(s)"
+          echo "cell '${MATRIX_ID}' banked $count RPM(s)"
       # Stage whatever this leg banked in ORAS, so an independent one-off
       # dispatch (built to fill a single missing package, say) doesn't have
       # to become the one process serialized on the R2 bucket to be useful
@@ -361,12 +386,13 @@ jobs:
         if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+        run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
       - name: Stage banked RPMs in ORAS
         if: always()
         env:
           BUILD_CHAIN_ORAS_PUSH: "1"
-        run: python3 scripts/oras-stage-artifacts.py push ".factory/${{ matrix.id }}/artifacts"
+          MATRIX_ID: ${{ matrix.id }}
+        run: python3 scripts/oras-stage-artifacts.py push ".factory/${MATRIX_ID}/artifacts"
       # always(): the wave is every RPM the chain banked, and a chain that
       # failed ONE package out of 674 still banked the rest. Without it this
       # upload skips on any build failure, the publish job starves, and the
@@ -375,7 +401,7 @@ jobs:
       # exactly that way. warn not error: a cell torn down before its first
       # RPM has nothing to upload, and that must not mask the build step's
       # own failure as an upload failure.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: publish-rpm-${{ matrix.id }}
@@ -414,7 +440,7 @@ jobs:
       #
       # Not for a tiers-limited leg: its output is a slice of the chain, and
       # overwriting the shared partial with it would hide the nightly's.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         if: always() && inputs.tiers == '' && (steps.build.outcome == 'failure' || steps.build.outcome == 'cancelled' || steps.build.outputs.chain_deferred == 'true')
         with:
           name: ${{ matrix.id }}-partial
@@ -448,7 +474,9 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       # The prefix is synced down whole and then copied into the OCI image
       # below, so the job holds it twice: hummingbird/20251124-x86_64 is
       # 32 GB, and run 38877631220 ran the hosted runner out of disk (86 MB
@@ -466,7 +494,7 @@ jobs:
           curl -fsSL https://rclone.org/install.sh | sudo bash
       - name: Import GPG key
         id: import-gpg
-        uses: crazy-max/ghaction-import-gpg@v7
+        uses: crazy-max/ghaction-import-gpg@v7.0.0
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -475,10 +503,11 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          STEPS_IMPORT_GPG_OUTPUTS_KEYID: ${{ steps.import-gpg.outputs.keyid }}
         run: |
           set -euo pipefail
           echo "%_signature gpg" > ~/.rpmmacros
-          echo "%_gpg_name ${{ steps.import-gpg.outputs.keyid }}" >> ~/.rpmmacros
+          echo "%_gpg_name ${STEPS_IMPORT_GPG_OUTPUTS_KEYID}" >> ~/.rpmmacros
           echo "%__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u \"%{_gpg_name}\" -sbo %{__signature_filename} %{__plaintext_filename}" >> ~/.rpmmacros
           mkdir -p ~/.config/rclone
           umask 077
@@ -493,6 +522,7 @@ jobs:
       - name: Sync down the existing repo
         env:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          MATRIX_R2_PATH: ${{ matrix.r2_path }}
         run: |
           set -euo pipefail
           mkdir -p repo
@@ -516,18 +546,18 @@ jobs:
           # a real failure and must stop the job BEFORE the destructive
           # sync-up, not after.
           set +e
-          rclone sync "r2:${R2_BUCKET}/${{ matrix.r2_path }}/" repo/ \
+          rclone sync "r2:${R2_BUCKET}/${MATRIX_R2_PATH}/" repo/ \
             --exclude "repodata/**"
           _sync_rc=$?
           set -e
           if ((_sync_rc == 3)); then
-            echo "::notice::no existing objects at ${{ matrix.r2_path }} — treating as first publish"
+            echo "::notice::no existing objects at ${MATRIX_R2_PATH} — treating as first publish"
           elif ((_sync_rc != 0)); then
-            echo "::error::sync-down of ${{ matrix.r2_path }} failed (rclone rc=${_sync_rc}); refusing to continue — the sync-up in this job would DELETE every object that failed to come down"
+            echo "::error::sync-down of ${MATRIX_R2_PATH} failed (rclone rc=${_sync_rc}); refusing to continue — the sync-up in this job would DELETE every object that failed to come down"
             exit 1
           fi
-          echo "synced down $(find repo -name '*.rpm' | wc -l) RPM(s) from ${{ matrix.r2_path }}"
-      - uses: actions/download-artifact@v8
+          echo "synced down $(find repo -name '*.rpm' | wc -l) RPM(s) from ${MATRIX_R2_PATH}"
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: publish-rpm-${{ matrix.id }}
           path: staged
@@ -548,7 +578,7 @@ jobs:
       - name: Log in to ghcr.io for ORAS
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+        run: echo "${GITHUB_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
       #
       # Only this cell's %{dist} and architecture (or noarch). The ORAS repo
       # is shared by every family, and everything pulled here is signed and
@@ -557,9 +587,12 @@ jobs:
       - name: Pull this cell's RPMs staged in ORAS
         run: |
           set -euo pipefail
-          dist=$(bash scripts/build-chain.sh --manifest '${{ matrix.manifest }}' --print-dist)
+          dist=$(bash scripts/build-chain.sh --manifest "${MATRIX_MANIFEST}" --print-dist)
           python3 scripts/oras-stage-artifacts.py pull-all staged/oras \
-            --dist "$dist" --arch '${{ matrix.architecture }}'
+            --dist "$dist" --arch "${MATRIX_ARCHITECTURE}"
+        env:
+          MATRIX_MANIFEST: ${{ matrix.manifest }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
       # --evict-foreign: a family prefix carries only what this factory
       # built and signed. gnome50/10-stream-x86_64 held a COPR mirror
       # (refresh-gnome50-r2.yml, 2026-08-04, signed by the COPR project key)
@@ -577,7 +610,9 @@ jobs:
           set -euo pipefail
           pip install -q pyyaml
           python3 scripts/plan-withdrawn-excludes.py \
-            --target '${{ matrix.target }}' --out /tmp/withdrawn-excludes.txt
+            --target "${MATRIX_TARGET}" --out /tmp/withdrawn-excludes.txt
+        env:
+          MATRIX_TARGET: ${{ matrix.target }}
       - name: Sign and index
         run: |
           set -euo pipefail
@@ -606,21 +641,25 @@ jobs:
           set -euo pipefail
           pip install -q pyyaml zstandard
           python3 scripts/check-hummingbird-installability.py \
-            --arch '${{ matrix.architecture }}' \
+            --arch "${MATRIX_ARCHITECTURE}" \
             --published-index "file://${PWD}/repo" \
             --fail-on-regression | tee installability-gate.md
           {
-            echo "### Hummingbird installability of the wave (${{ matrix.id }})"
+            echo "### Hummingbird installability of the wave (${MATRIX_ID})"
             echo ""
             cat installability-gate.md
           } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
+          MATRIX_ID: ${{ matrix.id }}
       - name: Sync up
         if: ${{ !inputs.dry_run }}
         env:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          MATRIX_R2_PATH: ${{ matrix.r2_path }}
         run: |
           set -euo pipefail
-          rclone sync repo/ "r2:${R2_BUCKET}/${{ matrix.r2_path }}/"
+          rclone sync repo/ "r2:${R2_BUCKET}/${MATRIX_R2_PATH}/"
       # The same tree, as an OCI image consumed BY DIGEST -- the shape
       # projectbluefin/utah-packages publishes and tunaOS already consumes for
       # hummingbird:gnome (image-versions.yaml pins the digest,
@@ -658,7 +697,7 @@ jobs:
           # config rather than podman's own auth file, so the login lands
           # where both look: DOCKER_CONFIG here and on the signing step.
           mkdir -p "${DOCKER_CONFIG}"
-          echo "${GITHUB_TOKEN}" | podman login ghcr.io -u "${{ github.actor }}" \
+          echo "${GITHUB_TOKEN}" | podman login ghcr.io -u "${GITHUB_ACTOR}" \
             --password-stdin --authfile "${DOCKER_CONFIG}/config.json"
           # Image storage on the runner's second disk (/mnt) when it has
           # one: the COPY duplicates the whole synced-down prefix, which does
@@ -692,17 +731,22 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Install cosign
         if: ${{ !inputs.dry_run }}
-        uses: sigstore/cosign-installer@v4.1.2
+        uses: sigstore/cosign-installer@v4.1.3
       - name: Sign the published image
         if: ${{ !inputs.dry_run }}
         env:
           COSIGN_YES: "true"
           DOCKER_CONFIG: ${{ runner.temp }}/.docker
-        run: cosign sign "${{ steps.oci.outputs.ref }}@${{ steps.oci.outputs.digest }}"
+          STEPS_OCI_OUTPUTS_REF: ${{ steps.oci.outputs.ref }}
+          STEPS_OCI_OUTPUTS_DIGEST: ${{ steps.oci.outputs.digest }}
+        run: cosign sign "${STEPS_OCI_OUTPUTS_REF}@${STEPS_OCI_OUTPUTS_DIGEST}"
       - name: Report a dry run honestly
         if: ${{ inputs.dry_run }}
         run: |
-          echo "::notice::dry run — built, signed and indexed ${{ matrix.id }} but synced nothing to ${{ matrix.r2_path }}"
+          echo "::notice::dry run — built, signed and indexed ${MATRIX_ID} but synced nothing to ${MATRIX_R2_PATH}"
+        env:
+          MATRIX_ID: ${{ matrix.id }}
+          MATRIX_R2_PATH: ${{ matrix.r2_path }}
 
   # The #179 job, and the one this publisher shipped without.
   #
@@ -735,8 +779,10 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: publish-rpm-${{ matrix.id }}
           path: staged
@@ -744,8 +790,10 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/verify-published-wave.py \
-            --served-url "https://repo.tunaos.org/${{ matrix.r2_path }}/" \
+            --served-url "https://repo.tunaos.org/${MATRIX_R2_PATH}/" \
             --staged staged
+        env:
+          MATRIX_R2_PATH: ${{ matrix.r2_path }}
 
   publish-oras:
     needs: [plan, build]
@@ -765,8 +813,10 @@ jobs:
       ARCH: ${{ matrix.architecture }}
       BUILD_MANIFEST: ${{ matrix.manifest }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: python3 -m pip install -r requirements-ci.txt
@@ -798,8 +848,8 @@ jobs:
           echo "DOCKER_CONFIG=$RUNNER_TEMP/.docker" >> "$GITHUB_ENV"
           printf '[storage]\ndriver = "overlay"\ngraphroot = "%s/containers"\nrunroot = "%s/podman-run"\n' "$work" "$RUNNER_TEMP" > "$RUNNER_TEMP/storage.conf"
           echo "CONTAINERS_STORAGE_CONF=$RUNNER_TEMP/storage.conf" >> "$GITHUB_ENV"
-      - uses: ./.github/actions/install-oras
-      - uses: sigstore/cosign-installer@v4.1.2
+      - uses: $/.github/actions/install-oras
+      - uses: sigstore/cosign-installer@v4.1.3
       - name: Registry authentication
         env:
           GH_TOKEN: ${{ github.token }}
@@ -807,13 +857,13 @@ jobs:
           mkdir -p "$DOCKER_CONFIG"
           echo "$GH_TOKEN" | oras login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           echo "$GH_TOKEN" | podman login ghcr.io -u "$GITHUB_ACTOR" --password-stdin --authfile "$DOCKER_CONFIG/config.json"
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: publish-rpm-${{ matrix.id }}
           path: staged
       - name: Import native signing key
         id: key
-        uses: crazy-max/ghaction-import-gpg@v7
+        uses: crazy-max/ghaction-import-gpg@v7.0.0
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -827,7 +877,7 @@ jobs:
       - name: Publish and verify the immutable ORAS repository
         id: publish
         run: bash scripts/publish-oras-rpm.sh
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: oras-production-receipt-${{ matrix.id }}

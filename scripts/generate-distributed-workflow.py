@@ -92,7 +92,12 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             {'name': 'Checkout', 'uses': 'actions/checkout@v7'},
             {'name': 'Install dependencies', 'run': 'sudo apt-get update -q || sudo apt-get update -q || true\nsudo apt-get install -y -q createrepo-c rclone'},
             {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
-            {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" {RCLONE_FLAGS} || true\ncreaterepo_c local-repo\n'},
+            # The publish job ends in `rclone sync`, which deletes every
+            # published object missing from the local tree, so a failed seed
+            # must stop the run (#627). Only rclone's exit 3, "directory not
+            # found", passes: a prefix that has never been published has
+            # nothing to delete.
+            {'name': 'Seed local repo from R2', 'run': f'mkdir -p local-repo\necho "Downloading existing repo from R2..."\nrc=0\nrclone sync "r2:${{R2_BUCKET}}/{r2_path}/" "local-repo/" --exclude "repodata/**" {RCLONE_FLAGS} || rc=$?\nif [ "$rc" -eq 3 ]; then echo "::warning::{r2_path} is not published yet; starting from an empty repo"; elif [ "$rc" -ne 0 ]; then echo "::error::seed from {r2_path} failed (rclone rc=$rc); refusing to continue"; exit "$rc"; fi\ncreaterepo_c local-repo\n'},
             # With R2 as the shared state this job exists to guarantee the
             # repository has valid metadata before any runner seeds from it;
             # there is nothing to hand on as an artifact.
@@ -282,6 +287,15 @@ def generate_workflow(manifest_path, output_path, workflow_name='Distributed Bui
             # See #509.
             {'name': 'Sign repository metadata', 'run': 'bash scripts/sign-repomd.sh local-repo\n'},
             {'name': 'Configure rclone', 'run': _rclone_conf(r2_state)},
+            {'name': 'Refuse to publish an empty result', 'run': (
+                'RPM_COUNT=$(find local-repo -name "*.rpm" ! -name "*.src.rpm" | wc -l)\n'
+                'echo "RPMs in local-repo: ${RPM_COUNT}"\n'
+                'if [ "${RPM_COUNT}" -eq 0 ] || [ ! -f local-repo/repodata/repomd.xml ]; then\n'
+                '  echo "::error::local-repo has no RPMs or no repodata. rclone sync makes the'
+                ' destination match its source, so this would DELETE the published repo.'
+                ' See INCIDENT-repo-wipe-gnome.md."\n'
+                '  exit 1\n'
+                'fi\n')},
             {'name': 'Upload to R2', 'run': _build_upload_run(r2_path, secondary_r2_path, install_script, install_r2_dest)}
         ]
     }

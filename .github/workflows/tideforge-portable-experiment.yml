@@ -28,7 +28,9 @@ jobs:
       payload_matrix: ${{ steps.plan.outputs.payload_matrix }}
       carrier_matrix: ${{ steps.plan.outputs.carrier_matrix }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - run: pip install pyyaml==6.0.3
       - id: plan
         name: Detect portable package handlers
@@ -46,10 +48,11 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.payload_matrix) }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v7
+          persist-credentials: false
+      - uses: actions/setup-go@v7.0.0
         with:
           go-version: 1.27.x
           cache: false
@@ -57,10 +60,10 @@ jobs:
         run: pip install pyyaml==6.0.3
       - name: Build and reseal the portable payload
         run: |
-          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${{ matrix.recipe }}")
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${MATRIX_RECIPE}")
           mkdir -p .portable/cache .portable/first .portable/second
           args=(
-            --recipe "${{ matrix.recipe }}"
+            --recipe "${MATRIX_RECIPE}"
             --architecture x86_64
             --build-contract "go-$(go version | tr ' ' '-')-linux-x86_64"
             --cache-dir .portable/cache
@@ -68,25 +71,29 @@ jobs:
           mkdir -p benchmark-data
           started=$(date +%s%N)
           python3 scripts/tideforge-intermediate.py build "${args[@]}" \
-            --output ".portable/first/${{ matrix.package }}.tfi.tar"
+            --output ".portable/first/${MATRIX_PACKAGE}.tfi.tar"
           finished=$(date +%s%N)
           printf '{"kind":"portable-payload","package":"%s","architecture":"%s","milliseconds":%d,"success":true}\n' \
-            '${{ matrix.package }}' '${{ matrix.architecture }}' \
+            "${MATRIX_PACKAGE}" "${MATRIX_ARCHITECTURE}" \
             "$(( (finished - started) / 1000000 ))" \
-            > "benchmark-data/payload-${{ matrix.package }}-${{ matrix.architecture }}.json"
+            > "benchmark-data/payload-${MATRIX_PACKAGE}-${MATRIX_ARCHITECTURE}.json"
           python3 scripts/tideforge-intermediate.py build "${args[@]}" \
-            --output ".portable/second/${{ matrix.package }}.tfi.tar"
-          cmp ".portable/first/${{ matrix.package }}.tfi.tar" \
-              ".portable/second/${{ matrix.package }}.tfi.tar"
+            --output ".portable/second/${MATRIX_PACKAGE}.tfi.tar"
+          cmp ".portable/first/${MATRIX_PACKAGE}.tfi.tar" \
+              ".portable/second/${MATRIX_PACKAGE}.tfi.tar"
           python3 scripts/tideforge-intermediate.py verify \
-            ".portable/first/${{ matrix.package }}.tfi.tar"
-          sha256sum ".portable/first/${{ matrix.package }}.tfi.tar"
-      - uses: actions/upload-artifact@v7
+            ".portable/first/${MATRIX_PACKAGE}.tfi.tar"
+          sha256sum ".portable/first/${MATRIX_PACKAGE}.tfi.tar"
+        env:
+          MATRIX_RECIPE: ${{ matrix.recipe }}
+          MATRIX_PACKAGE: ${{ matrix.package }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: portable-${{ matrix.package }}-x86_64
           path: .portable/first/${{ matrix.package }}.tfi.tar
           if-no-files-found: error
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: benchmark-payload-${{ matrix.package }}-${{ matrix.architecture }}
           path: benchmark-data/*.json
@@ -100,10 +107,11 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.carrier_matrix) }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v8
+          persist-credentials: false
+      - uses: actions/download-artifact@v8.0.2
         with:
           name: portable-${{ matrix.package }}-x86_64
           path: .portable/input
@@ -114,19 +122,24 @@ jobs:
           pip install pyyaml==6.0.3
       - name: Repackage without compilation
         run: |
-          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${{ matrix.recipe }}")
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${MATRIX_RECIPE}")
           mkdir -p benchmark-data
           started=$(date +%s%N)
           python3 scripts/tideforge-intermediate.py package \
-            ".portable/input/${{ matrix.package }}.tfi.tar" \
-            --recipe "${{ matrix.recipe }}" \
-            --target "${{ matrix.target }}" --output-dir .portable/out
+            ".portable/input/${MATRIX_PACKAGE}.tfi.tar" \
+            --recipe "${MATRIX_RECIPE}" \
+            --target "${MATRIX_TARGET}" --output-dir .portable/out
           finished=$(date +%s%N)
           printf '{"kind":"portable-carrier","package":"%s","target":"%s","architecture":"%s","milliseconds":%d,"success":true}\n' \
-            '${{ matrix.package }}' '${{ matrix.target }}' '${{ matrix.architecture }}' \
+            "${MATRIX_PACKAGE}" "${MATRIX_TARGET}" "${MATRIX_ARCHITECTURE}" \
             "$(( (finished - started) / 1000000 ))" \
-            > "benchmark-data/carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+            > "benchmark-data/carrier-${MATRIX_PACKAGE}-${MATRIX_TARGET}-${MATRIX_ARCHITECTURE}.json"
           find .portable/out -maxdepth 1 -type f -print -exec sha256sum {} \;
+        env:
+          MATRIX_RECIPE: ${{ matrix.recipe }}
+          MATRIX_PACKAGE: ${{ matrix.package }}
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
       - name: Read Arch package metadata
         if: matrix.target == 'arch'
         run: |
@@ -170,19 +183,23 @@ jobs:
           gate=false
           if [ '${{ steps.gate.outcome }}' = 'success' ]; then gate=true; fi
           python3 - "$gate" <<'PY'
-          import json, pathlib, sys
+          import json, os, pathlib, sys
           path = pathlib.Path(
-              "benchmark-data/carrier-${{ matrix.package }}"
-              "-${{ matrix.target }}-${{ matrix.architecture }}.json")
+              f"benchmark-data/carrier-{os.environ['MATRIX_PACKAGE']}"
+              f"-{os.environ['MATRIX_TARGET']}-{os.environ['MATRIX_ARCHITECTURE']}.json")
           row = json.loads(path.read_text())
           row["gate_success"] = sys.argv[1] == "true"
           path.write_text(json.dumps(row) + "\n")
           PY
-          cat "benchmark-data/carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+          cat "benchmark-data/carrier-${MATRIX_PACKAGE}-${MATRIX_TARGET}-${MATRIX_ARCHITECTURE}.json"
+        env:
+          MATRIX_PACKAGE: ${{ matrix.package }}
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
       # Uploaded AFTER the verdict is recorded. It used to upload here-first,
       # which would have shipped a row with no gate_success at all and made
       # the parity check below silently vacuous for every carrier.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: benchmark-carrier-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
           path: benchmark-data/*.json
@@ -196,17 +213,20 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.carrier_matrix) }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install pyyaml==6.0.3
-      - uses: ./.github/actions/tideforge-source-cache
+      - uses: $/.github/actions/tideforge-source-cache
         with:
           recipe: ${{ matrix.recipe }}
-      - run: scripts/pull-container-image.sh "${{ matrix.image }}" "${{ matrix.image }}"
+      - run: scripts/pull-container-image.sh "${MATRIX_IMAGE}" "${MATRIX_IMAGE}"
+        env:
+          MATRIX_IMAGE: ${{ matrix.image }}
       - name: Time the existing target-native build and package path
         env:
           CELL_ID: baseline-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
@@ -217,8 +237,12 @@ jobs:
           IMAGE: ${{ matrix.image }}
           RECIPE: ${{ matrix.recipe }}
           OUT_DIR: ${{ github.workspace }}/.baseline/out
+          MATRIX_RECIPE: ${{ matrix.recipe }}
+          MATRIX_PACKAGE: ${{ matrix.package }}
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
         run: |
-          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${{ matrix.recipe }}")
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%at -- "${MATRIX_RECIPE}")
           mkdir -p benchmark-data
           started=$(date +%s%N)
           set +e
@@ -229,9 +253,9 @@ jobs:
           success=false
           if (( status == 0 )); then success=true; fi
           printf '{"kind":"target-native","package":"%s","target":"%s","architecture":"%s","milliseconds":%d,"success":%s,"exit_code":%d}\n' \
-            '${{ matrix.package }}' '${{ matrix.target }}' '${{ matrix.architecture }}' \
+            "${MATRIX_PACKAGE}" "${MATRIX_TARGET}" "${MATRIX_ARCHITECTURE}" \
             "$(( (finished - started) / 1000000 ))" "$success" "$status" \
-            > "benchmark-data/native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
+            > "benchmark-data/native-${MATRIX_PACKAGE}-${MATRIX_TARGET}-${MATRIX_ARCHITECTURE}.json"
       # The CONTROL, and it did not exist before.
       #
       # run-package-factory-cell.sh builds and packages; it does not verify.
@@ -259,16 +283,20 @@ jobs:
           gate=false
           if [ '${{ steps.gate.outcome }}' = 'success' ]; then gate=true; fi
           python3 - "$gate" <<'PY'
-          import json, pathlib, sys
+          import json, os, pathlib, sys
           path = pathlib.Path(
-              "benchmark-data/native-${{ matrix.package }}"
-              "-${{ matrix.target }}-${{ matrix.architecture }}.json")
+              f"benchmark-data/native-{os.environ['MATRIX_PACKAGE']}"
+              f"-{os.environ['MATRIX_TARGET']}-{os.environ['MATRIX_ARCHITECTURE']}.json")
           row = json.loads(path.read_text())
           row["gate_success"] = sys.argv[1] == "true"
           path.write_text(json.dumps(row) + "\n")
           PY
-          cat "benchmark-data/native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}.json"
-      - uses: actions/upload-artifact@v7
+          cat "benchmark-data/native-${MATRIX_PACKAGE}-${MATRIX_TARGET}-${MATRIX_ARCHITECTURE}.json"
+        env:
+          MATRIX_PACKAGE: ${{ matrix.package }}
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: benchmark-native-${{ matrix.package }}-${{ matrix.target }}-${{ matrix.architecture }}
           path: benchmark-data/*.json
@@ -280,7 +308,7 @@ jobs:
     needs: [payload, native-package, native-baseline]
     runs-on: ubuntu-26.04
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: benchmark-*
           path: benchmark

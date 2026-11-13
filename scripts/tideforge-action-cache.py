@@ -25,6 +25,7 @@ SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 IMAGE_DIGEST = re.compile(r"^.+@sha256:[0-9a-f]{64}$")
 COMMON_RENDERERS = (
     "scripts/tideforge.py",
+    "scripts/factory_contract.py",
     "scripts/run-package-factory-cell.sh",
     "scripts/fetch-tideforge-sources.py",
 )

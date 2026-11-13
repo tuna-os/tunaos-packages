@@ -6,9 +6,9 @@ summary: Dank Linux system and process monitor
 description: Command-line and REST API system monitor used by the Dank Linux desktop suite.
 license: MIT
 source:
-  url: https://github.com/AvengeMedia/dgop/archive/refs/tags/v0.2.3.tar.gz
-  sha256: afd2f9542ce25c739b13d6213fdfbc5493bce537d5afec309b4df945e318ff1a
-  directory: dgop-0.2.3
+  url: https://github.com/duxlabs-dev/dux-gop/archive/ac77511bbb9ae52ae8f04b9d7e15116a4d4838eb.tar.gz
+  sha256: 8a2b8e64cad78e9a4bb03d37dafc4aa58eaeb9c52cc8d8273f151b3be1478647
+  directory: dux-gop-ac77511bbb9ae52ae8f04b9d7e15116a4d4838eb
 build_system: go
 build:
   go_package: ./cmd/dgop

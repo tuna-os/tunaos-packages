@@ -147,6 +147,15 @@ is the enforcement, in two workflows:
   stage them in an ephemeral repository, and clean-install them in a second
   container before running the recipe's command/file/service smoke check.
 
+The Tumbleweed build, RPM lint and clean-install containers first refresh their
+native repositories and run `zypper dup --no-allow-vendor-change`, before they
+add factory repositories or install dependencies. A container image
+can contain newer runtime libraries than the selected repository snapshot.
+An isolated dependency install can then fail on exact runtime/development
+version pairs. The native distribution transaction keeps that baseline
+consistent. It does not change recipe version requirements or accept broken
+dependencies. Factory repository priorities and package checks stay unchanged.
+
 Two engines produce the payloads inside that one boundary. `tideforge` cells
 build one recipe from `packages/<name>/package.yaml` for one target/arch.
 `build-chain` cells build a whole native-spec family (the EL10 GNOME
@@ -323,6 +332,32 @@ python3 scripts/tideforge.py plan packages/my-package/package.yaml --target el10
 python3 scripts/tideforge.py render packages/my-package/package.yaml --target ubuntu --output out/ubuntu
 ```
 
+Recipes inherit every architecture declared by each target unless their optional
+top-level `architectures` mapping narrows admission for that target:
+
+```yaml
+targets: [arch]
+architectures:
+  arch: [x86_64]
+```
+
+Each key must name a target in the recipe's `targets`.
+Each value is a list of unique architectures from that target.
+The list cannot be empty.
+An omitted target keeps all its architectures.
+Factory discovery and the Arch publisher use the same rule.
+
+Without `--arches`, the publisher builds each recipe for its admitted architectures.
+It publishes each architecture that has a build.
+An explicit choice must support all selected recipes.
+The publisher rejects an unsupported choice; it does not skip a package.
+
+Each row for publication has a `packages` field.
+The field lists the recipes built for that architecture, separated by commas.
+The verifier uses that field, not the global input.
+For `gdm,greetd`, x86_64 verifies both packages.
+ARM verifies only greetd when GDM admits x86_64.
+
 Before adding a native dependency spelling to the catalog or promoting a
 recipe, probe it in the actual target container. This resolves recipe
 capabilities (for example `dbus-dev`) to native package names and checks the
@@ -337,6 +372,34 @@ python3 scripts/probe-target-dependencies.py packages/my-package/package.yaml --
 The tool emits target-native files because the package managers require them,
 but maintainers edit one recipe. A target override is limited to the dependency
 or build difference that cannot be made portable.
+
+Use `outputs.arch` for pacman metadata. Set `conflicts`, `replaces`, and `backup`
+to lists. Tideforge emits these as PKGBUILD arrays. These fields do not change
+RPM or Debian relations.
+
+`tuna-desktop` conflicts with and replaces `roost`. Its `backup` list names
+`etc/pam.d/tuna-lock` and `etc/pam.d/roost-lock`. Use exact relative paths from
+`files.common`. Do not repeat paths. Absolute paths, traversal, whitespace and
+glob patterns are invalid.
+
+`outputs.arch.options` carries native makepkg options such as `!lto`.
+For native install/upgrade hooks, declare
+`outputs.arch.install_script: {path: packages/NAME/NAME.install, sha256: HASH}`.
+
+Keep the file inside its recipe's directory. Use regular UTF-8 text.
+Tideforge rejects symlinks, traversal and payloads with a different hash.
+It copies the file into `NAME.install` and sets PKGBUILD `install=NAME.install`.
+Pacman runs the native hooks.
+
+Index native archives with either `.pkg.tar.zst` or `.pkg.tar.xz`.
+`arch-clean-install.sh` uses the same publisher before the package install.
+This checks the index, not the production signatures.
+
+
+`provides` alone does not let pacman remove another package. The `backup` field
+in a new archive does not change the old archive. Test the real transaction
+with administrator edits, deletion and combined effective `NoUpgrade` and
+`NoExtract` policy. A PKGBUILD is not transaction evidence.
 
 When an upstream source archive omits required git submodules, use the optional
 `sources` list rather than an unpinned clone in a build command. Each auxiliary
@@ -370,6 +433,123 @@ demonstrably stale *root-package* entry in an otherwise pinned `Cargo.lock` may
 set `build.cargo_locked: false`, but it must include a specific
 `build.cargo_lock_reason` and is accepted only after the resulting lockfile
 diff has been reviewed in the target build.
+
+### GNOME 51 redirected smartcards: native SSSD
+
+Arch revision `49a6c3408d0431606b99d1ddb035ce2e40c071ea`
+is the base for `sssd`.
+It retains the paths from `configure`, the `sssd` user and `!lto`.
+It keeps sysusers, tmpfiles and the logrotate backup.
+The hooks restore the groups and capabilities.
+
+The Kerberos plugins link `libverto`. Declare it as a runtime dependency.
+
+Version 2.13.1 adds two changes from SSSD:
+
+- [f2696b80](https://github.com/SSSD/sssd/commit/f2696b80a153d8ad61f66e4611efd2dff3c6410c)
+  forwards allowlisted, validated `GDM_AUTH_SESSION_ID` through the PAM
+  request and into `p11_child`/`krb5_child`. The responder can then select
+  the card from the correct GRD session.
+- [b1f2ffc7](https://github.com/SSSD/sssd/commit/b1f2ffc7d3f74d5fd1c0091d98c19f5401b4013b)
+  grants only the dedicated SSSD user the upstream
+  `org.gnome.remotedesktop.use-grd-pcscd` action.
+
+Version 2.13.1 keeps `state->sss_certmap_ctx` as unchanged context.
+See [the backport](../packages/sssd/f2696b80-grd-session-2.13.1.patch).
+See [the comparison](../packages/sssd/f2696b80-backport-provenance.json) for the hashes.
+Apply both patches with `--fuzz=0`.
+
+The build uses the source archive and two patches with fixed hashes.
+This does not prove a published package or a login with a card through GDM.
+Normal factory CI must build and install the package.
+GRD51/GDM51 consumers must test actual redirection.
+
+The package does not enroll a domain or change PAM or OpenSC configuration.
+It does not enable smartcards or start a listener. Administrators must opt in.
+Tests for password/NTLM transport, Kerberos PKINIT and PAM with cards are distinct.
+### Maintained native Arch split packages
+
+Use `outputs.arch.native_pkgbuild` to retain an owned PKGBUILD.
+Tideforge does not generate a model of split packages.
+The native contract is not a pacman metadata array.
+With this contract, the owned PKGBUILD supplies all arrays, including `backup`.
+Its `path` and `sha256` pin `packages/<name>/PKGBUILD`.
+The `files` list pins up to sixteen patches in that recipe's `patches/` directory.
+
+Each input must be a regular UTF-8 file inside the recipe.
+Each file can contain at most 1 MiB.
+The renderer preserves all bytes and line breaks.
+The action key covers the recipe directory and the renderer.
+It also covers the shared code for admission.
+
+`packages` lists every required output.
+`optional_packages` lists other outputs that makepkg can generate.
+The verifier rejects missing, duplicate or unknown outputs.
+It rejects mismatched versions or architectures and checks exact dependencies.
+Optional symbols cannot replace a required package.
+
+`packages/gdm/` builds GDM and libgdm **51.1.1-1.1**.
+Its base is [Arch revision 36e76b2b](https://gitlab.archlinux.org/archlinux/packaging/packages/gdm/-/commit/36e76b2b4674dc196e611782c4f8f6d5e476e231).
+It keeps the PAM configuration and declarations for conffiles.
+It keeps the Meson checks, Xsession patch and split ownership.
+`prepare()` applies both patches to the release archive.
+Both archive and patches have fixed hashes.
+
+GDM needs the exact libgdm version from the same build.
+`gdm-debug` can accompany that pair.
+It cannot replace either package.
+The recipe admits x86_64 only.
+We do not claim ARM or CPU qualification.
+
+The patch sends `SetSessionName(get_session_name(self))` before `Open` starts to save account details.
+It does not change program sessions.
+It does not change the resolver for explicit, saved or fallback choices.
+
+In [run 41245509890](https://github.com/tuna-os/tuna-desktop/actions/runs/41245509890),
+two observers saw no calls to set the session for User1001.
+Worker markers: unavailable; debug off.
+Their absence proves nothing about the save stage.
+This evidence supports the candidate.
+It does not prove the cause or runtime behavior.
+
+We applied both patches to the verified archive.
+Only `data/Xsession.in` and `daemon/gdm-session.c` changed.
+We ran a C smoke with the patched function and original resolver.
+Explicit, saved and fallback names reached the setter before `Open`.
+Program sessions skipped the setter.
+A missing conversation emitted no calls.
+
+The smoke used stubs for the worker and default lookup.
+Those stubs do not test real GDM, PAM, D-Bus or AccountsService.
+We deleted the temporary source and binary.
+Tests check admission, bounds for rendered files, and metadata for both packages.
+The C smoke is not a permanent test.
+
+The factory built both unsigned packages on x86_64.
+It also built `gdm-debug`.
+Meson: one pass, zero failures.
+The validator accepted the pair.
+The verifier installed both packages from the staged repository.
+It checked their ELF closure, versions and owners.
+
+Both containers reported 8 GiB memory.
+Both reported zero swap and CPU quota 200%.
+We removed both containers.
+
+The build warned about backup paths that the package did not contain.
+We kept these warnings.
+We did not change upstream PAM configuration or declarations for conffiles.
+These checks do not prove login or creation of a physical record for AccountsService.
+
+This change does not enable signed publication.
+It does not change image pins.
+Runtime checks must pass before promotion.
+The consumer must select both packages after its last `pacman -Syu`.
+It must check both versions.
+Both journeys must pass before we call the issue fixed.
+
+Source checks and the C smoke do not prove those journeys.
+The package build and staged installation do not prove them.
 
 ### Queue-only pull requests and native canaries
 
