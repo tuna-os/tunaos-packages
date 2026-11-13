@@ -73,12 +73,14 @@ GNOME 50 (`mozjs140`, `tinysparql`) requires ICU 77; EL10 base ships ICU 74.
 
 ## Self-hosted GitHub Actions pipeline (GNOME 49)
 
-Runs alongside COPR, not a replacement for it:
+Runs alongside COPR, not a replacement for it. The dedicated
+`build-gnome49-*` workflows were retired in #430; GNOME 49 is now one cell
+(`gnome49-el10-x86_64`) of the unified package factory:
 
 ```
-src/gnome-49/ specs
-   -> GitHub Actions (mock/podman per-package matrix jobs)
-   -> GPG sign (secrets.GPG_PRIVATE_KEY)
+src/gnome-49/ specs + .copr/build-order-gnome49.yml
+   -> package-factory.yml (cell gnome49-el10-x86_64, Mock config centos-stream-10-ci-gnome49)
+   -> publish-build-chain-rpms.yml (manual dispatch; GPG sign with secrets.GPG_PRIVATE_KEY)
    -> Cloudflare R2 (r2:bluefin/gnome49/10-stream-x86_64/)
    -> repo.tunaos.org/gnome49/10-stream-x86_64/ (Cloudflare Worker, no transform)
    -> DNF repo usable by end users
@@ -87,12 +89,12 @@ src/gnome-49/ specs
 | File | Purpose |
 |------|---------|
 | `.copr/build-order-gnome49.yml` | GNOME 49 tier manifest, separate from GNOME 50's root `build-order.yml` |
-| `.github/workflows/build-gnome49-distributed.yml` | Full bootstrap: all tiers in sequence, per-package parallel matrix. Generated — regenerate with `scripts/generate-distributed-workflow.py`, don't hand-edit the matrix structure |
-| `.github/workflows/build-gnome49-package.yml` | Incremental: triggered by Renovate PRs or manual dispatch for a single package |
-| `.github/workflows/build-gnome49-verify.yml` | Post-publish: verifies repo.tunaos.org is actually serving the packages |
-| `scripts/watch-pipeline.sh` | Local script to trigger/watch GHA runs via `gh` CLI (`run`, `watch`, `package <path>`, `status`) |
+| `manifests/package-builds.yaml` | Declares the `gnome49-el10-x86_64` cell: manifest, Mock config, source paths (`src/gnome-49/`, `src/deps/`) and `r2_path` |
+| `.github/workflows/package-factory.yml` | Builds the cell when a PR or push to `main` touches its source paths, and in the weekly Sunday run of every build-chain family. Manual dispatch takes `cell: gnome49-el10-x86_64` or `selector: family=gnome49` |
+| `.github/workflows/publish-build-chain-rpms.yml` | `workflow_dispatch` only: a human names the cells (`cells: gnome49-el10-x86_64`). Signs, syncs to R2, then its `verify` job installs from the served index (`scripts/verify-published-wave.py`) |
+| `scripts/watch-pipeline.sh` | Still targets the retired `build-gnome49-*` workflows and a `gnome-49-pipeline` branch that no longer exists; do not use it until it is fixed (#996) |
 | `contrib/install-gnome49.sh` | User install script — `gpgcheck=1`, hardcoded baseurl (no `$releasever` expansion, GNOME 49 targets one EL10 stream) |
-| `renovate.json` | Tracks `src/gnome-49/**/*.spec` `Version:` fields against Fedora F43 dist-git |
+| `renovate.json` | Has no rule for `src/gnome-49/` specs, so GNOME 49 `Version:` bumps are manual |
 | `SRPM-CHANGES.md` | Log of every manual spec/source modification (PAM fixes, Rust vendoring, dependency injections) |
 | `COPR-REPORT.md` | Categorizes packages by origin: custom vs. modified vs. unmodified Rawhide |
 
