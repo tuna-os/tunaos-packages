@@ -14,8 +14,13 @@ on:
   # Measured: PRs #590-#609 this session left 18 such runs alive for hours
   # after merging, several still mid-build, holding runners a genuinely
   # queued nightly family build then waited behind for over an hour.
+  #
+  # A DRAFT builds nothing, by the same mechanism: `plan` emits the zero-package
+  # shape while the PR is a draft, and `converted_to_draft` queues one such run
+  # on the group to cancel a build already in flight. `ready_for_review` starts
+  # the real run the draft skipped.
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened, closed, ready_for_review, converted_to_draft]
   # NOT merge_group. A cell build takes ~2.5h; the merge queue's CI timeout is
   # about an hour, so the queue would evict src/-touching PRs before completion.
   # The PR gate already builds refs/pull/N/merge -- the merge result -- and the
@@ -189,6 +194,7 @@ jobs:
           REQUESTED_SELECTOR: ${{ inputs.selector || '' }}
           EVENT_NAME: ${{ github.event_name }}
           EVENT_ACTION: ${{ github.event.action || '' }}
+          PR_DRAFT: ${{ github.event.pull_request.draft || false }}
           SCHEDULE: ${{ github.event.schedule || '' }}
           REQUESTED_REVISION: ${{ inputs.source_revision || '' }}
           BATCH_INDEX: ${{ inputs.batch_index || '0' }}
@@ -206,7 +212,7 @@ jobs:
           # shape plan-package-factory.py would for an empty selection and
           # stop, rather than spending a checkout+plan invocation to arrive
           # at the same answer.
-          if [ "$EVENT_NAME" = pull_request ] && [ "$EVENT_ACTION" = closed ]; then
+          if [ "$EVENT_NAME" = pull_request ] && { [ "$EVENT_ACTION" = closed ] || [ "$PR_DRAFT" = true ]; }; then
             {
               echo "count=0"
               echo 'matrix_0={"include":[]}'

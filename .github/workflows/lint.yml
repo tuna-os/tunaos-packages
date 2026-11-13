@@ -275,7 +275,7 @@ jobs:
     name: required-checks
     if: always()
     needs: [lint, pytest]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Verify all required jobs succeeded
         env:
