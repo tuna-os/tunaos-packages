@@ -40,7 +40,7 @@ jobs:
           pip install --quiet pyyaml requests
 
       - name: Install rclone
-        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+        run: rclone_installer=$(mktemp) && curl -fsSL -o "$rclone_installer" https://rclone.org/install.sh && sudo bash "$rclone_installer" && rm -f "$rclone_installer"
 
       - name: Configure rclone
         env:

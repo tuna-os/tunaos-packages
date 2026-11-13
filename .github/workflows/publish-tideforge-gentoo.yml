@@ -141,7 +141,7 @@ jobs:
       - run: pip install pyyaml==6.0.3
       - name: Install tooling
         # Only rclone on the host; gpkg-sign and emaint run in the stage3.
-        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+        run: rclone_installer=$(mktemp) && curl -fsSL -o "$rclone_installer" https://rclone.org/install.sh && sudo bash "$rclone_installer" && rm -f "$rclone_installer"
       - name: Pull the Gentoo image, retrying transient registry failures
         run: scripts/pull-container-image.sh "${NEEDS_PLAN_OUTPUTS_IMAGE}"
         env:
