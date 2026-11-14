@@ -1,0 +1,80 @@
+{
+  "by_coordinate": {
+    "tideforge/gpkg/amd64": {
+      "divergent": 1,
+      "rate": 0.0,
+      "reproducible": 0,
+      "sampled": 1
+    }
+  },
+  "by_engine": {
+    "tideforge": {
+      "divergent": 1,
+      "rate": 0.0,
+      "reproducible": 0,
+      "sampled": 1
+    }
+  },
+  "by_format": {
+    "gpkg": {
+      "divergent": 1,
+      "rate": 0.0,
+      "reproducible": 0,
+      "sampled": 1
+    }
+  },
+  "history": [],
+  "measured_at": "2026-11-14T14:23:50+00:00",
+  "quarantined": [
+    {
+      "architecture": "amd64",
+      "divergent_artifacts": [
+        {
+          "actual_digest": "sha256:4103e6579a98b9b050b0da32058ae95f12b36f894f470c69684fb207c6cf7903",
+          "actual_size": 19548160,
+          "expected_digest": "sha256:11fb357514272d184f4bffbf548c02e20a2758f762c61f7ec2da52362618a03f",
+          "expected_size": 19548160,
+          "name": "tuna-desktop-1.0.0_beta3-1.gpkg.tar"
+        }
+      ],
+      "engine": "tideforge",
+      "format": "gpkg",
+      "package": "tuna-desktop",
+      "quarantined_at": "2026-11-14T14:23:50+00:00",
+      "reason": "Artifact digest divergence between independent builds: [{'actual_digest': 'sha256:4103e6579a98b9b050b0da32058ae95f12b36f894f470c69684fb207c6cf7903', 'actual_size': 19548160, 'expected_digest': 'sha256:11fb357514272d184f4bffbf548c02e20a2758f762c61f7ec2da52362618a03f', 'expected_size': 19548160, 'name': 'tuna-desktop-1.0.0_beta3-1.gpkg.tar'}]",
+      "target": "gentoo"
+    }
+  ],
+  "results": [
+    {
+      "action_key": "sha256:56cb20ea60be8de135eb35328c326b39ed5d7ad4e69672d39dc38a88fffc44a9",
+      "architecture": "amd64",
+      "cell_id": "tideforge-tuna-desktop-gentoo-amd64",
+      "engine": "tideforge",
+      "extra": [],
+      "format": "gpkg",
+      "matching": [],
+      "mismatches": [
+        {
+          "actual_digest": "sha256:4103e6579a98b9b050b0da32058ae95f12b36f894f470c69684fb207c6cf7903",
+          "actual_size": 19548160,
+          "expected_digest": "sha256:11fb357514272d184f4bffbf548c02e20a2758f762c61f7ec2da52362618a03f",
+          "expected_size": 19548160,
+          "name": "tuna-desktop-1.0.0_beta3-1.gpkg.tar"
+        }
+      ],
+      "missing": [],
+      "package": "tuna-desktop",
+      "reproducible": false,
+      "target": "gentoo"
+    }
+  ],
+  "schema": 1,
+  "summary": {
+    "divergent": 1,
+    "quarantined": 1,
+    "reproducibility_rate": 0.0,
+    "reproducible": 0,
+    "sampled": 1
+  }
+}
