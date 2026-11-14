@@ -440,3 +440,50 @@ Only then may tunaOS advance its package pin and run image and runtime
 qualification. Existing image PR `tunaOS#3885` retains its manual merge
 fence and the observed beta.1 pin until that served evidence exists.
 
+## 12. The current utah-packages pin closes Tuna (2026-11-14)
+
+The section 11 blockers came from a stale input, not from a missing build.
+The consumed utah-packages pin was `sha256:9cb66729…`, set on 2026-09-02.
+Renovate moves the tunaOS pin, but nothing moved this one.
+
+On 2026-11-14, the pin on tunaOS main is `sha256:fc3c1f34…`. That
+repository has 2615 binary packages, against 421 in the old pin. Utah
+builds them in Hummingbird's own root. They include these packages:
+
+- `rpm-ostree-2026.3-1.hum1.bfin`, the provider for TuneD's
+  `(rpm-ostree if bootc)`.
+- `tuned-2.28.0-1.hum1.bfin` and `tuned-ppd`.
+- `libcanberra-0.30-1.hum1.bfin` with its backends, and `libvorbis`.
+- `iw`, which `tuned` needs.
+
+Run `41213268502` measured the old pin, so its gate saw no `libcanberra`.
+With the new pin, `scripts/check-hummingbird-installability.py --arch x86_64`
+resolves the `tuna` set with zero blockers. dnf gives the same answer.
+
+We used the pinned `bootc-os` base (`sha256:00006de2…`), with
+`tunaos-hummingbird` at priority 5 and utah at priority 4. In it, dnf
+resolves the full Tuna list of tunaOS. That transaction installs 527
+packages. `rpm-ostree`, `libcanberra` and `tuned` come from utah.
+
+This change moves the pin to the tunaOS pin and records a new x86_64
+baseline. The aarch64 baseline does not change, because utah has no
+aarch64 build. The new pin also adds three blockers outside Tuna:
+
+- `gnome`: `ppp`, which `NetworkManager-ppp` from the target needs.
+- `kde` and `niri`: `libIex-3_2.so.31` and `libOpenEXR-3_2.so.31`, which
+  `kf6-kimageformats` from utah needs.
+
+These blockers do not come from our packages. The baseline records them,
+and also each blocker that the new pin closes. A wave that adds a new
+blocker still fails the gate.
+
+This change does not regenerate the build order. A regeneration against
+the Rawhide of today adds `glibc`, `openssl`, `llvm` and `python3.15`.
+That drift is for the scheduled drift review, not for this change. The
+order keeps `rpm-ostree` and `libcanberra` as the fallback if utah drops
+them. Images prefer utah at priority 4.
+
+To publish Tuna Desktop beta.3, dispatch `publish-build-chain-rpms.yml`
+with `cells=hummingbird-x86_64` and `tiers=local-00`. That leg builds
+only `src/hummingbird/tuna-desktop`. Its buildroot uses the new utah pin,
+and its gate compares against the new baseline.

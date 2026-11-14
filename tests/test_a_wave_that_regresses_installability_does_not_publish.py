@@ -203,7 +203,9 @@ def test_the_committed_baseline_covers_every_architecture_the_target_publishes()
     catalog = yaml.safe_load((ROOT / "manifests" / "hummingbird-desktops.yaml").read_text())
     desktops = {d for d in catalog["desktops"] if d != "bluefin"}
     for arch, recording in recorded["arches"].items():
-        assert set(recording["desktops"]) == desktops, arch
+        # --write-baseline always records the `retained` set beside the
+        # desktops (check-hummingbird-installability.py RETAINED_SET).
+        assert set(recording["desktops"]) - {"retained"} == desktops, arch
         assert recording["published_index"]["primary_sha256"], arch
 
 
