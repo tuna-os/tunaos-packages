@@ -76,11 +76,14 @@ When you change a native spec:
 
 ## Validate changes
 
-Install Python test dependencies with:
+Install the pinned Python tools that CI uses:
 
 ```bash
-python3 -m pip install pytest pyyaml jsonschema
+python3 -m pip install -r requirements-ci.txt
 ```
+
+This file pins pytest, pytest-cov, PyYAML, jsonschema and ruff. `just check` runs ruff
+first, so without ruff it stops before the tests start.
 
 Run focused tests during development. For example:
 
@@ -95,9 +98,10 @@ Run the repository's combined fast checks before you submit:
 just check
 ```
 
-This runs the Python test suite and validates the primary build-order
-manifest. CI also checks YAML, shell scripts, every build-order manifest, and
-the Bats suite. If your change touches shell workflows, install Bats and run
+This runs three checks: the `ruff.toml` lint policy (`just lint-python`, with
+E501 excluded), the Python test suite, and validation of the primary
+build-order manifest. CI also checks YAML, shell scripts, every build-order
+manifest, and the Bats suite. If your change touches shell workflows, install Bats and run
 the relevant file under `tests/bats/`; see
 [`tests/bats/README.md`](tests/bats/README.md) for setup and examples.
 
