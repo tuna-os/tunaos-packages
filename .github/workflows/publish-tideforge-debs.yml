@@ -31,6 +31,14 @@ on:
         description: Comma-separated arches; empty means every arch the target declares
         default: ''
         required: false
+      verify_run_id:
+        description: >-
+          Verify only: the id of an earlier run of this workflow that already
+          published the wave. Skips build and publish, and verifies the served
+          debs against that run's build provenance. Pass the same packages,
+          distros and arches it used. Empty means build, publish and verify.
+        default: ''
+        required: false
 
 env:
   R2_BUCKET: bluefin
@@ -67,8 +75,13 @@ jobs:
           PACKAGES: ${{ inputs.packages }}
           DISTROS: ${{ inputs.distros }}
           ARCHES: ${{ inputs.arches }}
+          VERIFY_RUN_ID: ${{ inputs.verify_run_id }}
         run: |
           set -euo pipefail
+          [[ -z "$VERIFY_RUN_ID" || "$VERIFY_RUN_ID" =~ ^[0-9]+$ ]] || {
+            echo "::error::verify_run_id must be a workflow run id, got: $VERIFY_RUN_ID"
+            exit 1
+          }
           python3 scripts/plan-deb-publish.py \
             --packages "$PACKAGES" \
             --distros "$DISTROS" \
@@ -77,6 +90,9 @@ jobs:
 
   build:
     needs: plan
+    # A verify-only dispatch must not rebuild: a cache miss would produce new
+    # bytes under an already-served version.
+    if: inputs.verify_run_id == ''
     name: ${{ matrix.package }} (${{ matrix.distro }}, ${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     strategy:
@@ -156,6 +172,7 @@ jobs:
 
   publish:
     needs: [plan, build]
+    if: inputs.verify_run_id == ''
     runs-on: ubuntu-latest
     strategy:
       # Serial, not parallel: the iterations sync against the same bucket
@@ -273,6 +290,17 @@ jobs:
   # not carry it (debian-trixie's first publish).
   verify:
     needs: [plan, publish]
+    # A verify-only dispatch (verify_run_id) skips build and publish and checks
+    # what that earlier run already serves, against ITS build provenance. The
+    # receipt still requires that provenance to match the recipe at this run's
+    # revision, so it only passes while the served build is current.
+    if: >-
+      !cancelled() && needs.plan.result == 'success'
+      && (inputs.verify_run_id != '' || needs.publish.result == 'success')
+    permissions:
+      contents: read
+      # download-artifact from another run (verify_run_id).
+      actions: read
     # Both arches, for the reason this job exists at all: publishing an
     # architecture nothing ever installs is exactly the #179 shape -- a repo
     # sitting behind a green workflow that no one has actually resolved
@@ -295,6 +323,10 @@ jobs:
         with:
           pattern: publish-deb-provenance-${{ matrix.distro }}-*
           path: build-provenance
+          # The token only for another run; without one the action reads
+          # this run's artifacts.
+          run-id: ${{ inputs.verify_run_id || github.run_id }}
+          github-token: ${{ inputs.verify_run_id != '' && github.token || '' }}
       - name: Install from the published repo with no third-party sources
         env:
           # The wave's binary package names for this distro, from the plan
