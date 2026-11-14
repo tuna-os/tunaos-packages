@@ -12062,7 +12062,7 @@ packages:
       rpm:
         native: src/hummingbird/tuna-desktop
     upstream:
-      version: 1.0.0~beta.2
+      version: 1.0.0~beta.3
       source: '%{url}/archive/refs/tags/v%{upstream_version}.tar.gz#/tuna-desktop-%{upstream_version}.tar.gz'
       spec: src/hummingbird/tuna-desktop/tuna-desktop.spec
     targets:
@@ -12083,9 +12083,9 @@ packages:
       gpkg:
         tideforge: packages/tuna-desktop
     upstream:
-      version: 1.0.0~beta.2
-      source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.2.tar.gz
-      sha256: 1e8abf38f4959a171007c3c61865057b76deaeb92aa7cbb79bcade830ec999b3
+      version: 1.0.0~beta.3
+      source: https://github.com/tuna-os/tuna-desktop/archive/refs/tags/v1.0.0-beta.3.tar.gz
+      sha256: 5861959ead54ca434f0e60513a3999f4e1c6464bc14d3454a0eba14b6ee6f9bf
     targets:
       - arch
       - debian
