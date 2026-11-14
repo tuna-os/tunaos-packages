@@ -55,8 +55,8 @@ the asset and compares it with the published one.
 
 Commit the recipe change. Then let the factory build the `tideforge-tuna-desktop-*`
 cells: `arch-x86_64`, `fedora`, `rawhide`, `eln`, `el10` and `opensuse-tumbleweed`
-on `x86_64` and `aarch64`, `ubuntu` (resolute), `ubuntu-rolling` (the current
-Ubuntu interim release), `debian` (sid) and `trixie` on `amd64` and `arm64`,
+on `x86_64` and `aarch64`, `ubuntu` (resolute), `ubuntu-rolling` (the interim
+release of Ubuntu), `debian` (sid) and `trixie` on `amd64` and `arm64`,
 and `gentoo-amd64`.
 Each smoke runs every binary and checks `--version` against `want=`.
 
@@ -70,7 +70,7 @@ dependency checks. These are hard runtime dependencies, including on
 minimal images that omit recommended packages.
 
 Native package identities are `colord` and `gnome-color-manager` on Arch,
-Fedora/Rawhide/ELN/EL10, Debian sid/trixie, Ubuntu resolute/stonking and Tumbleweed.
+Fedora/Rawhide/ELN/EL10, Debian sid/trixie, Ubuntu resolute and 26.10, and Tumbleweed.
 Gentoo uses `x11-misc/colord` and `gnome-extra/gnome-color-manager`.
 The source-backed package metadata is available from:
 
