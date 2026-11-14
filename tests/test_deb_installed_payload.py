@@ -55,6 +55,7 @@ def test_archive_matches_actual_installed_bytes_and_links(payload):
     receipt = payload[2].read_text(encoding="utf-8")
     assert "file\tusr/bin/tuna-compositor\t755\t" in receipt
     assert "symlink\tusr/bin/roost-compositor\ttuna-compositor" in receipt
+    assert "dir\tusr/share/xdg-desktop-portal\n" in receipt
 
 
 @pytest.mark.parametrize("change", ["bytes", "missing", "mode", "symlink", "config"])
