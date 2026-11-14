@@ -58,6 +58,13 @@ def test_archive_matches_actual_installed_bytes_and_links(payload):
     assert "dir\tusr/share/xdg-desktop-portal\n" in receipt
 
 
+def test_receipt_is_readable_by_another_user(payload):
+    """The container writes it as root; the runner user reads and uploads it."""
+    result = run(payload)
+    assert result.returncode == 0, result.stderr
+    assert payload[2].stat().st_mode & 0o777 == 0o644
+
+
 @pytest.mark.parametrize("change", ["bytes", "missing", "mode", "symlink", "config"])
 def test_changed_payload_rejects_and_removes_stale_receipt(payload, change):
     archive, installed, receipt = payload
