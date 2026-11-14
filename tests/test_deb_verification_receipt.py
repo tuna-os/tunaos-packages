@@ -86,6 +86,9 @@ def evidence(tmp_path: Path) -> tuple[Path, Path]:
         + "\n",
         encoding="utf-8",
     )
+    # The shape a real install records (run 41144869690's served debs): a
+    # declared directory is a `dir` record, and dh_compress ships a declared
+    # document under usr/share/doc as `.gz`.
     common = set(recipe["files"]["common"])
     payload = ["archive\t" + digest]
     for path in sorted(common):
@@ -96,6 +99,10 @@ def evidence(tmp_path: Path) -> tuple[Path, Path]:
                 + "\t"
                 + path.rsplit("/", 1)[1].replace("roost-", "tuna-")
             )
+        elif path == "usr/share/tuna-desktop/icons":
+            payload.append(f"dir\t{path}")
+        elif path.startswith("usr/share/doc/"):
+            payload.append(f"file\t{path}.gz\t644\t{'c' * 64}")
         else:
             mode = "755" if path.startswith("usr/bin/tuna-") else "644"
             payload.append(f"file\t{path}\t{mode}\t{'c' * 64}")
@@ -224,6 +231,31 @@ def test_payload_from_another_archive_cannot_pass(evidence):
     path = evidence[1] / "tuna-desktop/installed-payload.tsv"
     path.write_text(path.read_text(encoding="utf-8").replace("archive\t" + "a" * 64, "archive\t" + "b" * 64), encoding="utf-8")
     with pytest.raises(ValueError, match="bound"):
+        check(evidence)
+
+
+@pytest.mark.parametrize(
+    "member",
+    ["usr/share/doc/tuna-desktop/nested-session.md.gz", "usr/share/tuna-desktop/icons"],
+)
+def test_missing_declared_member_cannot_pass(evidence, member):
+    path = evidence[1] / "tuna-desktop/installed-payload.tsv"
+    lines = path.read_text(encoding="utf-8").splitlines()
+    kept = [line for line in lines if line.split("\t")[1:2] != [member]]
+    assert len(kept) == len(lines) - 1
+    path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="declared package payload member is missing"):
+        check(evidence)
+
+
+def test_only_documentation_may_arrive_compressed(evidence):
+    path = evidence[1] / "tuna-desktop/installed-payload.tsv"
+    text = path.read_text(encoding="utf-8")
+    path.write_text(
+        text.replace("file\tetc/pam.d/tuna-lock\t", "file\tetc/pam.d/tuna-lock.gz\t"),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="etc/pam.d/tuna-lock"):
         check(evidence)
 
 

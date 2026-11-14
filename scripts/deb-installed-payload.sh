@@ -57,6 +57,9 @@ while IFS= read -r -d '' expected; do
             echo "missing installed directory: $member" >&2
             exit 1
         fi
+        # Recorded so a recipe's files.common may name a directory
+        # (tuna-desktop lists usr/share/tuna-desktop/icons).
+        printf 'dir\t%s\n' "$member" >> "$output_tmp"
     else
         echo "unsupported package payload type: $member" >&2
         exit 1
