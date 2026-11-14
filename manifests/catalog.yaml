@@ -173,6 +173,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: accountsservice
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: accountsservice
+    upstream:
+      distgit: accountsservice
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: acpid
     family: hummingbird-desktops
     packaging:
@@ -180,6 +193,32 @@ packages:
         distgit: acpid
     upstream:
       distgit: acpid
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: adw-gtk3-theme
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: adw-gtk3-theme
+    upstream:
+      distgit: adw-gtk3-theme
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: adwaita-fonts
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: adwaita-fonts
+    upstream:
+      distgit: adwaita-fonts
     targets:
       - hummingbird
     membership: runtime
@@ -206,6 +245,58 @@ packages:
         distgit: adwaita-icon-theme-legacy
     upstream:
       distgit: adwaita-icon-theme-legacy
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: alsa-firmware
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: alsa-firmware
+    upstream:
+      distgit: alsa-firmware
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: alsa-sof-firmware
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: alsa-sof-firmware
+    upstream:
+      distgit: alsa-sof-firmware
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: alsa-tools
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: alsa-tools
+    upstream:
+      distgit: alsa-tools
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: anaconda
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: anaconda
+    upstream:
+      distgit: anaconda
     targets:
       - hummingbird
     membership: runtime
@@ -297,6 +388,19 @@ packages:
         distgit: atkmm
     upstream:
       distgit: atkmm
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: augeas
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: augeas
+    upstream:
+      distgit: augeas
     targets:
       - hummingbird
     membership: runtime
@@ -739,6 +843,19 @@ packages:
       version: 0.3.1
       source: https://github.com/hughsie/colord-gtk/archive/refs/tags/%{version}.tar.gz#/colord-gtk-%{version}.tar.gz
       spec: src/deps/colord-gtk/colord-gtk.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: containerd
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: containerd
+    upstream:
+      distgit: containerd
     targets:
       - hummingbird
     membership: runtime
@@ -2139,6 +2256,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: ddcutil
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: ddcutil
+    upstream:
+      distgit: ddcutil
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: dejavu-fonts
     family: hummingbird-desktops
     packaging:
@@ -2251,6 +2381,19 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml
+  - name: distrobox
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: distrobox
+    upstream:
+      distgit: distrobox
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: dmidecode
     family: hummingbird-desktops
     packaging:
@@ -2538,6 +2681,19 @@ packages:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: evtest
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: evtest
+    upstream:
+      distgit: evtest
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: evtest
     family: tideforge
     packaging:
       rpm:
@@ -2619,6 +2775,19 @@ packages:
         distgit: f45-backgrounds
     upstream:
       distgit: f45-backgrounds
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: fastfetch
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: fastfetch
+    upstream:
+      distgit: fastfetch
     targets:
       - hummingbird
     membership: runtime
@@ -2712,6 +2881,19 @@ packages:
       version: 1.17.3
       source: https://github.com/flatpak/flatpak/releases/download/%{version}/%{name}-%{version}.tar.xz
       spec: src/deps/flatpak/flatpak.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: flatpak-xdg-utils
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: flatpak-xdg-utils
+    upstream:
+      distgit: flatpak-xdg-utils
     targets:
       - hummingbird
     membership: runtime
@@ -2888,6 +3070,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: fzf
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: fzf
+    upstream:
+      distgit: fzf
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: game-music-emu
     family: hummingbird-desktops
     packaging:
@@ -3042,6 +3237,21 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: gdm
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/gdm
+    upstream:
+      version: '51.0'
+      source: https://download.gnome.org/sources/gdm/%{major_version}/gdm-%{tarball_version}.tar.xz
+      spec: src/gnome-51/gdm/gdm.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: gdm
     family: queue-gnome
@@ -3435,6 +3645,21 @@ packages:
     referenced_by:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
+  - name: gnome-control-center
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/gnome-control-center
+    upstream:
+      version: '51.0'
+      source: https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/gnome-control-center/gnome-control-center.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: gnome-desktop3
     family: gnome50
     packaging:
@@ -3468,6 +3693,21 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: gnome-desktop3
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/gnome-desktop3
+    upstream:
+      version: '51.0'
+      source: https://download.gnome.org/sources/gnome-desktop/51/gnome-desktop-%{tarball_version}.tar.xz
+      spec: src/gnome-51/gnome-desktop3/gnome-desktop3.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: gnome-disk-utility
     family: hummingbird-desktops
@@ -3585,6 +3825,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: gnome-ponytail-daemon
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: gnome-ponytail-daemon
+    upstream:
+      distgit: gnome-ponytail-daemon
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: gnome-remote-desktop
     family: hummingbird-desktops
     packaging:
@@ -3633,6 +3886,21 @@ packages:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
   - name: gnome-session
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/gnome-session
+    upstream:
+      version: '51.0'
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+      spec: src/gnome-51/gnome-session/gnome-session.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: gnome-session
     family: queue-gnome
     packaging:
       deb: {}
@@ -3676,6 +3944,21 @@ packages:
     referenced_by:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
+  - name: gnome-settings-daemon
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/gnome-settings-daemon
+    upstream:
+      version: '51.0'
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_version}/%{name}-%{gnome_tarball_version}.tar.xz
+      spec: src/gnome-51/gnome-settings-daemon/gnome-settings-daemon.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: gnome-shell
     family: gnome50
     packaging:
@@ -3711,6 +3994,21 @@ packages:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
   - name: gnome-shell
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/gnome-shell
+    upstream:
+      version: '51.0'
+      source: https://download.gnome.org/sources/gnome-shell/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/gnome-shell/gnome-shell.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: gnome-shell
     family: queue-gnome
     packaging:
       deb: {}
@@ -3720,6 +4018,19 @@ packages:
     membership: runtime
     referenced_by:
       - manifests/target-queues/gnome.yaml
+  - name: gnome-shell-extension-gsconnect
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: gnome-shell-extension-gsconnect
+    upstream:
+      distgit: gnome-shell-extension-gsconnect
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: gnome-shell-extensions
     family: hummingbird-desktops
     packaging:
@@ -3740,6 +4051,19 @@ packages:
         distgit: gnome-system-monitor
     upstream:
       distgit: gnome-system-monitor
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: gnome-tweaks
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: gnome-tweaks
+    upstream:
+      distgit: gnome-tweaks
     targets:
       - hummingbird
     membership: runtime
@@ -3880,6 +4204,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: google-noto-sans-cjk-vf-fonts
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: google-noto-sans-cjk-vf-fonts
+    upstream:
+      distgit: google-noto-sans-cjk-vf-fonts
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: gpsd
     family: hummingbird-desktops
     packaging:
@@ -4014,6 +4351,21 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: gsettings-desktop-schemas
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/gsettings-desktop-schemas
+    upstream:
+      version: '51.0'
+      source: https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/gsettings-desktop-schemas/gsettings-desktop-schemas.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: gsl
     family: hummingbird-desktops
@@ -4289,6 +4641,21 @@ packages:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
   - name: gtk4
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/gtk4
+    upstream:
+      version: 4.24.0
+      source: https://download.gnome.org/sources/gtk/%{gnome_major_minor_version}/gtk-%{version}.tar.xz
+      spec: src/gnome-51/gtk4/gtk4.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: gtk4
     family: queue-gnome
     packaging:
       deb: {}
@@ -4427,6 +4794,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: gum
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: gum
+    upstream:
+      distgit: gum
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: gupnp
     family: hummingbird-desktops
     packaging:
@@ -4447,6 +4827,19 @@ packages:
         distgit: gupnp-igd
     upstream:
       distgit: gupnp-igd
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: gvfs
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: gvfs
+    upstream:
+      distgit: gvfs
     targets:
       - hummingbird
     membership: runtime
@@ -4656,6 +5049,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: ibus-unikey
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: ibus-unikey
+    upstream:
+      distgit: ibus-unikey
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: iceauth
     family: hummingbird-desktops
     packaging:
@@ -4663,6 +5069,19 @@ packages:
         distgit: iceauth
     upstream:
       distgit: iceauth
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: igt-gpu-tools
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: igt-gpu-tools
+    upstream:
+      distgit: igt-gpu-tools
     targets:
       - hummingbird
     membership: runtime
@@ -4786,6 +5205,19 @@ packages:
       - build-order.yml
       - manifests/package-builds.yaml
   - name: input-remapper
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: input-remapper
+    upstream:
+      distgit: input-remapper
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: input-remapper
     family: tideforge
     packaging:
       rpm:
@@ -4804,6 +5236,19 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml
+  - name: intel-gmmlib
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: intel-gmmlib
+    upstream:
+      distgit: intel-gmmlib
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: intel-media-driver-free
     family: hummingbird-desktops
     packaging:
@@ -4811,6 +5256,32 @@ packages:
         distgit: intel-media-driver-free
     upstream:
       distgit: intel-media-driver-free
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: intel-mediasdk
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: intel-mediasdk
+    upstream:
+      distgit: intel-mediasdk
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: intel-vpl-gpu-rt
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: intel-vpl-gpu-rt
+    upstream:
+      distgit: intel-vpl-gpu-rt
     targets:
       - hummingbird
     membership: runtime
@@ -4830,6 +5301,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: isomd5sum
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: isomd5sum
+    upstream:
+      distgit: isomd5sum
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: iw
     family: hummingbird-desktops
     packaging:
@@ -4837,6 +5321,19 @@ packages:
         distgit: iw
     upstream:
       distgit: iw
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: jack-audio-connection-kit
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: jack-audio-connection-kit
+    upstream:
+      distgit: jack-audio-connection-kit
     targets:
       - hummingbird
     membership: runtime
@@ -6165,6 +6662,21 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: langtable
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/hummingbird/langtable
+    upstream:
+      version: 0.0.71
+      source: https://github.com/mike-fabian/langtable/releases/download/%{version}/%{name}-%{version}.tar.gz
+      spec: src/hummingbird/langtable/langtable.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: layer-shell-qt
     family: hummingbird-desktops
     packaging:
@@ -6460,6 +6972,21 @@ packages:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
   - name: libadwaita
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/libadwaita
+    upstream:
+      version: 1.10.0
+      source: https://download.gnome.org/sources/%{name}/%{gnome_major_minor_version}/%{name}-%{gnome_tarball_version}.tar.xz
+      spec: src/gnome-51/libadwaita/libadwaita.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libadwaita
     family: queue-gnome
     packaging:
       deb: {}
@@ -6476,6 +7003,19 @@ packages:
         distgit: libao
     upstream:
       distgit: libao
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libappindicator
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libappindicator
+    upstream:
+      distgit: libappindicator
     targets:
       - hummingbird
     membership: runtime
@@ -6521,6 +7061,32 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: libatasmart
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libatasmart
+    upstream:
+      distgit: libatasmart
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libayatana-appindicator
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libayatana-appindicator
+    upstream:
+      distgit: libayatana-appindicator
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: libayatana-ido
     family: hummingbird-desktops
     packaging:
@@ -6541,6 +7107,19 @@ packages:
         distgit: libayatana-indicator
     upstream:
       distgit: libayatana-indicator
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libblockdev
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libblockdev
+    upstream:
+      distgit: libblockdev
     targets:
       - hummingbird
     membership: runtime
@@ -6573,6 +7152,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: libburn
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libburn
+    upstream:
+      distgit: libburn
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: libbytesize
     family: hummingbird-desktops
     packaging:
@@ -6580,6 +7172,19 @@ packages:
         distgit: libbytesize
     upstream:
       distgit: libbytesize
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libcamera
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libcamera
+    upstream:
+      distgit: libcamera
     targets:
       - hummingbird
     membership: runtime
@@ -6638,6 +7243,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: libconfig
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libconfig
+    upstream:
+      distgit: libconfig
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: libcue
     family: hummingbird-desktops
     packaging:
@@ -6645,6 +7263,45 @@ packages:
         distgit: libcue
     upstream:
       distgit: libcue
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libdaemon
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libdaemon
+    upstream:
+      distgit: libdaemon
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libdatrie
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libdatrie
+    upstream:
+      distgit: libdatrie
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libdb
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libdb
+    upstream:
+      distgit: libdb
     targets:
       - hummingbird
     membership: runtime
@@ -6757,6 +7414,21 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: libebur128
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/deps/libebur128
+    upstream:
+      version: 1.2.6
+      source: '%{url}/archive/v%{version}.tar.gz#/%{name}-%{version}.tar.gz'
+      spec: src/deps/libebur128/libebur128.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: libei
     family: gnome50
     packaging:
@@ -6839,6 +7511,19 @@ packages:
         distgit: libexif
     upstream:
       distgit: libexif
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libffado
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libffado
+    upstream:
+      distgit: libffado
     targets:
       - hummingbird
     membership: runtime
@@ -7150,6 +7835,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: libheif
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libheif
+    upstream:
+      distgit: libheif
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: libical
     family: hummingbird-desktops
     packaging:
@@ -7159,6 +7857,19 @@ packages:
       version: 3.0.20
       source: https://github.com/%{name}/%{name}/archive/v%{version}/%{name}-%{version}.tar.gz
       spec: src/deps/libical/libical.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libiec61883
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libiec61883
+    upstream:
+      distgit: libiec61883
     targets:
       - hummingbird
     membership: runtime
@@ -7211,6 +7922,32 @@ packages:
         distgit: libinput
     upstream:
       distgit: libinput
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libisoburn
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libisoburn
+    upstream:
+      distgit: libisoburn
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libisofs
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libisofs
+    upstream:
+      distgit: libisofs
     targets:
       - hummingbird
     membership: runtime
@@ -7302,6 +8039,21 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: libldac
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/deps/libldac
+    upstream:
+      version: '%{sonamebase}.0.2.3'
+      source: '%{url}/releases/download/v%{version}/%{archivename}-%{version}.tar.gz'
+      spec: src/deps/libldac/libldac.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: libliftoff
     family: hummingbird-desktops
@@ -7532,6 +8284,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: libnvme
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libnvme
+    upstream:
+      distgit: libnvme
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: libogg
     family: hummingbird-desktops
     packaging:
@@ -7740,6 +8505,45 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: libratbag
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libratbag
+    upstream:
+      distgit: libratbag
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libraw1394
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libraw1394
+    upstream:
+      distgit: libraw1394
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libreport
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libreport
+    upstream:
+      distgit: libreport
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: librist
     family: hummingbird-desktops
     packaging:
@@ -7941,6 +8745,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: libteam
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libteam
+    upstream:
+      distgit: libteam
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: libtevent
     family: hummingbird-desktops
     packaging:
@@ -7948,6 +8765,19 @@ packages:
         distgit: libtevent
     upstream:
       distgit: libtevent
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libthai
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libthai
+    upstream:
+      distgit: libthai
     targets:
       - hummingbird
     membership: runtime
@@ -8037,6 +8867,32 @@ packages:
         distgit: libutempter
     upstream:
       distgit: libutempter
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libva
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libva
+    upstream:
+      distgit: libva
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: libva-utils
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libva-utils
+    upstream:
+      distgit: libva-utils
     targets:
       - hummingbird
     membership: runtime
@@ -8364,6 +9220,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: libxml++30
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: libxml++30
+    upstream:
+      distgit: libxml++30
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: libxml2_2.13
     family: hummingbird-desktops
     packaging:
@@ -8463,6 +9332,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: livesys-scripts
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: livesys-scripts
+    upstream:
+      distgit: livesys-scripts
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: lm_sensors
     family: hummingbird-desktops
     packaging:
@@ -8551,6 +9433,32 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: lsof
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: lsof
+    upstream:
+      distgit: lsof
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: lttng-ust
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: lttng-ust
+    upstream:
+      distgit: lttng-ust
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: malcontent
     family: gnome50
     packaging:
@@ -8585,6 +9493,34 @@ packages:
     referenced_by:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
+  - name: malcontent
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/deps/malcontent
+    upstream:
+      version: 0.14.0
+      source: https://tecnocode.co.uk/downloads/%{name}/%{name}-%{version}.tar.xz
+      spec: src/deps/malcontent/malcontent.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: mdadm
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: mdadm
+    upstream:
+      distgit: mdadm
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: mesa
     family: hummingbird-desktops
     packaging:
@@ -8592,6 +9528,19 @@ packages:
         distgit: mesa
     upstream:
       distgit: mesa
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: mesa-libGLU
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: mesa-libGLU
+    upstream:
+      distgit: mesa-libGLU
     targets:
       - hummingbird
     membership: runtime
@@ -8705,6 +9654,19 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-xfce.yml
+      - manifests/package-builds.yaml
+  - name: mozc
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: mozc
+    upstream:
+      distgit: mozc
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: mozilla-filesystem
     family: hummingbird-desktops
@@ -8840,6 +9802,21 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: mutter
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/mutter
+    upstream:
+      version: 50~beta
+      source: http://download.gnome.org/sources/%{name}/%{major_version}/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/mutter/mutter-rawhide.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: mutter
     family: queue-gnome
@@ -9194,6 +10171,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: openrgb
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: openrgb
+    upstream:
+      distgit: openrgb
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: openvpn
     family: hummingbird-desktops
     packaging:
@@ -9389,6 +10379,21 @@ packages:
     referenced_by:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
+  - name: pango
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/deps/pango
+    upstream:
+      version: 1.58.2
+      source: https://download.gnome.org/sources/%{name}/1.58/%{name}-%{version}.tar.xz
+      spec: src/deps/pango/pango.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: pangomm
     family: hummingbird-desktops
     packaging:
@@ -9409,6 +10414,19 @@ packages:
         distgit: pangomm2.48
     upstream:
       distgit: pangomm2.48
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: parted
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: parted
+    upstream:
+      distgit: parted
     targets:
       - hummingbird
     membership: runtime
@@ -9526,6 +10544,21 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: pipewire
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/deps/pipewire
+    upstream:
+      version: '%{majorversion}.%{minorversion}.%{microversion}'
+      source: https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/%{gitcommit}/pipewire-%{shortcommit}.tar.gz
+      spec: src/deps/pipewire/pipewire.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: pixman
     family: hummingbird-desktops
@@ -10042,6 +11075,32 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: pykickstart
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: pykickstart
+    upstream:
+      distgit: pykickstart
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: pyparted
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: pyparted
+    upstream:
+      distgit: pyparted
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: python-aiohappyeyeballs
     family: hummingbird-desktops
     packaging:
@@ -10120,6 +11179,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: python-blivet
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-blivet
+    upstream:
+      distgit: python-blivet
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: python-bugzilla
     family: hummingbird-desktops
     packaging:
@@ -10179,6 +11251,19 @@ packages:
         distgit: python-configobj
     upstream:
       distgit: python-configobj
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: python-crypt-r
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-crypt-r
+    upstream:
+      distgit: python-crypt-r
     targets:
       - hummingbird
     membership: runtime
@@ -10375,6 +11460,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: python-iso639
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-iso639
+    upstream:
+      distgit: python-iso639
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: python-linux-procfs
     family: hummingbird-desktops
     packaging:
@@ -10401,6 +11499,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: python-meh
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-meh
+    upstream:
+      distgit: python-meh
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: python-oauthlib
     family: hummingbird-desktops
     packaging:
@@ -10421,6 +11532,19 @@ packages:
         distgit: python-pam
     upstream:
       distgit: python-pam
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: python-pid
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-pid
+    upstream:
+      distgit: python-pid
     targets:
       - hummingbird
     membership: runtime
@@ -10544,6 +11668,45 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: python-requests-file
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-requests-file
+    upstream:
+      distgit: python-requests-file
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: python-requests-ftp
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-requests-ftp
+    upstream:
+      distgit: python-requests-ftp
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: python-simpleline
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-simpleline
+    upstream:
+      distgit: python-simpleline
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: python-smartypants
     family: gnome50
     packaging:
@@ -10577,6 +11740,19 @@ packages:
     membership: build_tool
     referenced_by:
       - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: python-systemd
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-systemd
+    upstream:
+      distgit: python-systemd
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: python-trove-classifiers
     family: hummingbird-desktops
@@ -10684,6 +11860,19 @@ packages:
         distgit: python-wheel
     upstream:
       distgit: python-wheel
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: python-xkbregistry
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: python-xkbregistry
+    upstream:
+      distgit: python-xkbregistry
     targets:
       - hummingbird
     membership: runtime
@@ -11272,6 +12461,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: rust-just
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: rust-just
+    upstream:
+      distgit: rust-just
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: rust-matugen
     family: hummingbird-desktops
     packaging:
@@ -11331,6 +12533,32 @@ packages:
         distgit: sane-backends
     upstream:
       distgit: sane-backends
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: satyr
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: satyr
+    upstream:
+      distgit: satyr
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: sbc
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: sbc
+    upstream:
+      distgit: sbc
     targets:
       - hummingbird
     membership: runtime
@@ -11575,6 +12803,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: slitherer
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: slitherer
+    upstream:
+      distgit: slitherer
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: snowball
     family: hummingbird-desktops
     packaging:
@@ -11653,6 +12894,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: spandsp
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: spandsp
+    upstream:
+      distgit: spandsp
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: speech-dispatcher
     family: hummingbird-desktops
     packaging:
@@ -11725,6 +12979,19 @@ packages:
     membership: runtime
     referenced_by:
       - build-order-gnome51.yml
+      - manifests/package-builds.yaml
+  - name: squashfs-tools
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: squashfs-tools
+    upstream:
+      distgit: squashfs-tools
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
   - name: sratom
     family: hummingbird-desktops
@@ -11851,6 +13118,19 @@ packages:
         distgit: swaylock
     upstream:
       distgit: swaylock
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: switcheroo-control
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: switcheroo-control
+    upstream:
+      distgit: switcheroo-control
     targets:
       - hummingbird
     membership: runtime
@@ -12330,6 +13610,19 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: volume_key
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: volume_key
+    upstream:
+      distgit: volume_key
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: vpnc-script
     family: hummingbird-desktops
     packaging:
@@ -12503,6 +13796,19 @@ packages:
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml
+  - name: waypipe
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: waypipe
+    upstream:
+      distgit: waypipe
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: webkitgtk
     family: hummingbird-desktops
     packaging:
@@ -12516,6 +13822,32 @@ packages:
     referenced_by:
       - build-order-hummingbird-desktops.yml
       - manifests/package-builds.yaml
+  - name: webrtc-audio-processing
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: webrtc-audio-processing
+    upstream:
+      distgit: webrtc-audio-processing
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: wireguard-tools
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: wireguard-tools
+    upstream:
+      distgit: wireguard-tools
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: wireplumber
     family: hummingbird-desktops
     packaging:
@@ -12523,6 +13855,19 @@ packages:
         distgit: wireplumber
     upstream:
       distgit: wireplumber
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: wl-clipboard
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: wl-clipboard
+    upstream:
+      distgit: wl-clipboard
     targets:
       - hummingbird
     membership: runtime
@@ -12711,6 +14056,21 @@ packages:
     referenced_by:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
+  - name: xdg-desktop-portal
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/xdg-desktop-portal
+    upstream:
+      version: 1.22.1
+      source: https://github.com/flatpak/xdg-desktop-portal/releases/download/%{version}/%{name}-%{version}.tar.xz
+      spec: src/gnome-51/xdg-desktop-portal/xdg-desktop-portal.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: xdg-desktop-portal-cosmic
     family: hummingbird-desktops
     packaging:
@@ -12800,6 +14160,21 @@ packages:
     referenced_by:
       - build-order-gnome51.yml
       - manifests/package-builds.yaml
+  - name: xdg-desktop-portal-gnome
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        native: src/gnome-51/xdg-desktop-portal-gnome
+    upstream:
+      version: '51.0'
+      source: https://download.gnome.org/sources/%{name}/51/%{name}-%{tarball_version}.tar.xz
+      spec: src/gnome-51/xdg-desktop-portal-gnome/xdg-desktop-portal-gnome.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
   - name: xdg-desktop-portal-gtk
     family: hummingbird-desktops
     packaging:
@@ -12822,6 +14197,19 @@ packages:
       version: 6.7.3
       source: https://download.kde.org/%{stable_kf6}/plasma/%{version}/%{name}-%{version}.tar.xz
       spec: src/hummingbird/xdg-desktop-portal-kde/xdg-desktop-portal-kde.spec
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: xdg-terminal-exec
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: xdg-terminal-exec
+    upstream:
+      distgit: xdg-terminal-exec
     targets:
       - hummingbird
     membership: runtime
@@ -13864,6 +15252,19 @@ packages:
         distgit: yyjson
     upstream:
       distgit: yyjson
+    targets:
+      - hummingbird
+    membership: runtime
+    referenced_by:
+      - build-order-hummingbird-desktops.yml
+      - manifests/package-builds.yaml
+  - name: zenity
+    family: hummingbird-desktops
+    packaging:
+      rpm:
+        distgit: zenity
+    upstream:
+      distgit: zenity
     targets:
       - hummingbird
     membership: runtime

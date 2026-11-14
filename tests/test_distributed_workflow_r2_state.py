@@ -41,6 +41,15 @@ def generate(tmp_path, *extra):
     return yaml.safe_load(out.read_text())
 
 
+def build_jobs(wf, tier):
+    """A large tier can span multiple matrices behind the same barrier."""
+    prefix = f"build-{tier}"
+    jobs = {name: job for name, job in wf["jobs"].items()
+            if name == prefix or name.startswith(prefix + "-")}
+    assert jobs, f"no build jobs for {tier}"
+    return jobs
+
+
 def step_names(job):
     return [s.get("name") or s.get("uses") for s in job["steps"]]
 
@@ -61,7 +70,8 @@ def test_r2_state_never_moves_the_repository_as_an_artifact(tmp_path):
 def test_without_the_flag_the_original_artifact_model_is_untouched(tmp_path):
     """The generator has another caller; this must be opt-in."""
     wf = generate(tmp_path)
-    assert "Download previous repo" in step_names(wf["jobs"]["build-layer-00"])
+    for job in build_jobs(wf, "layer-00").values():
+        assert "Download previous repo" in step_names(job)
 
 
 def test_every_build_runner_seeds_itself(tmp_path):
@@ -77,10 +87,14 @@ def test_the_barrier_between_tiers_survives(tmp_path):
     tiers = [t["name"] for t in yaml.safe_load(MANIFEST.read_text())["tiers"]
              if t["name"].startswith(("bootstrap", "layer-0"))]
     for previous, current in zip(tiers, tiers[1:]):
-        assert wf["jobs"][f"build-{current}"]["needs"] == f"consolidate-{previous}", (
-            f"build-{current} does not wait for consolidate-{previous}; its packages "
-            "would build against a repository missing the tier they depend on"
-        )
+        jobs = build_jobs(wf, current)
+        for name, job in jobs.items():
+            assert job["needs"] == f"consolidate-{previous}", (
+                f"{name} does not wait for consolidate-{previous}; its packages "
+                "would build against a repository missing the tier they depend on"
+            )
+        needs = wf["jobs"][f"consolidate-{current}"]["needs"]
+        assert set(needs if isinstance(needs, list) else [needs]) == set(jobs)
 
 
 def test_the_matrix_covers_every_package_in_the_tier(tmp_path):
@@ -88,10 +102,13 @@ def test_the_matrix_covers_every_package_in_the_tier(tmp_path):
     wf = generate(tmp_path, "--r2-state")
     order = yaml.safe_load(MANIFEST.read_text())
     for tier in order["tiers"]:
-        if not tier["name"].startswith(("bootstrap", "gnome")):
+        if not tier["name"].startswith(("bootstrap", "layer-0")):
             continue
-        matrix = wf["jobs"][f"build-{tier['name']}"]["strategy"]["matrix"]["package"]
-        assert len(matrix) == len(tier["packages"]), (
+        matrices = [job["strategy"]["matrix"]["package"]
+                    for job in build_jobs(wf, tier["name"]).values()]
+        assert all(len(matrix) <= 250 for matrix in matrices)
+        matrix = [package for chunk in matrices for package in chunk]
+        assert sorted(matrix) == sorted(package["path"] for package in tier["packages"]), (
             f"{tier['name']}: matrix has {len(matrix)} cells for "
             f"{len(tier['packages'])} packages"
         )
@@ -171,20 +188,22 @@ def test_every_build_job_imports_its_package_before_building(tmp_path):
 def test_the_import_takes_one_package_not_the_whole_tier(tmp_path):
     """One clone per runner. --tier here would be 108 clones x 108 runners."""
     wf = generate(tmp_path, "--r2-state")
-    step = next(s for s in wf["jobs"]["build-layer-00"]["steps"]
-                if s.get("name") == "Import this package's dist-git packaging")
-    assert "--package" in step["run"]
-    assert "--tier" not in step["run"], (
-        "the import is tier-scoped, so every runner in a 108-package tier would "
-        "clone all 108 -- 11664 clones against src.fedoraproject.org for one tier"
-    )
+    for job in build_jobs(wf, "layer-00").values():
+        step = next(s for s in job["steps"]
+                    if s.get("name") == "Import this package's dist-git packaging")
+        assert "--package" in step["run"]
+        assert "--tier" not in step["run"], (
+            "the import is tier-scoped, so every runner would clone the whole tier"
+        )
 
 
 def test_in_tree_packages_are_not_imported(tmp_path):
     """src/deps/* are maintained here and have no distgit to import."""
-    step = next(s for s in generate(tmp_path, "--r2-state")["jobs"]["build-layer-00"]["steps"]
-                if s.get("name") == "Import this package's dist-git packaging")
-    assert 'if [ -d "$pkg_path" ]' in step["run"], (
-        "no check for an in-tree package; the import would try to clone a "
-        "dist-git repo that does not exist for it"
-    )
+    wf = generate(tmp_path, "--r2-state")
+    for job in build_jobs(wf, "layer-00").values():
+        step = next(s for s in job["steps"]
+                    if s.get("name") == "Import this package's dist-git packaging")
+        assert 'if [ -d "$pkg_path" ]' in step["run"], (
+            "no check for an in-tree package; the import would try to clone a "
+            "dist-git repo that does not exist for it"
+        )
