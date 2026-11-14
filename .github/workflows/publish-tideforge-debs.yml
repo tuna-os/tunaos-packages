@@ -4,8 +4,9 @@
 # issue: flat apt repositories per distro at r2:bluefin/tideforge/<distro>/,
 # served as https://repo.tunaos.org/tideforge/<distro>/, with Packages.gz,
 # an apt-ftparchive Release, and a GPG-clearsigned InRelease. grouper
-# consumes the ubuntu repo, flounder-sid the debian-sid one — with ZERO
-# third-party repos, which the verify job asserts on every publish.
+# consumes the ubuntu repo, stingray the ubuntu-rolling one, flounder-sid the
+# debian-sid one — with ZERO third-party repos, which the verify job asserts
+# on every publish.
 #
 # Dispatch-only. Publishing is a deliberate act, not a side effect of a
 # merge; the gate cells prove PRs, this workflow ships what main has.
@@ -24,7 +25,7 @@ on:
         default: cpptrace-devel,pop-icon-theme,cosmic-randr,cosmic-panel,cosmic-icon-theme
         required: true
       distros:
-        description: Comma-separated distro labels (ubuntu, debian-sid, debian-trixie, ubuntu-noble)
+        description: Comma-separated distro labels (ubuntu, ubuntu-rolling, debian-sid, debian-trixie, ubuntu-noble)
         default: ubuntu,debian-sid
         required: true
       arches:

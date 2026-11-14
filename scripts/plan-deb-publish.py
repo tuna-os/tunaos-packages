@@ -29,8 +29,8 @@ explicit act with an explicit default wave -- "nothing gets published that a
 gate cell has not exercised" is a judgement a human makes, and turning it
 into "every recipe that targets deb" would silently widen what ships.
 
-The distro LABELS are also not derived. `ubuntu`, `debian-sid`,
-`debian-trixie` and `ubuntu-noble` are R2 prefixes
+The distro LABELS are also not derived. `ubuntu`, `ubuntu-rolling`,
+`debian-sid`, `debian-trixie` and `ubuntu-noble` are R2 prefixes
 (r2:bluefin/tideforge/<distro>/, served at repo.tunaos.org/tideforge/<distro>/);
 renaming one would orphan a published repository, so the label->target
 mapping is explicit and pinned by a test.
@@ -54,6 +54,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 # and the contract call the same distribution.
 DISTRO_TARGETS = {
     "ubuntu": "ubuntu",
+    "ubuntu-rolling": "ubuntu-rolling",
     "debian-sid": "debian",
     "debian-trixie": "trixie",
     "ubuntu-noble": "noble",
