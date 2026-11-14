@@ -15,11 +15,11 @@
 %global debug_package %{nil}
 # The upstream tag minus its v. RPM's Version writes the prerelease `-` as `~`
 # so it sorts before the final release.
-%global upstream_version 1.0.0-beta.2
+%global upstream_version 1.0.0-beta.3
 
 Name:           tuna-desktop
-Version:        1.0.0~beta.2
-Release:        2%{?dist}
+Version:        1.0.0~beta.3
+Release:        1%{?dist}
 Summary:        Tuna Desktop: GNOME-style Wayland desktop session in Rust (v1 beta)
 License:        GPL-3.0-or-later
 URL:            https://github.com/tuna-os/tuna-desktop
@@ -29,8 +29,8 @@ Source0:        %{url}/archive/refs/tags/v%{upstream_version}.tar.gz#/tuna-deskt
 # the offline buildroot never fetches crates.
 Source1:        https://github.com/tuna-os/tunaos-packages/releases/download/tuna-desktop-vendor-v%{upstream_version}/tuna-desktop-vendor.tar.gz
 
-# The recipe's fedora BuildRequires. The floors: GTK 4.12 (shell-gtk's
-# v4_12), gtk4-layer-shell 1.1 (gtk4-session-lock-sys v1_1) and Rust 1.92,
+# The recipe's fedora BuildRequires. The floors: GTK 4.14 (shell-gtk's
+# v4_14), gtk4-layer-shell 1.1 (gtk4-session-lock-sys v1_1) and Rust 1.92,
 # the highest rust-version in the tag's Cargo.lock. clang-devel is bindgen's
 # libclang (pipewire/libspa).
 BuildRequires:  cargo >= 1.92
@@ -41,7 +41,7 @@ BuildRequires:  pkgconf-pkg-config
 BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(gdk-pixbuf-2.0)
-BuildRequires:  pkgconfig(gtk4) >= 4.12
+BuildRequires:  pkgconfig(gtk4) >= 4.14
 BuildRequires:  pkgconfig(gtk4-layer-shell-0) >= 1.1
 BuildRequires:  pkgconfig(libadwaita-1)
 BuildRequires:  pkgconfig(libdrm)
@@ -72,7 +72,7 @@ Requires:       librsvg2
 Requires:       fontconfig
 Requires:       libcanberra
 Requires:       sound-theme-freedesktop
-Requires:       gtk4 >= 4.12
+Requires:       gtk4 >= 4.14
 Requires:       gtk4-layer-shell >= 1.1
 Requires:       libadwaita
 Requires:       libdrm
@@ -96,9 +96,9 @@ Tuna Desktop (formerly Roost) is a Smithay-based Wayland desktop that aims
 at GNOME 51 parity: a supervised compositor with a GNOME-style GTK shell,
 optional scrollable tiling and an IBus bridge; login is through GDM. This
 package ships the six session binaries, the wayland-sessions entry, the
-lock-screen PAM service, the session target, the Lockdown portal backend and
-a private cursor fallback, plus the retained session and PAM bridge for the
-former `roost` name.
+lock-screen PAM service, the session target, the Lockdown portal backend, the
+image-build GeoClue agent policy helper and a private cursor fallback, plus
+the retained session and PAM bridge for the former `roost` name.
 
 %prep
 %autosetup -n tuna-desktop-%{upstream_version}
@@ -134,6 +134,10 @@ cp -a share/tuna-desktop/icons/. %{buildroot}%{_datadir}/tuna-desktop/icons/
 # The shell's Lockdown portal backend and the session's portal preferences.
 install -Dm0644 share/xdg-desktop-portal/portals/tuna.portal %{buildroot}%{_datadir}/xdg-desktop-portal/portals/tuna.portal
 install -Dm0644 packaging/marlin/tuna-portals.conf %{buildroot}%{_datadir}/xdg-desktop-portal/tuna-portals.conf
+# Image-build helper (upstream packaging/arch/PKGBUILD, v1.0.0-beta.3): adds
+# the tuna-shell agent to a pristine GeoClue vendor whitelist when an image
+# build runs it with TUNA_IMAGE_BUILD=1; never changes live policy.
+install -Dm0755 packaging/marlin/tuna-geoclue-agent-policy %{buildroot}%{_libexecdir}/tuna-geoclue-agent-policy
 install -Dm0644 share/wayland-sessions/tuna.desktop %{buildroot}%{_datadir}/wayland-sessions/tuna.desktop
 install -Dm0644 share/systemd/user/tuna-session.target %{buildroot}%{_prefix}/lib/systemd/user/tuna-session.target
 # Lock-screen PAM service (tuna-desktop#62): the compositor's unlock.
@@ -172,6 +176,7 @@ grep -qx 'NoDisplay=true' %{buildroot}%{_datadir}/wayland-sessions/roost.desktop
 %{_datadir}/tuna-desktop/icons
 %{_datadir}/xdg-desktop-portal/portals/tuna.portal
 %{_datadir}/xdg-desktop-portal/tuna-portals.conf
+%{_libexecdir}/tuna-geoclue-agent-policy
 %{_datadir}/wayland-sessions/tuna.desktop
 %{_datadir}/wayland-sessions/roost.desktop
 %{_prefix}/lib/systemd/user/tuna-session.target
@@ -179,6 +184,9 @@ grep -qx 'NoDisplay=true' %{buildroot}%{_datadir}/wayland-sessions/roost.desktop
 %config(noreplace) %{_sysconfdir}/pam.d/roost-lock
 
 %changelog
+* Sat Nov 14 2026 TunaOS Package Factory <packages@tunaos.org> - 1.0.0~beta.3-1
+- Tuna Desktop v1.0.0-beta.3 for Hummingbird; ships the GeoClue agent policy
+  helper /usr/libexec/tuna-geoclue-agent-policy as upstream's PKGBUILD does
 * Fri Oct 30 2026 TunaOS Package Factory <packages@tunaos.org> - 1.0.0~beta.2-2
 - Rebuild without tuna-greeter (tuna-os/tunaos-packages#950)
 * Thu Oct 29 2026 TunaOS Package Factory <packages@tunaos.org> - 1.0.0~beta.2-1
