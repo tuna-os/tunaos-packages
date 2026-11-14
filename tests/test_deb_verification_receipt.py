@@ -271,3 +271,25 @@ def test_cli_recheck_removes_stale_passing_receipt(evidence, tmp_path):
     )
     assert result.returncode != 0
     assert not output.exists()
+
+
+def test_noble_cli_routes_to_native_verifier_and_refuses_absent_proof(tmp_path):
+    output = tmp_path / "noble-verdict.json"
+    result = subprocess.run(
+        [
+            sys.executable, str(SCRIPT), "--root", str(ROOT),
+            "--provenance", str(tmp_path / "absent-provenance"),
+            "--observations", str(tmp_path / "absent-observations"),
+            "--package", "tuna-desktop", "--distro", "ubuntu-noble",
+            "--arch", "amd64", "--revision", REVISION,
+            "--run-url", "https://github.com/tuna-os/tunaos-packages/actions/runs/123",
+            "--served-url", "https://repo.tunaos.org/tideforge/ubuntu-noble/",
+            "--output", str(output),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1, result.stderr
+    assert "verification receipt refused:" in result.stderr
+    assert "action-inputs.json" in result.stderr
+    assert not output.exists()
