@@ -470,9 +470,14 @@ targets:
       # by scripts/oci_repository.py. tunaOS's hummingbird:gnome consumes
       # this exact digest (its image-versions.yaml `utah-packages`); keep the
       # two pins moving together. Decided in #629; docs/HUMMINGBIRD-TARGET.md.
+      #
+      # The digest below is tunaOS main's pin of 2026-11-14. Since the
+      # 2026-09-02 pin it serves libcanberra, libvorbis, iw, rpm-ostree and
+      # TuneD 2.28, which close the Tuna transaction
+      # (docs/HUMMINGBIRD-TARGET.md section 12).
       consumed_indexes:
         - id: utah-packages
-          index: oci://ghcr.io/projectbluefin/utah-packages@sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c
+          index: oci://ghcr.io/projectbluefin/utah-packages@sha256:fc3c1f34d74d321eb5c3e5412cad92d8d384832d7b711c5a22f693f7932cde6b
           serves: [gnome]
     # Buildroot inputs only, never repositories on a produced image. Fedora
     # Rawhide supplies -devel headers and build backends Hummingbird has no

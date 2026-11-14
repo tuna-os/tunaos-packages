@@ -135,10 +135,14 @@ desktops:
   tuna:
     release: latest
     # TuneD 2.28 uses rpm-ostree for bootc kernel-argument management when
-    # bootc's native source-options API is unavailable. Build the real
+    # bootc's native source-options API is unavailable. Keep the real
     # provider, not a dummy capability or a waived power-profile contract.
-    # libcanberra is now an explicit Tuna runtime dependency; the beta.2
-    # publisher rejected its absence in run 41213268502.
+    # libcanberra is an explicit Tuna runtime dependency; the beta.2
+    # publisher rejected its absence in run 41213268502. The consumed
+    # utah-packages pin of 2026-11-14 serves both, built in Hummingbird's
+    # own root, so they resolve without a native rebuild. The distgit
+    # sources stay as the fallback if utah drops them
+    # (docs/HUMMINGBIRD-TARGET.md section 12).
     sources: [{local: src/hummingbird/tuna-desktop}, {fedora_distgit: rpm-ostree}, {fedora_distgit: libcanberra}]
     required_packages: [tuna-desktop, rpm-ostree, libcanberra]
     install_packages: [tuna-desktop, rpm-ostree, libcanberra, dbus-tools, orca, gdm, xorg-x11-server-Xwayland, ibus, gnome-shell, gnome-settings-daemon, gnome-control-center, gnome-keyring, evolution-data-server, xdg-desktop-portal-gnome, xdg-desktop-portal-gtk, xdg-user-dirs, gvfs, nautilus, ptyxis, NetworkManager, libsecret, pipewire, wireplumber, pipewire-gstreamer, gstreamer1-plugins-good, tuned-ppd, upower, flatpak, plymouth, adwaita-icon-theme, google-noto-sans-fonts, google-noto-color-emoji-fonts, dejavu-sans-fonts]
