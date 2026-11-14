@@ -10,7 +10,8 @@ targets, and publishes only validated repositories to Cloudflare R2.
 |---|---|---|---|
 | EL10 | RPM | rpm-md | supported |
 | Fedora ELN | RPM | rpm-md | supported |
-| Ubuntu | DEB | APT | supported foundation |
+| Ubuntu 26.04 Resolute (`ubuntu`) | DEB | APT | supported foundation |
+| Ubuntu 24.04 Noble (`noble`) | DEB | APT | supported; index pending first publish |
 | Debian Sid | DEB | APT | supported foundation |
 | openSUSE Tumbleweed | RPM | rpm-md | supported foundation |
 | Arch | pkg.tar.zst | pacman | scaffold |
@@ -416,6 +417,22 @@ with `targets: [<target>]` is unpacked only for that target.
 shell. Tideforge rejects a target the recipe does not enable. Use this only
 when one target lacks something the others have. Example: `tuna-desktop`
 builds a private gtk4-layer-shell on trixie, because trixie's own is too old.
+
+A custom recipe's deb build owns its whole lifecycle: `debian/rules` runs
+`dh $@ --buildsystem=none`, so debhelper never configures or tests upstream's
+own build system beside the recipe's scripts. A custom recipe that declares
+several `outputs.deb.packages` installs into `debian/tmp` (handed to the
+install script as an absolute path, as `%{buildroot}` is) and each package's
+`files` become its `.install` list. Example: `gtk4-layer-shell` on noble,
+split into `libgtk4-layer-shell0` and `libgtk4-layer-shell-dev`.
+
+`noble` is Ubuntu 24.04, gurnard's base, published as
+`https://repo.tunaos.org/tideforge/ubuntu-noble/` (`publish-tideforge-debs.yml`
+label `ubuntu-noble`). Noble's default Rust is 1.75, so its `rust` capability
+is Ubuntu's versioned `rustc-1.97`/`cargo-1.97`; a recipe puts
+`/usr/lib/rust-1.97/bin` first on `PATH`. Noble never shipped
+gtk4-layer-shell, so `packages/gtk4-layer-shell` builds it there as a system
+library.
 
 The `gentoo` target (format `gpkg`, [ADR 0002](adr/0002-gentoo-overlay-and-gpkg-binhost.md))
 renders a recipe into an ebuild in a one-package overlay named `tunaos`. The

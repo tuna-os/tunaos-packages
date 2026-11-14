@@ -4316,6 +4316,8 @@ packages:
     packaging:
       rpm:
         tideforge: packages/gtk4-layer-shell
+      deb:
+        tideforge: packages/gtk4-layer-shell
     upstream:
       version: 1.3.0
       source: https://github.com/wmww/gtk4-layer-shell/archive/refs/tags/v1.3.0.tar.gz
@@ -4324,6 +4326,7 @@ packages:
       - alma10
       - alma10-kitten
       - el10
+      - noble
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml

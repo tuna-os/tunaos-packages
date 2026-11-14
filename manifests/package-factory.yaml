@@ -102,7 +102,7 @@ consumer_adapters:
       - x86-64
       - armv8-a
   gurnard:
-    target: ubuntu-noble
+    target: noble
     manager: apt
     architectures:
       linux/amd64: amd64
@@ -298,6 +298,28 @@ targets:
       arm64: https://repo.tunaos.org/tideforge/debian-trixie/
     repository: apt
     probe_image: docker.io/library/debian:trixie
+  noble:
+    # Ubuntu 24.04 LTS, gurnard's base (TunaOS on Noble with Pantheon from
+    # the elementary PPA). Its own target, not a second `ubuntu` suite, for
+    # trixie's reason: the planner gives a target one image, and resolute's
+    # would build resolute bytes. Packages publish to the flat repo
+    # tideforge/ubuntu-noble (plan-deb-publish.py label ubuntu-noble), which
+    # does not exist until the first publish, so both arches are pending
+    # until it resolves; a cell that declared it earlier would fail its own
+    # apt-get update on the 404.
+    #
+    # Noble's own archive is the buildroot: its default rustc is 1.75, so a
+    # Rust recipe names the versioned rustc-1.97/cargo-1.97 (noble-updates
+    # and -security since 2026-11-06) through the rust capability below, and
+    # gtk4-layer-shell, which noble never shipped, is packages/gtk4-layer-shell.
+    status: supported
+    format: deb
+    suites: [noble]
+    architectures: [amd64, arm64]
+    r2_path: apt/ubuntu/{suite}/{arch}
+    published_index_pending: [amd64, arm64]
+    repository: apt
+    probe_image: docker.io/library/ubuntu:24.04
   fedora:
     status: supported
     format: rpm
@@ -556,15 +578,20 @@ dependency_catalog:
   # trixie's `rustc` is 1.85; rustc-web/cargo-web 1.96 in trixie main are its
   # current toolchain (Provides: rustc, cargo). Mapped only for the
   # capabilities a trixie recipe consumes (tuna-desktop).
+  # noble's `rustc`/`cargo` are 1.75. rustc-1.97/cargo-1.97 (1.97.1, in
+  # noble-updates and noble-security) are Ubuntu's own versioned toolchain;
+  # they install /usr/bin/rustc-1.97 and /usr/bin/cargo-1.97 and keep the
+  # unversioned names in /usr/lib/rust-1.97/bin, which is what a noble recipe
+  # puts first on PATH. Mapped only for what tuna-desktop consumes.
   # gentoo, likewise only what tuna-desktop consumes: the rust capability is
   # cargo.eclass's own RUST_DEPEND (any dev-lang/rust or rust-bin slot at or
   # above the recipe's build.rust_version), which the ebuild renderer
   # inherits; the C compiler is @system's gcc.
-  rust: {el10: [rust, cargo], alma10: [rust, cargo], alma10-kitten: [rust, cargo], eln: [rust, cargo], fedora: [rust, cargo], rawhide: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], trixie: [rustc-web, cargo-web], opensuse-tumbleweed: [rust, cargo], gentoo: ["${RUST_DEPEND}"], arch: [rust]}
+  rust: {el10: [rust, cargo], alma10: [rust, cargo], alma10-kitten: [rust, cargo], eln: [rust, cargo], fedora: [rust, cargo], rawhide: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], trixie: [rustc-web, cargo-web], noble: [rustc-1.97, cargo-1.97], opensuse-tumbleweed: [rust, cargo], gentoo: ["${RUST_DEPEND}"], arch: [rust]}
   go: {el10: [golang], alma10: [golang], alma10-kitten: [golang], eln: [golang], ubuntu: [golang-go], debian: [golang-go], opensuse-tumbleweed: [go], arch: [go]}
-  c-compiler: {el10: [gcc], alma10: [gcc], alma10-kitten: [gcc], eln: [gcc], fedora: [gcc], rawhide: [gcc], ubuntu: [build-essential], debian: [build-essential], trixie: [build-essential], opensuse-tumbleweed: [gcc], gentoo: [sys-devel/gcc], arch: [base-devel]}
+  c-compiler: {el10: [gcc], alma10: [gcc], alma10-kitten: [gcc], eln: [gcc], fedora: [gcc], rawhide: [gcc], ubuntu: [build-essential], debian: [build-essential], trixie: [build-essential], noble: [build-essential], opensuse-tumbleweed: [gcc], gentoo: [sys-devel/gcc], arch: [base-devel]}
   cpp-compiler: {el10: [gcc-c++], alma10: [gcc-c++], alma10-kitten: [gcc-c++], eln: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
-  pkg-config: {el10: [pkgconf-pkg-config], alma10: [pkgconf-pkg-config], alma10-kitten: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], fedora: [pkgconf-pkg-config], rawhide: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], trixie: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], gentoo: [virtual/pkgconfig], arch: [pkgconf]}
+  pkg-config: {el10: [pkgconf-pkg-config], alma10: [pkgconf-pkg-config], alma10-kitten: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], fedora: [pkgconf-pkg-config], rawhide: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], trixie: [pkg-config], noble: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], gentoo: [virtual/pkgconfig], arch: [pkgconf]}
   cmake: {el10: [cmake], alma10: [cmake], alma10-kitten: [cmake], eln: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
   ninja: {el10: [ninja-build], alma10: [ninja-build], alma10-kitten: [ninja-build], eln: [ninja-build], ubuntu: [ninja-build], debian: [ninja-build], opensuse-tumbleweed: [ninja], arch: [ninja]}
   # Wayland-desktop build capabilities (#169). Nothing COSMIC links against

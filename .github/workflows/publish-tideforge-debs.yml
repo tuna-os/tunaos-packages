@@ -24,7 +24,7 @@ on:
         default: cpptrace-devel,pop-icon-theme,cosmic-randr,cosmic-panel,cosmic-icon-theme
         required: true
       distros:
-        description: Comma-separated distro labels (ubuntu, debian-sid, debian-trixie)
+        description: Comma-separated distro labels (ubuntu, debian-sid, debian-trixie, ubuntu-noble)
         default: ubuntu,debian-sid
         required: true
       arches:

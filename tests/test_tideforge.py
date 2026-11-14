@@ -986,9 +986,9 @@ def test_native_deb_skips_upstream_test_suite(recipe: dict) -> None:
 def test_custom_deb_does_not_emit_test_override(recipe: dict) -> None:
     """Non-native builds replace dh_auto_build/install and need no test override.
 
-    The cargo/go/data/custom renderers do not hand debhelper a detectable build
-    system, so dh_auto_test is already a no-op; emitting the override would be
-    dead metadata.
+    The cargo/go/data/custom renderers do not hand debhelper a build system
+    (custom pins --buildsystem=none), so dh_auto_test is already a no-op;
+    emitting the override would be dead metadata.
     """
     recipe["build_system"] = "custom"
     recipe["build"] = {"commands": ["just build"]}
@@ -1008,6 +1008,48 @@ def test_data_deb_disables_debhelper_build_system_autodetection(recipe: dict) ->
     recipe["build_system"] = "data"
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
     assert "dh $@ --buildsystem=none" in rules
+
+
+def test_custom_deb_disables_debhelper_build_system_autodetection(recipe: dict) -> None:
+    """A custom recipe's scripts own the whole lifecycle.
+
+    gtk4-layer-shell ships a meson.build, so plain "dh $@" ran
+    dh_auto_configure on a second tree with upstream's default options, and
+    dh_auto_test ran the placeholder test upstream registers whenever tests
+    are disabled, which always fails.
+    """
+    recipe["build_system"] = "custom"
+    recipe["build"] = {"commands": ["meson setup build", "meson compile -C build"]}
+    recipe["install"] = {"commands": ["DESTDIR={destdir} meson install -C build"]}
+    rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    assert "\tdh $@ --buildsystem=none\n" in rules
+
+
+def test_split_custom_deb_stages_in_debian_tmp_with_install_lists(recipe: dict) -> None:
+    """Several binary packages from one custom install, as dh_auto_install does."""
+    recipe["build_system"] = "custom"
+    recipe["build"] = {"commands": ["meson setup build", "meson compile -C build"]}
+    recipe["install"] = {
+        "commands": ["DESTDIR={destdir} meson install -C build"],
+        "files": [{"source": "LICENSE", "destination": "usr/share/licenses/hello-tuna/LICENSE"}],
+    }
+    recipe["outputs"] = {"deb": {"packages": [
+        {"name": "libhello0", "files": ["usr/lib/*/libhello.so.*"]},
+        {"name": "libhello-dev", "depends": ["libhello0 (= ${binary:Version})"],
+         "files": ["usr/include/hello.h", "usr/lib/*/libhello.so"]},
+    ]}}
+    rendered = tideforge.render(recipe, "ubuntu")
+    # Absolute, as %{buildroot}/$pkgdir are: meson resolves a relative
+    # DESTDIR from its build directory.
+    assert rendered["debian/tideforge-install.sh"] == 'set -e\nDESTDIR="$PWD"/debian/tmp meson install -C build\n'
+    assert "LICENSE debian/tmp/usr/share/licenses/hello-tuna/LICENSE" in rendered["debian/rules"]
+    assert rendered["debian/libhello0.install"] == "usr/lib/*/libhello.so.*\n"
+    assert rendered["debian/libhello-dev.install"] == "usr/include/hello.h\nusr/lib/*/libhello.so\n"
+    # A single-package custom recipe still installs straight into its package.
+    del recipe["outputs"]
+    single = tideforge.render(recipe, "ubuntu")
+    assert "DESTDIR=debian/hello-tuna meson install" in single["debian/tideforge-install.sh"]
+    assert not any(name.endswith(".install") for name in single)
 
 
 def test_deb_render_emits_machine_readable_copyright(recipe: dict) -> None:

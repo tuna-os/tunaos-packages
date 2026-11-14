@@ -17,18 +17,51 @@ source:
   sha256: 1ebb01ab14e98afd1727f68f64981c37bd23305b1f131f5667c02b94cf593192
   directory: gtk4-layer-shell-1.3.0
 # The generic Meson renderer does not run upstream tests in RPM builds.
-# Custom commands retain native RPM flags and require the upstream mock
+# Custom commands retain native flags and require the upstream mock
 # Wayland layer/lock tests; none use the user's compositor or real DRM.
 build_system: custom
 build:
+  # Run before `commands`: each format's native compiler flags and the Meson
+  # configure, whose libdir is the format's own (RPM's lib64, Debian's
+  # multiarch directory). The tests, admission and receipt below are shared.
+  targets:
+    el10:
+      commands:
+        - "%{set_build_flags}"
+        - >-
+          meson setup build --prefix=/usr --libdir=lib64 --buildtype=plain
+          -Dtests=true -Dsmoke-tests=false -Dexamples=false -Ddocs=false
+          -Dintrospection=true -Dvapi=true
+    alma10:
+      commands:
+        - "%{set_build_flags}"
+        - >-
+          meson setup build --prefix=/usr --libdir=lib64 --buildtype=plain
+          -Dtests=true -Dsmoke-tests=false -Dexamples=false -Ddocs=false
+          -Dintrospection=true -Dvapi=true
+    alma10-kitten:
+      commands:
+        - "%{set_build_flags}"
+        - >-
+          meson setup build --prefix=/usr --libdir=lib64 --buildtype=plain
+          -Dtests=true -Dsmoke-tests=false -Dexamples=false -Ddocs=false
+          -Dintrospection=true -Dvapi=true
+    # Ubuntu 24.04 publishes no gtk4-layer-shell at all (only the GTK3
+    # gtk-layer-shell), so on noble this is a gap-filling system library, not
+    # a replacement: nothing in the archive or the elementary PPAs owns
+    # libgtk4-layer-shell0. dpkg-buildflags supplies the hardening flags
+    # %{set_build_flags} does on RPM.
+    noble:
+      commands:
+        - eval "$(dpkg-buildflags --export=sh)"
+        - >-
+          meson setup build --prefix=/usr
+          --libdir="lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" --buildtype=plain
+          -Dtests=true -Dsmoke-tests=false -Dexamples=false -Ddocs=false
+          -Dintrospection=true -Dvapi=true
   commands:
-    - "%{set_build_flags}"
     - >-
       test -r "$(pkg-config --variable=pkgdatadir wayland-protocols)/staging/ext-session-lock/ext-session-lock-v1.xml"
-    - >-
-      meson setup build --prefix=/usr --libdir=lib64 --buildtype=plain
-      -Dtests=true -Dsmoke-tests=false -Dexamples=false -Ddocs=false
-      -Dintrospection=true -Dvapi=true
     - meson compile -C build
     - >-
       meson introspect --tests build | tee build/provider-admitted-tests.json | python3 -c
@@ -63,36 +96,47 @@ build:
       receipt={"schema":1,"scope":"upstream-mock-wayland-provider-tests","source_sha256":"1ebb01ab14e98afd1727f68f64981c37bd23305b1f131f5667c02b94cf593192","admitted_sha256":hashlib.sha256(admitted).hexdigest(),"testlog_sha256":hashlib.sha256(log).hexdigest(),"passed":sorted(names),"hardware_qualified":False}
       pathlib.Path("build/provider-test-receipt.json").write_text(json.dumps(receipt,indent=2)+"\n")
       '
-    - mkdir -p %{_topdir}/provider-test-evidence/gtk4-layer-shell
-    - >-
-      cp build/provider-admitted-tests.json build/provider-test-receipt.json
-      build/meson-logs/testlog.json build/meson-logs/testlog.txt
-      %{_topdir}/provider-test-evidence/gtk4-layer-shell/
 dependencies:
   build:
-    common:
-      - gcc
-      - meson >= 0.54
-      - ninja-build
-      - pkgconf-pkg-config
-      - redhat-rpm-config
-      - python3
-      - pkgconfig(gtk4) >= 4.12
-      - pkgconfig(wayland-client) >= 1.10
-      - pkgconfig(wayland-server) >= 1.10
-      - wayland-devel
-      - wayland-protocols-devel
-      - gobject-introspection-devel
-      - vala
     # Alma native cells build natively from their own factory roots.
     # Do not alias either to CentOS Stream.
     targets:
-      el10: []
-      alma10: []
-      alma10-kitten: []
+      el10: [gcc, meson >= 0.54, ninja-build, pkgconf-pkg-config, redhat-rpm-config, python3, pkgconfig(gtk4) >= 4.12, pkgconfig(wayland-client) >= 1.10, pkgconfig(wayland-server) >= 1.10, wayland-devel, wayland-protocols-devel, gobject-introspection-devel, vala]
+      alma10: [gcc, meson >= 0.54, ninja-build, pkgconf-pkg-config, redhat-rpm-config, python3, pkgconfig(gtk4) >= 4.12, pkgconfig(wayland-client) >= 1.10, pkgconfig(wayland-server) >= 1.10, wayland-devel, wayland-protocols-devel, gobject-introspection-devel, vala]
+      alma10-kitten: [gcc, meson >= 0.54, ninja-build, pkgconf-pkg-config, redhat-rpm-config, python3, pkgconfig(gtk4) >= 4.12, pkgconfig(wayland-client) >= 1.10, pkgconfig(wayland-server) >= 1.10, wayland-devel, wayland-protocols-devel, gobject-introspection-devel, vala]
+      # The same list in noble's names. Noble has GTK 4.14.5, wayland 1.22
+      # and wayland-protocols 1.45 (ext-session-lock in staging), all above
+      # upstream's floors; the GIR scanner is gobject-introspection, the Vala
+      # bindings come from valac. build-essential is the cell's own.
+      noble: [meson (>= 0.54), ninja-build, pkg-config, python3, "libgtk-4-dev (>= 4.12)", "libwayland-dev (>= 1.10)", wayland-protocols, gobject-introspection, libgirepository1.0-dev, valac]
 install:
   commands:
     - DESTDIR={destdir} meson install -C build --no-rebuild
+  # Run after `commands`: the RPM cells hand the upstream test receipt and
+  # logs to the factory artifact (run-package-factory-cell.sh collects
+  # %{_topdir}/provider-test-evidence). The build tree is still present here.
+  targets:
+    el10:
+      commands:
+        - mkdir -p %{_topdir}/provider-test-evidence/gtk4-layer-shell
+        - >-
+          cp build/provider-admitted-tests.json build/provider-test-receipt.json
+          build/meson-logs/testlog.json build/meson-logs/testlog.txt
+          %{_topdir}/provider-test-evidence/gtk4-layer-shell/
+    alma10:
+      commands:
+        - mkdir -p %{_topdir}/provider-test-evidence/gtk4-layer-shell
+        - >-
+          cp build/provider-admitted-tests.json build/provider-test-receipt.json
+          build/meson-logs/testlog.json build/meson-logs/testlog.txt
+          %{_topdir}/provider-test-evidence/gtk4-layer-shell/
+    alma10-kitten:
+      commands:
+        - mkdir -p %{_topdir}/provider-test-evidence/gtk4-layer-shell
+        - >-
+          cp build/provider-admitted-tests.json build/provider-test-receipt.json
+          build/meson-logs/testlog.json build/meson-logs/testlog.txt
+          %{_topdir}/provider-test-evidence/gtk4-layer-shell/
   files:
     - {source: LICENSE, destination: usr/share/licenses/gtk4-layer-shell/LICENSE}
 files:
@@ -124,6 +168,36 @@ outputs:
           - usr/share/gir-1.0/Gtk4SessionLock-1.0.gir
           - usr/share/vala/vapi/gtk4-layer-shell-0.deps
           - usr/share/vala/vapi/gtk4-layer-shell-0.vapi
+  # Debian's own split and names (libgtk4-layer-shell0 / -dev, as packaged in
+  # trixie and resolute), so tuna-desktop's relations read the same on every
+  # deb target. The typelibs stay with the runtime, as on RPM. The -dev half
+  # names the libraries gtk4-layer-shell-0.pc requires.
+  deb:
+    packages:
+      - name: libgtk4-layer-shell0
+        summary: GTK4 Wayland layer shell and session lock library
+        description: >-
+          Runtime library and introspection typelibs for the Wayland
+          layer-shell and ext-session-lock protocols with GTK4.
+        files:
+          - usr/lib/*/libgtk4-layer-shell.so.*
+          - usr/lib/*/liblayer-shell-preload.so
+          - usr/lib/*/girepository-1.0/Gtk4LayerShell-1.0.typelib
+          - usr/lib/*/girepository-1.0/Gtk4SessionLock-1.0.typelib
+          - usr/share/licenses/gtk4-layer-shell/LICENSE
+      - name: libgtk4-layer-shell-dev
+        summary: Development files for GTK4 layer shell and session lock
+        description: Both public headers, pkg-config metadata, GIR and Vala bindings.
+        depends: ["libgtk4-layer-shell0 (= ${binary:Version})", "libgtk-4-dev", "libwayland-dev"]
+        files:
+          - usr/include/gtk4-layer-shell/gtk4-layer-shell.h
+          - usr/include/gtk4-layer-shell/gtk4-session-lock.h
+          - usr/lib/*/libgtk4-layer-shell.so
+          - usr/lib/*/pkgconfig/gtk4-layer-shell-0.pc
+          - usr/share/gir-1.0/Gtk4LayerShell-1.0.gir
+          - usr/share/gir-1.0/Gtk4SessionLock-1.0.gir
+          - usr/share/vala/vapi/gtk4-layer-shell-0.deps
+          - usr/share/vala/vapi/gtk4-layer-shell-0.vapi
 verify:
   install_name: gtk4-layer-shell-devel
   smoke: >-
@@ -142,4 +216,29 @@ verify:
     "gtk_session_lock_instance_new","gtk_session_lock_instance_lock","gtk_session_lock_instance_unlock",
     "gtk_session_lock_instance_assign_window_to_monitor","gtk_session_lock_instance_is_locked");
     [getattr(lib,symbol) for symbol in symbols]'
-targets: [el10, alma10, alma10-kitten]
+  # The deb half: Debian's -dev name, multiarch paths, and no python3 (the
+  # verify container has dpkg-dev, so binutils' nm reads the exported
+  # symbols instead of ctypes). pkg-config --cflags --libs also proves the
+  # .pc's gtk4/wayland-client requirements arrived with the -dev package.
+  targets:
+    noble:
+      install_name: libgtk4-layer-shell-dev
+      smoke: >-
+        lib="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)"
+        && pkg-config --atleast-version=1.1 gtk4-layer-shell-0
+        && test "$(pkg-config --modversion gtk4-layer-shell-0)" = 1.3.0
+        && test "$(pkg-config --variable=libdir gtk4-layer-shell-0)" = "$lib"
+        && pkg-config --cflags --libs gtk4-layer-shell-0 >/dev/null
+        && test -r /usr/include/gtk4-layer-shell/gtk4-layer-shell.h
+        && test -r /usr/include/gtk4-layer-shell/gtk4-session-lock.h
+        && test -r "$lib/girepository-1.0/Gtk4LayerShell-1.0.typelib"
+        && test -r "$lib/girepository-1.0/Gtk4SessionLock-1.0.typelib"
+        && test -r /usr/share/licenses/gtk4-layer-shell/LICENSE
+        && test "$(readlink -f "$lib/libgtk4-layer-shell.so.0")" = "$lib/libgtk4-layer-shell.so.1.3.0"
+        && exported="$(nm -D --defined-only "$lib/libgtk4-layer-shell.so.0")"
+        && for symbol in gtk_layer_get_major_version gtk_layer_init_for_window
+        gtk_layer_set_keyboard_mode gtk_layer_set_namespace gtk_session_lock_instance_new
+        gtk_session_lock_instance_lock gtk_session_lock_instance_unlock
+        gtk_session_lock_instance_assign_window_to_monitor gtk_session_lock_instance_is_locked;
+        do printf '%s\n' "$exported" | grep -qw "$symbol" || { echo "missing $symbol" >&2; exit 1; }; done
+targets: [el10, alma10, alma10-kitten, noble]
