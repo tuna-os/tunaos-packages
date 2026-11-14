@@ -38,7 +38,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "build-chain.sh"
+SCRIPT = ROOT / "scripts" / "lib" / "build-chain" / "podman.sh"
 
 
 def container_script() -> str:

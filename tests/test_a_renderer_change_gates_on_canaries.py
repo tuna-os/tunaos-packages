@@ -119,6 +119,31 @@ def test_a_renderer_change_is_bounded_on_a_pull_request():
     unbounded = [c["id"] for c in cells if not c.get("tiers")]
     assert not unbounded, f"still building whole chains on a PR: {unbounded}"
 
+
+BUILD_CHAIN_MODULES = sorted(
+    p.relative_to(ROOT).as_posix()
+    for p in (ROOT / "scripts" / "lib" / "build-chain").glob("*.sh")
+)
+
+
+def test_the_build_chain_backend_modules_exist():
+    # Guard the parametrisation below against silently testing nothing.
+    assert {"scripts/lib/build-chain/podman.sh",
+            "scripts/lib/build-chain/mock.sh",
+            "scripts/lib/build-chain/native.sh"} <= set(BUILD_CHAIN_MODULES)
+
+
+@pytest.mark.parametrize("canary", [True, False])
+@pytest.mark.parametrize("module", BUILD_CHAIN_MODULES)
+def test_a_backend_module_change_selects_what_build_chain_sh_selects(module, canary):
+    # build-chain.sh sources these modules: an edit to one is the same
+    # renderer change as an edit to build-chain.sh itself.
+    expected = sorted(c["id"] for c in plan(["scripts/build-chain.sh"], canary=canary))
+    selected = sorted(c["id"] for c in plan([module], canary=canary))
+    assert selected, f"{module} change selected no build-chain cells"
+    assert selected == expected
+
+
 def test_planner_change_is_shared_input():
     cells = plan(["scripts/plan-package-factory.py"], canary=True)
     native = [cell for cell in cells if cell["engine"] == "build-chain"]

@@ -29,7 +29,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CHAIN = ROOT / "scripts" / "build-chain.sh"
+CHAIN = ROOT / "scripts/lib/build-chain/podman.sh"
 CELL_WORKFLOW = ROOT / ".github" / "workflows" / "package-factory-cell.yml"
 
 
