@@ -1274,6 +1274,14 @@ def render_deb(recipe: dict, target: str) -> dict[str, str]:
     )
     deb_output = recipe.get("outputs", {}).get("deb", {})
     binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
+    # A custom recipe that splits into several binary packages stages into
+    # debian/tmp, as dh_auto_install does for a multi-package native build,
+    # and the .install lists below carve that tree up between the packages
+    # (gtk4-layer-shell's libgtk4-layer-shell0/-dev on noble). Installing into
+    # debian/<source> instead would put every file in a package that does not
+    # exist and ship empty debs.
+    staged_split = recipe["build_system"] == "custom" and len(binary_packages) > 1
+    install_root = "debian/tmp" if staged_split else f"debian/{recipe['name']}"
     recipe_runtime_dependencies = target_runtime_dependencies(recipe, target)
     provides_field = "".join(f"Provides: {provided}\n" for provided in provides_entries(recipe))
     step_scripts: dict[str, str] = {}
@@ -1329,9 +1337,20 @@ Rules-Requires-Root: no
         # turned `$PWD`/`${CFLAGS:-}` into make variables. The RPM %build and
         # the PKGBUILD build() already run each step as one shell.
         build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
-        install = custom_commands(recipe, "install", f"debian/{recipe['name']}", target)
+        # The staged tree is handed to the script as an absolute path, as
+        # %{buildroot} and $pkgdir are on the other formats: `meson install
+        # -C build` resolves a relative DESTDIR from the build directory and
+        # staged everything under build/debian/tmp, where dh_install found
+        # nothing.
+        script_root = f'"$PWD"/{install_root}' if staged_split else install_root
+        install = custom_commands(recipe, "install", script_root, target)
         step_scripts = {"debian/tideforge-build.sh": f"set -e\n{build}\n", "debian/tideforge-install.sh": f"set -e\n{install}\n"}
-        rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tsh debian/tideforge-build.sh\n\noverride_dh_auto_install:\n\tsh debian/tideforge-install.sh\n"
+        # --buildsystem=none: the recipe's scripts own configure, build, test
+        # and install. Plain "dh $@" auto-detects upstream's build system, so
+        # for gtk4-layer-shell (a meson.build at the root) dh_auto_configure
+        # configured a second tree with upstream's defaults, and dh_auto_test
+        # then ran meson's placeholder test that fails whenever -Dtests=false.
+        rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem=none\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tsh debian/tideforge-build.sh\n\noverride_dh_auto_install:\n\tsh debian/tideforge-install.sh\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -1372,7 +1391,7 @@ Rules-Requires-Root: no
         exports = make_environment_exports(recipe)
         preamble = f"{exports}\n\n" if exports else ""
         rules = f"#!/usr/bin/make -f\n\n{preamble}%:\n\tdh $@ --buildsystem={buildsystem}\n{configure}"
-    extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}", make_escape=True), install_directories(recipe, f"debian/{recipe['name']}", exclude_generated_debian=True)]))
+    extra_install = "\n".join(filter(None, [install_commands(recipe, install_root, make_escape=True), install_directories(recipe, install_root, exclude_generated_debian=True)]))
     if extra_install:
         rules = rules.rstrip() + "\n\t" + extra_install.replace("\n", "\n\t") + "\n"
     # For native build systems debhelper auto-runs the upstream test suite via
@@ -1434,7 +1453,7 @@ License: {recipe['license']}
     # ubuntu and debian while building fine on el10.  Split recipes such as
     # xfconf and libseat do stage through debian/tmp, so they keep their
     # .install lists to carve it up between the binary packages.
-    direct_install = (
+    direct_install = not staged_split and (
         recipe["build_system"] in {"cargo", "go", "data", "custom", "python"}
         or bool(recipe.get("install"))
         or len(binary_packages) == 1

@@ -33,6 +33,7 @@ TARGETS = {
     "ubuntu": "ubuntu",
     "debian-sid": "debian",
     "debian-trixie": "trixie",
+    "ubuntu-noble": "noble",
 }
 TUNA_SCHEMAS = {
     "org.gnome.desktop.interface",

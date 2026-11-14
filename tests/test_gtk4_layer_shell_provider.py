@@ -28,10 +28,11 @@ def test_official_source_pin_and_native_target_are_explicit():
         "directory": "gtk4-layer-shell-1.3.0",
     }
     assert data["version"] == "1.3.0" and data["license"] == "MIT"
-    assert data["targets"] == ["el10", "alma10", "alma10-kitten"]
-    assert {"alma10", "alma10-kitten"} <= data["dependencies"]["build"]["targets"].keys()
+    assert data["targets"] == ["el10", "alma10", "alma10-kitten", "noble"]
+    assert {"alma10", "alma10-kitten", "noble"} <= data["dependencies"]["build"]["targets"].keys()
+    assert "common" not in data["dependencies"]["build"]  # RPM names never reach noble
     assert tideforge.portable_payload_contract(data) is None
-    for target in ("alma10", "alma10-kitten"):
+    for target in ("alma10", "alma10-kitten", "noble"):
         tideforge.validate(data, target)
 
 
@@ -96,14 +97,16 @@ def test_actual_recipe_test_admission_rejects_missing_suites(names, accepted):
 def test_upstream_tests_and_installed_smoke_are_not_replaced_by_presence():
     data = recipe()
     commands = data["build"]["commands"]
-    setup = next(c for c in commands if c.startswith("meson setup"))
-    for option in ("-Dtests=true", "-Dintrospection=true", "-Dvapi=true", "-Dsmoke-tests=false"):
-        assert option in setup
+    for target in data["targets"]:
+        steps = data["build"]["targets"][target]["commands"]
+        setup = next(c for c in steps if c.startswith("meson setup"))
+        for option in ("-Dtests=true", "-Dintrospection=true", "-Dvapi=true", "-Dsmoke-tests=false"):
+            assert option in setup
     assert (
-        commands[5]
+        commands[3]
         == "GDK_BACKEND=wayland GSK_RENDERER=cairo meson test -C build --no-rebuild --print-errorlogs"
     )
-    assert "ext-session-lock-v1.xml" in commands[1]
+    assert "ext-session-lock-v1.xml" in commands[0]
     smoke = data["verify"]["smoke"]
     assert "--atleast-version=1.1 gtk4-layer-shell-0" in smoke
     assert "version==(1,3,0)" in smoke
@@ -202,18 +205,89 @@ def test_actual_result_admission(tmp_path, bad):
 
 def test_logs_reach_existing_factory_artifact():
     data = recipe()
-    commands = "\n".join(data["build"]["commands"])
-    for filename in (
-        "provider-admitted-tests.json",
-        "provider-test-receipt.json",
-        "testlog.json",
-        "testlog.txt",
-    ):
-        assert filename in commands
-    assert "%{_topdir}/provider-test-evidence/gtk4-layer-shell/" in commands
+    built = "\n".join(data["build"]["commands"])
+    # The build writes the admission list and receipt; meson writes the logs.
+    for filename in ("provider-admitted-tests.json", "provider-test-receipt.json", "testlog.json"):
+        assert filename in built
+    for target in ("el10", "alma10", "alma10-kitten"):
+        commands = "\n".join(data["install"]["targets"][target]["commands"])
+        for filename in (
+            "provider-admitted-tests.json",
+            "provider-test-receipt.json",
+            "testlog.json",
+            "testlog.txt",
+        ):
+            assert filename in commands
+        assert "%{_topdir}/provider-test-evidence/gtk4-layer-shell/" in commands
+    assert "noble" not in data["install"]["targets"]  # no %{_topdir} outside rpmbuild
     runner = (ROOT / "scripts/run-package-factory-cell.sh").read_text()
     assert (
         'cp -a "$root/rpmbuild/provider-test-evidence/." "$out/artifacts/provider-tests/"' in runner
     )
     workflow = (ROOT / ".github/workflows/package-factory-cell.yml").read_text()
     assert ".factory/${{ matrix.id }}/artifacts/" in workflow
+
+
+def test_noble_fills_the_gap_with_debian_names_and_multiarch_paths():
+    """Noble ships no gtk4-layer-shell; the factory deb is the system library."""
+    data = recipe()
+    rendered = tideforge.render(data, "noble")
+    control = rendered["debian/control"]
+    assert "Package: libgtk4-layer-shell0\n" in control
+    assert "Package: libgtk4-layer-shell-dev\n" in control
+    assert "libgtk4-layer-shell0 (= ${binary:Version}), libgtk-4-dev, libwayland-dev" in control
+    for dependency in ("libgtk-4-dev (>= 4.12)", "wayland-protocols", "gobject-introspection", "valac"):
+        assert dependency in control
+    for rpm_only in ("redhat-rpm-config", "pkgconf-pkg-config", "pkgconfig(", "-devel"):
+        assert rpm_only not in control
+    build = rendered["debian/tideforge-build.sh"]
+    install = rendered["debian/tideforge-install.sh"]
+    assert 'eval "$(dpkg-buildflags --export=sh)"' in build
+    assert '--libdir="lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)"' in build
+    assert build.index("meson setup") < build.index("meson test")
+    for script in (build, install):
+        assert "%{" not in script and "lib64" not in script
+    # Split: staged in debian/tmp and carved up by .install lists.
+    assert 'DESTDIR="$PWD"/debian/tmp meson install' in install
+    assert "LICENSE debian/tmp/usr/share/licenses/gtk4-layer-shell/LICENSE" in rendered["debian/rules"]
+    runtime = rendered["debian/libgtk4-layer-shell0.install"].split()
+    devel = rendered["debian/libgtk4-layer-shell-dev.install"].split()
+    assert "usr/lib/*/libgtk4-layer-shell.so.*" in runtime
+    assert "usr/lib/*/girepository-1.0/Gtk4SessionLock-1.0.typelib" in runtime
+    assert "usr/lib/*/pkgconfig/gtk4-layer-shell-0.pc" in devel
+    assert "usr/include/gtk4-layer-shell/gtk4-session-lock.h" in devel
+    assert not set(runtime) & set(devel)
+
+
+def test_noble_smoke_checks_the_installed_library_without_python():
+    data = recipe()
+    assert tideforge.verify_metadata(data, "noble")["install_name"] == "libgtk4-layer-shell-dev"
+    smoke = tideforge.verify_metadata(data, "noble")["smoke"]
+    assert "python3" not in smoke  # the deb verify container does not install it
+    assert "--atleast-version=1.1 gtk4-layer-shell-0" in smoke
+    assert '= "$lib/libgtk4-layer-shell.so.1.3.0"' in smoke
+    for symbol in (
+        "gtk_layer_init_for_window",
+        "gtk_session_lock_instance_lock",
+        "gtk_session_lock_instance_assign_window_to_monitor",
+    ):
+        assert symbol in smoke
+    assert subprocess.run(["sh", "-n"], input=smoke, text=True, check=False).returncode == 0
+
+
+def test_ubuntu_noble_publishes_both_arches_and_verifies_the_dev_package():
+    """`ubuntu-noble` is the served prefix (repo.tunaos.org/tideforge/ubuntu-noble)."""
+    plan = json.loads(subprocess.run(
+        [sys.executable, "scripts/plan-deb-publish.py", "--packages", "gtk4-layer-shell",
+         "--distros", "ubuntu-noble"],
+        capture_output=True, text=True, cwd=ROOT, check=True,
+    ).stdout)
+    rows = plan["matrix"]["include"]
+    assert {row["target"] for row in rows} == {"noble"}
+    assert {row["arch"] for row in rows} == {"amd64", "arm64"}
+    assert {row["image"] for row in rows} == {"docker.io/library/ubuntu:24.04"}
+    assert {row["install"] for row in plan["verify_matrix"]["include"]} == {"libgtk4-layer-shell-dev"}
+    receipt = (ROOT / "scripts/deb-verification-receipt.py").read_text()
+    assert '"ubuntu-noble": "noble"' in receipt
+    factory = yaml.safe_load((ROOT / "manifests/package-factory.yaml").read_text())
+    assert factory["consumer_adapters"]["gurnard"]["target"] == "noble"

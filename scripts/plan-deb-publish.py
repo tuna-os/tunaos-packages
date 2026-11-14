@@ -29,10 +29,11 @@ explicit act with an explicit default wave -- "nothing gets published that a
 gate cell has not exercised" is a judgement a human makes, and turning it
 into "every recipe that targets deb" would silently widen what ships.
 
-The distro LABELS are also not derived. `ubuntu`, `debian-sid` and
-`debian-trixie` are R2 prefixes (r2:bluefin/tideforge/<distro>/, served at
-repo.tunaos.org/tideforge/<distro>/); renaming one would orphan a published
-repository, so the label->target mapping is explicit and pinned by a test.
+The distro LABELS are also not derived. `ubuntu`, `debian-sid`,
+`debian-trixie` and `ubuntu-noble` are R2 prefixes
+(r2:bluefin/tideforge/<distro>/, served at repo.tunaos.org/tideforge/<distro>/);
+renaming one would orphan a published repository, so the label->target
+mapping is explicit and pinned by a test.
 """
 from __future__ import annotations
 
@@ -55,6 +56,7 @@ DISTRO_TARGETS = {
     "ubuntu": "ubuntu",
     "debian-sid": "debian",
     "debian-trixie": "trixie",
+    "ubuntu-noble": "noble",
 }
 
 # Native runners. A cross-built deb is not what these targets install, so
