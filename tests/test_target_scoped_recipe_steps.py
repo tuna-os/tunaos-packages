@@ -51,14 +51,40 @@ def test_other_formats_never_see_the_trixie_source():
 
 
 def test_a_step_for_a_target_the_recipe_does_not_enable_is_rejected():
+    # alma10 is a factory target tuna-desktop does not enable.
     recipe = copy.deepcopy(TUNA)
-    recipe["build"]["targets"]["noble"] = recipe["build"]["targets"].pop("trixie")
+    recipe["build"]["targets"]["alma10"] = recipe["build"]["targets"].pop("trixie")
     with pytest.raises(SystemExit):
         tideforge.validate(recipe)
     recipe = copy.deepcopy(TUNA)
-    recipe["sources"][1]["targets"] = ["noble"]
+    recipe["sources"][1]["targets"] = ["alma10"]
     with pytest.raises(SystemExit):
         tideforge.validate(recipe)
+
+
+def test_noble_uses_the_versioned_toolchain_and_the_factory_layer_shell():
+    noble = tideforge.render_deb(TUNA, "noble")
+    control, build = noble["debian/control"], noble["debian/tideforge-build.sh"]
+    build_depends = next(line for line in control.splitlines() if line.startswith("Build-Depends:"))
+    for name in ("rustc-1.97", "cargo-1.97", "libgtk4-layer-shell-dev (>= 1.1)", "libgtk-4-dev (>= 4.14)"):
+        assert name in build_depends
+    # Noble's unversioned rustc/cargo are 1.75: never ask for them.
+    assert not {"rustc", "cargo"} & {item.strip().split(" ")[0] for item in build_depends.split(":", 1)[1].split(",")}
+    assert build.index('export PATH="/usr/lib/rust-1.97/bin:$PATH"') < build.index("cargo build")
+    assert "libgtk4-layer-shell0 (>= 1.1)" in control
+    # No private copy: noble has no system gtk4-layer-shell to shadow.
+    for rendered in (build, noble["debian/tideforge-install.sh"]):
+        assert "gtk4-layer-shell-build" not in rendered and "patchelf" not in rendered
+    assert noble["debian/changelog"].startswith("tuna-desktop (1.0.0~beta.3-1) noble;")
+
+
+def test_ubuntu_noble_publishes_and_verifies_tuna_desktop():
+    plan = json.loads(subprocess.run(
+        [sys.executable, "scripts/plan-deb-publish.py", "--packages", "tuna-desktop", "--distros", "ubuntu-noble"],
+        capture_output=True, text=True, cwd=ROOT, check=True,
+    ).stdout)
+    assert {row["target"] for row in plan["matrix"]["include"]} == {"noble"}
+    assert {row["install"] for row in plan["verify_matrix"]["include"]} == {"tuna-desktop"}
 
 
 def _tar(name: str) -> bytes:

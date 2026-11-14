@@ -149,8 +149,14 @@ The library goes in `/usr/lib/<multiarch>/tuna-desktop/`, and `patchelf` sets
 a RUNPATH on the binaries that link it. The toolchain is trixie's
 `rustc-web` 1.96, not its `rustc` 1.85. Publish with `distros: debian-trixie`.
 
-Ubuntu noble is not a factory target. It ships no gtk4-layer-shell, and its
-newest rustc is 1.91.
+`noble` is Ubuntu 24.04, the base of gurnard, and has no gtk4-layer-shell.
+Thus `packages/gtk4-layer-shell` publishes `libgtk4-layer-shell0`/`-dev`
+1.3.0 to the `ubuntu-noble` repository, and tuna-desktop links that system
+library. The `rustc` of noble is 1.75. The build uses the versioned
+`rustc-1.97`/`cargo-1.97` of Ubuntu: a build step puts
+`/usr/lib/rust-1.97/bin` first on `PATH`. Publish with
+`distros: ubuntu-noble`. The tuna-desktop build gets
+`libgtk4-layer-shell-dev` only from the served `ubuntu-noble` index.
 
 ## Gentoo target
 

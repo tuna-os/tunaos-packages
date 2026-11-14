@@ -303,10 +303,10 @@ targets:
     # the elementary PPA). Its own target, not a second `ubuntu` suite, for
     # trixie's reason: the planner gives a target one image, and resolute's
     # would build resolute bytes. Packages publish to the flat repo
-    # tideforge/ubuntu-noble (plan-deb-publish.py label ubuntu-noble), which
-    # does not exist until the first publish, so both arches are pending
-    # until it resolves; a cell that declared it earlier would fail its own
-    # apt-get update on the 404.
+    # tideforge/ubuntu-noble (plan-deb-publish.py label ubuntu-noble); like
+    # ubuntu's, one flat repo serves both arches. Declared once
+    # gtk4-layer-shell's first publish created it: tuna-desktop's noble build
+    # takes libgtk4-layer-shell-dev from here and nowhere else.
     #
     # Noble's own archive is the buildroot: its default rustc is 1.75, so a
     # Rust recipe names the versioned rustc-1.97/cargo-1.97 (noble-updates
@@ -317,7 +317,9 @@ targets:
     suites: [noble]
     architectures: [amd64, arm64]
     r2_path: apt/ubuntu/{suite}/{arch}
-    published_index_pending: [amd64, arm64]
+    published_index:
+      amd64: https://repo.tunaos.org/tideforge/ubuntu-noble/
+      arm64: https://repo.tunaos.org/tideforge/ubuntu-noble/
     repository: apt
     probe_image: docker.io/library/ubuntu:24.04
   fedora:
