@@ -1,0 +1,105 @@
+schema: 1
+name: sssd
+version: "2.13.1"
+release: 3
+summary: Native SSSD with upstream GNOME remote smartcard session support
+description: >-
+  Arch SSSD 2.13.1 with upstream-reviewed GDM session-environment forwarding
+  and the dedicated SSSD-user GRD PC/SC authorization rule. Native distro
+  configure options, user, service files, permissions and package scriptlets
+  are retained. Installing this package does not configure a domain, change
+  PAM policy or enable smartcard login; that remains explicit admin opt-in.
+license: GPL-3.0-or-later
+# Native recipe authority: Arch packaging 49a6c3408d0431606b99d1ddb035ce2e40c071ea.
+# 2.13.1-2 lacks the two upstream GNOME51 redirection changes below. Release3
+# is a normal native package revision, not a desktop release/publication bump.
+source:
+  url: https://github.com/SSSD/sssd/releases/download/2.13.1/sssd-2.13.1.tar.gz
+  sha256: 05ea79e89f0be399983925b8874ac196d6dc5fd4416f83609557b9fc8ef798b5
+  directory: sssd-2.13.1
+sources:
+  # Upstream f2696b80 implementation with only release-specific hunk context.
+  - url: https://raw.githubusercontent.com/tuna-os/tunaos-packages/43b1d8e3a3a2a4420ecee52deb258ea7b7a4c3f4/packages/sssd/f2696b80-grd-session-2.13.1.patch
+    sha256: 36bef0e0922bb3c60fd2f154e53f97490928dbe714dfcf943db8d65ff41fa04c
+    filename: f2696b80-grd-session.patch
+    destination: .tuna-patches/session.patch
+    extract: false
+  - url: https://github.com/SSSD/sssd/commit/b1f2ffc7d3f74d5fd1c0091d98c19f5401b4013b.patch
+    sha256: 178895a7f64b9da8a0978094cd43487f5585648af3cd77d3229b83d7d31698a0
+    filename: b1f2ffc7-grd-polkit.patch
+    destination: .tuna-patches/polkit.patch
+    extract: false
+  - url: https://gitlab.archlinux.org/archlinux/packaging/packages/sssd/-/raw/49a6c3408d0431606b99d1ddb035ce2e40c071ea/sssd-perms.tmpfile
+    sha256: 038148041b9cf0ad200c95fd3446834fbcec5d502fd54baead11960cc75a2e02
+    filename: sssd-perms.tmpfile
+    destination: .tuna-sssd-perms.tmpfile
+    extract: false
+build_system: custom
+build:
+  prepare:
+    - patch --batch --fuzz=0 -p1 -i .tuna-patches/session.patch
+    - patch --batch --fuzz=0 -p1 -i .tuna-patches/polkit.patch
+    # Preserve the native Arch source preparations, including its disabled
+    # flaky network test, rather than inventing a different distro build.
+    - sed -i 's#/var/run/#/run/#' src/examples/logrotate
+    - >-
+      sed -i 's#^u #u! #' contrib/sssd.sysusers
+    - sed '/AM_PROG_CC_C_O/ i AC_PROG_CPP' -i configure.ac
+    - sed -i 's/^dbuspolicydir = $(sysconfdir)/dbuspolicydir = $(datadir)/' Makefile.in
+    - sed '/fail_over-tests/d' -i Makefile.am
+    - autoreconf -fiv
+  commands:
+    - >-
+      ./configure --prefix=/usr --sbindir=/usr/bin --sysconfdir=/etc
+      --localstatedir=/var --runstatedir=/run --libexecdir=/usr/lib/sssd
+      --datadir=/usr/share --enable-pammoddir=/usr/lib/security
+      --enable-pac-responder --with-initscript=systemd --with-os=fedora
+      --without-python2-bindings --with-python3-bindings
+      --with-syslog=journald --with-sssd-user=sssd --with-subid
+      --with-passkey --without-selinux --with-tmpfilesdir=/usr/lib/tmpfiles.d
+      --with-systemdunitdir=/usr/lib/systemd/system
+      --with-ldb-lib-dir=/usr/lib/samba/ldb
+    - sed -i '/\<HAVE_KRB5_SET_TRACE_CALLBACK\>/d' config.h
+    - make
+install:
+  commands:
+    - make -j1 DESTDIR="{destdir}" install
+    - rm -rf "{destdir}/etc/rc.d" "{destdir}/lib" "{destdir}/run"
+    - rm -f "{destdir}/usr/lib/ldb/modules/ldb/memberof.la"
+    - find "{destdir}/usr" -depth -type d -exec rmdir --ignore-fail-on-non-empty {} \;
+    - install -Dm0644 src/examples/logrotate "{destdir}/etc/logrotate.d/sssd"
+    - install -Dm0644 contrib/sssd.sysusers "{destdir}/usr/lib/sysusers.d/sssd.conf"
+    - install -Dm0644 .tuna-sssd-perms.tmpfile "{destdir}/usr/lib/tmpfiles.d/sssd-perms.conf"
+    - setcap cap_dac_read_search,cap_setgid,cap_setuid=p "{destdir}/usr/lib/sssd/sssd/krb5_child"
+    - setcap cap_dac_read_search=p "{destdir}/usr/lib/sssd/sssd/ldap_child"
+    - setcap cap_dac_read_search=p "{destdir}/usr/lib/sssd/sssd/sssd_pam"
+    - rm -rf "{destdir}/etc/systemd" "{destdir}/var/run"
+dependencies:
+  build:
+    targets:
+      arch: [docbook-xsl, doxygen, python, samba, systemd, tevent, ldb, bc, python-setuptools, autoconf, automake, libtool, gettext, pkgconf, patch, libcap]
+  runtime:
+    targets:
+      arch: [bind, c-ares, cyrus-sasl-gssapi, ding-libs, libnl, libunistring, smbclient, nfsidmap, jansson, jose, libtevent.so, libldb.so, curl, pcre2, libfido2, systemd, libcap, libverto]
+outputs:
+  arch:
+    backup: [etc/logrotate.d/sssd]
+    options: ['!lto']
+    install_script:
+      path: packages/sssd/sssd.install
+      sha256: 3b92cf0add7e3e5926f29f09a248f9d4f51c00210b1b747bc7bdf7721d387ea2
+files:
+  common:
+    - usr
+    - etc
+    - var
+    - etc/logrotate.d/sssd
+verify:
+  install_name: sssd
+  smoke: >-
+    sssd --version
+    && /usr/lib/sssd/sssd/p11_child --help | grep -F -- --set-env
+    && getcap /usr/lib/sssd/sssd/krb5_child | grep -F cap_dac_read_search
+    && getcap /usr/lib/sssd/sssd/ldap_child | grep -F cap_dac_read_search
+    && getcap /usr/lib/sssd/sssd/sssd_pam | grep -F cap_dac_read_search
+targets: [arch]

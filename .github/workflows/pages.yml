@@ -64,8 +64,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: "3.15"
       - name: Install deps
@@ -82,7 +84,7 @@ jobs:
         run: ./scripts/render-factory-site.py --out site
       - name: Upload the page as a Pages artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: site
 
@@ -108,7 +110,7 @@ jobs:
       # by integration" -- an error that names an integration and reads like a
       # bug, when the actual fix is one settings toggle. The step below turns
       # that into instructions.
-      - uses: actions/configure-pages@v6
+      - uses: actions/configure-pages@v6.0.0
         with:
           enablement: true
       - name: Explain a Pages site that does not exist yet
@@ -118,4 +120,4 @@ jobs:
           echo "::error::GitHub Pages is not enabled for this repository, and the workflow token is not permitted to enable it (creating a Pages site needs repository-administration scope, which GITHUB_TOKEN cannot be granted). A repository admin must do this ONCE: Settings -> Pages -> Build and deployment -> Source: GitHub Actions. Every later run of this workflow then deploys with no manual step."
           exit 1
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v5.0.1

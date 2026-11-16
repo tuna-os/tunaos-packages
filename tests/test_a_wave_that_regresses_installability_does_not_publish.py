@@ -203,7 +203,9 @@ def test_the_committed_baseline_covers_every_architecture_the_target_publishes()
     catalog = yaml.safe_load((ROOT / "manifests" / "hummingbird-desktops.yaml").read_text())
     desktops = {d for d in catalog["desktops"] if d != "bluefin"}
     for arch, recording in recorded["arches"].items():
-        assert set(recording["desktops"]) == desktops, arch
+        # --write-baseline always records the `retained` set beside the
+        # desktops (check-hummingbird-installability.py RETAINED_SET).
+        assert set(recording["desktops"]) - {"retained"} == desktops, arch
         assert recording["published_index"]["primary_sha256"], arch
 
 
@@ -265,7 +267,8 @@ def test_the_publish_job_asks_before_it_syncs_and_only_for_hummingbird():
     assert "--fail-on-regression" in run, "a report that cannot fail is not a gate"
     assert 'file://${PWD}/repo' in run, (
         "the wave's own freshly indexed tree, not the index R2 still serves")
-    assert "--arch '${{ matrix.architecture }}'" in run
+    assert '--arch "${MATRIX_ARCHITECTURE}"' in run
+    assert step["env"]["MATRIX_ARCHITECTURE"] == "${{ matrix.architecture }}"
 
 
 lister = _load("list_served_nvrs", "list-served-nvrs.py")
@@ -322,7 +325,7 @@ def test_both_chain_callers_withhold_what_the_checker_names():
     for path, target_expr in (
         (WORKFLOW, '"$TARGET" == hummingbird'),
         (ROOT / ".github" / "workflows" / "chain-band.yml",
-         "'${{ inputs.target }}' = hummingbird"),
+         '"${INPUTS_TARGET}" = hummingbird'),
     ):
         text = path.read_text(encoding="utf-8")
         step = [s for s in yaml.safe_load(text)["jobs"].values()

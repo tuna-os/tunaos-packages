@@ -16,6 +16,22 @@ esac
 mkdir -p "$evidence"
 rm -rf -- "${evidence:?}"/*
 
+# Minimized images (ubuntu:26.04) ship /etc/dpkg/dpkg.cfg.d/excludes, which
+# drops /usr/share/doc, man pages and .mo catalogues at unpack time. A real
+# install keeps them, and deb-installed-payload.sh below compares every archive
+# member with the installed root, so it failed with "missing installed file:
+# usr/share/doc/tuna-desktop/nested-session.md.gz". Lift the exclusions before
+# the published package is unpacked.
+for dpkg_cfg in /etc/dpkg/dpkg.cfg.d/*; do
+    if [ -f "$dpkg_cfg" ]; then
+        sed -i -E '/^[[:space:]]*path-(exclude|include)([[:space:]]|=)/d' "$dpkg_cfg"
+    fi
+done
+if grep -rqsE '^[[:space:]]*path-exclude' /etc/dpkg/dpkg.cfg /etc/dpkg/dpkg.cfg.d; then
+    echo 'dpkg path-exclude still active; the installed payload cannot be complete' >&2
+    exit 1
+fi
+
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y --no-install-recommends ca-certificates curl gpg gzip python3 libglib2.0-bin
@@ -46,7 +62,11 @@ apt-get install -y --no-install-recommends "${package_names[@]}"
 
 curl --fail --location --silent --show-error --retry 3 \
     "${url%/}/InRelease" -o "$evidence/InRelease"
-gpg --batch --no-options --no-default-keyring --keyring "$keyring" \
+# --no-options stops gpg from creating its home directory, and a clean
+# container has none, so gpg would exit "Fatal: /root/.gnupg: directory does
+# not exist" before it reports the signature (#951).
+gnupg_home=$(mktemp -d)
+gpg --homedir "$gnupg_home" --batch --no-options --no-default-keyring --keyring "$keyring" \
     --status-fd 1 --verify "$evidence/InRelease" \
     > "$evidence/signature-status.txt" 2> "$evidence/signature.stderr"
 curl --fail --location --silent --show-error --retry 3 \
@@ -116,8 +136,11 @@ dpkg-deb -f "$archive" Package Version Architecture Depends > "$observed/package
 dpkg-query -W -f='${binary:Package}\t${Version}\t${Architecture}\n' \
     | sort > "$observed/installed-packages.tsv"
 bash /scripts/deb-installed-payload.sh "$archive" / "$observed/installed-payload.tsv"
+# The archive basename, which is what the ActionResult names; the served
+# pool/ path is in index-entry.txt. deb-verification-receipt.py matches this
+# field against both and refused the full "pool/..." Filename.
 printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-    "$package" "$version" "$installed_arch" "$filename" "$actual_sha" "$actual_size" \
+    "$package" "$version" "$installed_arch" "$archive_name" "$actual_sha" "$actual_size" \
     > "$observed/installed.tsv"
 
 if [ "$package" = tuna-desktop ]; then

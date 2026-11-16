@@ -407,6 +407,7 @@ def main(argv: list[str] | None = None) -> int:
         c["baseurl"], args.cache, args.arch)[0]) for c in consumed_meta]
     for c in consumed_meta:
         c.pop("_have", None)
+        c.pop("_have_evr", None)
     package_sets = args.desktops or [d for d in catalog["desktops"] if d != "bluefin"]
     if catalog.get("retained_packages") and RETAINED_SET not in package_sets:
         package_sets.append(RETAINED_SET)

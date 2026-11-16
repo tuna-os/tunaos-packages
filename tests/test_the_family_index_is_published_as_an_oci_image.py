@@ -67,10 +67,28 @@ def test_the_publish_job_can_push_and_sign(publish):
 
 def test_the_image_is_built_from_the_synced_tree_after_the_sync_up(steps):
     oci = _step(steps, "Publish the family index as an OCI image")
-    assert "COPY repo /repository" in oci["run"], (
+    assert "bash scripts/publish-repo-oci-image.sh repo " in oci["run"], (
         "the image must carry repo/, the tree R2 now serves"
     )
-    assert "FROM scratch" in oci["run"], "data, not a runnable image"
+    script = (ROOT / "scripts" / "publish-repo-oci-image.sh").read_text(encoding="utf-8")
+    assert "s,^${name},repository," in script, "the tree lands at /repository"
+    # FROM scratch: one layer and no base, so data, not a runnable image.
+    assert '"diff_ids":["sha256:%s"]' in script
+
+
+def test_the_layer_is_written_once_not_through_container_storage(steps):
+    """Run 43641087208: `podman build` with COPY held repo/, the container
+    layer and the commit blob on one disk; the 32 GB hummingbird prefix
+    filled the runner. The layer must be one tar in an OCI layout, streamed
+    to the registry by skopeo."""
+    oci = _step(steps, "Publish the family index as an OCI image")
+    code = "\n".join(
+        line for line in oci["run"].splitlines() if not line.lstrip().startswith("#")
+    )
+    assert "COPY repo" not in code and " build " not in code and " push " not in code
+    script = (ROOT / "scripts" / "publish-repo-oci-image.sh").read_text(encoding="utf-8")
+    assert 'skopeo copy --authfile "${authfile}" --digestfile "${digestfile}"' in script
+    assert "application/vnd.oci.image.layer.v1.tar" in script
     assert _index(steps, "Sync up") < _index(steps, "Publish the family index as an OCI image"), (
         "publish the image after the R2 sync-up, so digest and https name one index"
     )
@@ -104,7 +122,8 @@ def test_a_dry_run_publishes_nothing_in_either_channel(steps):
 def test_the_image_is_signed_by_digest(steps):
     sign = _step(steps, "Sign the published image")
     assert "cosign sign" in sign["run"]
-    assert "steps.oci.outputs.digest" in sign["run"]
+    assert sign["env"]["STEPS_OCI_OUTPUTS_DIGEST"] == "${{ steps.oci.outputs.digest }}"
+    assert '@${STEPS_OCI_OUTPUTS_DIGEST}"' in sign["run"]
     assert (
         _index(steps, "Publish the family index as an OCI image")
         < _index(steps, "Install cosign")

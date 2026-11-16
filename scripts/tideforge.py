@@ -20,7 +20,12 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
+sys.path.insert(0, str(ROOT / "scripts"))
+import factory_contract  # noqa: E402
+
 VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom", "python"}
+NATIVE_ARCH_INPUT_BOUND = 1024 * 1024
+NATIVE_ARCH_PATCH_BOUND = 16
 DIST_GIT_RAW_REF = re.compile(r"https://src\.fedoraproject\.org/rpms/[^/]+/raw/([^/]+)/f/")
 # One upstream version, rendered verbatim as RPM `Version:` and Debian
 # upstream_version. A prerelease is written the way both of those already
@@ -780,6 +785,108 @@ def native_deb_source(recipe: dict) -> dict | None:
     return native
 
 
+def arch_install_script(recipe: dict) -> tuple[str, str] | None:
+    """Return a reviewed recipe-owned pacman scriptlet without regenerating it."""
+    metadata = recipe.get("outputs", {}).get("arch", {})
+    if not isinstance(metadata, dict) or "install_script" not in metadata:
+        return None
+    script = metadata["install_script"]
+    if not isinstance(script, dict) or set(script) != {"path", "sha256"}:
+        fail("outputs.arch.install_script requires path and sha256")
+    path = Path(str(script["path"]))
+    owner = ROOT / "packages" / recipe["name"]
+    source = ROOT / path
+    if (path.is_absolute() or any(part in {"", ".", ".."} for part in str(path).split("/"))
+            or not path.name.endswith(".install") or source.is_symlink()
+            or not source.resolve().is_relative_to(owner.resolve()) or not source.is_file()):
+        fail("Arch install script must be a recipe-owned regular .install file")
+    payload = source.read_bytes()
+    if hashlib.sha256(payload).hexdigest() != script["sha256"]:
+        fail("Arch install script checksum mismatch")
+    if b"\0" in payload:
+        fail("Arch install script must be UTF-8 shell text")
+    try:
+        content = payload.decode("utf-8")
+    except UnicodeDecodeError:
+        fail("Arch install script must be UTF-8 shell text")
+    return f"{recipe['name']}.install", content
+
+
+def native_arch_pkgbuild(recipe: dict) -> dict | None:
+    """Keep maintained native Arch packaging instead of flattening split outputs."""
+    arch = recipe.get("outputs", {}).get("arch", {})
+    if "native_pkgbuild" not in arch:
+        return None
+    native = arch["native_pkgbuild"]
+    required = {"path", "sha256", "packages", "files"}
+    if (not isinstance(native, dict) or not required <= set(native)
+            or set(native) - required - {"optional_packages"}):
+        fail("outputs.arch.native_pkgbuild requires path, sha256, packages and files")
+    if recipe.get("targets") != ["arch"]:
+        fail("native Arch packaging requires the Arch target only")
+    packages = native["packages"]
+    optional = native.get("optional_packages", [])
+    if not isinstance(packages, list) or not packages or not isinstance(optional, list):
+        fail("native Arch required and optional packages must be lists")
+    names = packages + optional
+    if (not all(isinstance(name, str) and re.fullmatch(r"[a-z0-9][a-z0-9+._-]*", name)
+                for name in names)
+            or len(set(names)) != len(names) or recipe["name"] not in packages):
+        fail("native Arch packages must uniquely name the recipe and every split output")
+    if not isinstance(native["files"], list) or len(native["files"]) > NATIVE_ARCH_PATCH_BOUND:
+        fail("native Arch files must be a list of at most 16 patches")
+    directory = Path("packages") / recipe["name"]
+    inputs = [{"path": native["path"], "sha256": native["sha256"]}, *native["files"]]
+    names = set()
+    for index, item in enumerate(inputs):
+        if not isinstance(item, dict) or set(item) != {"path", "sha256"}:
+            fail("native Arch inputs require path and sha256")
+        path = Path(str(item["path"]))
+        expected_parent = directory if index == 0 else directory / "patches"
+        if (path.is_absolute() or ".." in path.parts or path.parent != expected_parent
+                or (index == 0 and path.name != "PKGBUILD")
+                or (index != 0 and path.suffix != ".patch") or path.name in names):
+            fail("native Arch inputs must be the recipe's PKGBUILD and distinct owned patches")
+        absolute = ROOT / path
+        if (not absolute.is_file() or absolute.is_symlink()
+                or not absolute.resolve().is_relative_to((ROOT / directory).resolve())):
+            fail("native Arch input must be a regular file inside its owned recipe")
+        with absolute.open("rb") as stream:
+            content = stream.read(NATIVE_ARCH_INPUT_BOUND + 1)
+        if len(content) > NATIVE_ARCH_INPUT_BOUND:
+            fail("native Arch input exceeds its 1 MiB bound")
+        if hashlib.sha256(content).hexdigest() != item["sha256"]:
+            fail("native Arch input checksum mismatch")
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError:
+            fail("native Arch input must be UTF-8 text")
+        names.add(path.name)
+    return native
+
+
+def arch_metadata(recipe: dict) -> dict[str, list[str]]:
+    """Native pacman replacement relations and exact config-file paths."""
+    metadata = recipe.get("outputs", {}).get("arch", {})
+    if not isinstance(metadata, dict) or set(metadata) - {"conflicts", "replaces", "backup", "options", "install_script", "native_pkgbuild"}:
+        fail("outputs.arch supports conflicts, replaces, backup, options, install_script and native_pkgbuild")
+    arch_install_script(recipe)
+    arrays = {key: value for key, value in metadata.items() if key not in {"install_script", "native_pkgbuild"}}
+    for key, values in arrays.items():
+        if not isinstance(values, list) or not all(isinstance(value, str) and value for value in values):
+            fail(f"outputs.arch.{key} must be a list of non-empty strings")
+        if len(values) != len(set(values)):
+            fail(f"outputs.arch.{key} must not repeat entries")
+        if key == "backup":
+            for value in values:
+                if (value.startswith("/") or any(part in {"", ".", ".."} for part in value.split("/"))
+                        or any(character.isspace() or ord(character) < 32 for character in value)
+                        or any(character in value for character in "*?[]\\")
+                        or value not in recipe["files"]["common"]):
+                    fail("outputs.arch.backup must name exact relative files in files.common")
+    return arrays
+
+
 def validate(recipe: dict, target: str | None = None) -> None:
     if recipe.get("schema") != 1:
         fail("schema must be 1")
@@ -819,6 +926,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
     debug_package_enabled(recipe)
     autoreconf_enabled(recipe)
     configure_options(recipe)
+    arch_metadata(recipe)
     targets = load_targets()
     requested = recipe["targets"]
     if not isinstance(requested, list) or not requested:
@@ -826,6 +934,10 @@ def validate(recipe: dict, target: str | None = None) -> None:
     for item in requested:
         if item not in targets:
             fail(f"unknown target: {item}")
+        try:
+            factory_contract.recipe_architectures(recipe, item, targets[item])
+        except factory_contract.ContractError as error:
+            fail(str(error))
     if target and target not in requested:
         fail(f"recipe does not enable target: {target}")
     for source in source_entries(recipe)[1:]:
@@ -853,6 +965,7 @@ def validate(recipe: dict, target: str | None = None) -> None:
         fail("files.common must list installed paths")
     validate_deb_packages(recipe)
     native_deb_source(recipe)
+    native_arch_pkgbuild(recipe)
     for item in recipe.get("install", {}).get("files", []) + recipe.get("install", {}).get("directories", []):
         if not isinstance(item, dict) or not isinstance(item.get("source"), str) or not isinstance(item.get("destination"), str):
             fail("install.files entries need source and destination")
@@ -1161,6 +1274,14 @@ def render_deb(recipe: dict, target: str) -> dict[str, str]:
     )
     deb_output = recipe.get("outputs", {}).get("deb", {})
     binary_packages = deb_output.get("packages", [{"name": recipe["name"], "summary": recipe["summary"], "description": recipe["description"], "files": recipe["files"]["common"]}])
+    # A custom recipe that splits into several binary packages stages into
+    # debian/tmp, as dh_auto_install does for a multi-package native build,
+    # and the .install lists below carve that tree up between the packages
+    # (gtk4-layer-shell's libgtk4-layer-shell0/-dev on noble). Installing into
+    # debian/<source> instead would put every file in a package that does not
+    # exist and ship empty debs.
+    staged_split = recipe["build_system"] == "custom" and len(binary_packages) > 1
+    install_root = "debian/tmp" if staged_split else f"debian/{recipe['name']}"
     recipe_runtime_dependencies = target_runtime_dependencies(recipe, target)
     provides_field = "".join(f"Provides: {provided}\n" for provided in provides_entries(recipe))
     step_scripts: dict[str, str] = {}
@@ -1216,9 +1337,20 @@ Rules-Requires-Root: no
         # turned `$PWD`/`${CFLAGS:-}` into make variables. The RPM %build and
         # the PKGBUILD build() already run each step as one shell.
         build = "\n".join(filter(None, [prepare_commands(recipe), build_environment_exports(recipe), cargo_config_commands(recipe), custom_commands(recipe, "build", target=target)]))
-        install = custom_commands(recipe, "install", f"debian/{recipe['name']}", target)
+        # The staged tree is handed to the script as an absolute path, as
+        # %{buildroot} and $pkgdir are on the other formats: `meson install
+        # -C build` resolves a relative DESTDIR from the build directory and
+        # staged everything under build/debian/tmp, where dh_install found
+        # nothing.
+        script_root = f'"$PWD"/{install_root}' if staged_split else install_root
+        install = custom_commands(recipe, "install", script_root, target)
         step_scripts = {"debian/tideforge-build.sh": f"set -e\n{build}\n", "debian/tideforge-install.sh": f"set -e\n{install}\n"}
-        rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tsh debian/tideforge-build.sh\n\noverride_dh_auto_install:\n\tsh debian/tideforge-install.sh\n"
+        # --buildsystem=none: the recipe's scripts own configure, build, test
+        # and install. Plain "dh $@" auto-detects upstream's build system, so
+        # for gtk4-layer-shell (a meson.build at the root) dh_auto_configure
+        # configured a second tree with upstream's defaults, and dh_auto_test
+        # then ran meson's placeholder test that fails whenever -Dtests=false.
+        rules = "#!/usr/bin/make -f\n\n%:\n\tdh $@ --buildsystem=none\n\n# dh_clean deletes *.orig as patch cruft, which strips Cargo.toml.orig out\n# of every vendored crate and breaks cargo checksum verification. This\n# override MUST NOT be the last target in the file: render_deb appends the\n# recipe's install.files commands onto whatever target comes last, and when\n# #207 put this at the end, niri and kairpods installed their session files\n# at CLEAN time and shipped binary-only debs (run 30698387751).\noverride_dh_clean:\n\tdh_clean -Xvendor/\n\n# dh_auto_clean auto-detects UPSTREAM build systems: cosmic-comp ships a\n# Makefile whose clean target deletes .cargo/ and vendor/, so the first\n# staged deb build lost its offline-source config between assembly and\n# cargo (run 30714289211; reproduced in a container -- rules clean left\n# .cargo GONE). Every deb build starts from a freshly assembled tree;\n# upstream clean targets must never run.\noverride_dh_auto_clean:\n\t:\n\noverride_dh_auto_build:\n\tsh debian/tideforge-build.sh\n\noverride_dh_auto_install:\n\tsh debian/tideforge-install.sh\n"
     elif recipe["build_system"] == "go":
         workdir = build_option(recipe, "working_directory", ".")
         binary = build_option(recipe, "binary", recipe["name"])
@@ -1259,7 +1391,7 @@ Rules-Requires-Root: no
         exports = make_environment_exports(recipe)
         preamble = f"{exports}\n\n" if exports else ""
         rules = f"#!/usr/bin/make -f\n\n{preamble}%:\n\tdh $@ --buildsystem={buildsystem}\n{configure}"
-    extra_install = "\n".join(filter(None, [install_commands(recipe, f"debian/{recipe['name']}", make_escape=True), install_directories(recipe, f"debian/{recipe['name']}", exclude_generated_debian=True)]))
+    extra_install = "\n".join(filter(None, [install_commands(recipe, install_root, make_escape=True), install_directories(recipe, install_root, exclude_generated_debian=True)]))
     if extra_install:
         rules = rules.rstrip() + "\n\t" + extra_install.replace("\n", "\n\t") + "\n"
     # For native build systems debhelper auto-runs the upstream test suite via
@@ -1321,7 +1453,7 @@ License: {recipe['license']}
     # ubuntu and debian while building fine on el10.  Split recipes such as
     # xfconf and libseat do stage through debian/tmp, so they keep their
     # .install lists to carve it up between the binary packages.
-    direct_install = (
+    direct_install = not staged_split and (
         recipe["build_system"] in {"cargo", "go", "data", "custom", "python"}
         or bool(recipe.get("install"))
         or len(binary_packages) == 1
@@ -1333,15 +1465,22 @@ License: {recipe['license']}
 
 
 def render_pkgbuild(recipe: dict, target: str) -> dict[str, str]:
-    """Render an Arch PKGBUILD for the straightforward single-binary case.
-
-    Complex split packages and packaging hooks stay native until the recipe
-    schema can model them without hiding Arch-specific behaviour.
-    """
+    """Render ordinary boilerplate, or retain an explicitly owned native recipe."""
+    native = native_arch_pkgbuild(recipe)
+    if native is not None:
+        inputs = [{"path": native["path"]}, *native["files"]]
+        return {Path(item["path"]).name: (ROOT / item["path"]).read_bytes().decode("utf-8") for item in inputs}
     source_directory = recipe["source"].get("directory", f"{recipe['name']}-{recipe['version']}")
     makedepends = " ".join(f"'{dependency}'" for dependency in target_dependencies(recipe, target))
     depends = " ".join(f"'{dependency}'" for dependency in target_runtime_dependencies(recipe, target))
     provides = " ".join(f"'{dependency}'" for dependency in provides_entries(recipe))
+    native_metadata = "\n".join(
+        f"{key}=({' '.join(shlex.quote(value) for value in values)})"
+        for key, values in arch_metadata(recipe).items()
+    )
+    script = arch_install_script(recipe)
+    if script:
+        native_metadata += f"\ninstall={shlex.quote(script[0])}"
     sources = source_entries(recipe, target)
     source = recipe["source"]["url"]
     if recipe["build_system"] == "cargo":
@@ -1417,6 +1556,7 @@ license=({recipe['license']!r})
 makedepends=({makedepends})
 depends=({depends})
 provides=({provides})
+{native_metadata}
 source=(
 {source_lines}
 )
@@ -1435,7 +1575,10 @@ package() {{
   {install}
 }}
 """
-    return {"PKGBUILD": pkgbuild}
+    files = {"PKGBUILD": pkgbuild}
+    if script:
+        files[script[0]] = script[1]
+    return files
 
 
 GENTOO_REPO_NAME = "tunaos"

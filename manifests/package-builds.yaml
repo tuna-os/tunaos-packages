@@ -272,6 +272,29 @@ native_builds:
     # 50m unfinished. hummingbird carried this from the start; the other
     # families were simply never given one.
     canary_tiers: xfce-core-libs
+  - id: xfce-eln-x86_64
+    family: xfce
+    target: eln
+    architecture: x86_64
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10
+    verify_image: registry.fedoraproject.org/eln-bootc:latest
+    manifest: build-order-xfce.yml
+    mock_config: fedora-eln-ci
+    source_paths: [src/xfce-wayland/]
+    r2_path: xfce/eln-x86_64
+    canary_tiers: xfce-build-tools
+  - id: xfce-eln-aarch64
+    family: xfce
+    target: eln
+    architecture: aarch64
+    runner: ubuntu-24.04-arm
+    image: ghcr.io/tuna-os/mock-runner:centos-stream-10-aarch64
+    verify_image: registry.fedoraproject.org/eln-bootc:latest
+    manifest: build-order-xfce.yml
+    mock_config: fedora-eln-ci-aarch64
+    source_paths: [src/xfce-wayland/]
+    r2_path: xfce/eln-aarch64
+    canary_tiers: xfce-build-tools
   - id: hummingbird-x86_64
     family: hummingbird-desktops
     target: hummingbird

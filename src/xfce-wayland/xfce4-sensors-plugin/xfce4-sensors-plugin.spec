@@ -1,6 +1,6 @@
 Name: xfce4-sensors-plugin
 Version: 1.4.5
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Sensors plugin for the Xfce panel
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/panel-plugins/xfce4-sensors-plugin
@@ -9,6 +9,15 @@ Source0: https://archive.xfce.org/src/panel-plugins/xfce4-sensors-plugin/1.4/xfc
 # instead of the umbrella libxfce4panel.h — newer libxfce4panel enforces
 # "only include the umbrella header" and errors out.
 Patch0: 0001-fix-libxfce4panel-header-guard.patch
+# xfce4::PluginSize/Propagation/TimeoutResponse/TooltipTime are declared
+# with a deleted default constructor and brace-initialized at call sites
+# ({true}/{false}). Pre-C++20 that is still aggregate init (a deleted ctor
+# isn't "user-provided"); C++20 (P1008R1) redefines aggregates as having no
+# user-DECLARED ctor at all, so a deleted one now disqualifies it too.
+# Fedora ELN's gcc defaults to a newer -std where this is enforced; EL10/
+# Fedora 44 don't hit it. Adds the single-bool constructor so the same
+# brace-init keeps compiling everywhere.
+Patch1: 0002-fix-cxx20-aggregate-init.patch
 BuildRequires: xfce4-dev-tools
 BuildRequires: autoconf automake libtool gettext-devel
 # xfce4++/ is a C++ wrapper layer (.cc sources), needs g++, not just gcc.
@@ -43,5 +52,10 @@ autoreconf -fi
 %{_datadir}/man/man1/*
 %{_datadir}/xfce4/panel/plugins/xfce4-sensors-plugin.css
 %changelog
+* Sun Oct 25 2026 TunaOS Bot <bot@tunaos.org> - 1.4.5-2
+- Add explicit single-bool constructors to the xfce4++ handler-result
+  types so they still build under C++20's stricter aggregate rules
+  (Fedora ELN); fixes build-0/xfce-eln-x86_64 and -aarch64.
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 1.4.5-1
 - Initial XFCE Wayland package for TunaOS EL10

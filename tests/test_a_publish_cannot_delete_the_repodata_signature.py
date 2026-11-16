@@ -20,10 +20,12 @@ Hence one signer -- scripts/sign-repomd.sh -- called from every path that
 indexes before a sync-up.
 """
 
+import re
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
@@ -31,6 +33,8 @@ SIGNER = REPO / "scripts" / "sign-repomd.sh"
 WAVE = REPO / "scripts" / "publish-rpm-wave.sh"
 GENERATOR = REPO / "scripts" / "generate-distributed-workflow.py"
 MANIFEST = REPO / "build-order-hummingbird-desktops.yml"
+# A sync whose SOURCE is the local tree, i.e. the upload, not the seed.
+SYNC_UP = re.compile(r'rclone sync "?(\$\{LOCAL_REPO\}|local-repo)/')
 
 
 def test_the_signer_exists_and_is_executable():
@@ -100,3 +104,23 @@ def test_the_generated_publisher_signs_before_it_syncs_up(tmp_path):
     assert min(signing) < min(uploading), (
         "the signature must exist before the sync that makes the bucket "
         "match the local tree")
+
+
+@pytest.mark.parametrize("name,job", [
+    ("build.yml", "build"),
+    ("build-distributed.yml", "publish"),
+])
+def test_the_checked_in_publishers_sign_before_they_sync_up(name, job):
+    """build.yml and build-distributed.yml sync up to repo/10-stream-x86_64 and
+    repo/10-x86_64, and they also upload contrib/install.sh. If they sync without
+    signing, the same run that ships repo_gpgcheck=1 deletes repomd.xml.asc."""
+    wf = yaml.safe_load((REPO / ".github" / "workflows" / name).read_text())
+    runs = [s.get("run", "") for s in wf["jobs"][job]["steps"]]
+
+    signing = [i for i, r in enumerate(runs) if "sign-repomd.sh" in r]
+    uploading = [i for i, r in enumerate(runs) if SYNC_UP.search(r)]
+    assert uploading, f"{name}: no sync-up found; the test is out of date"
+    assert signing, f"{name}: the publish job never signs repodata/repomd.xml"
+    assert min(signing) < min(uploading), (
+        f"{name}: the signature must exist before the sync that makes the "
+        "bucket match the local tree")

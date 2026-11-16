@@ -29,11 +29,19 @@ CELL = ROOT / ".github/workflows/package-factory-cell.yml"
 PUBLISHER = ROOT / ".github/workflows/publish-build-chain-rpms.yml"
 PLANNER = ROOT / "scripts/plan-build-chain-publish.py"
 
-IDENTITY = re.compile(r"--identity\s+'([^']+)'")
+IDENTITY = re.compile(r"""--identity\s+(?:'([^']+)'|"\$\{(\w+)\}")""")
 
 
 def identity_arguments(path: Path) -> list[str]:
-    return IDENTITY.findall(path.read_text(encoding="utf-8"))
+    """Each --identity value; a "${NAME}" argument resolves to the step's
+    env entry, which is how the workflows pass expressions to the shell."""
+    text = path.read_text(encoding="utf-8")
+    found = []
+    for literal, name in IDENTITY.findall(text):
+        if name:
+            literal = re.search(rf"^\s+{name}: (.+)$", text, re.M).group(1)
+        found.append(literal)
+    return found
 
 
 def test_every_native_key_call_site_was_examined():

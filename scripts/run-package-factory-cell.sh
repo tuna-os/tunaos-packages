@@ -112,6 +112,9 @@ case ${FORMAT:?} in
           # that sync at different speeds and one caught mid-snapshot-rotation
           # serves a repomd naming files it does not have yet. See the script.
           bash /scripts/zypper-refresh-with-retry.sh
+          # Align the rolling image with its refreshed native snapshot before
+          # adding gap-fillers: install alone keeps newer image libraries.
+          zypper --non-interactive dup --no-allow-vendor-change
           # Cross-cell BuildRequires resolve from the SERVED factory index —
           # this branch predates the target having one, and the day the
           # first tumbleweed wave was served, niri failed right here on
@@ -334,7 +337,7 @@ PY
           mkdir -p /work/artifacts/source
           cp ../*.dsc ../*.orig.tar.xz ../*.debian.tar.xz \
             ../*.changes ../*.buildinfo /work/artifacts/source/
-          cp -a ../original-source /work/artifacts/source/
+          cp -a ../original-source/. /work/artifacts/source/
         fi
         dpkg-buildpackage -us -uc -b
         mkdir -p /work/artifacts

@@ -25,6 +25,7 @@ def fixture(tmp_path: pathlib.Path, **overrides) -> argparse.Namespace:
     scripts.mkdir(exist_ok=True)
     for name in (
         "tideforge.py",
+        "factory_contract.py",
         "assemble-deb-source-tree.py",
         "build-chain.sh",
         "run-package-factory-cell.sh",
@@ -109,6 +110,14 @@ def test_renderer_inputs_are_partitioned_by_package_format(tmp_path):
     assert "scripts/build-chain.sh" not in deb["renderer_inputs"]
     assert "scripts/run-package-factory-cell.sh" in rpm["renderer_inputs"]
     assert "scripts/run-package-factory-cell.sh" in deb["renderer_inputs"]
+
+
+def test_shared_architecture_admission_changes_renderer_action_key(tmp_path):
+    args = fixture(tmp_path)
+    before = key(args)
+    contract = pathlib.Path(args.root) / "scripts/factory_contract.py"
+    contract.write_text("# changed recipe architecture validation\n", encoding="utf-8")
+    assert key(args) != before
 
 
 def test_mutable_build_image_and_bad_dependency_key_are_refused(tmp_path):

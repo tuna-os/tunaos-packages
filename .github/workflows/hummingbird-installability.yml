@@ -53,8 +53,10 @@ jobs:
       matrix:
         arch: [x86_64, aarch64]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with: {python-version: "3.15"}
       - run: pip install --disable-pip-version-check PyYAML zstandard
       - name: Resolve desktop and retained roots over target + published
@@ -69,7 +71,7 @@ jobs:
             echo ""
             cat installability-${{ matrix.arch }}.md
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: hummingbird-installability-${{ matrix.arch }}
           path: installability-${{ matrix.arch }}.*
@@ -86,14 +88,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - run: pip install --disable-pip-version-check PyYAML
       - name: Ask dnf, with the consumer's repositories and nothing else
         run: |
           set -euo pipefail
           bash scripts/check-hummingbird-installability-container.sh --report consumer-transaction.md
           cat consumer-transaction.md >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7.0.2
         with:
           name: hummingbird-consumer-transaction
           path: consumer-transaction.md

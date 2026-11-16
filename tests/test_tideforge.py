@@ -396,6 +396,116 @@ def test_provides_renders_in_rpm_deb_and_arch(recipe: dict) -> None:
     assert "provides=('cosmic-icons')" in pkgbuild
 
 
+def test_arch_native_metadata_is_literal_and_format_scoped(recipe: dict, tmp_path) -> None:
+    recipe["targets"].append("arch")
+    recipe["files"]["common"].append("etc/pam.d/legacy-lock")
+    recipe["outputs"] = {"arch": {
+        "conflicts": ["legacy-desktop<2"], "replaces": ["legacy-desktop"],
+        "backup": ["etc/pam.d/legacy-lock"],
+    }}
+    tideforge.validate(recipe, "arch")
+    pkgbuild = tmp_path / "PKGBUILD"
+    pkgbuild.write_text(tideforge.render(recipe, "arch")["PKGBUILD"])
+    result = subprocess.run(
+        ["bash", "-c", 'source "$1"; declare -p conflicts replaces backup', "bash", str(pkgbuild)],
+        capture_output=True, text=True, check=True,
+    )
+    assert 'declare -a conflicts=([0]="legacy-desktop<2")' in result.stdout
+    assert 'declare -a replaces=([0]="legacy-desktop")' in result.stdout
+    assert 'declare -a backup=([0]="etc/pam.d/legacy-lock")' in result.stdout
+    assert "legacy-desktop" not in tideforge.render(recipe, "el10")["hello-tuna.spec"]
+    assert "legacy-desktop" not in tideforge.render(recipe, "ubuntu")["debian/control"]
+
+
+@pytest.mark.parametrize("metadata", [
+    None, [], {"backups": []}, {"backup": "etc/pam.d/legacy-lock"},
+    {"backup": [None]}, {"backup": [""]},
+    {"backup": ["etc/pam.d/legacy-lock", "etc/pam.d/legacy-lock"]},
+    {"conflicts": ["legacy", "legacy"]}, {"replaces": "legacy"},
+])
+def test_arch_native_metadata_rejects_invalid_shape(recipe: dict, metadata) -> None:
+    recipe["outputs"] = {"arch": metadata}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
+@pytest.mark.parametrize("path", [
+    "/etc/pam.d/legacy-lock", "../etc/pam.d/legacy-lock",
+    "etc/../pam.d/legacy-lock", "etc//pam.d/legacy-lock",
+    "./etc/pam.d/legacy-lock", "etc/pam.d/*", "etc/pam.d/[ab]",
+    "etc/pam.d/legacy-lock\n", "etc/pam.d/legacy lock",
+    "etc\\pam.d\\legacy-lock", "etc/pam.d/missing-lock",
+])
+def test_arch_backup_requires_safe_exact_shipped_file(recipe: dict, path: str) -> None:
+    recipe["files"]["common"].append(path)
+    if path == "etc/pam.d/missing-lock":
+        recipe["files"]["common"].remove(path)
+    recipe["outputs"] = {"arch": {"backup": [path]}}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
+def test_arch_install_script_retains_native_hook_execution(recipe, tmp_path, monkeypatch):
+    script = tmp_path / "packages/hello-tuna/native.install"
+    script.parent.mkdir(parents=True)
+    script.write_text('post_install() { printf "%s" installed > "$1"; }\n')
+    monkeypatch.setattr(tideforge, "ROOT", tmp_path)
+    recipe["targets"].append("arch")
+    recipe["outputs"] = {"arch": {
+        "options": ["!lto"],
+        "install_script": {"path": "packages/hello-tuna/native.install",
+                           "sha256": hashlib.sha256(script.read_bytes()).hexdigest()},
+    }}
+    tideforge.validate(recipe, "arch")
+    rendered = tideforge.render(recipe, "arch")
+    build = tmp_path / "build"
+    build.mkdir()
+    for name, content in rendered.items():
+        (build / name).write_text(content)
+    receipt = tmp_path / "hook-receipt"
+    subprocess.run(["bash", "-c",
+                    'source PKGBUILD; source "$install"; post_install "$1"; '
+                    'test "${options[0]}" = "!lto"',
+                    "bash", str(receipt)], cwd=build, check=True)
+    assert receipt.read_text() == "installed"
+    assert (build / "hello-tuna.install").read_bytes() == script.read_bytes()
+
+
+def test_sssd_native_pkgbuild_parses_without_losing_shell_quotes() -> None:
+    recipe = tideforge.load_yaml(ROOT / "packages" / "sssd" / "package.yaml")
+    rendered = tideforge.render(recipe, "arch")["PKGBUILD"]
+    subprocess.run(["bash", "-n"], input=rendered, text=True, check=True)
+
+
+@pytest.mark.parametrize("path", [
+    "/tmp/foreign.install", "../foreign.install",
+    "packages/other-package/foreign.install", "packages/hello-tuna/missing.install",
+])
+def test_arch_install_script_cannot_escape_its_recipe(recipe, tmp_path, monkeypatch, path):
+    monkeypatch.setattr(tideforge, "ROOT", tmp_path)
+    recipe["outputs"] = {"arch": {"install_script": {"path": path, "sha256": "a" * 64}}}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
+def test_arch_install_script_rejects_symlink_and_changed_payload(recipe, tmp_path, monkeypatch):
+    owner = tmp_path / "packages/hello-tuna"
+    owner.mkdir(parents=True)
+    script = owner / "native.install"
+    script.write_text("post_install() { :; }\n")
+    monkeypatch.setattr(tideforge, "ROOT", tmp_path)
+    recipe["outputs"] = {"arch": {"install_script": {
+        "path": "packages/hello-tuna/native.install", "sha256": "a" * 64}}}
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+    expected = hashlib.sha256(script.read_bytes()).hexdigest()
+    script.rename(owner / "target.install")
+    script.symlink_to(owner / "target.install")
+    recipe["outputs"]["arch"]["install_script"]["sha256"] = expected
+    with pytest.raises(SystemExit):
+        tideforge.validate(recipe)
+
+
 def test_recipe_without_provides_renders_no_provides_lines(recipe: dict) -> None:
     """Recipes without the key keep clean spec/control output."""
     rpm = tideforge.render(recipe, "el10")["hello-tuna.spec"]
@@ -421,6 +531,52 @@ def test_real_recipes_keep_declared_runtime_metadata(
     metadata = "\n".join(rendered.values())
     for dependency in expected:
         assert dependency in metadata
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "ubuntu-rolling",
+        "debian", "trixie", "noble", "opensuse-tumbleweed", "gentoo",
+    ],
+)
+def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> None:
+    """D-Bus and spawned helpers cannot be inferred from ELF dependencies (#341)."""
+    recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
+    tideforge.validate(recipe, target)
+    rendered = tideforge.render(recipe, target)
+    expected = {"colord", "gnome-color-manager"}
+    if target == "arch":
+        depends = next(
+            line for line in rendered["PKGBUILD"].splitlines()
+            if line.startswith("depends=(")
+        )
+        dependencies = set(depends.removeprefix("depends=(").removesuffix(")").replace("'", "").split())
+    elif target in {"ubuntu", "ubuntu-rolling", "debian", "trixie", "noble"}:
+        depends = next(
+            line for line in rendered["debian/control"].splitlines()
+            if line.startswith("Depends:")
+        )
+        dependencies = {item.strip() for item in depends.removeprefix("Depends:").split(",")}
+    elif target == "gentoo":
+        ebuild = next(value for name, value in rendered.items() if name.endswith(".ebuild"))
+        dependencies = set(ebuild.split('RDEPEND="', 1)[1].split('"', 1)[0].split())
+        expected = {"x11-misc/colord", "gnome-extra/gnome-color-manager"}
+    else:
+        spec = rendered["tuna-desktop.spec"].split("%description", 1)[0]
+        dependencies = {
+            line.removeprefix("Requires:").strip()
+            for line in spec.splitlines() if line.startswith("Requires:")
+        }
+    assert expected <= dependencies
+
+
+def test_tuna_desktop_colour_runtime_contract_covers_every_factory_target() -> None:
+    recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
+    assert set(recipe["targets"]) == {
+        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "ubuntu-rolling",
+        "debian", "trixie", "noble", "opensuse-tumbleweed", "gentoo",
+    }
 
 
 def test_dms_greeter_is_an_arch_recipe_with_runtime_closure() -> None:
@@ -830,9 +986,9 @@ def test_native_deb_skips_upstream_test_suite(recipe: dict) -> None:
 def test_custom_deb_does_not_emit_test_override(recipe: dict) -> None:
     """Non-native builds replace dh_auto_build/install and need no test override.
 
-    The cargo/go/data/custom renderers do not hand debhelper a detectable build
-    system, so dh_auto_test is already a no-op; emitting the override would be
-    dead metadata.
+    The cargo/go/data/custom renderers do not hand debhelper a build system
+    (custom pins --buildsystem=none), so dh_auto_test is already a no-op;
+    emitting the override would be dead metadata.
     """
     recipe["build_system"] = "custom"
     recipe["build"] = {"commands": ["just build"]}
@@ -852,6 +1008,48 @@ def test_data_deb_disables_debhelper_build_system_autodetection(recipe: dict) ->
     recipe["build_system"] = "data"
     rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
     assert "dh $@ --buildsystem=none" in rules
+
+
+def test_custom_deb_disables_debhelper_build_system_autodetection(recipe: dict) -> None:
+    """A custom recipe's scripts own the whole lifecycle.
+
+    gtk4-layer-shell ships a meson.build, so plain "dh $@" ran
+    dh_auto_configure on a second tree with upstream's default options, and
+    dh_auto_test ran the placeholder test upstream registers whenever tests
+    are disabled, which always fails.
+    """
+    recipe["build_system"] = "custom"
+    recipe["build"] = {"commands": ["meson setup build", "meson compile -C build"]}
+    recipe["install"] = {"commands": ["DESTDIR={destdir} meson install -C build"]}
+    rules = tideforge.render(recipe, "ubuntu")["debian/rules"]
+    assert "\tdh $@ --buildsystem=none\n" in rules
+
+
+def test_split_custom_deb_stages_in_debian_tmp_with_install_lists(recipe: dict) -> None:
+    """Several binary packages from one custom install, as dh_auto_install does."""
+    recipe["build_system"] = "custom"
+    recipe["build"] = {"commands": ["meson setup build", "meson compile -C build"]}
+    recipe["install"] = {
+        "commands": ["DESTDIR={destdir} meson install -C build"],
+        "files": [{"source": "LICENSE", "destination": "usr/share/licenses/hello-tuna/LICENSE"}],
+    }
+    recipe["outputs"] = {"deb": {"packages": [
+        {"name": "libhello0", "files": ["usr/lib/*/libhello.so.*"]},
+        {"name": "libhello-dev", "depends": ["libhello0 (= ${binary:Version})"],
+         "files": ["usr/include/hello.h", "usr/lib/*/libhello.so"]},
+    ]}}
+    rendered = tideforge.render(recipe, "ubuntu")
+    # Absolute, as %{buildroot}/$pkgdir are: meson resolves a relative
+    # DESTDIR from its build directory.
+    assert rendered["debian/tideforge-install.sh"] == 'set -e\nDESTDIR="$PWD"/debian/tmp meson install -C build\n'
+    assert "LICENSE debian/tmp/usr/share/licenses/hello-tuna/LICENSE" in rendered["debian/rules"]
+    assert rendered["debian/libhello0.install"] == "usr/lib/*/libhello.so.*\n"
+    assert rendered["debian/libhello-dev.install"] == "usr/include/hello.h\nusr/lib/*/libhello.so\n"
+    # A single-package custom recipe still installs straight into its package.
+    del recipe["outputs"]
+    single = tideforge.render(recipe, "ubuntu")
+    assert "DESTDIR=debian/hello-tuna meson install" in single["debian/tideforge-install.sh"]
+    assert not any(name.endswith(".install") for name in single)
 
 
 def test_deb_render_emits_machine_readable_copyright(recipe: dict) -> None:

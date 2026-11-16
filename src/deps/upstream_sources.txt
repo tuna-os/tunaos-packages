@@ -1,2 +1,0 @@
-umockdev https://github.com/martinpitt/umockdev/releases/download/0.19.5/umockdev-0.19.5.tar.xz
-python-dbusmock https://files.pythonhosted.org/packages/source/p/python-dbusmock/python_dbusmock-0.38.0.tar.gz

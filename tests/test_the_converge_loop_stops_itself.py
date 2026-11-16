@@ -155,7 +155,7 @@ def test_the_loop_does_not_dispatch_itself() -> None:
 def test_a_wave_is_the_same_fanout_a_hand_dispatch_runs() -> None:
     """Two definitions of a wave would drift, and only one gets tested."""
     for wave in WAVES:
-        assert JOBS[wave]["uses"] == "./.github/workflows/build-chain-fanout.yml"
+        assert JOBS[wave]["uses"] == "$/.github/workflows/build-chain-fanout.yml"
 
 
 def test_the_fanout_is_callable_and_still_dispatchable() -> None:
@@ -171,10 +171,12 @@ def test_the_fanout_is_callable_and_still_dispatchable() -> None:
     )
 
 
-def test_the_waves_inherit_the_publishing_secrets() -> None:
+def test_the_waves_pass_the_publishing_secrets() -> None:
     """A wave that cannot sign or sync builds for nothing."""
+    declared = yaml.safe_load(FANOUT.read_text(encoding="utf-8"))[True]["workflow_call"]["secrets"]
     for wave in WAVES:
-        assert JOBS[wave].get("secrets") == "inherit", wave
+        assert JOBS[wave].get("secrets") == {
+            name: f"${{{{ secrets.{name} }}}}" for name in declared}, wave
 
 
 def test_the_loop_does_not_take_the_publish_concurrency_group() -> None:
@@ -193,4 +195,4 @@ def test_the_loop_does_not_take_the_publish_concurrency_group() -> None:
 
 
 def test_the_report_can_write_the_issue_it_promises() -> None:
-    assert WORKFLOW["permissions"].get("issues") == "write"
+    assert JOBS["report"]["permissions"].get("issues") == "write"

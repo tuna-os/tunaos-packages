@@ -1,6 +1,6 @@
 schema: 1
 tree: xfce-wayland
-targets: [el10, fedora, debian, arch]
+targets: [el10, fedora, debian, arch, eln]
 roots: [xfce4-wayland, xfwl4, gtkgreet]
 nodes:
   xfce4-wayland: {source: tuna-os/xfce-wayland, needs: [xfconf, xfce4-session, xfce4-panel, xfdesktop, xfwl4]}

@@ -116,7 +116,7 @@ def cache_fixture(tmp_path):
     recipe.write_text('name: demo\ndependencies: {}\n')
     scripts = tmp_path / 'scripts'
     scripts.mkdir()
-    for name in ['tideforge.py', 'assemble-deb-source-tree.py', 'build-chain.sh',
+    for name in ['tideforge.py', 'factory_contract.py', 'assemble-deb-source-tree.py', 'build-chain.sh',
                  'run-package-factory-cell.sh', 'fetch-tideforge-sources.py', 'import-fedora-distgit.py']:
         (scripts / name).write_text('# fake boundary\n')
     manifest = tmp_path / 'factory.yaml'

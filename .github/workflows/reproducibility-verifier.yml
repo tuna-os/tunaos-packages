@@ -44,10 +44,11 @@ jobs:
       matrix: ${{ steps.sample.outputs.matrix }}
       count: ${{ steps.sample.outputs.count }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install pyyaml==6.0.3
@@ -78,31 +79,40 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - name: Install planner dependency
         run: pip install pyyaml==6.0.3
       - name: Restore source downloads
-        uses: ./.github/actions/tideforge-source-cache
+        uses: $/.github/actions/tideforge-source-cache
         with:
           recipe: ${{ matrix.recipe }}
       - name: Pull the declared build image
-        run: scripts/pull-container-image.sh "${{ matrix.image }}" "${{ matrix.verify_image }}"
+        env:
+          MATRIX_IMAGE: ${{ matrix.image }}
+          MATRIX_VERIFY_IMAGE: ${{ matrix.verify_image }}
+        run: scripts/pull-container-image.sh "${MATRIX_IMAGE}" "${MATRIX_VERIFY_IMAGE}"
       - id: identity
         name: Derive action key and source epoch
+        env:
+          MATRIX_IMAGE: ${{ matrix.image }}
+          MATRIX_RECIPE: ${{ matrix.recipe }}
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
         run: |
           set -euo pipefail
-          image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          image=$(docker image inspect --format '{{json .RepoDigests}}' "${MATRIX_IMAGE}" | jq -r 'sort | .[0]')
           # Same derivation as package-factory-cell.yml, so the key matches
           # the ActionResult the nightly recorded for this cell.
-          epoch=$(git log -1 --format=%at -- "$(dirname '${{ matrix.recipe }}')")
+          epoch=$(git log -1 --format=%at -- "$(dirname "${MATRIX_RECIPE}")")
           payload=$(python3 scripts/tideforge-action-cache.py key \
-            --recipe '${{ matrix.recipe }}' --target '${{ matrix.target }}' \
-            --arch '${{ matrix.architecture }}' --image "$image" \
+            --recipe "${MATRIX_RECIPE}" --target "${MATRIX_TARGET}" \
+            --arch "${MATRIX_ARCHITECTURE}" --image "$image" \
             --source-date-epoch "$epoch")
           echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
           echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
@@ -143,23 +153,31 @@ jobs:
           mkdir -p "$OUT_DIR"
           bash scripts/run-package-factory-cell.sh
       - name: Compare artifact digests
+        env:
+          MATRIX_ID: ${{ matrix.id }}
+          STEPS_IDENTITY_OUTPUTS_KEY: ${{ steps.identity.outputs.key }}
+          MATRIX_PACKAGE: ${{ matrix.package }}
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
+          MATRIX_ENGINE: ${{ matrix.engine }}
+          MATRIX_FORMAT: ${{ matrix.format }}
         run: |
           set -euo pipefail
           python3 scripts/verify-reproducibility.py compare-dirs \
-            --dir-a ".verifier/${{ matrix.id }}/build-a/artifacts" \
-            --dir-b ".verifier/${{ matrix.id }}/build-b/artifacts" \
-            --action-key "${{ steps.identity.outputs.key }}" \
-            --cell-id "${{ matrix.id }}" \
-            --package "${{ matrix.package }}" \
-            --target "${{ matrix.target }}" \
-            --arch "${{ matrix.architecture }}" \
-            --engine "${{ matrix.engine }}" \
-            --format "${{ matrix.format }}" \
-            --output-json ".verifier/${{ matrix.id }}/verification.json"
-          cat ".verifier/${{ matrix.id }}/verification.json"
+            --dir-a ".verifier/${MATRIX_ID}/build-a/artifacts" \
+            --dir-b ".verifier/${MATRIX_ID}/build-b/artifacts" \
+            --action-key "${STEPS_IDENTITY_OUTPUTS_KEY}" \
+            --cell-id "${MATRIX_ID}" \
+            --package "${MATRIX_PACKAGE}" \
+            --target "${MATRIX_TARGET}" \
+            --arch "${MATRIX_ARCHITECTURE}" \
+            --engine "${MATRIX_ENGINE}" \
+            --format "${MATRIX_FORMAT}" \
+            --output-json ".verifier/${MATRIX_ID}/verification.json"
+          cat ".verifier/${MATRIX_ID}/verification.json"
       # always(): a divergent rebuild fails the compare step, and that verdict
       # is exactly the one the report must not lose.
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         if: always()
         with:
           name: verifier-${{ matrix.id }}
@@ -175,12 +193,12 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      - uses: actions/checkout@v7.0.1  # zizmor: ignore[artipacked] a later step runs git push with the persisted credentials
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install pyyaml==6.0.3
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@v8.0.2
         with:
           pattern: verifier-*
           path: .verifier/downloaded

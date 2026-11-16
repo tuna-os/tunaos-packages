@@ -102,7 +102,7 @@ consumer_adapters:
       - x86-64
       - armv8-a
   gurnard:
-    target: ubuntu-noble
+    target: noble
     manager: apt
     architectures:
       linux/amd64: amd64
@@ -112,6 +112,15 @@ consumer_adapters:
       - armv8-a
   grouper:
     target: ubuntu
+    manager: apt
+    architectures:
+      linux/amd64: amd64
+      linux/arm64: arm64
+    cpuBaselines:
+      - x86-64
+      - armv8-a
+  stingray:
+    target: ubuntu-rolling
     manager: apt
     architectures:
       linux/amd64: amd64
@@ -269,6 +278,33 @@ targets:
       arm64: https://repo.tunaos.org/tideforge/ubuntu/
     repository: apt
     probe_image: docker.io/library/ubuntu:26.04
+  ubuntu-rolling:
+    # Ubuntu's current interim release: stingray's base (tunaOS
+    # variants.stingray tracks docker.io/library/ubuntu:rolling), today 26.10
+    # "Stonking Stingray". Named for the track, not the release, as stingray
+    # itself is: the label, the served repo tideforge/ubuntu-rolling and
+    # tunaOS's tuna_rollout.stingray.package_target stay put across interim
+    # releases. Its own target, not a second `ubuntu` suite, for trixie's
+    # reason: the planner gives a target one image, and resolute's would
+    # build resolute bytes.
+    #
+    # The image is the release tag, not `rolling`, so the next interim
+    # release cannot silently rebuild these bytes while `suites` still names
+    # this one. Moving to it is one reviewed edit of `suites` and
+    # `probe_image` together, when stingray's base digest moves, plus a
+    # `release` bump of every recipe already published here: the flat repo
+    # keeps its pool, and a rebuilt deb must not reuse a served version.
+    status: supported
+    format: deb
+    suites: [stonking]
+    architectures: [amd64, arm64]
+    r2_path: apt/ubuntu/{suite}/{arch}
+    # Packages publish to tideforge/ubuntu-rolling (plan-deb-publish.py label
+    # ubuntu-rolling), which does not exist until the first publish, so both
+    # arches are pending until it resolves.
+    published_index_pending: [amd64, arm64]
+    repository: apt
+    probe_image: docker.io/library/ubuntu:26.10
   debian:
     status: supported
     format: deb
@@ -298,6 +334,30 @@ targets:
       arm64: https://repo.tunaos.org/tideforge/debian-trixie/
     repository: apt
     probe_image: docker.io/library/debian:trixie
+  noble:
+    # Ubuntu 24.04 LTS, gurnard's base (TunaOS on Noble with Pantheon from
+    # the elementary PPA). Its own target, not a second `ubuntu` suite, for
+    # trixie's reason: the planner gives a target one image, and resolute's
+    # would build resolute bytes. Packages publish to the flat repo
+    # tideforge/ubuntu-noble (plan-deb-publish.py label ubuntu-noble); like
+    # ubuntu's, one flat repo serves both arches. Declared once
+    # gtk4-layer-shell's first publish created it: tuna-desktop's noble build
+    # takes libgtk4-layer-shell-dev from here and nowhere else.
+    #
+    # Noble's own archive is the buildroot: its default rustc is 1.75, so a
+    # Rust recipe names the versioned rustc-1.97/cargo-1.97 (noble-updates
+    # and -security since 2026-11-06) through the rust capability below, and
+    # gtk4-layer-shell, which noble never shipped, is packages/gtk4-layer-shell.
+    status: supported
+    format: deb
+    suites: [noble]
+    architectures: [amd64, arm64]
+    r2_path: apt/ubuntu/{suite}/{arch}
+    published_index:
+      amd64: https://repo.tunaos.org/tideforge/ubuntu-noble/
+      arm64: https://repo.tunaos.org/tideforge/ubuntu-noble/
+    repository: apt
+    probe_image: docker.io/library/ubuntu:24.04
   fedora:
     status: supported
     format: rpm
@@ -470,9 +530,14 @@ targets:
       # by scripts/oci_repository.py. tunaOS's hummingbird:gnome consumes
       # this exact digest (its image-versions.yaml `utah-packages`); keep the
       # two pins moving together. Decided in #629; docs/HUMMINGBIRD-TARGET.md.
+      #
+      # The digest below is tunaOS main's pin of 2026-11-14. Since the
+      # 2026-09-02 pin it serves libcanberra, libvorbis, iw, rpm-ostree and
+      # TuneD 2.28, which close the Tuna transaction
+      # (docs/HUMMINGBIRD-TARGET.md section 12).
       consumed_indexes:
         - id: utah-packages
-          index: oci://ghcr.io/projectbluefin/utah-packages@sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c
+          index: oci://ghcr.io/projectbluefin/utah-packages@sha256:fc3c1f34d74d321eb5c3e5412cad92d8d384832d7b711c5a22f693f7932cde6b
           serves: [gnome]
     # Buildroot inputs only, never repositories on a produced image. Fedora
     # Rawhide supplies -devel headers and build backends Hummingbird has no
@@ -550,16 +615,22 @@ dependency_catalog:
   # consumes (tuna-desktop: rust, c-compiler, pkg-config); same names as eln.
   # trixie's `rustc` is 1.85; rustc-web/cargo-web 1.96 in trixie main are its
   # current toolchain (Provides: rustc, cargo). Mapped only for the
-  # capabilities a trixie recipe consumes (tuna-desktop).
+  # capabilities a trixie recipe consumes (tuna-desktop). ubuntu-rolling
+  # likewise: stonking's own rustc is 1.97, under ubuntu's names.
+  # noble's `rustc`/`cargo` are 1.75. rustc-1.97/cargo-1.97 (1.97.1, in
+  # noble-updates and noble-security) are Ubuntu's own versioned toolchain;
+  # they install /usr/bin/rustc-1.97 and /usr/bin/cargo-1.97 and keep the
+  # unversioned names in /usr/lib/rust-1.97/bin, which is what a noble recipe
+  # puts first on PATH. Mapped only for what tuna-desktop consumes.
   # gentoo, likewise only what tuna-desktop consumes: the rust capability is
   # cargo.eclass's own RUST_DEPEND (any dev-lang/rust or rust-bin slot at or
   # above the recipe's build.rust_version), which the ebuild renderer
   # inherits; the C compiler is @system's gcc.
-  rust: {el10: [rust, cargo], alma10: [rust, cargo], alma10-kitten: [rust, cargo], eln: [rust, cargo], fedora: [rust, cargo], rawhide: [rust, cargo], ubuntu: [rustc, cargo], debian: [rustc, cargo], trixie: [rustc-web, cargo-web], opensuse-tumbleweed: [rust, cargo], gentoo: ["${RUST_DEPEND}"], arch: [rust]}
+  rust: {el10: [rust, cargo], alma10: [rust, cargo], alma10-kitten: [rust, cargo], eln: [rust, cargo], fedora: [rust, cargo], rawhide: [rust, cargo], ubuntu: [rustc, cargo], ubuntu-rolling: [rustc, cargo], debian: [rustc, cargo], trixie: [rustc-web, cargo-web], noble: [rustc-1.97, cargo-1.97], opensuse-tumbleweed: [rust, cargo], gentoo: ["${RUST_DEPEND}"], arch: [rust]}
   go: {el10: [golang], alma10: [golang], alma10-kitten: [golang], eln: [golang], ubuntu: [golang-go], debian: [golang-go], opensuse-tumbleweed: [go], arch: [go]}
-  c-compiler: {el10: [gcc], alma10: [gcc], alma10-kitten: [gcc], eln: [gcc], fedora: [gcc], rawhide: [gcc], ubuntu: [build-essential], debian: [build-essential], trixie: [build-essential], opensuse-tumbleweed: [gcc], gentoo: [sys-devel/gcc], arch: [base-devel]}
+  c-compiler: {el10: [gcc], alma10: [gcc], alma10-kitten: [gcc], eln: [gcc], fedora: [gcc], rawhide: [gcc], ubuntu: [build-essential], ubuntu-rolling: [build-essential], debian: [build-essential], trixie: [build-essential], noble: [build-essential], opensuse-tumbleweed: [gcc], gentoo: [sys-devel/gcc], arch: [base-devel]}
   cpp-compiler: {el10: [gcc-c++], alma10: [gcc-c++], alma10-kitten: [gcc-c++], eln: [gcc-c++], ubuntu: [g++], debian: [g++], opensuse-tumbleweed: [gcc-c++], arch: [base-devel]}
-  pkg-config: {el10: [pkgconf-pkg-config], alma10: [pkgconf-pkg-config], alma10-kitten: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], fedora: [pkgconf-pkg-config], rawhide: [pkgconf-pkg-config], ubuntu: [pkg-config], debian: [pkg-config], trixie: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], gentoo: [virtual/pkgconfig], arch: [pkgconf]}
+  pkg-config: {el10: [pkgconf-pkg-config], alma10: [pkgconf-pkg-config], alma10-kitten: [pkgconf-pkg-config], eln: [pkgconf-pkg-config], fedora: [pkgconf-pkg-config], rawhide: [pkgconf-pkg-config], ubuntu: [pkg-config], ubuntu-rolling: [pkg-config], debian: [pkg-config], trixie: [pkg-config], noble: [pkg-config], opensuse-tumbleweed: [pkgconf-pkg-config], gentoo: [virtual/pkgconfig], arch: [pkgconf]}
   cmake: {el10: [cmake], alma10: [cmake], alma10-kitten: [cmake], eln: [cmake], ubuntu: [cmake], debian: [cmake], opensuse-tumbleweed: [cmake], arch: [cmake]}
   ninja: {el10: [ninja-build], alma10: [ninja-build], alma10-kitten: [ninja-build], eln: [ninja-build], ubuntu: [ninja-build], debian: [ninja-build], opensuse-tumbleweed: [ninja], arch: [ninja]}
   # Wayland-desktop build capabilities (#169). Nothing COSMIC links against

@@ -51,6 +51,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COVERAGERC = ROOT / ".coveragerc"
 LINT = ROOT / ".github" / "workflows" / "lint.yml"
 CODECOV = ROOT / "codecov.yml"
+REQUIREMENTS = ROOT / "requirements-ci.txt"
 
 
 @pytest.fixture(scope="module")
@@ -113,6 +114,19 @@ def test_the_interpreter_honours_coverage_process_start(tmp_path):
     )
 
 
+def test_the_ci_requirements_pin_the_coverage_plugin():
+    """The Python Tests job installs requirements-ci.txt, so the plugin lives there."""
+    pins = [
+        line.split("==")[0].strip().lower()
+        for line in REQUIREMENTS.read_text().splitlines()
+        if "==" in line
+    ]
+    assert "pytest-cov" in pins, (
+        "requirements-ci.txt does not pin pytest-cov, so `pytest --cov` in the "
+        "Python Tests job fails with 'unrecognized arguments'"
+    )
+
+
 def test_the_declared_target_is_a_number_something_could_enforce():
     """codecov.yml's target is the floor CI should use; keep it readable."""
     declared = yaml.safe_load(CODECOV.read_text())
@@ -134,7 +148,11 @@ def test_measuring_coverage_means_exporting_the_startup_hook(pytest_job):
 
 def test_measuring_coverage_means_installing_the_plugin(pytest_job):
     cov_run(pytest_job)
-    assert "pytest-cov" in step(pytest_job, "Install dependencies")["run"]
+    install = step(pytest_job, "Install dependencies")["run"]
+    if "-r requirements-ci.txt" in install:
+        assert "pytest-cov==" in REQUIREMENTS.read_text()
+    else:
+        assert "pytest-cov" in install
 
 
 def test_the_report_leaves_the_runner(pytest_job):

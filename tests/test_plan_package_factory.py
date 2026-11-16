@@ -53,11 +53,36 @@ def test_native_build_chain_change_does_not_select_tideforge_rpm(tmp_path):
     selected = planner.select_cells(planner.all_cells(root), ["scripts/build-chain.sh"])
     assert [cell["engine"] for cell in selected] == ["build-chain"]
 
+def test_planner_change_is_a_shared_input():
+    assert planner.affected_formats({"scripts/plan-package-factory.py"}) is None
+
+
+def test_shared_recipe_architecture_validation_selects_shared_build_inputs(tmp_path):
+    cells = planner.all_cells(repo(tmp_path))
+    assert planner.affected_formats({"scripts/factory_contract.py"}) is None
+    assert planner.select_cells(cells, ["scripts/factory_contract.py"]) == cells
+
 
 def test_native_source_change_selects_only_its_queue(tmp_path):
     root = repo(tmp_path)
     selected = planner.select_cells(planner.all_cells(root), ["src/gnome/mutter/mutter.spec"])
     assert [cell["id"] for cell in selected] == ["gnome"]
+
+def test_unlisted_native_source_cleanup_does_not_select_family(tmp_path):
+    root = repo(tmp_path)
+    (root / "order.yml").write_text(
+        "tiers:\n"
+        "- name: base\n"
+        "  packages:\n"
+        "  - path: src/gnome/real\n"
+    )
+    cells = planner.all_cells(root)
+    assert planner.select_cells(
+        cells, ["src/gnome/dead/dead.spec"], root=root
+    ) == []
+    assert [cell["id"] for cell in planner.select_cells(
+        cells, ["src/gnome/real/real.spec"], root=root
+    )] == ["gnome"]
 
 
 def test_unrelated_change_selects_nothing(tmp_path):
@@ -241,3 +266,26 @@ def test_published_index_reproves_wherever_a_buildroot_reads_it():
     new_arch = {"format": "pkg.tar.zst",
                 "published_index": {"x86_64": "https://repo.example/pacman/"}}
     assert planner._pipeline_view(old_arch) == planner._pipeline_view(new_arch)
+
+
+def test_recipe_architecture_admission_keeps_other_recipes_and_targets(tmp_path):
+    root = repo(tmp_path)
+    factory = root / "manifests/package-factory.yaml"
+    data = planner.load_yaml(factory)
+    data["targets"]["arch"] = {
+        "format": "pkg.tar.zst", "architectures": ["x86_64", "aarch64"],
+        "probe_image": "example/arch@sha256:abc",
+    }
+    factory.write_text(planner.yaml.safe_dump(data))
+    demo = root / "packages/demo/package.yaml"
+    demo.write_text("name: demo\ntargets: [arch]\n")
+    gdm = root / "packages/gdm/package.yaml"
+    gdm.parent.mkdir()
+    gdm.write_text(
+        "name: gdm\ntargets: [arch, debian]\narchitectures: {arch: [x86_64]}\n"
+    )
+    cells = planner.tideforge_cells(root)
+    assert [(cell["package"], cell["target"], cell["architecture"]) for cell in cells] == [
+        ("demo", "arch", "x86_64"), ("demo", "arch", "aarch64"),
+        ("gdm", "arch", "x86_64"), ("gdm", "debian", "amd64"),
+    ]

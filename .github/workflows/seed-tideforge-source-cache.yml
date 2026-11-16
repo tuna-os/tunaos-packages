@@ -33,7 +33,9 @@ jobs:
     outputs:
       packages: ${{ steps.list.outputs.packages }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - id: list
         run: |
           set -euo pipefail
@@ -54,19 +56,23 @@ jobs:
       matrix:
         package: ${{ fromJSON(needs.list-recipes.outputs.packages) }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - run: pip install pyyaml
       - name: Restore the content-addressed source cache
-        uses: ./.github/actions/tideforge-source-cache
+        uses: $/.github/actions/tideforge-source-cache
         with:
           recipe: packages/${{ matrix.package }}/package.yaml
       - name: Populate the store for this recipe
         run: |
           set -euo pipefail
           python3 scripts/fetch-tideforge-sources.py \
-            "packages/${{ matrix.package }}/package.yaml" \
+            "packages/${MATRIX_PACKAGE}/package.yaml" \
             "$RUNNER_TEMP/tideforge-seed-sources" \
             --cache-dir "$HOME/.cache/tideforge/sources"
+        env:
+          MATRIX_PACKAGE: ${{ matrix.package }}

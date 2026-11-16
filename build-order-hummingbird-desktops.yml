@@ -17,9 +17,9 @@
 # from the buildroot's inherited Rawhide fallback at priority 99
 # (the target's mock config), never from this build order.
 #
-# Measured 2026-10-18T05:10:03.664431+00:00
-# target primary.xml   sha256 3f7fb93690a4f64c9f3ca3e42e1e9099ac467457fed1fc6d4983883385d132a2
-# reference primary.xml sha256 8f06c68c8b03a33ada9f99370c483894fb8681957c61ec3f5cc63886ba615a0d
+# Measured 2026-10-31T16:59:22.287945+00:00
+# target primary.xml   sha256 b37178df5e7b5afac9a601e4755e5e89010392b02a84d75925464a6819df6e4d
+# reference primary.xml sha256 9f3db69ca12e31b76925480d6728f9a24f8a8c481dc02f1cc57bfa0291e3b692
 # consumed utah-packages  oci://ghcr.io/projectbluefin/utah-packages@sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c (primary sha256 38da5357b241, 421 binaries counted as had)
 #
 # `distgit:` means the packaging is imported from Fedora Rawhide
@@ -83,6 +83,8 @@ tiers:
         distgit: 7zip
       - path: src/hummingbird/DankMaterialShell
         distgit: DankMaterialShell
+      - path: src/hummingbird/LibRaw
+        distgit: LibRaw
       - path: src/hummingbird/PackageKit-Qt
         distgit: PackageKit-Qt
       - path: src/hummingbird/abseil-cpp
@@ -161,6 +163,7 @@ tiers:
         distgit: gnome-shell-extensions
       - path: src/hummingbird/gnome-user-docs
         distgit: gnome-user-docs
+      - path: src/gnome-51/gobject-introspection
       - path: src/hummingbird/google-noto-color-emoji-fonts
         distgit: google-noto-color-emoji-fonts
       - path: src/hummingbird/greetd
@@ -202,8 +205,6 @@ tiers:
         distgit: kf5
       - path: src/hummingbird/kf6
         distgit: kf6
-      - path: src/hummingbird/lcms2
-        distgit: lcms2
       - path: src/hummingbird/libICE
         distgit: libICE
       - path: src/hummingbird/libXdmcp
@@ -239,8 +240,6 @@ tiers:
       - path: src/hummingbird/libdvdread
         distgit: libdvdread
       - path: src/deps/libei
-      - path: src/hummingbird/liberation-fonts
-        distgit: liberation-fonts
       - path: src/hummingbird/libevdev
         distgit: libevdev
       - path: src/hummingbird/libexif
@@ -253,6 +252,8 @@ tiers:
         distgit: liblc3
       - path: src/hummingbird/liblouis
         distgit: liblouis
+      - path: src/hummingbird/libmng
+        distgit: libmng
       - path: src/hummingbird/libmodplug
         distgit: libmodplug
       - path: src/hummingbird/libmpdclient
@@ -350,6 +351,8 @@ tiers:
         distgit: protobuf3
       - path: src/hummingbird/pugixml
         distgit: pugixml
+      - path: src/hummingbird/pycairo
+        distgit: pycairo
       - path: src/hummingbird/python-aiohappyeyeballs
         distgit: python-aiohappyeyeballs
       - path: src/hummingbird/python-annotated-types
@@ -488,10 +491,10 @@ tiers:
 
   - name: layer-01
     packages:
-      - path: src/hummingbird/LibRaw
-        distgit: LibRaw
       - path: src/hummingbird/anaconda-webui
         distgit: anaconda-webui
+      - path: src/hummingbird/at-spi2-core
+        distgit: at-spi2-core
       - path: src/hummingbird/cosmic-files
         distgit: cosmic-files
       - path: src/hummingbird/cosmic-osk
@@ -513,11 +516,18 @@ tiers:
         distgit: fcft
       - path: src/hummingbird/flac
         distgit: flac
+      - path: src/deps/gnome-autoar
       - path: src/hummingbird/gnome-browser-connector
         distgit: gnome-browser-connector
+      - path: src/hummingbird/gnome-menus
+        distgit: gnome-menus
       - path: src/deps/gnome-user-share
+      - path: src/hummingbird/graphene
+        distgit: graphene
       - path: src/hummingbird/grub2
         distgit: grub2
+      - path: src/hummingbird/gstreamer1
+        distgit: gstreamer1
       - path: src/hummingbird/hunspell-en
         distgit: hunspell-en
       - path: src/hummingbird/hwinfo
@@ -526,6 +536,8 @@ tiers:
         distgit: iceauth
       - path: src/hummingbird/ilbc
         distgit: ilbc
+      - path: src/hummingbird/json-glib
+        distgit: json-glib
       - path: src/hummingbird/kde-settings
         distgit: kde-settings
       - path: src/hummingbird/kf6-attica
@@ -544,30 +556,45 @@ tiers:
         distgit: libXdamage
       - path: src/hummingbird/libXpresent
         distgit: libXpresent
+      - path: src/hummingbird/libaccounts-glib
+        distgit: libaccounts-glib
       - path: src/hummingbird/libass
         distgit: libass
       - path: src/hummingbird/libbluray
         distgit: libbluray
       - path: src/hummingbird/libcdio-paranoia
         distgit: libcdio-paranoia
+      - path: src/hummingbird/libcloudproviders
+        distgit: libcloudproviders
       - path: src/hummingbird/libdisplay-info
         distgit: libdisplay-info
       - path: src/hummingbird/libdrm
         distgit: libdrm
       - path: src/hummingbird/libdvdnav
         distgit: libdvdnav
+      - path: src/hummingbird/libgee
+        distgit: libgee
       - path: src/hummingbird/libgphoto2
         distgit: libgphoto2
+      - path: src/hummingbird/libgtop2
+        distgit: libgtop2
+      - path: src/hummingbird/libgudev
+        distgit: libgudev
+      - path: src/deps/libical
       - path: src/hummingbird/libimobiledevice-glue
         distgit: libimobiledevice-glue
+      - path: src/hummingbird/libmbim
+        distgit: libmbim
       - path: src/hummingbird/libmediainfo
         distgit: libmediainfo
-      - path: src/hummingbird/libmng
-        distgit: libmng
       - path: src/hummingbird/libphonenumber
         distgit: libphonenumber
+      - path: src/hummingbird/libproxy
+        distgit: libproxy
       - path: src/hummingbird/librist
         distgit: librist
+      - path: src/hummingbird/libsecret
+        distgit: libsecret
       - path: src/hummingbird/libsigc++20
         distgit: libsigc++20
       - path: src/hummingbird/libsigc++30
@@ -578,6 +605,11 @@ tiers:
         distgit: libtdb
       - path: src/hummingbird/libvorbis
         distgit: libvorbis
+      - path: src/xfce-wayland/libxfce4util
+      - path: src/hummingbird/libxklavier
+        distgit: libxklavier
+      - path: src/hummingbird/libxmlb
+        distgit: libxmlb
       - path: src/hummingbird/net-snmp
         distgit: net-snmp
       - path: src/hummingbird/ocean-sound-theme
@@ -586,12 +618,12 @@ tiers:
         distgit: oo7
       - path: src/hummingbird/openexr
         distgit: openexr
-      - path: src/hummingbird/openjpeg
-        distgit: openjpeg
       - path: src/hummingbird/openvpn
         distgit: openvpn
       - path: src/hummingbird/pandoc-cli
         distgit: pandoc-cli
+      - path: src/hummingbird/playerctl
+        distgit: playerctl
       - path: src/hummingbird/python-aiosignal
         distgit: python-aiosignal
       - path: src/hummingbird/python-argcomplete
@@ -610,6 +642,8 @@ tiers:
         distgit: pyxdg
       - path: src/hummingbird/qaccessibilityclient
         distgit: qaccessibilityclient
+      - path: src/hummingbird/qt6-qtimageformats
+        distgit: qt6-qtimageformats
       - path: src/hummingbird/qt6-qtshadertools
         distgit: qt6-qtshadertools
       - path: src/hummingbird/redhat-menus
@@ -623,12 +657,16 @@ tiers:
         distgit: sord
       - path: src/hummingbird/speex
         distgit: speex
+      - path: src/hummingbird/totem-pl-parser
+        distgit: totem-pl-parser
       - path: src/hummingbird/tuned
         distgit: tuned
       - path: src/hummingbird/vid.stab
         distgit: vid.stab
       - path: src/hummingbird/wayland
         distgit: wayland
+      - path: src/hummingbird/wireplumber
+        distgit: wireplumber
       - path: src/hummingbird/xcb-util-image
         distgit: xcb-util-image
       - path: src/hummingbird/xcb-util-keysyms
@@ -648,6 +686,12 @@ tiers:
 
   - name: layer-02
     packages:
+      - path: src/hummingbird/bluez
+        distgit: bluez
+      - path: src/hummingbird/cairomm
+        distgit: cairomm
+      - path: src/hummingbird/cairomm1.16
+        distgit: cairomm1.16
       - path: src/hummingbird/cosmic-app-library
         distgit: cosmic-app-library
       - path: src/hummingbird/cosmic-bg
@@ -662,10 +706,18 @@ tiers:
         distgit: cosmic-panel
       - path: src/hummingbird/cosmic-randr
         distgit: cosmic-randr
+      - path: src/hummingbird/gcr
+        distgit: gcr
+      - path: src/hummingbird/glib-networking
+        distgit: glib-networking
       - path: src/hummingbird/glibmm2.4
         distgit: glibmm2.4
       - path: src/hummingbird/glibmm2.68
         distgit: glibmm2.68
+      - path: src/hummingbird/gtk4-layer-shell
+        distgit: gtk4-layer-shell
+      - path: src/hummingbird/iio-sensor-proxy
+        distgit: iio-sensor-proxy
       - path: src/hummingbird/intel-media-driver-free
         distgit: intel-media-driver-free
       - path: src/hummingbird/jpegxl
@@ -678,8 +730,17 @@ tiers:
         distgit: khal
       - path: src/hummingbird/libXt
         distgit: libXt
+      - path: src/hummingbird/libaccounts-qt
+        distgit: libaccounts-qt
+      - path: src/deps/libgexiv2
+      - path: src/hummingbird/libgusb
+        distgit: libgusb
       - path: src/hummingbird/libliftoff
         distgit: libliftoff
+      - path: src/hummingbird/libmanette
+        distgit: libmanette
+      - path: src/hummingbird/libqrtr-glib
+        distgit: libqrtr-glib
       - path: src/hummingbird/libtevent
         distgit: libtevent
       - path: src/hummingbird/libtheora
@@ -688,6 +749,8 @@ tiers:
         distgit: libusbmuxd
       - path: src/hummingbird/libvpl
         distgit: libvpl
+      - path: src/hummingbird/libwacom
+        distgit: libwacom
       - path: src/hummingbird/ntfs-3g
         distgit: ntfs-3g
       - path: src/hummingbird/python-aiohttp
@@ -696,27 +759,38 @@ tiers:
         distgit: python-pydantic
       - path: src/hummingbird/qt6-qtdeclarative
         distgit: qt6-qtdeclarative
+      - path: src/hummingbird/rpm-ostree
+        distgit: rpm-ostree
+      - path: src/hummingbird/signon
+        distgit: signon
       - path: src/hummingbird/sratom
         distgit: sratom
+      - path: src/hummingbird/sso-mib
+        distgit: sso-mib
       - path: src/hummingbird/swayidle
         distgit: swayidle
       - path: src/deps/tecla
       - path: src/hummingbird/tesseract
         distgit: tesseract
+      - path: src/hummingbird/udisks2
+        distgit: udisks2
       - path: src/hummingbird/vulkan-loader
         distgit: vulkan-loader
       - path: src/hummingbird/xcb-util-cursor
         distgit: xcb-util-cursor
+      - path: src/xfce-wayland/xfconf
 
   - name: layer-03
     packages:
-      - path: src/deps/cairo
-        bootstrap: true
+      - path: src/hummingbird/atkmm
+        distgit: atkmm
+      - path: src/hummingbird/cockpit
+        distgit: cockpit
+      - path: src/hummingbird/colord
+        distgit: colord
       - path: src/deps/gdk-pixbuf2
         bootstrap: true
       - path: src/deps/glycin
-        bootstrap: true
-      - path: src/gnome-51/gobject-introspection
         bootstrap: true
       - path: src/hummingbird/kf6-bluez-qt
         distgit: kf6-bluez-qt
@@ -741,11 +815,18 @@ tiers:
       - path: src/hummingbird/libepoxy
         distgit: libepoxy
         bootstrap: true
+      - path: src/deps/libfprint
       - path: src/hummingbird/libglvnd
         distgit: libglvnd
         bootstrap: true
       - path: src/hummingbird/libimobiledevice
         distgit: libimobiledevice
+      - path: src/hummingbird/libinput
+        distgit: libinput
+      - path: src/hummingbird/libpcap
+        distgit: libpcap
+      - path: src/hummingbird/libqmi
+        distgit: libqmi
       - path: src/hummingbird/librsvg2
         distgit: librsvg2
         bootstrap: true
@@ -754,6 +835,10 @@ tiers:
       - path: src/hummingbird/mesa
         distgit: mesa
         bootstrap: true
+      - path: src/hummingbird/pangomm
+        distgit: pangomm
+      - path: src/hummingbird/pangomm2.48
+        distgit: pangomm2.48
       - path: src/hummingbird/python-aiohttp-oauthlib
         distgit: python-aiohttp-oauthlib
       - path: src/hummingbird/qt6-qt5compat
@@ -770,6 +855,8 @@ tiers:
         distgit: qt6-qtwebsockets
       - path: src/hummingbird/samba
         distgit: samba
+      - path: src/hummingbird/signon-plugin-oauth2
+        distgit: signon-plugin-oauth2
       - path: src/hummingbird/startup-notification
         distgit: startup-notification
       - path: src/hummingbird/xorg-x11-server
@@ -780,25 +867,24 @@ tiers:
 
   - name: layer-04
     packages:
-      - path: src/hummingbird/at-spi2-core
-        distgit: at-spi2-core
-      - path: src/hummingbird/cairomm
-        distgit: cairomm
-      - path: src/hummingbird/cairomm1.16
-        distgit: cairomm1.16
-      - path: src/deps/gnome-autoar
-      - path: src/hummingbird/gnome-menus
-        distgit: gnome-menus
-      - path: src/hummingbird/graphene
-        distgit: graphene
-      - path: src/hummingbird/gstreamer1
-        distgit: gstreamer1
-      - path: src/hummingbird/gtk4-layer-shell
-        distgit: gtk4-layer-shell
-      - path: src/hummingbird/jasper
-        distgit: jasper
-      - path: src/hummingbird/json-glib
-        distgit: json-glib
+      - path: src/hummingbird/ModemManager
+        distgit: ModemManager
+      - path: src/hummingbird/accounts-qml-module
+        distgit: accounts-qml-module
+      - path: src/hummingbird/appstream
+        distgit: appstream
+      - path: src/hummingbird/cosmic-comp
+      - path: src/hummingbird/cosmic-greeter
+      - path: src/hummingbird/cosmic-settings
+      - path: src/hummingbird/cosmic-workspaces
+        distgit: cosmic-workspaces
+      - path: src/deps/fprintd
+      - path: src/hummingbird/gtk2
+        distgit: gtk2
+      - path: src/hummingbird/gtk3
+        distgit: gtk3
+      - path: src/hummingbird/gtkmm4.0
+        distgit: gtkmm4.0
       - path: src/hummingbird/kdegraphics-mobipocket
         distgit: kdegraphics-mobipocket
       - path: src/hummingbird/kdsoap
@@ -833,55 +919,35 @@ tiers:
         distgit: kf6-solid
       - path: src/hummingbird/libXaw
         distgit: libXaw
-      - path: src/hummingbird/libaccounts-glib
-        distgit: libaccounts-glib
-      - path: src/hummingbird/libcloudproviders
-        distgit: libcloudproviders
-      - path: src/hummingbird/libgee
-        distgit: libgee
-      - path: src/deps/libgexiv2
       - path: src/hummingbird/libgsf
         distgit: libgsf
-      - path: src/hummingbird/libgtop2
-        distgit: libgtop2
-      - path: src/hummingbird/libgudev
-        distgit: libgudev
-      - path: src/deps/libical
       - path: src/hummingbird/libkexiv2
         distgit: libkexiv2
-      - path: src/hummingbird/libmbim
-        distgit: libmbim
       - path: src/hummingbird/libnotify
         distgit: libnotify
       - path: src/hummingbird/libplacebo
         distgit: libplacebo
-      - path: src/hummingbird/libproxy
-        distgit: libproxy
-      - path: src/hummingbird/libsecret
-        distgit: libsecret
-      - path: src/xfce-wayland/libxfce4util
-      - path: src/hummingbird/libxklavier
-        distgit: libxklavier
-      - path: src/hummingbird/libxmlb
-        distgit: libxmlb
+      - path: src/hummingbird/libsoup3
+        distgit: libsoup3
       - path: src/hummingbird/nanosvg
         distgit: nanosvg
+      - path: src/hummingbird/niri
       - path: src/hummingbird/openxr
         distgit: openxr
-      - path: src/hummingbird/playerctl
-        distgit: playerctl
       - path: src/hummingbird/poly2tri
         distgit: poly2tri
       - path: src/hummingbird/pop-launcher
         distgit: pop-launcher
-      - path: src/hummingbird/pycairo
-        distgit: pycairo
       - path: src/hummingbird/qcoro
         distgit: qcoro
       - path: src/hummingbird/qt6-qtlocation
         distgit: qt6-qtlocation
+      - path: src/hummingbird/qt6-qtwayland
+        distgit: qt6-qtwayland
       - path: src/hummingbird/qt6-qtwebchannel
         distgit: qt6-qtwebchannel
+      - path: src/hummingbird/qtkeychain
+        distgit: qtkeychain
       - path: src/hummingbird/quickshell
         distgit: quickshell
       - path: src/hummingbird/sddm
@@ -889,18 +955,19 @@ tiers:
         distgit: swaybg
       - path: src/hummingbird/swaylock
         distgit: swaylock
-      - path: src/hummingbird/totem-pl-parser
-        distgit: totem-pl-parser
+      - path: src/hummingbird/upower
+        distgit: upower
       - path: src/hummingbird/usbmuxd
         distgit: usbmuxd
       - path: src/hummingbird/v4l-utils
         distgit: v4l-utils
       - path: src/hummingbird/vdirsyncer
         distgit: vdirsyncer
-      - path: src/hummingbird/wireplumber
-        distgit: wireplumber
+      - path: src/hummingbird/xdg-desktop-portal-cosmic
       - path: src/hummingbird/xhost
         distgit: xhost
+      - path: src/hummingbird/xorg-x11-drv-libinput
+        distgit: xorg-x11-drv-libinput
       - path: src/hummingbird/xorg-x11-xauth
         distgit: xorg-x11-xauth
       - path: src/hummingbird/xrdb
@@ -910,24 +977,40 @@ tiers:
 
   - name: layer-05
     packages:
-      - path: src/hummingbird/appstream
-        distgit: appstream
       - path: src/hummingbird/assimp
         distgit: assimp
-      - path: src/hummingbird/atkmm
-        distgit: atkmm
-      - path: src/hummingbird/bluez
-        distgit: bluez
+      - path: src/hummingbird/blueman
+        distgit: blueman
+      - path: src/deps/colord-gtk
+      - path: src/deps/flatpak
       - path: src/hummingbird/fuzzel
         distgit: fuzzel
-      - path: src/hummingbird/gcr
-        distgit: gcr
-      - path: src/hummingbird/glib-networking
-        distgit: glib-networking
-      - path: src/hummingbird/gtk2
-        distgit: gtk2
-      - path: src/hummingbird/iio-sensor-proxy
-        distgit: iio-sensor-proxy
+      - path: src/hummingbird/gcr3
+        distgit: gcr3
+      - path: src/hummingbird/geoclue2
+        distgit: geoclue2
+      - path: src/hummingbird/geocode-glib
+        distgit: geocode-glib
+      - path: src/gnome-51/gjs
+      - path: src/hummingbird/gnome-color-manager
+        distgit: gnome-color-manager
+      - path: src/hummingbird/gnome-icon-theme
+        distgit: gnome-icon-theme
+      - path: src/hummingbird/gnome-system-monitor
+        distgit: gnome-system-monitor
+      - path: src/hummingbird/gpsd
+        distgit: gpsd
+      - path: src/hummingbird/gspell
+        distgit: gspell
+      - path: src/hummingbird/gssdp
+        distgit: gssdp
+      - path: src/hummingbird/gstreamer1-plugins-base
+        distgit: gstreamer1-plugins-base
+      - path: src/xfce-wayland/gtk-layer-shell
+      - path: src/hummingbird/gtkmm3.0
+        distgit: gtkmm3.0
+      - path: src/hummingbird/gtksourceview4
+        distgit: gtksourceview4
       - path: src/hummingbird/kdecoration
         distgit: kdecoration
       - path: src/hummingbird/kdsoap-ws-discovery-client
@@ -948,171 +1031,17 @@ tiers:
         distgit: kf6-kstatusnotifieritem
       - path: src/hummingbird/kf6-ksvg
         distgit: kf6-ksvg
-      - path: src/hummingbird/knighttime
-        distgit: knighttime
-      - path: src/hummingbird/libaccounts-qt
-        distgit: libaccounts-qt
-      - path: src/hummingbird/libgusb
-        distgit: libgusb
-      - path: src/hummingbird/libmanette
-        distgit: libmanette
-      - path: src/hummingbird/libqrtr-glib
-        distgit: libqrtr-glib
-      - path: src/hummingbird/libwacom
-        distgit: libwacom
-      - path: src/hummingbird/pangomm
-        distgit: pangomm
-      - path: src/hummingbird/pangomm2.48
-        distgit: pangomm2.48
-      - path: src/hummingbird/plasma-activities
-        distgit: plasma-activities
-      - path: src/hummingbird/qt6-qtimageformats
-        distgit: qt6-qtimageformats
-      - path: src/hummingbird/qtkeychain
-        distgit: qtkeychain
-      - path: src/hummingbird/sane-backends
-        distgit: sane-backends
-      - path: src/hummingbird/signon
-        distgit: signon
-      - path: src/hummingbird/sso-mib
-        distgit: sso-mib
-      - path: src/hummingbird/udisks2
-        distgit: udisks2
-      - path: src/hummingbird/upower
-        distgit: upower
-      - path: src/hummingbird/xdg-desktop-portal-cosmic
-      - path: src/xfce-wayland/xfconf
-      - path: src/hummingbird/xmessage
-        distgit: xmessage
-
-  - name: layer-06
-    packages:
-      - path: src/hummingbird/accounts-qml-module
-        distgit: accounts-qml-module
-      - path: src/hummingbird/cockpit
-        distgit: cockpit
-      - path: src/hummingbird/colord
-        distgit: colord
-      - path: src/deps/flatpak
-      - path: src/hummingbird/gnome-icon-theme
-        distgit: gnome-icon-theme
-      - path: src/hummingbird/gtkmm4.0
-        distgit: gtkmm4.0
-      - path: src/hummingbird/hplip
-        distgit: hplip
-      - path: src/hummingbird/kf6-kglobalaccel
-        distgit: kf6-kglobalaccel
-      - path: src/hummingbird/kf6-kiconthemes
-        distgit: kf6-kiconthemes
-      - path: src/hummingbird/kf6-kservice
-        distgit: kf6-kservice
       - path: src/hummingbird/kf6-sonnet
         distgit: kf6-sonnet
+      - path: src/hummingbird/knighttime
+        distgit: knighttime
       - path: src/hummingbird/kwayland
         distgit: kwayland
-      - path: src/deps/libfprint
-      - path: src/hummingbird/libinput
-        distgit: libinput
-      - path: src/hummingbird/libpcap
-        distgit: libpcap
-      - path: src/hummingbird/libqmi
-        distgit: libqmi
-      - path: src/hummingbird/libsoup3
-        distgit: libsoup3
-      - path: src/hummingbird/pinentry
-        distgit: pinentry
-      - path: src/hummingbird/plasma-activities-stats
-        distgit: plasma-activities-stats
-      - path: src/hummingbird/qt6-qtquick3d
-        distgit: qt6-qtquick3d
-      - path: src/hummingbird/sane-airscan
-        distgit: sane-airscan
-      - path: src/hummingbird/signon-plugin-oauth2
-        distgit: signon-plugin-oauth2
-
-  - name: layer-07
-    packages:
-      - path: src/hummingbird/ModemManager
-        distgit: ModemManager
-      - path: src/hummingbird/cosmic-comp
-      - path: src/hummingbird/cosmic-greeter
-      - path: src/hummingbird/cosmic-initial-setup
-        distgit: cosmic-initial-setup
-      - path: src/hummingbird/cosmic-settings
-      - path: src/hummingbird/cosmic-workspaces
-        distgit: cosmic-workspaces
-      - path: src/deps/fprintd
-      - path: src/hummingbird/geocode-glib
-        distgit: geocode-glib
-      - path: src/hummingbird/gnome-system-monitor
-        distgit: gnome-system-monitor
-      - path: src/hummingbird/gssdp
-        distgit: gssdp
-      - path: src/hummingbird/gtk3
-        distgit: gtk3
-      - path: src/hummingbird/kf6-kded
-        distgit: kf6-kded
-      - path: src/hummingbird/kf6-kdesu
-        distgit: kf6-kdesu
-      - path: src/hummingbird/kf6-kirigami-addons
-        distgit: kf6-kirigami-addons
-      - path: src/hummingbird/kf6-kxmlgui
-        distgit: kf6-kxmlgui
-      - path: src/hummingbird/kf6-qqc2-desktop-style
-        distgit: kf6-qqc2-desktop-style
-      - path: src/hummingbird/niri
-      - path: src/hummingbird/osinfo-db-tools
-        distgit: osinfo-db-tools
-      - path: src/hummingbird/passim
-        distgit: passim
-      - path: src/hummingbird/qqc2-breeze-style
-        distgit: qqc2-breeze-style
-      - path: src/hummingbird/qt6-qtwayland
-        distgit: qt6-qtwayland
-      - path: src/hummingbird/qt6ct
-        distgit: qt6ct
-      - path: src/hummingbird/rest
-        distgit: rest
-      - path: src/hummingbird/xorg-x11-drv-libinput
-        distgit: xorg-x11-drv-libinput
-
-  - name: layer-08
-    packages:
-      - path: src/hummingbird/blueman
-        distgit: blueman
-      - path: src/deps/colord-gtk
-      - path: src/hummingbird/fwupd
-        distgit: fwupd
-      - path: src/hummingbird/gcr3
-        distgit: gcr3
-      - path: src/hummingbird/geoclue2
-        distgit: geoclue2
-      - path: src/gnome-51/gjs
-      - path: src/hummingbird/gnome-color-manager
-        distgit: gnome-color-manager
-      - path: src/gnome-51/gnome-online-accounts
-      - path: src/hummingbird/gpsd
-        distgit: gpsd
-      - path: src/hummingbird/gspell
-        distgit: gspell
-      - path: src/hummingbird/gstreamer1-plugins-base
-        distgit: gstreamer1-plugins-base
-      - path: src/xfce-wayland/gtk-layer-shell
-      - path: src/hummingbird/gtkmm3.0
-        distgit: gtkmm3.0
-      - path: src/hummingbird/gtksourceview4
-        distgit: gtksourceview4
-      - path: src/hummingbird/gupnp
-        distgit: gupnp
-      - path: src/hummingbird/kf6-kbookmarks
-        distgit: kf6-kbookmarks
       - path: src/hummingbird/libayatana-ido
         distgit: libayatana-ido
       - path: src/hummingbird/libdbusmenu
         distgit: libdbusmenu
       - path: src/deps/libdecor
-      - path: src/hummingbird/libgweather
-        distgit: libgweather
       - path: src/hummingbird/libgxps
         distgit: libgxps
       - path: src/hummingbird/libhandy
@@ -1126,12 +1055,22 @@ tiers:
       - path: src/hummingbird/libwnck3
         distgit: libwnck3
       - path: src/xfce-wayland/libxfce4ui
-      - path: src/hummingbird/osinfo-db
-        distgit: osinfo-db
+      - path: src/hummingbird/osinfo-db-tools
+        distgit: osinfo-db-tools
+      - path: src/hummingbird/passim
+        distgit: passim
+      - path: src/hummingbird/pinentry
+        distgit: pinentry
+      - path: src/hummingbird/plasma-activities
+        distgit: plasma-activities
       - path: src/hummingbird/plymouth
         distgit: plymouth
       - path: src/hummingbird/pyatspi
         distgit: pyatspi
+      - path: src/hummingbird/rest
+        distgit: rest
+      - path: src/hummingbird/sane-backends
+        distgit: sane-backends
       - path: src/hummingbird/stoken
         distgit: stoken
       - path: src/hummingbird/unity-gtk-module
@@ -1141,29 +1080,44 @@ tiers:
         distgit: xdg-desktop-portal-gtk
       - path: src/hummingbird/xdg-user-dirs-gtk
         distgit: xdg-user-dirs-gtk
+      - path: src/hummingbird/xmessage
+        distgit: xmessage
 
-  - name: layer-09
+  - name: layer-06
     packages:
       - path: src/hummingbird/NetworkManager-openvpn
         distgit: NetworkManager-openvpn
       - path: src/hummingbird/NetworkManager-ssh
         distgit: NetworkManager-ssh
+      - path: src/hummingbird/cosmic-initial-setup
+        distgit: cosmic-initial-setup
       - path: src/xfce-wayland/exo
+      - path: src/hummingbird/fwupd
+        distgit: fwupd
       - path: src/xfce-wayland/garcon
       - path: src/hummingbird/gnome-keyring
         distgit: gnome-keyring
+      - path: src/gnome-51/gnome-online-accounts
       - path: src/xfce-wayland/gtkgreet
-      - path: src/hummingbird/gupnp-igd
-        distgit: gupnp-igd
+      - path: src/hummingbird/gupnp
+        distgit: gupnp
+      - path: src/hummingbird/hplip
+        distgit: hplip
       - path: src/hummingbird/ibus
         distgit: ibus
+      - path: src/hummingbird/kf6-kglobalaccel
+        distgit: kf6-kglobalaccel
+      - path: src/hummingbird/kf6-kiconthemes
+        distgit: kf6-kiconthemes
+      - path: src/hummingbird/kf6-kservice
+        distgit: kf6-kservice
       - path: src/hummingbird/lame
         distgit: lame
         bootstrap: true
       - path: src/hummingbird/libayatana-indicator
         distgit: libayatana-indicator
-      - path: src/hummingbird/libosinfo
-        distgit: libosinfo
+      - path: src/hummingbird/libgweather
+        distgit: libgweather
       - path: src/hummingbird/libsndfile
         distgit: libsndfile
         bootstrap: true
@@ -1172,16 +1126,22 @@ tiers:
       - path: src/hummingbird/mpg123
         distgit: mpg123
         bootstrap: true
-      - path: src/hummingbird/msgraph
-        distgit: msgraph
       - path: src/hummingbird/network-manager-applet
         distgit: network-manager-applet
       - path: src/hummingbird/openconnect
         distgit: openconnect
+      - path: src/hummingbird/osinfo-db
+        distgit: osinfo-db
+      - path: src/hummingbird/plasma-activities-stats
+        distgit: plasma-activities-stats
       - path: src/gnome-51/ptyxis
       - path: src/hummingbird/pulseaudio
         distgit: pulseaudio
         bootstrap: true
+      - path: src/hummingbird/qt6-qtquick3d
+        distgit: qt6-qtquick3d
+      - path: src/hummingbird/sane-airscan
+        distgit: sane-airscan
       - path: src/xfce-wayland/tumbler
       - path: src/hummingbird/xfce-polkit
         distgit: xfce-polkit
@@ -1191,7 +1151,7 @@ tiers:
       - path: src/hummingbird/xorg-x11-server-Xwayland
         distgit: xorg-x11-server-Xwayland
 
-  - name: layer-10
+  - name: layer-07
     packages:
       - path: src/hummingbird/SDL3
         distgit: SDL3
@@ -1208,21 +1168,40 @@ tiers:
         distgit: firefox
       - path: src/hummingbird/flite
         distgit: flite
+      - path: src/hummingbird/gupnp-igd
+        distgit: gupnp-igd
+      - path: src/hummingbird/kf6-kded
+        distgit: kf6-kded
+      - path: src/hummingbird/kf6-kdesu
+        distgit: kf6-kdesu
+      - path: src/hummingbird/kf6-kirigami-addons
+        distgit: kf6-kirigami-addons
+      - path: src/hummingbird/kf6-kxmlgui
+        distgit: kf6-kxmlgui
+      - path: src/hummingbird/kf6-qqc2-desktop-style
+        distgit: kf6-qqc2-desktop-style
       - path: src/hummingbird/libao
         distgit: libao
       - path: src/hummingbird/libbs2b
         distgit: libbs2b
-      - path: src/deps/libcanberra
-      - path: src/hummingbird/libnice
-        distgit: libnice
+      - path: src/hummingbird/libcanberra
+        distgit: libcanberra
       - path: src/hummingbird/libopenmpt
         distgit: libopenmpt
+      - path: src/hummingbird/libosinfo
+        distgit: libosinfo
       - path: src/hummingbird/libsamplerate
         distgit: libsamplerate
       - path: src/hummingbird/lilv
         distgit: lilv
+      - path: src/hummingbird/msgraph
+        distgit: msgraph
       - path: src/hummingbird/pcaudiolib
         distgit: pcaudiolib
+      - path: src/hummingbird/qqc2-breeze-style
+        distgit: qqc2-breeze-style
+      - path: src/hummingbird/qt6ct
+        distgit: qt6ct
       - path: src/xfce-wayland/ristretto
       - path: src/hummingbird/twolame
         distgit: twolame
@@ -1233,7 +1212,7 @@ tiers:
       - path: src/xfce-wayland/xfce4-panel
       - path: src/xfce-wayland/xfce4-session
 
-  - name: layer-11
+  - name: layer-08
     packages:
       - path: src/hummingbird/Thunar
         distgit: Thunar
@@ -1250,8 +1229,12 @@ tiers:
       - path: src/deps/gsound
       - path: src/hummingbird/gstreamer1-plugins-good
         distgit: gstreamer1-plugins-good
+      - path: src/hummingbird/kf6-kbookmarks
+        distgit: kf6-kbookmarks
       - path: src/hummingbird/kf6-knotifications
         distgit: kf6-knotifications
+      - path: src/hummingbird/libnice
+        distgit: libnice
       - path: src/hummingbird/pavucontrol
         distgit: pavucontrol
       - path: src/hummingbird/rubberband
@@ -1261,7 +1244,7 @@ tiers:
       - path: src/xfce-wayland/xfce4-settings
       - path: src/xfce-wayland/xfce4-whiskermenu-plugin
 
-  - name: layer-12
+  - name: layer-09
     packages:
       - path: src/hummingbird/game-music-emu
         distgit: game-music-emu
@@ -1277,7 +1260,7 @@ tiers:
         distgit: speech-dispatcher
       - path: src/xfce-wayland/xfdesktop
 
-  - name: layer-13
+  - name: layer-10
     packages:
       - path: src/hummingbird/brltty
         distgit: brltty
@@ -1292,7 +1275,7 @@ tiers:
       - path: src/hummingbird/ksshaskpass
         distgit: ksshaskpass
 
-  - name: layer-14
+  - name: layer-11
     packages:
       - path: src/hummingbird/gstreamer1-plugins-bad-free
         distgit: gstreamer1-plugins-bad-free
@@ -1323,7 +1306,7 @@ tiers:
       - path: src/hummingbird/qt6-qtwebengine
         distgit: qt6-qtwebengine
 
-  - name: layer-15
+  - name: layer-12
     packages:
       - path: src/hummingbird/gnome-remote-desktop
         distgit: gnome-remote-desktop
@@ -1342,7 +1325,7 @@ tiers:
         distgit: webkitgtk
       - path: src/hummingbird/xdg-desktop-portal-kde
 
-  - name: layer-16
+  - name: layer-13
     packages:
       - path: src/hummingbird/NetworkManager-openconnect
         distgit: NetworkManager-openconnect
@@ -1359,7 +1342,7 @@ tiers:
       - path: src/hummingbird/yelp
         distgit: yelp
 
-  - name: layer-17
+  - name: layer-14
     packages:
       - path: src/hummingbird/evolution-ews
         distgit: evolution-ews
@@ -1370,7 +1353,7 @@ tiers:
       - path: src/hummingbird/kf6-purpose
         distgit: kf6-purpose
 
-  - name: layer-18
+  - name: layer-15
     packages:
       - path: src/hummingbird/kf6-knewstuff
         distgit: kf6-knewstuff
@@ -1381,7 +1364,7 @@ tiers:
       - path: src/hummingbird/ksystemlog
         distgit: ksystemlog
 
-  - name: layer-19
+  - name: layer-16
     packages:
       - path: src/hummingbird/ark
         distgit: ark
@@ -1406,7 +1389,7 @@ tiers:
       - path: src/hummingbird/plasma-discover
         distgit: plasma-discover
 
-  - name: layer-20
+  - name: layer-17
     packages:
       - path: src/hummingbird/kate
         distgit: kate
@@ -1421,18 +1404,18 @@ tiers:
       - path: src/hummingbird/plasma5support
         distgit: plasma5support
 
-  - name: layer-21
+  - name: layer-18
     packages:
       - path: src/hummingbird/kwin
         distgit: kwin
       - path: src/hummingbird/plasma-union
         distgit: plasma-union
 
-  - name: layer-22
+  - name: layer-19
     packages:
       - path: src/hummingbird/plasma-workspace
 
-  - name: layer-23
+  - name: layer-20
     packages:
       - path: src/hummingbird/kde-cli-tools
       - path: src/hummingbird/plasma-desktop

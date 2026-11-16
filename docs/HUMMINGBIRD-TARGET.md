@@ -334,9 +334,11 @@ It fails closed. With `--allow-empty` it writes valid empty repodata
 for arches utah does not publish (aarch64 today).
 
 The chain-band workflow caches the tree by pin and mounts it for
-the build. `build-chain.sh` stops a hummingbird config without it.
-`tests/test_materialize_consumed_repo.py` covers the extractor, the
-fail-closed paths, and the empty-repo shape.
+the build. Its cache action is commit-pinned to a published release:
+an unresolved action reference stops every fan-out shard before the
+package build begins. `build-chain.sh` stops a hummingbird config
+without the tree. `tests/test_materialize_consumed_repo.py` covers the
+extractor, the fail-closed paths, and the empty-repo shape.
 
 ## 10. Why the leak outlived the root move, and what now stops it (2026-10-24)
 
@@ -401,3 +403,87 @@ scripts/check-hummingbird-installability.py --arch aarch64 --write-baseline
 
 and commit the diff — a baseline that refreshes itself is a gate that
 ratchets nothing.
+
+## 11. Native Tuna power and sound closure (2026-10-31)
+
+Image run `tunaOS/41213419115`, job `124573016129`, stops in the
+Tuna package transaction. Both the native and Utah TuneD 2.28 packages
+need `(rpm-ostree if bootc)`. Commit
+`552f03c0fd7fbd62e62d7a1e89c4fa7bb01a291f` in Fedora TuneD dist-git gives
+the reason. The bootloader plugin uses rpm-ostree to manage kernel arguments
+when the native bootc API `loader-entries set-options-for-source` is not
+available. The dependency is real. Do not remove it, fabricate a capability
+or drop the power-profile provider.
+
+The Tuna roots now explicitly include the real `rpm-ostree` source.
+At commit `daf6d42a0d7c21f60fb770ddd56bd7bf7cab442c`, the Fedora dist-git
+spec builds rpm-ostree 2026.3 with its vendored Rust source. The
+existing native chain imports and builds it in the Fedora 44 plus
+Hummingbird root. The image gets no Fedora binary repository.
+The generated order includes its runtime closure and the real BuildRequires
+order. It does not assume that a rich dependency became a build root.
+
+Tuna Desktop beta.2 release 2 built in run `41213268502`, but the
+publisher refused to sync: `libcanberra` was a new unresolved Tuna
+requirement. A signature on the unpublished tree did not publish it. The
+baseline stays unchanged. The roots now explicitly include libcanberra and
+use the Fedora dist-git spec for it, not the EL10 replacement rules in
+`src/deps/libcanberra`. The inspected upstream commit was
+`58ede5c70d9f6885b0d5e24695fc50c258ebe5c8`.
+The generated chain builds libvorbis before libcanberra and keeps its
+real ALSA, GStreamer and PulseAudio backend packages.
+
+The source change is not a package or image qualification receipt.
+Native build CI must produce the real RPMs. Then the signed publisher must
+pass its unchanged regression gate and serve the new index.
+Only then may tunaOS advance its package pin and run image and runtime
+qualification. Existing image PR `tunaOS#3885` retains its manual merge
+fence and the observed beta.1 pin until that served evidence exists.
+
+## 12. The current utah-packages pin closes Tuna (2026-11-14)
+
+The section 11 blockers came from a stale input, not from a missing build.
+The consumed utah-packages pin was `sha256:9cb66729…`, set on 2026-09-02.
+Renovate moves the tunaOS pin, but nothing moved this one.
+
+On 2026-11-14, the pin on tunaOS main is `sha256:fc3c1f34…`. That
+repository has 2615 binary packages, against 421 in the old pin. Utah
+builds them in Hummingbird's own root. They include these packages:
+
+- `rpm-ostree-2026.3-1.hum1.bfin`, the provider for TuneD's
+  `(rpm-ostree if bootc)`.
+- `tuned-2.28.0-1.hum1.bfin` and `tuned-ppd`.
+- `libcanberra-0.30-1.hum1.bfin` with its backends, and `libvorbis`.
+- `iw`, which `tuned` needs.
+
+Run `41213268502` measured the old pin, so its gate saw no `libcanberra`.
+With the new pin, `scripts/check-hummingbird-installability.py --arch x86_64`
+resolves the `tuna` set with zero blockers. dnf gives the same answer.
+
+We used the pinned `bootc-os` base (`sha256:00006de2…`), with
+`tunaos-hummingbird` at priority 5 and utah at priority 4. In it, dnf
+resolves the full Tuna list of tunaOS. That transaction installs 527
+packages. `rpm-ostree`, `libcanberra` and `tuned` come from utah.
+
+This change moves the pin to the tunaOS pin and records a new x86_64
+baseline. The aarch64 baseline does not change, because utah has no
+aarch64 build. The new pin also adds three blockers outside Tuna:
+
+- `gnome`: `ppp`, which `NetworkManager-ppp` from the target needs.
+- `kde` and `niri`: `libIex-3_2.so.31` and `libOpenEXR-3_2.so.31`, which
+  `kf6-kimageformats` from utah needs.
+
+These blockers do not come from our packages. The baseline records them,
+and also each blocker that the new pin closes. A wave that adds a new
+blocker still fails the gate.
+
+This change does not regenerate the build order. A regeneration against
+the Rawhide of today adds `glibc`, `openssl`, `llvm` and `python3.15`.
+That drift is for the scheduled drift review, not for this change. The
+order keeps `rpm-ostree` and `libcanberra` as the fallback if utah drops
+them. Images prefer utah at priority 4.
+
+To publish Tuna Desktop beta.3, dispatch `publish-build-chain-rpms.yml`
+with `cells=hummingbird-x86_64` and `tiers=local-00`. That leg builds
+only `src/hummingbird/tuna-desktop`. Its buildroot uses the new utah pin,
+and its gate compares against the new baseline.

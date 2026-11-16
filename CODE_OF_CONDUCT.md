@@ -1,3 +1,5 @@
+<!-- ste-disable-file: this file reproduces the Contributor Covenant 2.1 text -->
+
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge

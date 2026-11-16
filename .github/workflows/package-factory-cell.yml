@@ -30,10 +30,11 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(inputs.matrix) }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.15'
       - name: Install planner dependency
@@ -41,18 +42,33 @@ jobs:
           python -m pip install pyyaml==6.0.3
       - name: Restore source downloads
         if: matrix.engine == 'tideforge'
-        uses: ./.github/actions/tideforge-source-cache
+        uses: $/.github/actions/tideforge-source-cache
         with:
           recipe: ${{ matrix.recipe }}
       - name: Pull the declared build image
-        run: scripts/pull-container-image.sh "${{ matrix.image }}" "${{ matrix.verify_image }}"
+        env:
+          MATRIX_IMAGE: ${{ matrix.image }}
+          MATRIX_VERIFY_IMAGE: ${{ matrix.verify_image }}
+        run: scripts/pull-container-image.sh "${MATRIX_IMAGE}" "${MATRIX_VERIFY_IMAGE}"
       - id: identity
         name: Resolve immutable inputs and action key
         env:
           CELL: ${{ toJSON(matrix) }}
+          MATRIX_IMAGE: ${{ matrix.image }}
+          MATRIX_ENGINE: ${{ matrix.engine }}
+          MATRIX_RECIPE: ${{ matrix.recipe }}
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
+          MATRIX_ID: ${{ matrix.id }}
+          MATRIX_BASE_ID_OR_ID: ${{ matrix.base_id || matrix.id }}
+          MATRIX_MANIFEST: ${{ matrix.manifest }}
+          MATRIX_DEPENDENCY_TREE: ${{ matrix.dependency_tree }}
+          MATRIX_TARGET_QUEUE: ${{ matrix.target_queue }}
+          MATRIX_TRACK: ${{ matrix.track }}
+          MATRIX_SERIES: ${{ matrix.series }}
         run: |
           set -euo pipefail
-          image=$(docker image inspect --format '{{json .RepoDigests}}' '${{ matrix.image }}' | jq -r 'sort | .[0]')
+          image=$(docker image inspect --format '{{json .RepoDigests}}' "${MATRIX_IMAGE}" | jq -r 'sort | .[0]')
           consumer_args=()
           if jq -e 'has("consumer_bindings")' <<<"$CELL" >/dev/null; then
             consumer_file="${RUNNER_TEMP}/consumer-bindings.json"
@@ -68,11 +84,11 @@ jobs:
           # 32540188656 and 32541649752, ~15 min per cell, twice). Author date
           # survives all of those, so an unchanged recipe keeps its key.
           # See #477.
-          if [ '${{ matrix.engine }}' = tideforge ]; then
-            epoch=$(git log -1 --format=%at -- "$(dirname '${{ matrix.recipe }}')")
+          if [ "${MATRIX_ENGINE}" = tideforge ]; then
+            epoch=$(git log -1 --format=%at -- "$(dirname "${MATRIX_RECIPE}")")
             payload=$(python3 scripts/tideforge-action-cache.py key \
-              --recipe '${{ matrix.recipe }}' --target '${{ matrix.target }}' \
-              --arch '${{ matrix.architecture }}' --image "$image" \
+              --recipe "${MATRIX_RECIPE}" --target "${MATRIX_TARGET}" \
+              --arch "${MATRIX_ARCHITECTURE}" --image "$image" \
               --source-date-epoch "$epoch" "${consumer_args[@]}")
           else
             mapfile -t source_paths < <(jq -r '.source_paths[]' <<<"$CELL")
@@ -98,7 +114,7 @@ jobs:
             # re-keys the cell. What changes is that SOURCE_DATE_EPOCH now tracks
             # the sources it timestamps, which is what it is for.
             if [ "${#source_paths[@]}" -eq 0 ]; then
-              echo "::error::cell '${{ matrix.id }}' declares no source_paths, so" \
+              echo "::error::cell '${MATRIX_ID}' declares no source_paths, so" \
                    "SOURCE_DATE_EPOCH cannot be derived from them; refusing rather" \
                    "than falling back to the repository's last commit, which would" \
                    "re-key this cell on EVERY commit"
@@ -116,16 +132,16 @@ jobs:
             # partial is already NAMED by base_id (line ~423) and looked up by
             # base_id (line ~206); this was the one place still using id.
             payload=$(python3 scripts/tideforge-action-cache.py native-key \
-              --identity '${{ matrix.base_id || matrix.id }}' --manifest '${{ matrix.manifest }}' \
-              "${args[@]}" --target '${{ matrix.target }}' \
-              --arch '${{ matrix.architecture }}' --image "$image" \
-              --dependency-tree '${{ matrix.dependency_tree }}' \
-              --target-queue '${{ matrix.target_queue }}' \
-              --track '${{ matrix.track }}' --series '${{ matrix.series }}' \
+              --identity "${MATRIX_BASE_ID_OR_ID}" --manifest "${MATRIX_MANIFEST}" \
+              "${args[@]}" --target "${MATRIX_TARGET}" \
+              --arch "${MATRIX_ARCHITECTURE}" --image "$image" \
+              --dependency-tree "${MATRIX_DEPENDENCY_TREE}" \
+              --target-queue "${MATRIX_TARGET_QUEUE}" \
+              --track "${MATRIX_TRACK}" --series "${MATRIX_SERIES}" \
               --source-date-epoch "$epoch" "${consumer_args[@]}")
           fi
-          mkdir -p '.factory/${{ matrix.id }}'
-          printf '%s\n' "$payload" > '.factory/${{ matrix.id }}/action-inputs.json'
+          mkdir -p ".factory/${MATRIX_ID}"
+          printf '%s\n' "$payload" > ".factory/${MATRIX_ID}/action-inputs.json"
           echo "key=$(jq -r .action_key <<<"$payload")" >> "$GITHUB_OUTPUT"
           echo "epoch=$epoch" >> "$GITHUB_OUTPUT"
           jq . <<<"$payload"
@@ -133,8 +149,8 @@ jobs:
           # rides along in the partial-output artifact. That is what lets a
           # later attempt tell "these RPMs are what I would build" from
           # "these RPMs came from different inputs" (#480).
-          mkdir -p '.factory/${{ matrix.id }}'
-          jq -r .action_key <<<"$payload" > '.factory/${{ matrix.id }}/action-key.txt'
+          mkdir -p ".factory/${MATRIX_ID}"
+          jq -r .action_key <<<"$payload" > ".factory/${MATRIX_ID}/action-key.txt"
       # artifacts/ and action-result.json ONLY, not the cell directory (#472).
       # Those two are everything a hit consumes: the result manifest is
       # verified against the expected key below, and
@@ -150,7 +166,7 @@ jobs:
       # eviction, and the largest cells ran to 1.35GB, so about ten entries
       # evicted everything — against ~294 planned cells.
       - id: restore
-        uses: ./.github/actions/tideforge-action-cache
+        uses: $/.github/actions/tideforge-action-cache
         with:
           operation: restore
           action-key: ${{ steps.identity.outputs.key }}
@@ -178,25 +194,32 @@ jobs:
             .factory/${{ matrix.id }}/package-info.txt
       - id: verdict
         name: Verify restored output
+        env:
+          STEPS_RESTORE_OUTPUTS_CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
+          MATRIX_PACKAGE: ${{ matrix.package }}
+          MATRIX_TARGET: ${{ matrix.target }}
+          MATRIX_ARCHITECTURE: ${{ matrix.architecture }}
+          MATRIX_ID: ${{ matrix.id }}
+          STEPS_IDENTITY_OUTPUTS_KEY: ${{ steps.identity.outputs.key }}
         run: |
           set -euo pipefail
           hit=false
-          if [ '${{ steps.restore.outputs.cache-hit }}' = true ]; then
+          if [ "${STEPS_RESTORE_OUTPUTS_CACHE_HIT}" = true ]; then
             # A quarantined recipe diverged on a sampled rebuild
             # (reproducibility-verifier.yml), so a cached result for it is not
             # evidence of what these inputs build: discard it and rebuild.
             if python3 scripts/tideforge-action-cache.py quarantine-check \
-                --package '${{ matrix.package }}' --target '${{ matrix.target }}' \
-                --arch '${{ matrix.architecture }}' >/dev/null; then
-              echo "::warning title=action-cache::${{ matrix.id }} is quarantined for reproducibility divergence; rebuilding"
-              rm -rf '.factory/${{ matrix.id }}/artifacts' \
-                '.factory/${{ matrix.id }}/action-result.json' \
-                '.factory/${{ matrix.id }}/package-info.txt'
+                --package "${MATRIX_PACKAGE}" --target "${MATRIX_TARGET}" \
+                --arch "${MATRIX_ARCHITECTURE}" >/dev/null; then
+              echo "::warning title=action-cache::${MATRIX_ID} is quarantined for reproducibility divergence; rebuilding"
+              rm -rf ".factory/${MATRIX_ID}/artifacts" \
+                ".factory/${MATRIX_ID}/action-result.json" \
+                ".factory/${MATRIX_ID}/package-info.txt"
             else
               python3 scripts/tideforge-action-cache.py verify \
-                --result '.factory/${{ matrix.id }}/action-result.json' \
-                --artifact-dir '.factory/${{ matrix.id }}/artifacts' \
-                --expected-action-key '${{ steps.identity.outputs.key }}'
+                --result ".factory/${MATRIX_ID}/action-result.json" \
+                --artifact-dir ".factory/${MATRIX_ID}/artifacts" \
+                --expected-action-key "${STEPS_IDENTITY_OUTPUTS_KEY}"
               hit=true
             fi
           fi
@@ -207,8 +230,8 @@ jobs:
           # annotations, so `hit`/`miss` is greppable across a whole run.
           verdict=miss
           if [ "$hit" = true ]; then verdict=hit; fi
-          echo "::notice title=action-cache::${verdict} ${{ matrix.id }}"
-          echo "action-cache ${verdict}: \`${{ matrix.id }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=action-cache::${verdict} ${MATRIX_ID}"
+          echo "action-cache ${verdict}: \`${MATRIX_ID}\`" >> "$GITHUB_STEP_SUMMARY"
       # A build-chain cell can outlive `timeout-minutes: 360` (#480). When it
       # does the job is CANCELLED, not failed, so neither the action cache
       # (written only after a successful build) nor the `if: failure()`
@@ -232,20 +255,24 @@ jobs:
         if: matrix.engine == 'build-chain' && steps.verdict.outputs.hit != 'true' && !startsWith(matrix.mock_config, 'alma10-')
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          MATRIX_BASE_ID_OR_ID: ${{ matrix.base_id || matrix.id }}
+          STEPS_IDENTITY_OUTPUTS_KEY: ${{ steps.identity.outputs.key }}
+          MATRIX_ID: ${{ matrix.id }}
         run: |
           python3 scripts/restore-partial-chain-output.py \
-            --cell-id '${{ matrix.base_id || matrix.id }}' \
-            --action-key '${{ steps.identity.outputs.key }}' \
-            --out-dir '.factory/${{ matrix.id }}'
+            --cell-id "${MATRIX_BASE_ID_OR_ID}" \
+            --action-key "${STEPS_IDENTITY_OUTPUTS_KEY}" \
+            --out-dir ".factory/${MATRIX_ID}"
       - name: Prepare authenticated Alma candidate resume
         if: matrix.engine == 'build-chain' && startsWith(matrix.mock_config, 'alma10-') && steps.verdict.outputs.hit != 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event_name == 'schedule') && startsWith(github.ref, 'refs/heads/')
         env:
           GH_TOKEN: ${{ github.token }}
           CELL: ${{ toJSON(matrix) }}
           ACTION_KEY: ${{ steps.identity.outputs.key }}
+          MATRIX_ID: ${{ matrix.id }}
         run: |
           set -euo pipefail
-          out='.factory/${{ matrix.id }}'
+          out=".factory/${MATRIX_ID}"
           printf '%s\n' "$CELL" > "$out/native-cell.json"
           python3 scripts/alma-candidate-resume.py prepare \
             --meta "$out/candidate-meta" --cell "$out/native-cell.json" --action-key "$ACTION_KEY"
@@ -323,9 +350,10 @@ jobs:
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           CHAIN_DEFERRED: ${{ steps.build.outputs.chain_deferred }}
+          MATRIX_ID: ${{ matrix.id }}
         run: |
           set -euo pipefail
-          out='.factory/${{ matrix.id }}'
+          out=".factory/${MATRIX_ID}"
           if [ ! -s "$out/candidate-meta/completed-packages.json" ]; then
             echo 'No completed native candidate packages to bank'
             exit 0
@@ -341,35 +369,43 @@ jobs:
       - name: Attest native Alma candidate snapshot
         id: native_snapshot_attestation
         if: always() && steps.native_snapshot.outputs.created == 'true'
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4.2.2
         with:
           subject-path: .factory/${{ matrix.id }}/native-snapshot/snapshot.json
       - name: Stage native Alma snapshot attestation bundle
         if: always() && steps.native_snapshot_attestation.outcome == 'success'
         env:
           BUNDLE_PATH: ${{ steps.native_snapshot_attestation.outputs.bundle-path }}
+          MATRIX_ID: ${{ matrix.id }}
         run: |
           set -euo pipefail
           test -s "$BUNDLE_PATH"
-          cp "$BUNDLE_PATH" '.factory/${{ matrix.id }}/native-snapshot/bundle.jsonl'
+          cp "$BUNDLE_PATH" ".factory/${MATRIX_ID}/native-snapshot/bundle.jsonl"
       - name: Bank authenticated native Alma progress
         if: always() && steps.native_snapshot_attestation.outcome == 'success'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.base_id || matrix.id }}-alma-candidate-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.id }}
           path: .factory/${{ matrix.id }}/native-snapshot/
           if-no-files-found: error
       - name: Record a new ActionResult
         if: steps.verdict.outputs.hit != 'true' && steps.build.outputs.chain_deferred != 'true'
+        env:
+          MATRIX_ID: ${{ matrix.id }}
+          STEPS_IDENTITY_OUTPUTS_KEY: ${{ steps.identity.outputs.key }}
         run: |
           set -euo pipefail
           artifacts=()
           while IFS= read -r -d '' path; do artifacts+=(--artifact "$path"); done \
-            < <(find '.factory/${{ matrix.id }}/artifacts' -type f \
+            < <(find ".factory/${MATRIX_ID}/artifacts" -type f \
               \( -name '*.rpm' -o -name '*.deb' -o -name '*.pkg.tar.*' -o -name '*.gpkg.tar' \) -print0)
           python3 scripts/tideforge-action-cache.py result \
-            --action-key '${{ steps.identity.outputs.key }}' "${artifacts[@]}" \
-            > '.factory/${{ matrix.id }}/action-result.json'
+            --action-key "${STEPS_IDENTITY_OUTPUTS_KEY}" "${artifacts[@]}" \
+            > ".factory/${MATRIX_ID}/action-result.json"
+          python3 scripts/tideforge-action-cache.py verify \
+            --result ".factory/${MATRIX_ID}/action-result.json" \
+            --artifact-dir ".factory/${MATRIX_ID}/artifacts" \
+            --expected-action-key "${STEPS_IDENTITY_OUTPUTS_KEY}"
       - name: Validate package installation and smoke contract
         env:
           CELL_ID: ${{ matrix.id }}
@@ -381,14 +417,16 @@ jobs:
           IMAGE: ${{ matrix.verify_image }}
         run: bash scripts/verify-package-factory-cell.sh
       - name: Write immutable artifact checksums
+        env:
+          MATRIX_ID: ${{ matrix.id }}
         run: |
           set -euo pipefail
-          mkdir -p '.factory/${{ matrix.id }}/metadata'
-          cd '.factory/${{ matrix.id }}/artifacts'
+          mkdir -p ".factory/${MATRIX_ID}/metadata"
+          cd ".factory/${MATRIX_ID}/artifacts"
           find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum \
             > ../metadata/SHA256SUMS
       - name: Generate SPDX SBOM
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        uses: anchore/sbom-action@v0.24.3
         with:
           path: .factory/${{ matrix.id }}/artifacts
           format: spdx-json
@@ -396,19 +434,21 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
       - name: Validate supply-chain metadata
+        env:
+          MATRIX_ID: ${{ matrix.id }}
         run: |
           set -euo pipefail
-          test -s '.factory/${{ matrix.id }}/metadata/SHA256SUMS'
+          test -s ".factory/${MATRIX_ID}/metadata/SHA256SUMS"
           jq -e '.spdxVersion | startswith("SPDX-")' \
-            '.factory/${{ matrix.id }}/metadata/sbom.spdx.json' >/dev/null
+            ".factory/${MATRIX_ID}/metadata/sbom.spdx.json" >/dev/null
       - name: Attest SLSA build provenance
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4.2.2
         with:
           subject-path: .factory/${{ matrix.id }}/artifacts/*
       - name: Attest SPDX SBOM
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4.2.2
         with:
           subject-path: .factory/${{ matrix.id }}/artifacts/*
           sbom-path: .factory/${{ matrix.id }}/metadata/sbom.spdx.json
@@ -442,7 +482,7 @@ jobs:
         # ever hold COMPLETE outputs for a key.
         if: steps.verdict.outputs.hit != 'true' && steps.build.outputs.chain_deferred != 'true'
         continue-on-error: true
-        uses: ./.github/actions/tideforge-action-cache
+        uses: $/.github/actions/tideforge-action-cache
         with:
           operation: save
           action-key: ${{ steps.identity.outputs.key }}
@@ -492,7 +532,7 @@ jobs:
       #
       # NOTE: comments belong HERE, not inside `path:` below -- that is a
       # YAML block scalar, where a `#` line is a literal path, not a comment.
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         if: success()
         with:
           name: ${{ matrix.id }}
@@ -503,7 +543,7 @@ jobs:
             .factory/${{ matrix.id }}/action-result.json
             .factory/${{ matrix.id }}/action-key.txt
           if-no-files-found: error
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         if: failure()
         with:
           name: ${{ matrix.id }}
@@ -559,7 +599,7 @@ jobs:
       # So name the two outcomes that mean "the build ran and did not
       # finish". A denylist silently admits every future outcome value GitHub
       # adds, which is how `skipped` got in.
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - uses: actions/upload-artifact@v7.0.2
         # A DEFERRED chain also belongs on this allowlist: the soft deadline
         # exits 0, so its outcome is `success` -- but "ran and did not
         # finish" is exactly its state, and it is the upload the next

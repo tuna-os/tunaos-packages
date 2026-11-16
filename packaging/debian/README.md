@@ -88,8 +88,16 @@ For `native_source` recipes, the cell runner builds the changed source with
 It does not skip native checks.
 It keeps the complete changed source and all files that complete that source.
 It also keeps `.changes` and `.buildinfo` for both source and binaries.
-It stores the locked original source and all its required files under
-`artifacts/source/`, beside the real DEB at the artifact root.
+
+The upstream and changed sources reside in `artifacts/source/`.
+Each source has its own `.dsc` and `.debian.tar.xz`.
+Both use the same `.orig.tar.xz` file.
+The output does not contain a nested `original-source/` directory.
+
+Both cache producers run `tideforge-action-cache.py verify` after they record
+a fresh ActionResult and before they save or publish it.
+The verifier rejects duplicate basenames in new and restored artifacts.
+
 Recipes that generate package files still build binaries only.
 
 ### Installed package and runtime proof

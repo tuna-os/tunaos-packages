@@ -2,13 +2,6 @@
   "build_order": {
     "buildrequires_cycles": [
       [
-        "cairo",
-        "gdk-pixbuf2",
-        "glycin",
-        "gobject-introspection",
-        "librsvg2"
-      ],
-      [
         "lame",
         "libsndfile",
         "mpg123",
@@ -21,6 +14,11 @@
         "xorg-x11-server"
       ],
       [
+        "gdk-pixbuf2",
+        "glycin",
+        "librsvg2"
+      ],
+      [
         "chromaprint",
         "ffmpeg"
       ]
@@ -31,6 +29,7 @@
         "sources": [
           "7zip",
           "DankMaterialShell",
+          "LibRaw",
           "PackageKit-Qt",
           "abseil-cpp",
           "acpid",
@@ -70,6 +69,7 @@
           "gnome-backgrounds",
           "gnome-shell-extensions",
           "gnome-user-docs",
+          "gobject-introspection",
           "google-noto-color-emoji-fonts",
           "greetd",
           "gsl",
@@ -91,7 +91,6 @@
           "kde-filesystem",
           "kf5",
           "kf6",
-          "lcms2",
           "libICE",
           "libXdmcp",
           "libXfixes",
@@ -110,13 +109,13 @@
           "libdmtx",
           "libdvdread",
           "libei",
-          "liberation-fonts",
           "libevdev",
           "libexif",
           "libfyaml",
           "libieee1284",
           "liblc3",
           "liblouis",
+          "libmng",
           "libmodplug",
           "libmpdclient",
           "libmspack",
@@ -167,6 +166,7 @@
           "pop-icon-theme",
           "protobuf3",
           "pugixml",
+          "pycairo",
           "python-aiohappyeyeballs",
           "python-annotated-types",
           "python-bugzilla",
@@ -240,8 +240,8 @@
       {
         "index": 1,
         "sources": [
-          "LibRaw",
           "anaconda-webui",
+          "at-spi2-core",
           "cosmic-files",
           "cosmic-osk",
           "cosmic-screenshot",
@@ -253,13 +253,18 @@
           "f45-backgrounds",
           "fcft",
           "flac",
+          "gnome-autoar",
           "gnome-browser-connector",
+          "gnome-menus",
           "gnome-user-share",
+          "graphene",
           "grub2",
+          "gstreamer1",
           "hunspell-en",
           "hwinfo",
           "iceauth",
           "ilbc",
+          "json-glib",
           "kde-settings",
           "kf6-attica",
           "kf6-breeze-icons",
@@ -269,30 +274,41 @@
           "libXcursor",
           "libXdamage",
           "libXpresent",
+          "libaccounts-glib",
           "libass",
           "libbluray",
           "libcdio-paranoia",
+          "libcloudproviders",
           "libdisplay-info",
           "libdrm",
           "libdvdnav",
+          "libgee",
           "libgphoto2",
+          "libgtop2",
+          "libgudev",
+          "libical",
           "libimobiledevice-glue",
+          "libmbim",
           "libmediainfo",
-          "libmng",
           "libphonenumber",
+          "libproxy",
           "librist",
+          "libsecret",
           "libsigc++20",
           "libsigc++30",
           "libtalloc",
           "libtdb",
           "libvorbis",
+          "libxfce4util",
+          "libxklavier",
+          "libxmlb",
           "net-snmp",
           "ocean-sound-theme",
           "oo7",
           "openexr",
-          "openjpeg",
           "openvpn",
           "pandoc-cli",
+          "playerctl",
           "python-aiosignal",
           "python-argcomplete",
           "python-click-log",
@@ -302,6 +318,7 @@
           "python-urwid",
           "pyxdg",
           "qaccessibilityclient",
+          "qt6-qtimageformats",
           "qt6-qtshadertools",
           "redhat-menus",
           "runc",
@@ -309,9 +326,11 @@
           "shaderc",
           "sord",
           "speex",
+          "totem-pl-parser",
           "tuned",
           "vid.stab",
           "wayland",
+          "wireplumber",
           "xcb-util-image",
           "xcb-util-keysyms",
           "xcb-util-renderutil",
@@ -325,6 +344,9 @@
       {
         "index": 2,
         "sources": [
+          "bluez",
+          "cairomm",
+          "cairomm1.16",
           "cosmic-app-library",
           "cosmic-bg",
           "cosmic-idle",
@@ -332,38 +354,54 @@
           "cosmic-notifications",
           "cosmic-panel",
           "cosmic-randr",
+          "gcr",
+          "glib-networking",
           "glibmm2.4",
           "glibmm2.68",
+          "gtk4-layer-shell",
+          "iio-sensor-proxy",
           "intel-media-driver-free",
           "jpegxl",
           "kf6-kguiaddons",
           "kf6-kidletime",
           "khal",
           "libXt",
+          "libaccounts-qt",
+          "libgexiv2",
+          "libgusb",
           "libliftoff",
+          "libmanette",
+          "libqrtr-glib",
           "libtevent",
           "libtheora",
           "libusbmuxd",
           "libvpl",
+          "libwacom",
           "ntfs-3g",
           "python-aiohttp",
           "python-pydantic",
           "qt6-qtdeclarative",
+          "rpm-ostree",
+          "signon",
           "sratom",
+          "sso-mib",
           "swayidle",
           "tecla",
           "tesseract",
+          "udisks2",
           "vulkan-loader",
-          "xcb-util-cursor"
+          "xcb-util-cursor",
+          "xfconf"
         ]
       },
       {
         "index": 3,
         "sources": [
-          "cairo",
+          "atkmm",
+          "cockpit",
+          "colord",
           "gdk-pixbuf2",
           "glycin",
-          "gobject-introspection",
           "kf6-bluez-qt",
           "kf6-kconfig",
           "kf6-ki18n",
@@ -375,11 +413,17 @@
           "layer-shell-qt",
           "libXmu",
           "libepoxy",
+          "libfprint",
           "libglvnd",
           "libimobiledevice",
+          "libinput",
+          "libpcap",
+          "libqmi",
           "librsvg2",
           "libshout",
           "mesa",
+          "pangomm",
+          "pangomm2.48",
           "python-aiohttp-oauthlib",
           "qt6-qt5compat",
           "qt6-qtpositioning",
@@ -388,6 +432,7 @@
           "qt6-qtvirtualkeyboard",
           "qt6-qtwebsockets",
           "samba",
+          "signon-plugin-oauth2",
           "startup-notification",
           "xorg-x11-server",
           "xwayland-satellite"
@@ -396,16 +441,17 @@
       {
         "index": 4,
         "sources": [
-          "at-spi2-core",
-          "cairomm",
-          "cairomm1.16",
-          "gnome-autoar",
-          "gnome-menus",
-          "graphene",
-          "gstreamer1",
-          "gtk4-layer-shell",
-          "jasper",
-          "json-glib",
+          "ModemManager",
+          "accounts-qml-module",
+          "appstream",
+          "cosmic-comp",
+          "cosmic-greeter",
+          "cosmic-settings",
+          "cosmic-workspaces",
+          "fprintd",
+          "gtk2",
+          "gtk3",
+          "gtkmm4.0",
           "kdegraphics-mobipocket",
           "kdsoap",
           "kf6-kcodecs",
@@ -423,42 +469,32 @@
           "kf6-kwindowsystem",
           "kf6-solid",
           "libXaw",
-          "libaccounts-glib",
-          "libcloudproviders",
-          "libgee",
-          "libgexiv2",
           "libgsf",
-          "libgtop2",
-          "libgudev",
-          "libical",
           "libkexiv2",
-          "libmbim",
           "libnotify",
           "libplacebo",
-          "libproxy",
-          "libsecret",
-          "libxfce4util",
-          "libxklavier",
-          "libxmlb",
+          "libsoup3",
           "nanosvg",
+          "niri",
           "openxr",
-          "playerctl",
           "poly2tri",
           "pop-launcher",
-          "pycairo",
           "qcoro",
           "qt6-qtlocation",
+          "qt6-qtwayland",
           "qt6-qtwebchannel",
+          "qtkeychain",
           "quickshell",
           "sddm",
           "swaybg",
           "swaylock",
-          "totem-pl-parser",
+          "upower",
           "usbmuxd",
           "v4l-utils",
           "vdirsyncer",
-          "wireplumber",
+          "xdg-desktop-portal-cosmic",
           "xhost",
+          "xorg-x11-drv-libinput",
           "xorg-x11-xauth",
           "xrdb",
           "xset"
@@ -467,15 +503,25 @@
       {
         "index": 5,
         "sources": [
-          "appstream",
           "assimp",
-          "atkmm",
-          "bluez",
+          "blueman",
+          "colord-gtk",
+          "flatpak",
           "fuzzel",
-          "gcr",
-          "glib-networking",
-          "gtk2",
-          "iio-sensor-proxy",
+          "gcr3",
+          "geoclue2",
+          "geocode-glib",
+          "gjs",
+          "gnome-color-manager",
+          "gnome-icon-theme",
+          "gnome-system-monitor",
+          "gpsd",
+          "gspell",
+          "gssdp",
+          "gstreamer1-plugins-base",
+          "gtk-layer-shell",
+          "gtkmm3.0",
+          "gtksourceview4",
           "kdecoration",
           "kdsoap-ws-discovery-client",
           "kf6-kauth",
@@ -486,106 +532,12 @@
           "kf6-kpty",
           "kf6-kstatusnotifieritem",
           "kf6-ksvg",
-          "knighttime",
-          "libaccounts-qt",
-          "libgusb",
-          "libmanette",
-          "libqrtr-glib",
-          "libwacom",
-          "pangomm",
-          "pangomm2.48",
-          "plasma-activities",
-          "qt6-qtimageformats",
-          "qtkeychain",
-          "sane-backends",
-          "signon",
-          "sso-mib",
-          "udisks2",
-          "upower",
-          "xdg-desktop-portal-cosmic",
-          "xfconf",
-          "xmessage"
-        ]
-      },
-      {
-        "index": 6,
-        "sources": [
-          "accounts-qml-module",
-          "cockpit",
-          "colord",
-          "flatpak",
-          "gnome-icon-theme",
-          "gtkmm4.0",
-          "hplip",
-          "kf6-kglobalaccel",
-          "kf6-kiconthemes",
-          "kf6-kservice",
           "kf6-sonnet",
+          "knighttime",
           "kwayland",
-          "libfprint",
-          "libinput",
-          "libpcap",
-          "libqmi",
-          "libsoup3",
-          "pinentry",
-          "plasma-activities-stats",
-          "qt6-qtquick3d",
-          "sane-airscan",
-          "signon-plugin-oauth2"
-        ]
-      },
-      {
-        "index": 7,
-        "sources": [
-          "ModemManager",
-          "cosmic-comp",
-          "cosmic-greeter",
-          "cosmic-initial-setup",
-          "cosmic-settings",
-          "cosmic-workspaces",
-          "fprintd",
-          "geocode-glib",
-          "gnome-system-monitor",
-          "gssdp",
-          "gtk3",
-          "kf6-kded",
-          "kf6-kdesu",
-          "kf6-kirigami-addons",
-          "kf6-kxmlgui",
-          "kf6-qqc2-desktop-style",
-          "niri",
-          "osinfo-db-tools",
-          "passim",
-          "qqc2-breeze-style",
-          "qt6-qtwayland",
-          "qt6ct",
-          "rest",
-          "xorg-x11-drv-libinput"
-        ]
-      },
-      {
-        "index": 8,
-        "sources": [
-          "blueman",
-          "colord-gtk",
-          "fwupd",
-          "gcr3",
-          "geoclue2",
-          "gjs",
-          "gnome-color-manager",
-          "gnome-online-accounts",
-          "gpsd",
-          "gspell",
-          "gstreamer1-plugins-base",
-          "gtk-layer-shell",
-          "gtkmm3.0",
-          "gtksourceview4",
-          "gupnp",
-          "kf6-kbookmarks",
           "libayatana-ido",
           "libdbusmenu",
           "libdecor",
-          "libgweather",
           "libgxps",
           "libhandy",
           "libkscreen",
@@ -593,39 +545,55 @@
           "libportal",
           "libwnck3",
           "libxfce4ui",
-          "osinfo-db",
+          "osinfo-db-tools",
+          "passim",
+          "pinentry",
+          "plasma-activities",
           "plymouth",
           "pyatspi",
+          "rest",
+          "sane-backends",
           "stoken",
           "unity-gtk-module",
           "vte291",
           "xdg-desktop-portal-gtk",
-          "xdg-user-dirs-gtk"
+          "xdg-user-dirs-gtk",
+          "xmessage"
         ]
       },
       {
-        "index": 9,
+        "index": 6,
         "sources": [
           "NetworkManager-openvpn",
           "NetworkManager-ssh",
+          "cosmic-initial-setup",
           "exo",
+          "fwupd",
           "garcon",
           "gnome-keyring",
+          "gnome-online-accounts",
           "gtkgreet",
-          "gupnp-igd",
+          "gupnp",
+          "hplip",
           "ibus",
+          "kf6-kglobalaccel",
+          "kf6-kiconthemes",
+          "kf6-kservice",
           "lame",
           "libayatana-indicator",
-          "libosinfo",
+          "libgweather",
           "libsndfile",
           "libxfce4windowing",
           "mousepad",
           "mpg123",
-          "msgraph",
           "network-manager-applet",
           "openconnect",
+          "osinfo-db",
+          "plasma-activities-stats",
           "ptyxis",
           "pulseaudio",
+          "qt6-qtquick3d",
+          "sane-airscan",
           "tumbler",
           "xfce-polkit",
           "xfce4-terminal",
@@ -634,7 +602,7 @@
         ]
       },
       {
-        "index": 10,
+        "index": 7,
         "sources": [
           "SDL3",
           "SwayNotificationCenter",
@@ -644,14 +612,23 @@
           "cosmic-settings-daemon",
           "firefox",
           "flite",
+          "gupnp-igd",
+          "kf6-kded",
+          "kf6-kdesu",
+          "kf6-kirigami-addons",
+          "kf6-kxmlgui",
+          "kf6-qqc2-desktop-style",
           "libao",
           "libbs2b",
           "libcanberra",
-          "libnice",
           "libopenmpt",
+          "libosinfo",
           "libsamplerate",
           "lilv",
+          "msgraph",
           "pcaudiolib",
+          "qqc2-breeze-style",
+          "qt6ct",
           "ristretto",
           "twolame",
           "waybar",
@@ -661,7 +638,7 @@
         ]
       },
       {
-        "index": 11,
+        "index": 8,
         "sources": [
           "Thunar",
           "cage",
@@ -671,7 +648,9 @@
           "gnome-disk-utility",
           "gsound",
           "gstreamer1-plugins-good",
+          "kf6-kbookmarks",
           "kf6-knotifications",
+          "libnice",
           "pavucontrol",
           "rubberband",
           "sdl2-compat",
@@ -680,7 +659,7 @@
         ]
       },
       {
-        "index": 12,
+        "index": 9,
         "sources": [
           "game-music-emu",
           "gnome-bluetooth",
@@ -692,7 +671,7 @@
         ]
       },
       {
-        "index": 13,
+        "index": 10,
         "sources": [
           "brltty",
           "chromaprint",
@@ -702,7 +681,7 @@
         ]
       },
       {
-        "index": 14,
+        "index": 11,
         "sources": [
           "gstreamer1-plugins-bad-free",
           "kactivitymanagerd",
@@ -722,7 +701,7 @@
         ]
       },
       {
-        "index": 15,
+        "index": 12,
         "sources": [
           "gnome-remote-desktop",
           "kaccounts-integration",
@@ -736,7 +715,7 @@
         ]
       },
       {
-        "index": 16,
+        "index": 13,
         "sources": [
           "NetworkManager-openconnect",
           "baloo-widgets",
@@ -749,7 +728,7 @@
         ]
       },
       {
-        "index": 17,
+        "index": 14,
         "sources": [
           "evolution-ews",
           "kf6-knotifyconfig",
@@ -758,7 +737,7 @@
         ]
       },
       {
-        "index": 18,
+        "index": 15,
         "sources": [
           "kf6-knewstuff",
           "kf6-kparts",
@@ -767,7 +746,7 @@
         ]
       },
       {
-        "index": 19,
+        "index": 16,
         "sources": [
           "ark",
           "aurorae",
@@ -783,7 +762,7 @@
         ]
       },
       {
-        "index": 20,
+        "index": 17,
         "sources": [
           "kate",
           "kscreenlocker",
@@ -794,20 +773,20 @@
         ]
       },
       {
-        "index": 21,
+        "index": 18,
         "sources": [
           "kwin",
           "plasma-union"
         ]
       },
       {
-        "index": 22,
+        "index": 19,
         "sources": [
           "plasma-workspace"
         ]
       },
       {
-        "index": 23,
+        "index": 20,
         "sources": [
           "kde-cli-tools",
           "plasma-desktop",
@@ -846,8 +825,6 @@
         "at-spi2-atk",
         "at-spi2-core",
         "atk",
-        "cairo",
-        "cairo-gobject",
         "cdparanoia-libs",
         "cjson",
         "cockpit-bridge",
@@ -914,7 +891,6 @@
         "kde-filesystem",
         "kf5-filesystem",
         "lame-libs",
-        "lcms2",
         "libXcursor",
         "libXdamage",
         "libXfixes",
@@ -1017,7 +993,6 @@
         "ntfs-3g-libs",
         "openapv-libs",
         "opencore-amr",
-        "openjpeg",
         "opus",
         "orc",
         "pciutils-libs",
@@ -1075,17 +1050,15 @@
       ],
       "buildrequires_cycles": [
         [
-          "cairo",
-          "gdk-pixbuf2",
-          "glycin",
-          "gobject-introspection",
-          "librsvg2"
-        ],
-        [
           "lame",
           "libsndfile",
           "mpg123",
           "pulseaudio"
+        ],
+        [
+          "gdk-pixbuf2",
+          "glycin",
+          "librsvg2"
         ],
         [
           "chromaprint",
@@ -1096,7 +1069,7 @@
           "mesa"
         ]
       ],
-      "closure_binary_packages": 297,
+      "closure_binary_packages": 293,
       "roots": [
         "adw-gtk3-theme",
         "adwaita-fonts-all",
@@ -1274,7 +1247,6 @@
         "anaconda-webui",
         "aribb24",
         "at-spi2-core",
-        "cairo",
         "cdparanoia",
         "chromaprint",
         "cjson",
@@ -1331,7 +1303,6 @@
         "kde-filesystem",
         "kf5",
         "lame",
-        "lcms2",
         "libXcursor",
         "libXdamage",
         "libXfixes",
@@ -1403,7 +1374,6 @@
         "ntfs-3g",
         "openapv",
         "opencore-amr",
-        "openjpeg",
         "openjph",
         "opus",
         "orc",
@@ -1473,6 +1443,7 @@
             "fribidi",
             "fuse",
             "fxload",
+            "gobject-introspection",
             "grub2",
             "gsl",
             "gsm",
@@ -1487,7 +1458,6 @@
             "iso-codes",
             "kde-filesystem",
             "kf5",
-            "lcms2",
             "libXfixes",
             "libXinerama",
             "libXrandr",
@@ -1529,6 +1499,7 @@
             "pciutils",
             "pixman",
             "protobuf3",
+            "pycairo",
             "python-annotated-types",
             "python-bugzilla",
             "python-dasbus",
@@ -1561,23 +1532,31 @@
         {
           "index": 1,
           "sources": [
+            "at-spi2-core",
             "enchant2",
             "flac",
+            "graphene",
+            "gstreamer1",
             "hunspell-en",
             "hwinfo",
             "ilbc",
             "jpegxl",
+            "json-glib",
             "libXcursor",
             "libXdamage",
             "libbluray",
+            "libcloudproviders",
             "libdisplay-info",
             "libdrm",
             "libdvdnav",
+            "libgudev",
+            "libical",
             "libphonenumber",
+            "libproxy",
             "librist",
+            "libsecret",
             "libtevent",
             "libvorbis",
-            "openjpeg",
             "python-pydantic-core",
             "qt6-qtpositioning",
             "qt6-qtwebchannel",
@@ -1589,60 +1568,38 @@
         {
           "index": 2,
           "sources": [
-            "cairo",
             "codec2",
+            "gcr",
             "gdk-pixbuf2",
+            "glib-networking",
             "glycin",
-            "gobject-introspection",
             "intel-media-driver-free",
             "libglvnd",
+            "libgusb",
+            "libmanette",
             "librsvg2",
             "libtheora",
             "libvpl",
             "mesa",
             "ntfs-3g",
             "python-pydantic",
-            "samba"
+            "samba",
+            "udisks2"
           ]
         },
         {
           "index": 3,
           "sources": [
-            "at-spi2-core",
-            "graphene",
-            "gstreamer1",
-            "json-glib",
-            "libcloudproviders",
-            "libepoxy",
-            "libgudev",
-            "libical",
-            "libnotify",
-            "libproxy",
-            "libsecret",
-            "pycairo"
-          ]
-        },
-        {
-          "index": 4,
-          "sources": [
-            "gcr",
-            "glib-networking",
-            "gtk2",
-            "libgusb",
-            "libmanette",
-            "udisks2"
-          ]
-        },
-        {
-          "index": 5,
-          "sources": [
             "cockpit",
             "colord",
+            "gtk2",
+            "libepoxy",
+            "libnotify",
             "libsoup3"
           ]
         },
         {
-          "index": 6,
+          "index": 4,
           "sources": [
             "geocode-glib",
             "gtk3",
@@ -1650,7 +1607,7 @@
           ]
         },
         {
-          "index": 7,
+          "index": 5,
           "sources": [
             "gnome-online-accounts",
             "gstreamer1-plugins-base",
@@ -1661,7 +1618,7 @@
           ]
         },
         {
-          "index": 8,
+          "index": 6,
           "sources": [
             "ibus",
             "lame",
@@ -1673,7 +1630,7 @@
           ]
         },
         {
-          "index": 9,
+          "index": 7,
           "sources": [
             "SDL3",
             "firefox",
@@ -1685,21 +1642,21 @@
           ]
         },
         {
-          "index": 10,
+          "index": 8,
           "sources": [
             "sdl2-compat",
             "webkitgtk"
           ]
         },
         {
-          "index": 11,
+          "index": 9,
           "sources": [
             "evolution-data-server",
             "game-music-emu"
           ]
         },
         {
-          "index": 12,
+          "index": 10,
           "sources": [
             "chromaprint",
             "evolution-ews",
@@ -1707,13 +1664,13 @@
           ]
         },
         {
-          "index": 13,
+          "index": 11,
           "sources": [
             "qt6-qtwebengine"
           ]
         },
         {
-          "index": 14,
+          "index": 12,
           "sources": [
             "qt6-qtwebview"
           ]
@@ -1730,8 +1687,6 @@
         "at-spi2-atk",
         "at-spi2-core",
         "atk",
-        "cairo",
-        "cairo-gobject",
         "colord-libs",
         "cosmic-app-library",
         "cosmic-applets",
@@ -1786,7 +1741,6 @@
         "iw",
         "json-glib",
         "lame-libs",
-        "lcms2",
         "libXcursor",
         "libXdamage",
         "libXdmcp",
@@ -1866,23 +1820,22 @@
       ],
       "buildrequires_cycles": [
         [
-          "cairo",
-          "gdk-pixbuf2",
-          "glycin",
-          "librsvg2"
-        ],
-        [
           "lame",
           "libsndfile",
           "mpg123",
           "pulseaudio"
         ],
         [
+          "gdk-pixbuf2",
+          "glycin",
+          "librsvg2"
+        ],
+        [
           "libglvnd",
           "mesa"
         ]
       ],
-      "closure_binary_packages": 143,
+      "closure_binary_packages": 140,
       "roots": [
         "cosmic-session",
         "cosmic-comp",
@@ -1938,7 +1891,6 @@
         "adwaita-icon-theme",
         "adwaita-icon-theme-legacy",
         "at-spi2-core",
-        "cairo",
         "colord",
         "cosmic-app-library",
         "cosmic-applets",
@@ -1989,7 +1941,6 @@
         "jpegxl",
         "json-glib",
         "lame",
-        "lcms2",
         "libXcursor",
         "libXdamage",
         "libXdmcp",
@@ -2079,7 +2030,6 @@
             "iso-codes",
             "iw",
             "json-glib",
-            "lcms2",
             "libXdmcp",
             "libXfixes",
             "libXfont2",
@@ -2151,10 +2101,10 @@
         {
           "index": 2,
           "sources": [
-            "cairo",
             "colord",
             "gdk-pixbuf2",
             "glycin",
+            "libfprint",
             "libglvnd",
             "libinput",
             "librsvg2",
@@ -2169,9 +2119,9 @@
             "cosmic-settings",
             "cosmic-workspaces",
             "flatpak",
+            "fprintd",
             "gnome-icon-theme",
             "libepoxy",
-            "libfprint",
             "pop-launcher",
             "xdg-desktop-portal-cosmic"
           ]
@@ -2180,7 +2130,6 @@
           "index": 4,
           "sources": [
             "cosmic-initial-setup",
-            "fprintd",
             "gtk3"
           ]
         },
@@ -2228,8 +2177,6 @@
         "bluez",
         "bluez-libs",
         "bluez-obexd",
-        "cairo",
-        "cairo-gobject",
         "cairomm1.16",
         "cdparanoia-libs",
         "color-filesystem",
@@ -2322,7 +2269,6 @@
         "javascriptcoregtk6.0",
         "json-glib",
         "lame-libs",
-        "lcms2",
         "libICE",
         "libSM",
         "libXcursor",
@@ -2534,24 +2480,22 @@
       ],
       "buildrequires_cycles": [
         [
-          "cairo",
-          "gdk-pixbuf2",
-          "glycin",
-          "gobject-introspection",
-          "librsvg2"
-        ],
-        [
           "lame",
           "libsndfile",
           "mpg123",
           "pulseaudio"
         ],
         [
+          "gdk-pixbuf2",
+          "glycin",
+          "librsvg2"
+        ],
+        [
           "libglvnd",
           "mesa"
         ]
       ],
-      "closure_binary_packages": 344,
+      "closure_binary_packages": 341,
       "roots": [
         "gdm",
         "gjs",
@@ -2687,7 +2631,6 @@
         "adwaita-icon-theme-legacy",
         "at-spi2-core",
         "bluez",
-        "cairo",
         "cairomm1.16",
         "cdparanoia",
         "color-filesystem",
@@ -2759,7 +2702,6 @@
         "jpegxl",
         "json-glib",
         "lame",
-        "lcms2",
         "libICE",
         "libSM",
         "libXcursor",
@@ -2944,6 +2886,7 @@
             "gnome-browser-connector",
             "gnome-shell-extensions",
             "gnome-user-docs",
+            "gobject-introspection",
             "gsm",
             "gweather-locations",
             "hicolor-icon-theme",
@@ -2954,7 +2897,6 @@
             "hyphen",
             "inih",
             "iso-codes",
-            "lcms2",
             "libICE",
             "libXdmcp",
             "libXfixes",
@@ -3032,24 +2974,38 @@
         {
           "index": 1,
           "sources": [
+            "at-spi2-core",
+            "cairomm1.16",
             "enchant2",
             "exiv2",
             "flac",
             "glibmm2.68",
+            "gnome-autoar",
+            "gnome-menus",
             "gnome-user-share",
+            "graphene",
+            "gstreamer1",
             "hunspell-en",
             "jpegxl",
+            "json-glib",
             "libSM",
             "libXcursor",
             "libXdamage",
             "libbluray",
             "libcdio-paranoia",
+            "libcloudproviders",
             "libdisplay-info",
             "libdrm",
             "libgphoto2",
+            "libgtop2",
+            "libgudev",
+            "libical",
             "libimobiledevice-glue",
+            "libmbim",
             "libmediainfo",
             "libphonenumber",
+            "libproxy",
+            "libsecret",
             "libtevent",
             "libvorbis",
             "net-snmp",
@@ -3057,72 +3013,70 @@
             "setxkbmap",
             "speex",
             "tecla",
+            "totem-pl-parser",
             "vulkan-loader",
+            "wireplumber",
             "xkbcomp"
           ]
         },
         {
           "index": 2,
           "sources": [
-            "cairo",
+            "bluez",
+            "gcr",
             "gdk-pixbuf2",
+            "glib-networking",
             "glycin",
-            "gobject-introspection",
+            "iio-sensor-proxy",
             "libXt",
+            "libgexiv2",
             "libglvnd",
+            "libgusb",
+            "libmanette",
+            "libqrtr-glib",
             "librsvg2",
             "libtheora",
             "libusbmuxd",
+            "libwacom",
             "mesa",
+            "pangomm2.48",
             "samba",
-            "sane-backends"
+            "sane-backends",
+            "sso-mib",
+            "udisks2"
           ]
         },
         {
           "index": 3,
           "sources": [
-            "at-spi2-core",
-            "cairomm1.16",
-            "gnome-autoar",
-            "gnome-menus",
-            "graphene",
-            "gstreamer1",
+            "colord",
             "hplip",
-            "json-glib",
             "libXmu",
-            "libcloudproviders",
             "libepoxy",
-            "libgexiv2",
+            "libfprint",
             "libgsf",
-            "libgtop2",
-            "libgudev",
-            "libical",
             "libimobiledevice",
-            "libmbim",
+            "libinput",
             "libnotify",
-            "libproxy",
-            "libsecret",
+            "libqmi",
             "libshout",
+            "libsoup3",
+            "pinentry",
             "sane-airscan",
-            "startup-notification",
-            "totem-pl-parser",
-            "wireplumber"
+            "startup-notification"
           ]
         },
         {
           "index": 4,
           "sources": [
-            "bluez",
-            "gcr",
-            "glib-networking",
-            "iio-sensor-proxy",
-            "libgusb",
-            "libmanette",
-            "libqrtr-glib",
-            "libwacom",
-            "pangomm2.48",
-            "sso-mib",
-            "udisks2",
+            "ModemManager",
+            "fprintd",
+            "geocode-glib",
+            "gssdp",
+            "gtk3",
+            "gtkmm4.0",
+            "osinfo-db-tools",
+            "rest",
             "upower",
             "usbmuxd",
             "xhost",
@@ -3133,38 +3087,13 @@
         {
           "index": 5,
           "sources": [
-            "colord",
-            "gtkmm4.0",
-            "libfprint",
-            "libinput",
-            "libqmi",
-            "libsoup3",
-            "libvncserver",
-            "pinentry"
-          ]
-        },
-        {
-          "index": 6,
-          "sources": [
-            "ModemManager",
-            "fprintd",
-            "geocode-glib",
-            "gnome-system-monitor",
-            "gssdp",
-            "gtk3",
-            "osinfo-db-tools",
-            "rest"
-          ]
-        },
-        {
-          "index": 7,
-          "sources": [
             "colord-gtk",
             "gcr3",
             "geoclue2",
             "gjs",
             "gnome-color-manager",
             "gnome-online-accounts",
+            "gnome-system-monitor",
             "gstreamer1-plugins-base",
             "gupnp",
             "ibus",
@@ -3174,6 +3103,7 @@
             "libhandy",
             "libnma",
             "libportal",
+            "libvncserver",
             "osinfo-db",
             "stoken",
             "vte291",
@@ -3182,7 +3112,7 @@
           ]
         },
         {
-          "index": 8,
+          "index": 6,
           "sources": [
             "NetworkManager-openvpn",
             "NetworkManager-ssh",
@@ -3200,7 +3130,7 @@
           ]
         },
         {
-          "index": 9,
+          "index": 7,
           "sources": [
             "flite",
             "freerdp",
@@ -3211,7 +3141,7 @@
           ]
         },
         {
-          "index": 10,
+          "index": 8,
           "sources": [
             "gnome-disk-utility",
             "gnome-remote-desktop",
@@ -3222,14 +3152,14 @@
           ]
         },
         {
-          "index": 11,
+          "index": 9,
           "sources": [
             "gnome-bluetooth",
             "webkitgtk"
           ]
         },
         {
-          "index": 12,
+          "index": 10,
           "sources": [
             "NetworkManager-openconnect",
             "evolution-data-server",
@@ -3263,8 +3193,6 @@
         "baloo-widgets",
         "breeze-cursor-theme",
         "breeze-icon-theme",
-        "cairo",
-        "cairo-gobject",
         "cdparanoia-libs",
         "cjson",
         "codec2",
@@ -3424,7 +3352,6 @@
         "kwrited",
         "lame-libs",
         "layer-shell-qt",
-        "lcms2",
         "leptonica",
         "libICE",
         "libSM",
@@ -3551,7 +3478,6 @@
         "openapv-libs",
         "opencore-amr",
         "openexr-libs",
-        "openjpeg",
         "openxr-libs",
         "opus",
         "orc",
@@ -3671,12 +3597,6 @@
       ],
       "buildrequires_cycles": [
         [
-          "cairo",
-          "gdk-pixbuf2",
-          "glycin",
-          "librsvg2"
-        ],
-        [
           "lame",
           "libsndfile",
           "mpg123",
@@ -3689,11 +3609,16 @@
           "xorg-x11-server"
         ],
         [
+          "gdk-pixbuf2",
+          "glycin",
+          "librsvg2"
+        ],
+        [
           "chromaprint",
           "ffmpeg"
         ]
       ],
-      "closure_binary_packages": 430,
+      "closure_binary_packages": 426,
       "roots": [
         "plasma-desktop",
         "plasma-workspace",
@@ -3741,7 +3666,6 @@
         "at-spi2-core",
         "aurorae",
         "baloo-widgets",
-        "cairo",
         "cdparanoia",
         "chromaprint",
         "cjson",
@@ -3882,7 +3806,6 @@
         "kwrited",
         "lame",
         "layer-shell-qt",
-        "lcms2",
         "leptonica",
         "libICE",
         "libSM",
@@ -3978,7 +3901,6 @@
         "openapv",
         "opencore-amr",
         "openexr",
-        "openjpeg",
         "openxr",
         "opus",
         "orc",
@@ -4088,6 +4010,7 @@
           "index": 0,
           "sources": [
             "7zip",
+            "LibRaw",
             "PackageKit-Qt",
             "adwaita-icon-theme",
             "adwaita-icon-theme-legacy",
@@ -4116,7 +4039,6 @@
             "iso-codes",
             "kde-filesystem",
             "kf6",
-            "lcms2",
             "libICE",
             "libXdmcp",
             "libXfixes",
@@ -4200,7 +4122,6 @@
         {
           "index": 1,
           "sources": [
-            "LibRaw",
             "at-spi2-core",
             "cxx-rust-cssparser",
             "exiv2",
@@ -4233,7 +4154,6 @@
             "libxmlb",
             "ocean-sound-theme",
             "openexr",
-            "openjpeg",
             "qaccessibilityclient",
             "qt6-qtshadertools",
             "redhat-menus",
@@ -4277,7 +4197,6 @@
         {
           "index": 3,
           "sources": [
-            "cairo",
             "colord",
             "gdk-pixbuf2",
             "glycin",
@@ -4567,8 +4486,6 @@
         "bluez-obexd",
         "breeze-icon-theme",
         "brightnessctl",
-        "cairo",
-        "cairo-gobject",
         "cairomm",
         "cairomm1.16",
         "cava",
@@ -4629,7 +4546,6 @@
         "inih-cpp",
         "iniparser",
         "iso-codes",
-        "jasper-libs",
         "json-glib",
         "kde-filesystem",
         "kf6-breeze-icons",
@@ -4644,7 +4560,6 @@
         "kf6-kwidgetsaddons",
         "khal",
         "lame-libs",
-        "lcms2",
         "libXcursor",
         "libXdamage",
         "libXdmcp",
@@ -4758,7 +4673,6 @@
         "openapv-libs",
         "opencore-amr",
         "openexr-libs",
-        "openjpeg",
         "openxr-libs",
         "opus",
         "orc",
@@ -4846,17 +4760,15 @@
       ],
       "buildrequires_cycles": [
         [
-          "cairo",
-          "gdk-pixbuf2",
-          "glycin",
-          "gobject-introspection",
-          "librsvg2"
-        ],
-        [
           "lame",
           "libsndfile",
           "mpg123",
           "pulseaudio"
+        ],
+        [
+          "gdk-pixbuf2",
+          "glycin",
+          "librsvg2"
         ],
         [
           "chromaprint",
@@ -4867,7 +4779,7 @@
           "mesa"
         ]
       ],
-      "closure_binary_packages": 304,
+      "closure_binary_packages": 299,
       "roots": [
         "niri",
         "quickshell",
@@ -4942,7 +4854,6 @@
         "blueman",
         "bluez",
         "brightnessctl",
-        "cairo",
         "cairomm",
         "cairomm1.16",
         "cava",
@@ -4999,7 +4910,6 @@
         "inih",
         "iniparser",
         "iso-codes",
-        "jasper",
         "jpegxl",
         "json-glib",
         "kde-filesystem",
@@ -5015,7 +4925,6 @@
         "kf6-kwidgetsaddons",
         "khal",
         "lame",
-        "lcms2",
         "libXcursor",
         "libXdamage",
         "libXdmcp",
@@ -5100,7 +5009,6 @@
         "openapv",
         "opencore-amr",
         "openexr",
-        "openjpeg",
         "openxr",
         "opus",
         "orc",
@@ -5187,6 +5095,7 @@
           "index": 0,
           "sources": [
             "DankMaterialShell",
+            "LibRaw",
             "adwaita-icon-theme",
             "adwaita-icon-theme-legacy",
             "aribb24",
@@ -5204,6 +5113,7 @@
             "fribidi",
             "game-music-emu",
             "giflib",
+            "gobject-introspection",
             "greetd",
             "gsm",
             "hicolor-icon-theme",
@@ -5216,7 +5126,6 @@
             "iso-codes",
             "kde-filesystem",
             "kf6",
-            "lcms2",
             "libXdmcp",
             "libXfixes",
             "libXfont2",
@@ -5232,6 +5141,7 @@
             "libei",
             "libevdev",
             "liblc3",
+            "libmng",
             "libmodplug",
             "libmpdclient",
             "libogg",
@@ -5260,6 +5170,7 @@
             "orc",
             "pixman",
             "pugixml",
+            "pycairo",
             "python-aiohappyeyeballs",
             "python-click",
             "python-configobj",
@@ -5296,12 +5207,19 @@
         {
           "index": 1,
           "sources": [
-            "LibRaw",
+            "at-spi2-core",
+            "cairomm",
+            "cairomm1.16",
             "exiv2",
             "fcft",
             "flac",
             "glibmm2.4",
             "glibmm2.68",
+            "gnome-autoar",
+            "graphene",
+            "gstreamer1",
+            "gtk4-layer-shell",
+            "json-glib",
             "kf6-breeze-icons",
             "kf6-karchive",
             "kf6-kguiaddons",
@@ -5309,27 +5227,34 @@
             "libXcursor",
             "libXdamage",
             "libbluray",
+            "libcloudproviders",
             "libdisplay-info",
             "libdrm",
             "libdvdnav",
+            "libgee",
+            "libgudev",
+            "libical",
             "libmediainfo",
-            "libmng",
+            "libproxy",
             "librist",
             "libtevent",
             "libvorbis",
             "oo7",
             "openexr",
-            "openjpeg",
+            "playerctl",
             "python-aiosignal",
             "python-click-log",
             "python-click-threading",
             "python-icalendar",
             "python-urwid",
             "pyxdg",
+            "qt6-qtimageformats",
             "qt6-qtshadertools",
             "speex",
             "swayidle",
+            "totem-pl-parser",
             "vulkan-loader",
+            "wireplumber",
             "xcb-util-image",
             "xcb-util-renderutil",
             "xkbcomp"
@@ -5338,32 +5263,41 @@
         {
           "index": 2,
           "sources": [
+            "atkmm",
+            "bluez",
             "codec2",
+            "glib-networking",
             "jpegxl",
             "khal",
+            "libgexiv2",
             "libglvnd",
+            "libgusb",
             "libtheora",
             "libvpl",
+            "libwacom",
             "mesa",
+            "pangomm",
+            "pangomm2.48",
             "python-aiohttp",
             "qt6-qtdeclarative",
             "samba",
+            "upower",
             "xcb-util-cursor"
           ]
         },
         {
           "index": 3,
           "sources": [
-            "cairo",
+            "colord",
             "gdk-pixbuf2",
             "glycin",
-            "gobject-introspection",
-            "jasper",
             "kf6-kconfig",
             "kf6-ki18n",
             "kf6-kimageformats",
             "libepoxy",
+            "libinput",
             "librsvg2",
+            "libsoup3",
             "nanosvg",
             "openxr",
             "poly2tri",
@@ -5377,70 +5311,22 @@
           "index": 4,
           "sources": [
             "assimp",
-            "at-spi2-core",
-            "cairomm",
-            "cairomm1.16",
             "fuzzel",
-            "gnome-autoar",
-            "graphene",
-            "gstreamer1",
-            "gtk4-layer-shell",
-            "json-glib",
+            "gssdp",
+            "gtk3",
+            "gtkmm4.0",
             "kf6-kcolorscheme",
-            "libcloudproviders",
-            "libgee",
-            "libgexiv2",
             "libgsf",
-            "libgudev",
-            "libical",
             "libnotify",
-            "libproxy",
-            "playerctl",
-            "pycairo",
-            "qt6-qtimageformats",
+            "niri",
+            "osinfo-db-tools",
             "swaybg",
             "swaylock",
-            "totem-pl-parser",
-            "vdirsyncer",
-            "wireplumber"
+            "vdirsyncer"
           ]
         },
         {
           "index": 5,
-          "sources": [
-            "atkmm",
-            "bluez",
-            "glib-networking",
-            "kf6-kiconthemes",
-            "libgusb",
-            "libwacom",
-            "pangomm",
-            "pangomm2.48",
-            "qt6-qtquick3d",
-            "upower"
-          ]
-        },
-        {
-          "index": 6,
-          "sources": [
-            "colord",
-            "gtkmm4.0",
-            "libinput",
-            "libsoup3",
-            "qt6ct"
-          ]
-        },
-        {
-          "index": 7,
-          "sources": [
-            "gssdp",
-            "gtk3",
-            "niri",
-            "osinfo-db-tools"
-          ]
-        },
-        {
-          "index": 8,
           "sources": [
             "blueman",
             "gcr3",
@@ -5449,16 +5335,18 @@
             "gtk-layer-shell",
             "gtkmm3.0",
             "gupnp",
+            "kf6-kiconthemes",
             "libdbusmenu",
             "libdecor",
             "libgxps",
             "libportal",
             "osinfo-db",
+            "qt6-qtquick3d",
             "xdg-desktop-portal-gtk"
           ]
         },
         {
-          "index": 9,
+          "index": 6,
           "sources": [
             "gnome-keyring",
             "gupnp-igd",
@@ -5467,11 +5355,12 @@
             "libsndfile",
             "mpg123",
             "pulseaudio",
+            "qt6ct",
             "xorg-x11-server-Xwayland"
           ]
         },
         {
-          "index": 10,
+          "index": 7,
           "sources": [
             "SwayNotificationCenter",
             "cava",
@@ -5483,7 +5372,7 @@
           ]
         },
         {
-          "index": 11,
+          "index": 8,
           "sources": [
             "chromaprint",
             "ffmpeg",
@@ -5491,14 +5380,14 @@
           ]
         },
         {
-          "index": 12,
+          "index": 9,
           "sources": [
             "gstreamer1-plugins-bad-free",
             "localsearch"
           ]
         },
         {
-          "index": 13,
+          "index": 10,
           "sources": [
             "nautilus",
             "qt6-qtmultimedia"
@@ -5519,9 +5408,6 @@
         "at-spi2-core",
         "atk",
         "brlapi",
-        "cage",
-        "cairo",
-        "cairo-gobject",
         "cdparanoia-libs",
         "color-filesystem",
         "colord",
@@ -5566,16 +5452,13 @@
         "gobject-introspection",
         "google-noto-color-emoji-fonts",
         "graphene",
-        "greetd",
         "gsm",
         "gsound",
         "gstreamer1",
         "gstreamer1-plugins-base",
         "gstreamer1-plugins-good",
-        "gtk-layer-shell",
         "gtk-update-icon-cache",
         "gtk3",
-        "gtkgreet",
         "gweather-locations",
         "gweather-locations-common",
         "hdparm",
@@ -5598,14 +5481,17 @@
         "javascriptcoregtk6.0",
         "json-glib",
         "lame-libs",
-        "lcms2",
+        "libICE",
+        "libSM",
         "libXcursor",
         "libXdamage",
         "libXdmcp",
         "libXfixes",
         "libXfont2",
         "libXinerama",
+        "libXmu",
         "libXrandr",
+        "libXt",
         "libXv",
         "libXxf86vm",
         "libao",
@@ -5618,14 +5504,9 @@
         "libcloudproviders",
         "libcue",
         "libdecor",
-        "libdisplay-info",
         "libdrm",
         "libei",
         "libepoxy",
-        "liberation-fonts-all",
-        "liberation-mono-fonts",
-        "liberation-sans-fonts",
-        "liberation-serif-fonts",
         "libevdev",
         "libfyaml",
         "libgexiv2",
@@ -5643,10 +5524,8 @@
         "libical-glib",
         "libimobiledevice",
         "libimobiledevice-glue",
-        "libinput",
         "libjxl",
         "libldb",
-        "libliftoff",
         "liblouis",
         "liblouis-tables",
         "libmanette",
@@ -5664,7 +5543,6 @@
         "libportal-gtk4",
         "libproxy",
         "librsvg2",
-        "libseat",
         "libsecret",
         "libshout",
         "libsmbclient",
@@ -5704,7 +5582,6 @@
         "mobile-broadband-provider-info",
         "mozjs140",
         "mpg123-libs",
-        "mtdev",
         "nautilus",
         "nautilus-extensions",
         "oo7-daemon",
@@ -5715,6 +5592,7 @@
         "orca",
         "osinfo-db",
         "osinfo-db-tools",
+        "pam_oo7",
         "pcaudiolib",
         "pixman",
         "plymouth",
@@ -5728,16 +5606,20 @@
         "python3-ibus",
         "python3-linux-procfs",
         "python3-louis",
+        "python3-pam",
         "python3-pyatspi",
         "python3-pyinotify",
         "python3-pyudev",
         "python3-speechd",
         "rest",
+        "rpm-ostree",
+        "rpm-ostree-libs",
         "rtkit",
         "samba-client-libs",
         "samba-common",
         "samba-core-libs",
         "samba-ndr-libs",
+        "setxkbmap",
         "shared-mime-info",
         "simdutf",
         "sound-theme-freedesktop",
@@ -5761,33 +5643,26 @@
         "vte-profile",
         "vte291",
         "vte291-gtk4",
-        "vulkan-loader",
         "wavpack",
         "webkit2gtk4.1",
         "webkitgtk6.0",
         "wireplumber",
         "wireplumber-libs",
-        "wlroots",
         "wsdd",
-        "xcb-util-errors",
-        "xcb-util-renderutil",
-        "xcb-util-wm",
         "xdg-dbus-proxy",
         "xdg-desktop-portal-gtk",
         "xdg-user-dirs",
         "xdg-user-dirs-gtk",
+        "xhost",
         "xkbcomp",
+        "xmodmap",
         "xorg-x11-server-Xwayland",
-        "xprop"
+        "xorg-x11-xauth",
+        "xorg-x11-xinit",
+        "xprop",
+        "xrdb"
       ],
       "buildrequires_cycles": [
-        [
-          "cairo",
-          "gdk-pixbuf2",
-          "glycin",
-          "gobject-introspection",
-          "librsvg2"
-        ],
         [
           "lame",
           "libsndfile",
@@ -5795,18 +5670,23 @@
           "pulseaudio"
         ],
         [
+          "gdk-pixbuf2",
+          "glycin",
+          "librsvg2"
+        ],
+        [
           "libglvnd",
           "mesa"
         ]
       ],
-      "closure_binary_packages": 280,
+      "closure_binary_packages": 274,
       "roots": [
         "tuna-desktop",
+        "rpm-ostree",
+        "libcanberra",
         "dbus-tools",
         "orca",
-        "greetd",
-        "gtkgreet",
-        "cage",
+        "gdm",
         "xorg-x11-server-Xwayland",
         "ibus",
         "gnome-shell",
@@ -5833,8 +5713,7 @@
         "adwaita-icon-theme",
         "google-noto-sans-fonts",
         "google-noto-color-emoji-fonts",
-        "dejavu-sans-fonts",
-        "liberation-fonts"
+        "dejavu-sans-fonts"
       ],
       "roots_absent_from_reference": [
         "tuna-desktop"
@@ -5846,10 +5725,10 @@
       ],
       "roots_missing_from_target": [
         "tuna-desktop",
+        "rpm-ostree",
+        "libcanberra",
         "orca",
-        "greetd",
-        "gtkgreet",
-        "cage",
+        "gdm",
         "xorg-x11-server-Xwayland",
         "ibus",
         "gnome-shell",
@@ -5874,8 +5753,7 @@
         "plymouth",
         "adwaita-icon-theme",
         "google-noto-color-emoji-fonts",
-        "dejavu-sans-fonts",
-        "liberation-fonts"
+        "dejavu-sans-fonts"
       ],
       "source_packages_to_build": [
         "ModemManager",
@@ -5885,8 +5763,6 @@
         "appstream",
         "at-spi2-core",
         "brltty",
-        "cage",
-        "cairo",
         "cdparanoia",
         "color-filesystem",
         "colord",
@@ -5922,15 +5798,12 @@
         "gobject-introspection",
         "google-noto-color-emoji-fonts",
         "graphene",
-        "greetd",
         "gsm",
         "gsound",
         "gstreamer1",
         "gstreamer1-plugins-base",
         "gstreamer1-plugins-good",
-        "gtk-layer-shell",
         "gtk3",
-        "gtkgreet",
         "gweather-locations",
         "hdparm",
         "hicolor-icon-theme",
@@ -5948,14 +5821,17 @@
         "jpegxl",
         "json-glib",
         "lame",
-        "lcms2",
+        "libICE",
+        "libSM",
         "libXcursor",
         "libXdamage",
         "libXdmcp",
         "libXfixes",
         "libXfont2",
         "libXinerama",
+        "libXmu",
         "libXrandr",
+        "libXt",
         "libXv",
         "libXxf86vm",
         "libao",
@@ -5967,11 +5843,9 @@
         "libcloudproviders",
         "libcue",
         "libdecor",
-        "libdisplay-info",
         "libdrm",
         "libei",
         "libepoxy",
-        "liberation-fonts",
         "libevdev",
         "libfyaml",
         "libgexiv2",
@@ -5985,8 +5859,6 @@
         "libical",
         "libimobiledevice",
         "libimobiledevice-glue",
-        "libinput",
-        "libliftoff",
         "liblouis",
         "libmanette",
         "libmediainfo",
@@ -6025,7 +5897,6 @@
         "mobile-broadband-provider-info",
         "mozjs140",
         "mpg123",
-        "mtdev",
         "nautilus",
         "oo7",
         "opencore-amr",
@@ -6042,12 +5913,14 @@
         "pyatspi",
         "python-dasbus",
         "python-linux-procfs",
+        "python-pam",
         "python-pyinotify",
         "python-pyudev",
         "rest",
+        "rpm-ostree",
         "rtkit",
         "samba",
-        "seatd",
+        "setxkbmap",
         "shared-mime-info",
         "simdutf",
         "snowball",
@@ -6067,23 +5940,23 @@
         "v4l-utils",
         "virt-what",
         "vte291",
-        "vulkan-loader",
         "wavpack",
         "wayland",
         "webkitgtk",
         "wireplumber",
-        "wlroots",
         "wsdd",
-        "xcb-util-errors",
-        "xcb-util-renderutil",
-        "xcb-util-wm",
         "xdg-dbus-proxy",
         "xdg-desktop-portal-gtk",
         "xdg-user-dirs",
         "xdg-user-dirs-gtk",
+        "xhost",
         "xkbcomp",
+        "xmodmap",
         "xorg-x11-server-Xwayland",
-        "xprop"
+        "xorg-x11-xauth",
+        "xorg-x11-xinit",
+        "xprop",
+        "xrdb"
       ],
       "tiers": [
         {
@@ -6103,8 +5976,8 @@
             "exempi",
             "fribidi",
             "giflib",
+            "gobject-introspection",
             "google-noto-color-emoji-fonts",
-            "greetd",
             "gsm",
             "gweather-locations",
             "hdparm",
@@ -6117,7 +5990,7 @@
             "inih",
             "iso-codes",
             "iw",
-            "lcms2",
+            "libICE",
             "libXdmcp",
             "libXfixes",
             "libXfont2",
@@ -6129,7 +6002,6 @@
             "libcdio",
             "libcue",
             "libei",
-            "liberation-fonts",
             "libevdev",
             "libfyaml",
             "liblouis",
@@ -6148,7 +6020,6 @@
             "lm_sensors",
             "mobile-broadband-provider-info",
             "mozjs140",
-            "mtdev",
             "oo7",
             "opencore-amr",
             "opus",
@@ -6156,10 +6027,10 @@
             "pixman",
             "python-dasbus",
             "python-linux-procfs",
+            "python-pam",
             "python-pyinotify",
             "python-pyudev",
             "rtkit",
-            "seatd",
             "shared-mime-info",
             "simdutf",
             "snowball",
@@ -6173,124 +6044,114 @@
             "wavpack",
             "wayland",
             "wsdd",
-            "xcb-util-errors",
-            "xcb-util-renderutil",
-            "xcb-util-wm",
             "xdg-dbus-proxy",
             "xdg-user-dirs",
+            "xmodmap",
+            "xorg-x11-xinit",
             "xprop"
           ]
         },
         {
           "index": 1,
           "sources": [
+            "at-spi2-core",
             "enchant2",
             "exiv2",
             "flac",
+            "gnome-autoar",
+            "graphene",
+            "gstreamer1",
             "hunspell-en",
             "jpegxl",
+            "json-glib",
+            "libSM",
             "libXcursor",
             "libXdamage",
             "libbluray",
             "libcdio-paranoia",
-            "libdisplay-info",
+            "libcloudproviders",
             "libdrm",
+            "libgtop2",
+            "libgudev",
+            "libical",
             "libimobiledevice-glue",
             "libmediainfo",
             "libphonenumber",
+            "libproxy",
+            "libsecret",
             "libtevent",
             "libvorbis",
+            "libxmlb",
+            "setxkbmap",
             "speex",
             "tecla",
+            "totem-pl-parser",
             "tuned",
-            "vulkan-loader",
+            "wireplumber",
             "xkbcomp"
           ]
         },
         {
           "index": 2,
           "sources": [
-            "cairo",
+            "ModemManager",
+            "gcr",
             "gdk-pixbuf2",
+            "glib-networking",
             "glycin",
-            "gobject-introspection",
+            "iio-sensor-proxy",
+            "libXt",
+            "libgexiv2",
             "libglvnd",
-            "libliftoff",
+            "libgusb",
+            "libmanette",
             "librsvg2",
             "libtheora",
             "libusbmuxd",
+            "libwacom",
             "mesa",
-            "samba"
+            "rpm-ostree",
+            "samba",
+            "udisks2"
           ]
         },
         {
           "index": 3,
           "sources": [
-            "at-spi2-core",
-            "gnome-autoar",
-            "graphene",
-            "gstreamer1",
-            "json-glib",
-            "libcloudproviders",
+            "appstream",
+            "colord",
+            "libXmu",
             "libepoxy",
-            "libgexiv2",
             "libgsf",
-            "libgtop2",
-            "libgudev",
-            "libical",
             "libimobiledevice",
             "libnotify",
-            "libproxy",
-            "libsecret",
             "libshout",
-            "libxmlb",
-            "totem-pl-parser",
-            "wireplumber"
+            "libsoup3"
           ]
         },
         {
           "index": 4,
           "sources": [
-            "ModemManager",
-            "appstream",
-            "gcr",
-            "glib-networking",
-            "iio-sensor-proxy",
-            "libgusb",
-            "libmanette",
-            "libwacom",
-            "udisks2",
-            "upower"
-          ]
-        },
-        {
-          "index": 5,
-          "sources": [
-            "colord",
             "flatpak",
-            "libinput",
-            "libsoup3"
-          ]
-        },
-        {
-          "index": 6,
-          "sources": [
             "geoclue2",
             "geocode-glib",
             "gtk3",
             "osinfo-db-tools",
-            "rest"
+            "rest",
+            "upower",
+            "xhost",
+            "xorg-x11-xauth",
+            "xrdb"
           ]
         },
         {
-          "index": 7,
+          "index": 5,
           "sources": [
             "colord-gtk",
             "gcr3",
             "gjs",
             "gnome-online-accounts",
             "gstreamer1-plugins-base",
-            "gtk-layer-shell",
             "ibus",
             "libdecor",
             "libgweather",
@@ -6306,10 +6167,9 @@
           ]
         },
         {
-          "index": 8,
+          "index": 6,
           "sources": [
             "gnome-keyring",
-            "gtkgreet",
             "lame",
             "libosinfo",
             "libsndfile",
@@ -6320,21 +6180,19 @@
           ]
         },
         {
-          "index": 9,
+          "index": 7,
           "sources": [
             "flite",
             "libao",
             "libcanberra",
             "localsearch",
             "pcaudiolib",
-            "twolame",
-            "wlroots"
+            "twolame"
           ]
         },
         {
-          "index": 10,
+          "index": 8,
           "sources": [
-            "cage",
             "espeak-ng",
             "gsound",
             "gstreamer1-plugins-good",
@@ -6343,7 +6201,7 @@
           ]
         },
         {
-          "index": 11,
+          "index": 9,
           "sources": [
             "evolution-data-server",
             "gnome-bluetooth",
@@ -6351,13 +6209,13 @@
           ]
         },
         {
-          "index": 12,
+          "index": 10,
           "sources": [
             "brltty"
           ]
         },
         {
-          "index": 13,
+          "index": 11,
           "sources": [
             "orca"
           ]
@@ -6375,8 +6233,6 @@
         "at-spi2-core",
         "atk",
         "cage",
-        "cairo",
-        "cairo-gobject",
         "colord-libs",
         "dconf",
         "dejavu-sans-mono-fonts",
@@ -6406,7 +6262,6 @@
         "iceauth",
         "iso-codes",
         "json-glib",
-        "lcms2",
         "libICE",
         "libSM",
         "libXcursor",
@@ -6504,7 +6359,6 @@
       ],
       "buildrequires_cycles": [
         [
-          "cairo",
           "gdk-pixbuf2",
           "glycin",
           "librsvg2"
@@ -6514,7 +6368,7 @@
           "mesa"
         ]
       ],
-      "closure_binary_packages": 138,
+      "closure_binary_packages": 135,
       "roots": [
         "xfconf",
         "libxfce4ui",
@@ -6569,7 +6423,6 @@
         "adwaita-icon-theme-legacy",
         "at-spi2-core",
         "cage",
-        "cairo",
         "colord",
         "dconf",
         "dejavu-fonts",
@@ -6597,7 +6450,6 @@
         "iso-codes",
         "jpegxl",
         "json-glib",
-        "lcms2",
         "libICE",
         "libSM",
         "libXcursor",
@@ -6698,7 +6550,6 @@
             "hwdata",
             "iso-codes",
             "json-glib",
-            "lcms2",
             "libICE",
             "libXfixes",
             "libXinerama",
@@ -6759,7 +6610,6 @@
         {
           "index": 2,
           "sources": [
-            "cairo",
             "colord",
             "gdk-pixbuf2",
             "glycin",
@@ -6848,15 +6698,15 @@
       "unresolved_capabilities": {}
     }
   },
-  "measured_at": "2026-10-18T05:10:03.664431+00:00",
+  "measured_at": "2026-10-31T16:59:22.287945+00:00",
   "membership": "runtime",
   "reference_index": {
     "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/x86_64/os/",
-    "primary_bytes": 16217013,
-    "primary_href": "repodata/8f06c68c8b03a33ada9f99370c483894fb8681957c61ec3f5cc63886ba615a0d-primary.xml.zst",
-    "primary_sha256": "8f06c68c8b03a33ada9f99370c483894fb8681957c61ec3f5cc63886ba615a0d",
-    "primary_sha256_declared": "8f06c68c8b03a33ada9f99370c483894fb8681957c61ec3f5cc63886ba615a0d",
-    "revision": "1792217647"
+    "primary_bytes": 16217254,
+    "primary_href": "repodata/9f3db69ca12e31b76925480d6728f9a24f8a8c481dc02f1cc57bfa0291e3b692-primary.xml.zst",
+    "primary_sha256": "9f3db69ca12e31b76925480d6728f9a24f8a8c481dc02f1cc57bfa0291e3b692",
+    "primary_sha256_declared": "9f3db69ca12e31b76925480d6728f9a24f8a8c481dc02f1cc57bfa0291e3b692",
+    "revision": "1793425317"
   },
   "retained_packages": {
     "binary_packages_to_build": [
@@ -6895,11 +6745,11 @@
   },
   "source_reference_index": {
     "baseurl": "https://dl.fedoraproject.org/pub/fedora/linux/development/rawhide/Everything/source/tree/",
-    "primary_bytes": 6108555,
-    "primary_href": "repodata/4f5b6524dd874c617bddc0026e96275e069d5d1c6c0b1d8e1d25a7500cef8bf4-primary.xml.zst",
-    "primary_sha256": "4f5b6524dd874c617bddc0026e96275e069d5d1c6c0b1d8e1d25a7500cef8bf4",
-    "primary_sha256_declared": "4f5b6524dd874c617bddc0026e96275e069d5d1c6c0b1d8e1d25a7500cef8bf4",
-    "revision": "1792217538"
+    "primary_bytes": 6110859,
+    "primary_href": "repodata/dfde588689a7bba2088f43c649b77fde7741c980ebc9161e660d0f35bf8e1763-primary.xml.zst",
+    "primary_sha256": "dfde588689a7bba2088f43c649b77fde7741c980ebc9161e660d0f35bf8e1763",
+    "primary_sha256_declared": "dfde588689a7bba2088f43c649b77fde7741c980ebc9161e660d0f35bf8e1763",
+    "revision": "1793425204"
   },
   "target": {
     "baseurl": "https://packages.redhat.com/api/pulp-content/public-hummingbird/$arch/",
@@ -6909,14 +6759,14 @@
     "reference": "fedora-rawhide",
     "resolved_baseurl": "https://packages.redhat.com/api/pulp-content/public-hummingbird/x86_64/"
   },
-  "target_binary_packages": 3536,
+  "target_binary_packages": 3566,
   "target_index": {
     "baseurl": "https://packages.redhat.com/api/pulp-content/public-hummingbird/x86_64/",
-    "primary_bytes": 6528940,
-    "primary_href": "repodata/3f7fb93690a4f64c9f3ca3e42e1e9099ac467457fed1fc6d4983883385d132a2-primary.xml.gz",
-    "primary_sha256": "3f7fb93690a4f64c9f3ca3e42e1e9099ac467457fed1fc6d4983883385d132a2",
-    "primary_sha256_declared": "3f7fb93690a4f64c9f3ca3e42e1e9099ac467457fed1fc6d4983883385d132a2",
-    "revision": "1792265627"
+    "primary_bytes": 7446664,
+    "primary_href": "repodata/b37178df5e7b5afac9a601e4755e5e89010392b02a84d75925464a6819df6e4d-primary.xml.gz",
+    "primary_sha256": "b37178df5e7b5afac9a601e4755e5e89010392b02a84d75925464a6819df6e4d",
+    "primary_sha256_declared": "b37178df5e7b5afac9a601e4755e5e89010392b02a84d75925464a6819df6e4d",
+    "revision": "1793453097"
   },
   "tier_ordering": "buildrequires"
 }

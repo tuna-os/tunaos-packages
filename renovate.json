@@ -15,6 +15,11 @@
       "platformAutomerge": true
     },
     {
+      "description": "Wait 7 days before taking a new action release (supply-chain cooldown).",
+      "matchManagers": ["github-actions"],
+      "minimumReleaseAge": "7 days"
+    },
+    {
       "description": "Upstream package source pins (commits/versions this repo packages) still automerge, but only once the real mock/podman build for that package passes as a required status check \u2014 a bare version bump alone has repeatedly hidden real breakage (new MSRV, new/dropped files) that only a build catches. See build-tideforge-supported.yml / build-xfce-package.yml / build-fprintd-validation.yml / build-xfce-arch-validation.yml path triggers.",
       "matchDepTypes": [
         "upstream-source"
@@ -746,21 +751,6 @@
       ],
       "datasourceTemplate": "gitlab-releases",
       "depNameTemplate": "pango",
-      "packageNameTemplate": "GNOME/pango",
-      "depTypeTemplate": "upstream-source",
-      "registryUrlTemplate": "https://gitlab.gnome.org"
-    },
-    {
-      "customType": "regex",
-      "description": "pango-fresh: tracks GNOME/pango (gitlab-releases).",
-      "fileMatch": [
-        "^src/deps/pango-fresh/pango-fresh\\.spec$"
-      ],
-      "matchStrings": [
-        "^Version:\\s*(?<currentValue>\\S+)\\s*\\nRelease:"
-      ],
-      "datasourceTemplate": "gitlab-releases",
-      "depNameTemplate": "pango-fresh",
       "packageNameTemplate": "GNOME/pango",
       "depTypeTemplate": "upstream-source",
       "registryUrlTemplate": "https://gitlab.gnome.org"

@@ -410,179 +410,92 @@
     "x86_64": {
       "consumed_indexes": [
         {
-          "baseurl": "oci://ghcr.io/projectbluefin/utah-packages@sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c",
-          "binary_packages": 421,
+          "baseurl": "oci://ghcr.io/projectbluefin/utah-packages@sha256:fc3c1f34d74d321eb5c3e5412cad92d8d384832d7b711c5a22f693f7932cde6b",
+          "binary_packages": 2615,
           "id": "utah-packages",
-          "image_digest": "sha256:9cb667291a1a0b112c39d3c6a69116bb52cb1a10c7df12290b9c298b5682426c",
+          "image_digest": "sha256:fc3c1f34d74d321eb5c3e5412cad92d8d384832d7b711c5a22f693f7932cde6b",
           "layers": [
-            "sha256:c006e1df488f1f4ffb00ce8376fc8bbeeb2caf43eb57ebaa458dd0a0413862ae"
+            "sha256:39d28471e835d894e140731b345bd9eeb59f6e8b232c6fd04b76ffe22a0283b6",
+            "sha256:628e676a7bfa91ec666ec2f6ca2111704fb3dad17ce6402c11ad2323b95f9d68"
           ],
-          "primary_bytes": 127574,
-          "primary_href": "repodata/38da5357b2416f406c39ec0302a17e099db253ea5e050817481437b94c4c5da5-primary.xml.gz",
-          "primary_sha256": "38da5357b2416f406c39ec0302a17e099db253ea5e050817481437b94c4c5da5",
-          "primary_sha256_declared": "38da5357b2416f406c39ec0302a17e099db253ea5e050817481437b94c4c5da5",
-          "revision": "1788099482"
+          "primary_bytes": 743231,
+          "primary_href": "repodata/e5b0b6bc266780fc3692924d0519311a06616ef425a20d1e40974234713b1856-primary.xml.gz",
+          "primary_sha256": "e5b0b6bc266780fc3692924d0519311a06616ef425a20d1e40974234713b1856",
+          "primary_sha256_declared": "e5b0b6bc266780fc3692924d0519311a06616ef425a20d1e40974234713b1856",
+          "revision": "1794632272"
         }
       ],
       "desktops": {
         "cosmic": {
-          "leaks": [
-            "libm.so.6(GLIBC_2.44)(64bit)"
-          ],
+          "leaks": [],
           "resolvable": false,
           "roots_absent": [],
           "unresolved": [
-            "fprintd-pam",
-            "iw",
-            "libm.so.6(GLIBC_2.44)(64bit)",
-            "libopenjph.so.0.25()(64bit)",
-            "libreport-filesystem",
-            "libvorbis.so.0()(64bit)",
-            "libvorbisenc.so.2()(64bit)",
-            "python3-distro",
-            "python3-setools",
             "setransd"
           ]
         },
         "gnome": {
-          "leaks": [
-            "libm.so.6(GLIBC_2.44)(64bit)"
-          ],
+          "leaks": [],
           "resolvable": false,
-          "roots_absent": [
-            "fprintd-pam",
-            "gnome-user-share"
-          ],
+          "roots_absent": [],
           "unresolved": [
-            "gstreamer1-plugins-bad-free-libs(x86-64)",
-            "libcanberra-gtk3.so.0()(64bit)",
-            "libcanberra.so.0()(64bit)",
-            "libecal-2.0.so.3()(64bit)",
-            "libedataserver-1.2.so.27()(64bit)",
-            "libgstplay-1.0.so.0()(64bit)",
-            "libjavascriptcoregtk-6.0.so.1()(64bit)",
-            "libm.so.6(GLIBC_2.44)(64bit)",
-            "libopenjph.so.0.25()(64bit)",
-            "libpgm-5.3.so.0()(64bit)",
-            "libreport-filesystem",
-            "librist.so.4()(64bit)",
-            "libsmbclient.so.0()(64bit)",
-            "libsmbclient.so.0(SMBCLIENT_0.1.0)(64bit)",
-            "libsmbclient.so.0(SMBCLIENT_0.6.0)(64bit)",
-            "libstoken.so.1()(64bit)",
-            "libstoken.so.1(STOKEN_1.0)(64bit)",
-            "libstoken.so.1(STOKEN_1.2)(64bit)",
-            "libvorbis.so.0()(64bit)",
-            "libvorbisenc.so.2()(64bit)",
-            "libvorbisfile.so.3()(64bit)",
-            "libwebkit2gtk-4.1.so.0()(64bit)",
-            "libwebkitgtk-6.0.so.4()(64bit)",
-            "webkitgtk6.0(x86-64)"
+            "ppp"
           ]
         },
         "kde": {
           "leaks": [
-            "libjsoncpp.so.26()(64bit)",
-            "libm.so.6(GLIBC_2.44)(64bit)"
+            "libjsoncpp.so.26()(64bit)"
           ],
           "resolvable": false,
           "roots_absent": [],
           "unresolved": [
-            "glx-utils",
+            "libIex-3_2.so.31()(64bit)",
+            "libOpenEXR-3_2.so.31()(64bit)",
             "libQt6WebEngineCore.so.6()(64bit)",
             "libQt6WebEngineCore.so.6(Qt_6)(64bit)",
             "libQt6WebEngineQuick.so.6()(64bit)",
             "libQt6WebEngineQuick.so.6(Qt_6)(64bit)",
             "libQt6WebEngineQuick.so.6(Qt_6.11_PRIVATE_API)(64bit)",
-            "libcanberra.so.0()(64bit)",
-            "libdouble-conversion.so.3()(64bit)",
             "libgps.so.32()(64bit)",
-            "libgstphotography-1.0.so.0()(64bit)",
-            "libgstplay-1.0.so.0()(64bit)",
-            "libjsoncpp.so.26()(64bit)",
-            "libm.so.6(GLIBC_2.44)(64bit)",
-            "libopenjph.so.0.25()(64bit)",
-            "libpgm-5.3.so.0()(64bit)",
-            "librist.so.4()(64bit)",
-            "libsmbclient.so.0()(64bit)",
-            "libsmbclient.so.0(SMBCLIENT_0.1.0)(64bit)",
-            "libsmbclient.so.0(SMBCLIENT_0.2.3)(64bit)",
-            "libsmbclient.so.0(SMBCLIENT_0.6.0)(64bit)",
-            "libts.so.0()(64bit)",
-            "libvorbis.so.0()(64bit)",
-            "libvorbisenc.so.2()(64bit)",
-            "libvorbisfile.so.3()(64bit)"
+            "libjsoncpp.so.26()(64bit)"
           ]
         },
         "niri": {
           "leaks": [
-            "libjsoncpp.so.26()(64bit)",
-            "libm.so.6(GLIBC_2.44)(64bit)"
+            "libjsoncpp.so.26()(64bit)"
           ],
           "resolvable": false,
           "roots_absent": [
             "dms-greeter"
           ],
           "unresolved": [
-            "glx-utils",
-            "gstreamer1-plugins-bad-free-libs(x86-64)",
-            "libcanberra.so.0()(64bit)",
-            "libdouble-conversion.so.3()(64bit)",
+            "libIex-3_2.so.31()(64bit)",
+            "libOpenEXR-3_2.so.31()(64bit)",
             "libffado.so.2()(64bit)",
             "libgps.so.32()(64bit)",
             "libgranite.so.6()(64bit)",
-            "libgstphotography-1.0.so.0()(64bit)",
-            "libgstplay-1.0.so.0()(64bit)",
             "libjsoncpp.so.26()(64bit)",
-            "libm.so.6(GLIBC_2.44)(64bit)",
-            "libopenjph.so.0.25()(64bit)",
-            "libpgm-5.3.so.0()(64bit)",
-            "libreport-filesystem",
-            "librist.so.4()(64bit)",
-            "libsmbclient.so.0()(64bit)",
-            "libsmbclient.so.0(SMBCLIENT_0.1.0)(64bit)",
-            "libts.so.0()(64bit)",
-            "libvorbis.so.0()(64bit)",
-            "libvorbisenc.so.2()(64bit)",
-            "libvorbisfile.so.3()(64bit)",
             "vdirsyncer"
           ]
         },
-        "tuna": {
+        "retained": {
           "leaks": [
             "libm.so.6(GLIBC_2.44)(64bit)"
           ],
           "resolvable": false,
-          "roots_absent": [
-            "evolution-data-server",
-            "liberation-fonts",
-            "orca",
-            "plymouth"
-          ],
+          "roots_absent": [],
           "unresolved": [
-            "gstreamer1-plugins-bad-free-libs(x86-64)",
-            "iw",
-            "libcanberra.so.0()(64bit)",
-            "libecal-2.0.so.3()(64bit)",
-            "libedataserver-1.2.so.27()(64bit)",
-            "libgstplay-1.0.so.0()(64bit)",
-            "libm.so.6(GLIBC_2.44)(64bit)",
-            "libopenjph.so.0.25()(64bit)",
-            "libpgm-5.3.so.0()(64bit)",
-            "libreport-filesystem",
-            "librist.so.4()(64bit)",
-            "libsmbclient.so.0()(64bit)",
-            "libsmbclient.so.0(SMBCLIENT_0.1.0)(64bit)",
-            "libvorbis.so.0()(64bit)",
-            "libvorbisenc.so.2()(64bit)",
-            "libvorbisfile.so.3()(64bit)",
-            "webkitgtk6.0(x86-64)"
+            "libm.so.6(GLIBC_2.44)(64bit)"
           ]
         },
+        "tuna": {
+          "leaks": [],
+          "resolvable": true,
+          "roots_absent": [],
+          "unresolved": []
+        },
         "xfce": {
-          "leaks": [
-            "libm.so.6(GLIBC_2.44)(64bit)"
-          ],
+          "leaks": [],
           "resolvable": false,
           "roots_absent": [
             "xfce4-settings",
@@ -590,24 +503,11 @@
             "xfwl4"
           ],
           "unresolved": [
-            "gstreamer1-plugins-bad-free-libs(x86-64)",
-            "libcanberra.so.0()(64bit)",
-            "libecal-2.0.so.3()(64bit)",
-            "libedataserver-1.2.so.27()(64bit)",
-            "libgstplay-1.0.so.0()(64bit)",
-            "libm.so.6(GLIBC_2.44)(64bit)",
-            "libopenjph.so.0.25()(64bit)",
-            "libreport-filesystem",
-            "libsmbclient.so.0()(64bit)",
-            "libsmbclient.so.0(SMBCLIENT_0.1.0)(64bit)",
-            "libvorbis.so.0()(64bit)",
-            "libvorbisenc.so.2()(64bit)",
-            "libxfce4util.so.7()(64bit)",
-            "webkitgtk6.0(x86-64)"
+            "libxfce4util.so.7()(64bit)"
           ]
         }
       },
-      "measured_at": "2026-10-24T21:58:54.437519+00:00",
+      "measured_at": "2026-11-14T19:36:31.203106+00:00",
       "published_index": {
         "baseurl": "https://repo.tunaos.org/hummingbird/20251124-x86_64/",
         "primary_bytes": 3892446,
@@ -618,11 +518,11 @@
       },
       "target_index": {
         "baseurl": "https://packages.redhat.com/api/pulp-content/public-hummingbird/x86_64/",
-        "primary_bytes": 7101940,
-        "primary_href": "repodata/35cfa0b93dc4f0d20de606f00cb16e19452862ff649e19801d2c84863411d4ca-primary.xml.gz",
-        "primary_sha256": "35cfa0b93dc4f0d20de606f00cb16e19452862ff649e19801d2c84863411d4ca",
-        "primary_sha256_declared": "35cfa0b93dc4f0d20de606f00cb16e19452862ff649e19801d2c84863411d4ca",
-        "revision": "1792863204"
+        "primary_bytes": 7990999,
+        "primary_href": "repodata/233bf2f041b55408ff0f23e935962562cc17892a2db5237a607c1776fb810888-primary.xml.gz",
+        "primary_sha256": "233bf2f041b55408ff0f23e935962562cc17892a2db5237a607c1776fb810888",
+        "primary_sha256_declared": "233bf2f041b55408ff0f23e935962562cc17892a2db5237a607c1776fb810888",
+        "revision": "1794628158"
       }
     }
   }

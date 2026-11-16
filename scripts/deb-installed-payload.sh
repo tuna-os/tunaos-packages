@@ -57,6 +57,9 @@ while IFS= read -r -d '' expected; do
             echo "missing installed directory: $member" >&2
             exit 1
         fi
+        # Recorded so a recipe's files.common may name a directory
+        # (tuna-desktop lists usr/share/tuna-desktop/icons).
+        printf 'dir\t%s\n' "$member" >> "$output_tmp"
     else
         echo "unsupported package payload type: $member" >&2
         exit 1
@@ -65,4 +68,9 @@ while IFS= read -r -d '' expected; do
 done < <(find "$scratch" -mindepth 1 -print0)
 
 [ "$count" -gt 0 ] || { echo 'empty package payload' >&2; exit 1; }
+# mktemp creates the file 0600. The verify job writes it as root inside the
+# container, and the runner user must read it afterwards for
+# deb-verification-receipt.py and upload-artifact; run 43632396278 failed
+# both with "Permission denied: evidence/tuna-desktop/installed-payload.tsv".
+chmod 0644 -- "$output_tmp"
 mv -- "$output_tmp" "$receipt"

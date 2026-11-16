@@ -1,0 +1,56 @@
+schema: 1
+name: gdm
+version: "51.1.1"
+release: "1.1"
+summary: GNOME Display Manager with normal-session name propagation
+description: >-
+  Arch's native GDM/libgdm split package, retaining its PAM configuration,
+  conffile ownership and Meson checks. Before opening a normal session, pass
+  the resolved explicit, saved or fallback session name to the worker's
+  persistent settings. Program sessions retain their existing behavior.
+license: GPL-2.0-or-later
+# Arch packaging 36e76b2b4674dc196e611782c4f8f6d5e476e231 (51.1.1-1):
+# https://gitlab.archlinux.org/archlinux/packaging/packages/gdm/-/commit/36e76b2b4674dc196e611782c4f8f6d5e476e231
+# Original PKGBUILD SHA256: bd2d0a3657864f177d431d8578ea8f52497a288c578b589386736ce5ab03d93c
+# GDM release tag 51.1.1 resolves to d643e68963ab74564955025b554ec23cd794770d.
+source:
+  url: https://download.gnome.org/sources/gdm/51/gdm-51.1.1.tar.xz
+  sha256: 390ae9e7540f71db28a3dc64319a8f687f4d88bd4d5f1ff816b7a9f2249ab4aa
+  filename: gdm-51.1.1.tar.xz
+  directory: gdm-51.1.1
+sources:
+  - url: https://gitlab.archlinux.org/archlinux/packaging/packages/gdm/-/raw/36e76b2b4674dc196e611782c4f8f6d5e476e231/0001-Xsession-Don-t-start-ssh-agent-by-default.patch
+    sha256: 39a7e1189d423dd428ace9baac77ba0442c6706a861d3c3db9eb3a6643e223f8
+    filename: 0001-Xsession-Don-t-start-ssh-agent-by-default.patch
+    destination: patches/0001-Xsession-Don-t-start-ssh-agent-by-default.patch
+    extract: false
+build_system: meson
+dependencies:
+  runtime:
+    common: [libgdm=51.1.1-1.1]
+outputs:
+  arch:
+    native_pkgbuild:
+      path: packages/gdm/PKGBUILD
+      sha256: f467e9b46cc698fe12be5c316a8cf08b54efaa4755e69e6a873e0376ca3bc49d
+      packages: [gdm, libgdm]
+      optional_packages: [gdm-debug]
+      files:
+        - path: packages/gdm/patches/0001-resolve-session-name-before-open.patch
+          sha256: 380a43ecbd7a43acd73cf89af43fa78c41a7418810a36a99dd291cc0363bfbea
+files:
+  common:
+    - usr/bin/gdm
+    - usr/lib/libgdm.so
+verify:
+  install_name: gdm
+  smoke: >-
+    test "$(pacman -Q gdm libgdm)" = "$(printf 'gdm 51.1.1-1.1\nlibgdm 51.1.1-1.1')"
+    && test "$(pacman -Qqo /usr/bin/gdm)" = gdm
+    && test "$(pacman -Qqo /usr/lib/libgdm.so)" = libgdm
+    && /usr/bin/gdm --version
+targets: [arch]
+# The observed native journey and the maintained Arch recipe are x86_64 only.
+# This is not an ARM package/CPU or fresh-account qualification claim.
+architectures:
+  arch: [x86_64]

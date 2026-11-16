@@ -78,7 +78,8 @@ def test_publish_build_chain_rpms_plans_and_passes_excludes() -> None:
     # actually publishing e.g. gnome50.
     plan_index = next(i for i, s in enumerate(steps)
                        if "plan-withdrawn-excludes.py" in s.get("run", ""))
-    assert "matrix.target" in steps[plan_index]["run"]
+    assert '"${MATRIX_TARGET}"' in steps[plan_index]["run"]
+    assert steps[plan_index]["env"]["MATRIX_TARGET"] == "${{ matrix.target }}"
     assert plan_index < steps.index(sign_index), (
         "the exclude file must be planned before Sign and index reads it"
     )

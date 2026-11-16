@@ -43,13 +43,20 @@ INSTALL_SCRIPT="${REPO_ROOT}/contrib/install.sh"
 # installed with zero authenticity check even though the key-import step
 # right above it made it look like they were verified. Every publish
 # pipeline signs its RPMs (rpmsign --addsign), so gpgcheck=1 is real
-# protection; repo_gpgcheck stays 0 because repomd.xml isn't detached-signed
-# yet (no repomd.xml.asc published) and =1 would hard-fail every dnf
-# transaction instead of adding a check.
+# protection.
 @test "install.sh: enables gpgcheck for the installed repo" {
   run grep 'gpgcheck=1' "${INSTALL_SCRIPT}"
   [ "$status" -eq 0 ]
   run grep -c '^gpgcheck=0$' "${INSTALL_SCRIPT}"
+  [ "$output" -eq 0 ]
+}
+
+# tunaos-packages#509: every publisher writes repodata/repomd.xml.asc
+# (scripts/sign-repomd.sh), so the installed repo must check it too.
+@test "install.sh: enables repo_gpgcheck for the installed repo" {
+  run grep -c '^repo_gpgcheck=1$' "${INSTALL_SCRIPT}"
+  [ "$output" -eq 1 ]
+  run grep -c '^repo_gpgcheck=0$' "${INSTALL_SCRIPT}"
   [ "$output" -eq 0 ]
 }
 

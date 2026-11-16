@@ -19,8 +19,10 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.1.0
         with: {python-version: "3.15"}
       - run: pip install --disable-pip-version-check PyYAML
       - run: python3 scripts/validate-hummingbird-catalog.py manifests/hummingbird-desktops.yaml

@@ -31,8 +31,10 @@ SPEC.loader.exec_module(cache)
 SIGNER = "4E5CC9F8B3B521793D95266E629BE6EA45188366"
 TARGETS = {
     "ubuntu": "ubuntu",
+    "ubuntu-rolling": "ubuntu-rolling",
     "debian-sid": "debian",
     "debian-trixie": "trixie",
+    "ubuntu-noble": "noble",
 }
 TUNA_SCHEMAS = {
     "org.gnome.desktop.interface",
@@ -49,6 +51,18 @@ TUNA_BINARIES = (
     "ibus-bridge",
     "wallpaper-svg",
 )
+# dh_compress gzips documentation in these trees, so a recipe's
+# files.common entry nested-session.md ships as nested-session.md.gz in the
+# deb. The other formats keep the exact path (Gentoo via docompress -x).
+DEB_COMPRESSED_DOC_DIRS = ("usr/share/doc/", "usr/share/man/", "usr/share/info/")
+
+
+def declared_member_installed(path: str, payload: dict[str, list[str]]) -> bool:
+    path = path.lstrip("/")
+    if path in payload:
+        return True
+    return path.startswith(DEB_COMPRESSED_DOC_DIRS) and payload.get(path + ".gz", [""])[0] == "file"
+
 
 
 def require(condition: bool, message: str) -> None:
@@ -92,7 +106,7 @@ def parse_payload(path: Path) -> dict[str, list[str]]:
     payload: dict[str, list[str]] = {}
     for line in lines[1:]:
         fields = line.split("\t")
-        require(len(fields) in (3, 4), "malformed installed payload member")
+        require(len(fields) in (2, 3, 4), "malformed installed payload member")
         kind, member = fields[:2]
         require(
             member and not member.startswith("/") and "\n" not in member and "\t" not in member,
@@ -112,6 +126,8 @@ def parse_payload(path: Path) -> dict[str, list[str]]:
             )
         elif kind == "symlink":
             require(len(fields) == 3 and fields[2] != "", "invalid installed symlink record")
+        elif kind == "dir":
+            require(len(fields) == 2, "invalid installed directory record")
         else:
             raise ValueError(f"unsupported installed payload record: {kind}")
         payload[member] = fields
@@ -305,8 +321,9 @@ def receipt(
         "installed payload is not bound to served bytes",
     )
 
-    common = set(recipe.get("files", {}).get("common", []))
-    require(common <= payload.keys(), "declared package payload member is missing")
+    common = recipe.get("files", {}).get("common", [])
+    missing = [path for path in common if not declared_member_installed(path, payload)]
+    require(not missing, f"declared package payload member is missing: {', '.join(missing)}")
     if package == "tuna-desktop":
         for binary in TUNA_BINARIES:
             executable = f"usr/bin/tuna-{binary}"

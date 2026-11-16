@@ -56,14 +56,14 @@ def plan(packages: list[str], arches: list[str] | None) -> dict:
 
     selected = publisher_contract.architectures("arch", target, arches, RUNNERS, fail)
     contexts = {arch: build_context(target, arch) for arch in selected}
-    # A multi-architecture invocation has no single compatible image. Existing
-    # single-architecture callers retain the scalar; matrix consumers use rows.
-    image = contexts[selected[0]]["image"] if len(selected) == 1 else ""
 
     build = []
     for package in packages:
-        publisher_contract.recipe(package, "arch", fail)
-        for arch in selected:
+        recipe = publisher_contract.recipe(package, "arch", fail)
+        supported = publisher_contract.recipe_architectures(
+            package, recipe, "arch", target, arches, fail,
+        )
+        for arch in supported:
             build.append({
                 "package": package,
                 "arch": arch,
@@ -72,11 +72,18 @@ def plan(packages: list[str], arches: list[str] | None) -> dict:
                 "cell_id": factory_contract.tideforge_cell_id(package, "arch", arch),
             })
 
+    # Keep target ordering, but never publish an architecture without builds.
+    built_arches = {row["arch"] for row in build}
+    selected = [arch for arch in selected if arch in built_arches]
+    # A multi-architecture invocation has no single compatible image.
+    image = contexts[selected[0]]["image"] if len(selected) == 1 else ""
+
     publish = []
     for arch in selected:
         src = r2_path.replace("{arch}", arch)
         publish.append({
             "arch": arch,
+            "packages": ",".join(row["package"] for row in build if row["arch"] == arch),
             "src": src,
             "served": f"{SERVED_ROOT}{src}/",
             "runner": RUNNERS[arch],

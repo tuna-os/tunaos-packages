@@ -25,6 +25,7 @@ if command -v zypper >/dev/null 2>&1; then
     if [ -r /scripts/zypper-refresh-with-retry.sh ]; then
         bash /scripts/zypper-refresh-with-retry.sh
     fi
+    zypper --non-interactive dup --no-allow-vendor-change
     zypper --non-interactive install rpmlint >/dev/null
 else
     dnf_options=()

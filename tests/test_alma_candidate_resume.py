@@ -148,7 +148,11 @@ def test_workflow_banks_attested_native_partials_without_production_promotion():
     workflow = yaml.safe_load((ROOT / '.github/workflows/package-factory-cell.yml').read_text())
     steps = workflow['jobs']['build']['steps']
     attestation = next(step for step in steps if step.get('id') == 'native_snapshot_attestation')
-    assert attestation['uses'] == 'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6'
+    # The tag is pinned to its commit in actions.lock, not in the workflow.
+    lock = yaml.safe_load((ROOT / '.github/workflows/actions.lock').read_text())
+    assert attestation['uses'] in lock['workflows']['.github/workflows/package-factory-cell.yml']
+    assert (lock['dependencies'][attestation['uses']]['commit']
+            == 'sha1-1e69f48acb82d1966a394da916b4c1698aa569d6')
     assert attestation['with']['subject-path'].endswith('/native-snapshot/snapshot.json')
     upload = next(step for step in steps if step.get('name') == 'Bank authenticated native Alma progress')
     assert '${{ github.run_id }}-${{ github.run_attempt }}' in upload['with']['name']
@@ -238,7 +242,8 @@ def test_live_ci_requires_two_distinct_manual_dispatches_at_same_sha():
     steps = workflow['jobs']['native-resume']['steps']
     assert any(step.get('run') == 'bash scripts/verify-alma-candidate-resume-ci.sh' for step in steps)
     assert workflow['permissions']['contents'] == 'read'
-    assert workflow['permissions']['attestations'] == 'write'
+    assert workflow['jobs']['native-resume']['permissions']['contents'] == 'read'
+    assert workflow['jobs']['native-resume']['permissions']['attestations'] == 'write'
     script = (ROOT / 'scripts/verify-alma-candidate-resume-ci.sh').read_text()
     assert "receipt['producer']['sourceRevision'] == os.environ['GITHUB_SHA']" in script
     assert "receipt['producer']['runId'] != int(os.environ['GITHUB_RUN_ID'])" in script
