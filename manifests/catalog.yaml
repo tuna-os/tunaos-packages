@@ -12096,6 +12096,7 @@ packages:
       - eln
       - fedora
       - gentoo
+      - noble
       - opensuse-tumbleweed
       - rawhide
       - trixie
