@@ -34,35 +34,45 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "build-chain.sh"
+PODMAN = ROOT / "scripts" / "lib" / "build-chain" / "podman.sh"
+MOCK = ROOT / "scripts" / "lib" / "build-chain" / "mock.sh"
 
 
 def code() -> str:
-    """build-chain.sh with comment lines stripped."""
+    """Build-chain orchestration and backend modules with comments stripped."""
     return "\n".join(
         line
-        for line in SCRIPT.read_text().splitlines()
+        for path in (SCRIPT, PODMAN, MOCK)
+        for line in path.read_text().splitlines()
         if not line.strip().startswith("#")
     )
+
+
+def backend(path: Path, name: str) -> str:
+    """Return one backend function without comments."""
+    text = "\n".join(
+        line
+        for line in path.read_text().splitlines()
+        if not line.strip().startswith("#")
+    )
+    match = re.search(rf"^{name}\(\) \{{.*?^\}}$", text, re.S | re.M)
+    assert match, f"{name} not found in {path}"
+    return match.group(0)
 
 
 def podman_backend() -> str:
-    """build_package_podman only -- the backend the desktop builds use.
+    """build_package_podman, the backend used by desktop builds.
 
     The scope matters. `build_package_mock` runs mock straight on the HOST,
     where /var/lib/mock and /var/cache/mock ARE shared between concurrent
-    processes, so its exclusive lock is doing real work and must stay. Only the
-    containerised backend gets the isolation that makes a shared lock safe.
+    processes, so its exclusive lock is doing real work and must stay. Only
+    the containerised backend gets the isolation that makes a shared lock safe.
     """
-    text = "\n".join(
-        line
-        for line in SCRIPT.read_text().splitlines()
-        if not line.strip().startswith("#")
-    )
-    match = re.search(
-        r"^build_package_podman\(\) \{.*?^\}$", text, re.S | re.M
-    )
-    assert match, "build_package_podman not found in build-chain.sh"
-    return match.group(0)
+    return backend(PODMAN, "build_package_podman")
+
+
+def mock_backend() -> str:
+    return backend(MOCK, "build_package_mock")
 
 
 def test_the_mock_build_takes_the_lock_shared() -> None:
@@ -83,14 +93,7 @@ def test_the_mock_build_takes_the_lock_shared() -> None:
 
 def test_the_host_mock_backend_keeps_its_exclusive_lock() -> None:
     """The other backend has none of the isolation, so it must not be 'fixed' too."""
-    text = "\n".join(
-        line
-        for line in SCRIPT.read_text().splitlines()
-        if not line.strip().startswith("#")
-    )
-    match = re.search(r"^build_package_mock\(\) \{.*?^\}$", text, re.S | re.M)
-    assert match, "build_package_mock not found"
-    for line in match.group(0).splitlines():
+    for line in mock_backend().splitlines():
         if "flock" in line and "repo.lock" in line:
             assert "flock -s" not in line, (
                 "build_package_mock runs mock on the HOST, sharing /var/lib/mock "

@@ -37,22 +37,25 @@ BUILD_CHAIN="${REPO_ROOT}/scripts/build-chain.sh"
 
 @test "build-chain.sh: passes shellcheck" {
   if command -v shellcheck &>/dev/null; then
-    run shellcheck "${BUILD_CHAIN}" "${REPO_ROOT}/scripts/lib/build-chain/native.sh"
+    run shellcheck "${BUILD_CHAIN}" "${REPO_ROOT}/scripts/lib/build-chain/"*.sh
     [ "$status" -eq 0 ]
   else
     skip "shellcheck not installed"
   fi
 }
 
-@test "build-chain.sh: loads native backend through the module boundary" {
-  run grep -F 'source "${SCRIPT_DIR}/lib/build-chain/native.sh"' "${BUILD_CHAIN}"
-  [ "$status" -eq 0 ]
+@test "build-chain.sh: loads all backends through module boundaries" {
+  for backend in podman mock native; do
+    run grep -F "source \"\${SCRIPT_DIR}/lib/build-chain/${backend}.sh\"" "${BUILD_CHAIN}"
+    [ "$status" -eq 0 ]
 
-  run grep -F 'build_package_native()' "${BUILD_CHAIN}"
-  [ "$status" -ne 0 ]
+    run grep -F "build_package_${backend}()" "${BUILD_CHAIN}"
+    [ "$status" -ne 0 ]
 
-  run grep -F 'build_package_native()' "${REPO_ROOT}/scripts/lib/build-chain/native.sh"
-  [ "$status" -eq 0 ]
+    run grep -F "build_package_${backend}()" \
+      "${REPO_ROOT}/scripts/lib/build-chain/${backend}.sh"
+    [ "$status" -eq 0 ]
+  done
 }
 
 @test "build-chain.sh: _record_result is a no-op when BUILD_RESULTS_FILE is unset" {

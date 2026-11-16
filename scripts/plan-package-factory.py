@@ -46,9 +46,17 @@ FORMAT_INPUTS = {
 }
 NATIVE_INPUTS = {"scripts/build-chain.sh", "scripts/parse-build-order.py", "scripts/candidate-rpm-repository.py", "scripts/alma-rpmbuild-guard.py",
                  "scripts/alma-candidate-snapshot.py", "scripts/alma-candidate-resume.py", "scripts/github_api.py"}
+# build-chain.sh sources its backends from scripts/lib/build-chain/; a module
+# edit changes the native build exactly as an edit to build-chain.sh does.
+NATIVE_INPUT_MODULE = re.compile(r"^scripts/lib/build-chain/[^/]+\.sh$")
 DISTGIT_INPUTS = {"scripts/import-fedora-distgit.py"}
 DEPENDENCY_TREE_CHANGE = re.compile(r"^manifests/dependency-trees/[^/]+\.ya?ml$")
 TARGET_QUEUE_CHANGE = re.compile(r"^manifests/target-queues/[^/]+\.ya?ml$")
+
+
+
+def touches_native_inputs(changed: set[str]) -> bool:
+    return bool(changed & NATIVE_INPUTS) or any(NATIVE_INPUT_MODULE.match(path) for path in changed)
 
 
 def load_yaml(path: pathlib.Path) -> dict[str, Any]:
@@ -434,7 +442,7 @@ def select_cells(
                 else:
                     selected.append(cell)
                 continue
-        if changed & NATIVE_INPUTS and cell["engine"] == "build-chain":
+        if touches_native_inputs(changed) and cell["engine"] == "build-chain":
             renderer_only.append(cell)
             continue
         if changed & DISTGIT_INPUTS and cell["engine"] == "build-chain" and cell["uses_distgit"]:
