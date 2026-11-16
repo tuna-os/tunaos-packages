@@ -363,11 +363,12 @@ def test_authored_cosmic_el10_queue_keeps_all_25_roots():
                for gap in report['consumers'][0]['unresolved'])
 
 
-def test_all_14_adapters_declare_platform_architecture_and_cpu_separately():
+def test_all_15_adapters_declare_platform_architecture_and_cpu_separately():
     factory = yaml.safe_load((ROOT / 'manifests/package-factory.yaml').read_text())
     adapters = factory['consumer_adapters']
     assert set(adapters) == {'albacore', 'yellowfin', 'skipjack', 'bonito', 'bonito-rawhide', 'wahoo',
-        'hummingbird', 'sailfin', 'guppy', 'gurnard', 'grouper', 'marlin', 'flounder', 'flounder-sid'}
+        'hummingbird', 'sailfin', 'guppy', 'gurnard', 'grouper', 'stingray', 'marlin', 'flounder',
+        'flounder-sid'}
     assert adapters['yellowfin']['architectures']['linux/amd64/v2'] == 'x86_64'
     assert 'x86-64-v2' in adapters['yellowfin']['cpuBaselines']
     assert adapters['skipjack']['architectures']['linux/amd64'] == 'x86_64'

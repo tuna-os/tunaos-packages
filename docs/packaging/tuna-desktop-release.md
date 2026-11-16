@@ -55,8 +55,9 @@ the asset and compares it with the published one.
 
 Commit the recipe change. Then let the factory build the `tideforge-tuna-desktop-*`
 cells: `arch-x86_64`, `fedora`, `rawhide`, `eln`, `el10` and `opensuse-tumbleweed`
-on `x86_64` and `aarch64`, `ubuntu` (resolute), `debian` (sid) and
-`trixie` on `amd64` and `arm64`, and `gentoo-amd64`.
+on `x86_64` and `aarch64`, `ubuntu` (resolute), `ubuntu-rolling` (the interim
+release of Ubuntu), `debian` (sid) and `trixie` on `amd64` and `arm64`,
+and `gentoo-amd64`.
 Each smoke runs every binary and checks `--version` against `want=`.
 
 ## Colour runtime dependency contract
@@ -69,7 +70,7 @@ dependency checks. These are hard runtime dependencies, including on
 minimal images that omit recommended packages.
 
 Native package identities are `colord` and `gnome-color-manager` on Arch,
-Fedora/Rawhide/ELN/EL10, Debian sid/trixie, Ubuntu resolute and Tumbleweed.
+Fedora/Rawhide/ELN/EL10, Debian sid/trixie, Ubuntu resolute and 26.10, and Tumbleweed.
 Gentoo uses `x11-misc/colord` and `gnome-extra/gnome-color-manager`.
 The source-backed package metadata is available from:
 
@@ -148,6 +149,20 @@ private gtk4-layer-shell 1.3.0 (the `sources` entry with `targets: [trixie]`).
 The library goes in `/usr/lib/<multiarch>/tuna-desktop/`, and `patchelf` sets
 a RUNPATH on the binaries that link it. The toolchain is trixie's
 `rustc-web` 1.96, not its `rustc` 1.85. Publish with `distros: debian-trixie`.
+
+`ubuntu-rolling` is the Ubuntu interim release that TunaOS stingray uses.
+Stingray follows `ubuntu:rolling`. Today that release is 26.10
+(`suites: [stonking]`, image `ubuntu:26.10`). The target uses the `ubuntu`
+lists without change. 26.10 has every build dependency, which includes rustc
+1.97 and gtk4-layer-shell 1.3.0.
+
+The name of the target is the track, not the release. Thus its repo
+`tideforge/ubuntu-rolling` and the TunaOS rollout
+record stay the same across interim releases. When the stingray base moves to
+the next release, change `suites` and `probe_image` of the target together.
+Also increase the `release` of this recipe. The flat repo keeps its pool, thus
+a new build must not use a version that the repo already serves. Publish with
+`distros: ubuntu-rolling`.
 
 `noble` is Ubuntu 24.04, the base of gurnard, and has no gtk4-layer-shell.
 Thus `packages/gtk4-layer-shell` publishes `libgtk4-layer-shell0`/`-dev`

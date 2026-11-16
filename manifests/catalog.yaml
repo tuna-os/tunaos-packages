@@ -12101,6 +12101,7 @@ packages:
       - rawhide
       - trixie
       - ubuntu
+      - ubuntu-rolling
     membership: runtime
     referenced_by:
       - .github/workflows/package-factory.yml

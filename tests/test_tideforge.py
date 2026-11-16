@@ -536,8 +536,8 @@ def test_real_recipes_keep_declared_runtime_metadata(
 @pytest.mark.parametrize(
     "target",
     [
-        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "debian",
-        "trixie", "noble", "opensuse-tumbleweed", "gentoo",
+        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "ubuntu-rolling",
+        "debian", "trixie", "noble", "opensuse-tumbleweed", "gentoo",
     ],
 )
 def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> None:
@@ -552,7 +552,7 @@ def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> No
             if line.startswith("depends=(")
         )
         dependencies = set(depends.removeprefix("depends=(").removesuffix(")").replace("'", "").split())
-    elif target in {"ubuntu", "debian", "trixie", "noble"}:
+    elif target in {"ubuntu", "ubuntu-rolling", "debian", "trixie", "noble"}:
         depends = next(
             line for line in rendered["debian/control"].splitlines()
             if line.startswith("Depends:")
@@ -574,8 +574,8 @@ def test_tuna_desktop_native_runtime_includes_colour_services(target: str) -> No
 def test_tuna_desktop_colour_runtime_contract_covers_every_factory_target() -> None:
     recipe = tideforge.load_yaml(ROOT / "packages/tuna-desktop/package.yaml")
     assert set(recipe["targets"]) == {
-        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "debian",
-        "trixie", "noble", "opensuse-tumbleweed", "gentoo",
+        "arch", "fedora", "rawhide", "eln", "el10", "ubuntu", "ubuntu-rolling",
+        "debian", "trixie", "noble", "opensuse-tumbleweed", "gentoo",
     }
 
 
