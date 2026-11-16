@@ -32,7 +32,7 @@ and the Rawhide-root `GLIBC_2.44` leak in `docs/HUMMINGBIRD-TARGET.md` §2).
 
 | Target | Engine | Root | Runtime gate |
 |---|---|---|---|
-| EL10 | mock + native specs (`src/gnome-5x`, `src/deps`, `src/xfce-wayland`) | `centos-stream-10-ci` (+CRB, EPEL as build inputs) | `build-gnome50-verify.yml` (Lima VM, GDM) |
+| EL10 | mock + native specs (`src/gnome-5x`, `src/deps`, `src/xfce-wayland`) | `centos-stream-10-ci` (+CRB, EPEL as build inputs) | clean-install cell (the Lima/GDM boot workflow `build-gnome50-verify.yml` was retired in #430) |
 | Fedora | mock + native specs | `fedora-44-ci` | clean-install cell |
 | Fedora ELN | mock + native specs / Tideforge | `fedora-eln-ci` | clean-install cell |
 | Hummingbird | mock + Rawhide dist-git imports | Fedora 44 + public-hummingbird by priority (`hummingbird-ci*.cfg`) | static installability walk + `dnf --assumeno` inside the pinned bootc-os image |

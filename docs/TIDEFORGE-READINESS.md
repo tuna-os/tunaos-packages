@@ -97,7 +97,8 @@ For contrast, the native EL10 GNOME path *does* have runtime verification —
 `build-gnome50-verify.yml` boots a CentOS Stream 10 VM under Lima, waits for GDM, checks
 that gnome-shell survives without crash-looping, and scans the journal for crash
 signatures. That is the standard Tideforge has to meet, and it already exists as a
-worked example to copy.
+worked example to copy. (#430 later retired that workflow; read it from history with
+`git show ea532698^:.github/workflows/build-gnome50-verify.yml`.)
 
 ## COSMIC installs and smokes, but the full staged closure is still ahead
 
