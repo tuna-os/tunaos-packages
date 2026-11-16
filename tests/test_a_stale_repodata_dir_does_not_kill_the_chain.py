@@ -40,12 +40,12 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CHAIN = ROOT / "scripts" / "build-chain.sh"
+REPO_SERVICE = ROOT / "scripts" / "lib" / "build-chain" / "repo.sh"
 
 
 def test_the_retry_clears_the_temp_dir_not_just_the_finished_one():
     """`rm -rf repodata` alone leaves the blocker in place."""
-    text = CHAIN.read_text(encoding="utf-8")
+    text = REPO_SERVICE.read_text(encoding="utf-8")
     assert 'rm -rf "${LOCAL_REPO}/.repodata" "${LOCAL_REPO}/repodata"' in text, (
         "the full re-index must clear .repodata; removing only repodata "
         "re-runs into 'Temporary repodata directory already exists'"
@@ -55,7 +55,7 @@ def test_the_retry_clears_the_temp_dir_not_just_the_finished_one():
 def test_the_stale_dir_is_cleared_before_the_first_attempt_too():
     """Clearing it only on the retry still costs a failed --update and a
     scary WARNING on every shard that inherits debris."""
-    text = CHAIN.read_text(encoding="utf-8")
+    text = REPO_SERVICE.read_text(encoding="utf-8")
     body = text.split("update_local_repo() {", 1)[1].split("\n}", 1)[0]
     first = body.index('rm -rf "${LOCAL_REPO}/.repodata"')
     update = body.index("createrepo_c --update")
@@ -67,7 +67,7 @@ def test_the_stale_dir_is_cleared_before_the_first_attempt_too():
 def test_why_no_lock_is_needed_is_written_down():
     """The error text blames a concurrent process, which is the obvious and
     WRONG reading; a future editor must not 'fix' this with flock."""
-    body = CHAIN.read_text(encoding="utf-8")
+    body = REPO_SERVICE.read_text(encoding="utf-8")
     body = body.split("update_local_repo() {", 1)[1].split("\n}", 1)[0]
     assert "wait_one" in body and "synchronously" in body
 
@@ -99,10 +99,8 @@ def _stub_createrepo(bindir: Path) -> None:
 
 
 def _run_update_local_repo(repo: Path, bindir: Path) -> subprocess.CompletedProcess:
-    """Drive the REAL update_local_repo body, scaffolding stubbed."""
+    """Drive the REAL update_local_repo from its module, scaffolding stubbed."""
     _stub_createrepo(bindir)
-    func = CHAIN.read_text(encoding="utf-8")
-    func = func.split("update_local_repo() {", 1)[1].split("\n}", 1)[0]
     script = (
         "set -euo pipefail\n"
         f'export PATH="{bindir}:$PATH"\n'
@@ -111,7 +109,7 @@ def _run_update_local_repo(repo: Path, bindir: Path) -> subprocess.CompletedProc
         'ALMA_CANDIDATE=false\n'
         'log() { echo "==> $*"; }\n'
         'warn() { echo "WARNING: $*" >&2; }\n'
-        "update_local_repo() {\n" + func + "\n}\n"
+        f'source "{REPO_SERVICE}"\n'
         "update_local_repo\n"
     )
     return subprocess.run(["bash", "-c", script], capture_output=True, text=True)

@@ -25,7 +25,7 @@ import subprocess
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SCRIPT = REPO / "scripts" / "build-chain.sh"
+SCRIPT = REPO / "scripts" / "lib" / "build-chain" / "sources.sh"
 
 
 def sources_block() -> str:

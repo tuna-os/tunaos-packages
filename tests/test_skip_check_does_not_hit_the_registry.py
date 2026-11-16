@@ -29,6 +29,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "scripts/build-chain.sh"
+SOURCES = REPO / "scripts/lib/build-chain/sources.sh"
 
 BACKEND_SOURCES = (
     REPO / "scripts/lib/build-chain/podman.sh",
@@ -38,8 +39,8 @@ BACKEND_SOURCES = (
 
 
 def all_sources() -> str:
-    return "\n".join((SCRIPT, *BACKEND_SOURCES)[i].read_text()
-                     for i in range(len(BACKEND_SOURCES) + 1))
+    return "\n".join(path.read_text()
+                     for path in (SCRIPT, SOURCES, *BACKEND_SOURCES))
 
 
 
@@ -51,7 +52,7 @@ def _function_body(name: str, *, code_only: bool = False) -> str:
     check reads the rationale as the thing it forbids -- which is how the
     first version of this test failed against a correct fix.
     """
-    src = SCRIPT.read_text()
+    src = SOURCES.read_text()
     start = src.index(f"{name}() {{")
     end = src.index("\n}\n", start)
     body = src[start:end]

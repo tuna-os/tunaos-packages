@@ -148,7 +148,7 @@ def test_the_family_that_failed_is_fixed():
 def test_the_skip_still_justifies_itself_by_the_buildroot():
     """If the skip stops citing the buildroot, the test above stops meaning
     what it says. Keep them tied together."""
-    src = (ROOT / "scripts" / "build-chain.sh").read_text()
+    src = (ROOT / "scripts" / "lib" / "build-chain" / "sources.sh").read_text()
     assert "already served by the published index" in src
     assert "SERVED_NVRS_SET" in src
 

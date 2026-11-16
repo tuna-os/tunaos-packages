@@ -1,4 +1,4 @@
-"""The spectool download retry in scripts/build-chain.sh and scripts/lib/build-chain/native.sh.
+"""The spectool download retry in scripts/lib/build-chain/{sources,native}.sh.
 
 build_package() fetches upstream source tarballs using spectool. The chain
 pulls from several hundred upstream hosts, many of them personal or small
@@ -31,19 +31,19 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILD_CHAIN = ROOT / "scripts" / "build-chain.sh"
+BUILD_CHAIN = ROOT / "scripts" / "lib" / "build-chain" / "sources.sh"
 NATIVE = ROOT / "scripts" / "lib" / "build-chain" / "native.sh"
 
 
 def extract_build_chain_spectool_block() -> str:
-    """Extract the spectool retry loop from scripts/build-chain.sh."""
+    """Extract the spectool retry loop from scripts/lib/build-chain/sources.sh (prepare_sources)."""
     text = BUILD_CHAIN.read_text()
     match = re.search(
         r'(local spectool_attempts=.*?^    done)',
         text,
         re.S | re.M,
     )
-    assert match, "spectool retry block not found in build-chain.sh"
+    assert match, "spectool retry block not found in sources.sh"
     return match.group(1)
 
 
@@ -66,7 +66,7 @@ def run_spectool_case(
     attempts: int = 4,
     delay: int = 0,
 ) -> tuple[int, list[str], str, str]:
-    """Execute the build-chain.sh spectool retry guard with a stubbed _run_spectool.
+    """Execute the sources.sh spectool retry guard with a stubbed _run_spectool.
 
     outputs is a list of (returncode, stdout_stderr_string) for each call.
     Returns (exit_code, calls_log, stdout, stderr).

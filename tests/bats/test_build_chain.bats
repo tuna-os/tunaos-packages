@@ -58,6 +58,27 @@ BUILD_CHAIN="${REPO_ROOT}/scripts/build-chain.sh"
   done
 }
 
+@test "build-chain.sh: loads repository and source services through module boundaries" {
+  for module in repo sources; do
+    run grep -F "source \"\${SCRIPT_DIR}/lib/build-chain/${module}.sh\"" "${BUILD_CHAIN}"
+    [ "$status" -eq 0 ]
+  done
+
+  for fn in ensure_local_repo record_buildroot_manifest update_local_repo _repo_rpm_count; do
+    run grep -F "${fn}() {" "${BUILD_CHAIN}"
+    [ "$status" -ne 0 ]
+    run grep -F "${fn}() {" "${REPO_ROOT}/scripts/lib/build-chain/repo.sh"
+    [ "$status" -eq 0 ]
+  done
+
+  for fn in find_spec hoist_find_lang_out_of_check prepare_sources check_package_exists; do
+    run grep -F "${fn}() {" "${BUILD_CHAIN}"
+    [ "$status" -ne 0 ]
+    run grep -F "${fn}() {" "${REPO_ROOT}/scripts/lib/build-chain/sources.sh"
+    [ "$status" -eq 0 ]
+  done
+}
+
 @test "build-chain.sh: _record_result is a no-op when BUILD_RESULTS_FILE is unset" {
   # Truncated copy (drop the trailing `main` call) so sourcing it just
   # defines functions/vars instead of running a build.
