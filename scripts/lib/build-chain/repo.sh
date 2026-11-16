@@ -16,6 +16,8 @@ ensure_local_repo() {
         if [[ -z "${ALMA_CANDIDATE_STATE:-}" ]]; then
             ALMA_CANDIDATE_PARENT=$(mktemp -d "${TMPDIR:-/tmp}/tunaos-candidate.XXXXXXXX")
             ALMA_CANDIDATE_STATE="${ALMA_CANDIDATE_PARENT}/state"
+            # Invoked through the EXIT trap below.
+            # shellcheck disable=SC2329
             cleanup_alma_candidate() {
                 gpgconf --homedir "$ALMA_CANDIDATE_STATE/gnupg" --kill gpg-agent || true
                 rm -rf -- "$ALMA_CANDIDATE_PARENT"
