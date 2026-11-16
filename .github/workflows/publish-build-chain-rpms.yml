@@ -490,7 +490,7 @@ jobs:
       - name: Install tooling
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q createrepo-c rpm gpg gpgconf
+          sudo apt-get install -y -q createrepo-c rpm gpg gpgconf skopeo
           rclone_installer=$(mktemp) && curl -fsSL -o "$rclone_installer" https://rclone.org/install.sh && sudo bash "$rclone_installer" && rm -f "$rclone_installer"
       - name: Import GPG key
         id: import-gpg
@@ -692,23 +692,19 @@ jobs:
         run: |
           set -euo pipefail
           image=$(echo "${IMAGE}" | tr '[:upper:]' '[:lower:]')
-          printf 'FROM scratch\nCOPY repo /repository\n' > Containerfile.repo
           # cosign signs by pushing to the same registry and reads the Docker
           # config rather than podman's own auth file, so the login lands
           # where both look: DOCKER_CONFIG here and on the signing step.
           mkdir -p "${DOCKER_CONFIG}"
           echo "${GITHUB_TOKEN}" | podman login ghcr.io -u "${GITHUB_ACTOR}" \
             --password-stdin --authfile "${DOCKER_CONFIG}/config.json"
-          # Image storage on the runner's second disk (/mnt) when it has
-          # one: the COPY duplicates the whole synced-down prefix, which does
-          # not fit beside it on / for hummingbird (see "Free runner disk").
-          storage=()
-          if [ -d /mnt ] && sudo install -d -o "$(id -u)" -g "$(id -g)" /mnt/containers; then
-            storage=(--root /mnt/containers --runroot "${RUNNER_TEMP}/podman-run")
-          fi
-          podman "${storage[@]}" build --tag "${image}:${TAG}" --file Containerfile.repo .
-          podman "${storage[@]}" push "${image}:${TAG}" --digestfile /tmp/digest \
-            --authfile "${DOCKER_CONFIG}/config.json"
+          # FROM scratch, one layer: repo/ at /repository. Not `podman build`
+          # with COPY: that keeps three copies of the tree on one disk (repo/,
+          # the container layer, the commit blob in /var/tmp), and the 32 GB
+          # hummingbird prefix filled the 145 GB runner (run 43641087208;
+          # /mnt is the same disk there). The script writes the layer once.
+          bash scripts/publish-repo-oci-image.sh repo "${image}:${TAG}" \
+            "${DOCKER_CONFIG}/config.json" /tmp/digest "${RUNNER_TEMP}/repo-oci"
           digest=$(cat /tmp/digest)
           echo "ref=${image}:${TAG}" >> "$GITHUB_OUTPUT"
           echo "digest=${digest}" >> "$GITHUB_OUTPUT"
