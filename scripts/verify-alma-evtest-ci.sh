@@ -3,8 +3,7 @@
 set -eEuo pipefail
 : "${TARGET:?}" "${GITHUB_SHA:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_RUN_ATTEMPT:?}"
 case "$TARGET" in
-  alma10) repository=https://repo.almalinux.org/almalinux/10 ;;
-  alma10-kitten) repository=https://kitten.repo.almalinux.org/10-kitten ;;
+  alma10|alma10-kitten) ;;
   *) exit 2 ;;
 esac
 phase=""
@@ -124,6 +123,21 @@ with tarfile.open(out / 'consumer.tar') as archive:
     archive.extractall(root, members=selected, filter='data')
 (out / 'consumer.tar').unlink()
 PY
+# Bind native metadata to the measured consumer's own release, not the
+# floating /10/ alias: that alias drops the previous minor's NEVRAs on each
+# point release, so the pinned image's glibc stops resolving (issue #1027).
+# The collector re-derives this root and rejects any other repository.
+release=$(sudo rpm --root "$out/consumer-root" --dbpath /usr/lib/sysimage/rpm \
+  -q --whatprovides system-release --qf '%{NAME} %{VERSION}\n')
+case "$TARGET:$release" in
+  alma10:almalinux-release\ 10.[0-9]*)
+    minor=${release#almalinux-release }
+    [[ $minor =~ ^10\.[0-9]+$ ]] || { echo "Unexpected consumer release: $release" >&2; exit 1; }
+    repository=https://repo.almalinux.org/almalinux/$minor ;;
+  alma10-kitten:almalinux-kitten-release\ 10.[0-9]*)
+    repository=https://kitten.repo.almalinux.org/10-kitten ;;
+  *) echo "Unexpected consumer release for $TARGET: $release" >&2; exit 1 ;;
+esac
 phase_start cpu-collection
 sudo "$(command -v python3)" scripts/collect-alma-cpu-evidence.py \
   --artifact "$signed_artifact" --unsigned-artifact "${artifacts[0]}" \
