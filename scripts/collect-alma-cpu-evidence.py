@@ -262,10 +262,13 @@ def release_repository_root(root):
     """
     release = native_identity(checked(native_rpm_command(
         root, ['-q', '--whatprovides', 'system-release', '--qf', QUERY]))['stdout'])
-    if release['name'] == 'almalinux-kitten-release' and re.fullmatch(r'10\.[0-9]+', release['version']):
+    version = release['version']
+    if not re.fullmatch(r'10\.[0-9]+', version):
+        raise CollectionError('unsupported-native-release')
+    if release['name'] == 'almalinux-kitten-release':
         return 'https://kitten.repo.almalinux.org/10-kitten/'
-    if release['name'] == 'almalinux-release' and re.fullmatch(r'10\.[0-9]+', release['version']):
-        return 'https://repo.almalinux.org/almalinux/' + release['version'] + '/'
+    if release['name'] == 'almalinux-release':
+        return 'https://repo.almalinux.org/almalinux/' + version + '/'
     raise CollectionError('unsupported-native-release')
 
 
