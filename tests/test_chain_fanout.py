@@ -29,6 +29,7 @@ ORDER = ROOT / "build-order-hummingbird-desktops.yml"
 FANOUT = ROOT / ".github" / "workflows" / "build-chain-fanout.yml"
 BAND = ROOT / ".github" / "workflows" / "chain-band.yml"
 CHAIN = ROOT / "scripts" / "build-chain.sh"
+SOURCES = ROOT / "scripts" / "lib" / "build-chain" / "sources.sh"
 
 
 @pytest.fixture(scope="module")
@@ -101,7 +102,7 @@ def test_chain_uses_the_shared_filter_helper_in_both_loops():
 
 
 def test_served_skip_reads_like_the_local_skip():
-    text = CHAIN.read_text(encoding="utf-8")
+    text = SOURCES.read_text(encoding="utf-8")
     assert "already served by the published index" in text
 
 
