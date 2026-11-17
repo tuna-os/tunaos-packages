@@ -22,12 +22,14 @@ spec.loader.exec_module(collector)
 
 
 @pytest.mark.parametrize('url', [
-    'http://repo.almalinux.org/almalinux/10/BaseOS/x86_64_v2/os/',
-    'https://evil.example/almalinux/10/BaseOS/x86_64_v2/os/',
-    'https://user@repo.almalinux.org/almalinux/10/BaseOS/x86_64_v2/os/',
-    'https://repo.almalinux.org/almalinux/10/BaseOS/x86_64/os/',
-    'https://repo.almalinux.org/almalinux/10/BaseOS/x86_64_v2/os/?token=secret',
+    'http://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64_v2/os/',
+    'https://evil.example/almalinux/10.2/BaseOS/x86_64_v2/os/',
+    'https://user@repo.almalinux.org/almalinux/10.2/BaseOS/x86_64_v2/os/',
+    'https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64/os/',
+    'https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64_v2/os/?token=secret',
     'https://repo.almalinux.org/almalinux/10/../BaseOS/x86_64_v2/os/',
+    'https://repo.almalinux.org/almalinux/10.2/../BaseOS/x86_64_v2/os/',
+    'https://repo.almalinux.org/almalinux/10.x/BaseOS/x86_64_v2/os/',
 ])
 def test_repository_allowlist_rejects_unknown_or_unsafe_inputs(url):
     with pytest.raises(collector.CollectionError):
@@ -36,8 +38,58 @@ def test_repository_allowlist_rejects_unknown_or_unsafe_inputs(url):
 
 @pytest.mark.parametrize('arch', ['x86_64_v2', 'aarch64'])
 def test_native_repo_architecture_is_explicit(arch):
-    url = f'https://repo.almalinux.org/almalinux/10/BaseOS/{arch}/os/'
+    url = f'https://repo.almalinux.org/almalinux/10.2/BaseOS/{arch}/os/'
     assert collector.repository_url(url) == url
+
+
+@pytest.mark.parametrize('arch', ['x86_64_v2', 'aarch64'])
+def test_stable_proof_rejects_floating_major_alias(arch):
+    """Falsification (#1027): AlmaLinux 10.3 replaced 10.2's glibc under /10/,
+    so the pinned 10.2 image's installed glibc had no metadata provider."""
+    with pytest.raises(collector.CollectionError, match='unapproved-native-repository'):
+        collector.repository_url(f'https://repo.almalinux.org/almalinux/10/BaseOS/{arch}/os/')
+
+
+def release_root_for(tmp_path, monkeypatch, stdout):
+    (tmp_path / 'usr/lib/sysimage/rpm').mkdir(parents=True, exist_ok=True)
+    seen = []
+
+    def fake(argv):
+        seen.append(argv)
+        return {'stdout': stdout, 'stderr': '', 'exitCode': 0}
+    monkeypatch.setattr(collector, 'checked', fake)
+    root = collector.release_repository_root(tmp_path)
+    assert seen == [collector.native_rpm_command(
+        tmp_path, ['-q', '--whatprovides', 'system-release', '--qf', collector.QUERY])]
+    return root
+
+
+@pytest.mark.parametrize(('stdout', 'expected'), [
+    ('almalinux-release\t0\t10.2\t21.el10\tx86_64_v2\n', 'https://repo.almalinux.org/almalinux/10.2/'),
+    ('almalinux-release\t0\t10.3\t1.el10\tx86_64_v2\n', 'https://repo.almalinux.org/almalinux/10.3/'),
+    ('almalinux-kitten-release\t0\t10.0\t21.el10\tx86_64_v2\n', 'https://kitten.repo.almalinux.org/10-kitten/'),
+])
+def test_native_tree_follows_measured_consumer_release(tmp_path, monkeypatch, stdout, expected):
+    assert release_root_for(tmp_path, monkeypatch, stdout) == expected
+
+
+@pytest.mark.parametrize('stdout', [
+    'centos-stream-release\t0\t10.0\t1.el10\tnoarch\n',
+    'almalinux-release\t0\t10\t1.el10\tx86_64_v2\n',
+    'almalinux-release\t0\t9.6\t1.el9\tx86_64\n',
+    'almalinux-release\t0\t10.2\t1.el10\tx86_64_v2\nalmalinux-release\t0\t10.3\t1.el10\tx86_64_v2\n',
+])
+def test_unknown_or_ambiguous_consumer_release_blocks(tmp_path, monkeypatch, stdout):
+    with pytest.raises(collector.CollectionError):
+        release_root_for(tmp_path, monkeypatch, stdout)
+
+
+def test_ci_derives_stable_tree_from_consumer_instead_of_floating_alias():
+    script = (Path(__file__).parents[1] / 'scripts/verify-alma-evtest-ci.sh').read_text()
+    assert 'almalinux/10)' not in script and 'almalinux/10 ' not in script
+    assert '--whatprovides system-release' in script
+    assert 'repository=https://repo.almalinux.org/almalinux/$minor' in script
+    assert script.index('--whatprovides system-release') < script.index('collect-alma-cpu-evidence.py')
 
 
 @pytest.mark.parametrize('arch', ['x86_64_v2', 'aarch64'])
@@ -166,7 +218,7 @@ def collection_args(tmp_path, **overrides):
             'baseline': 'x86-64-v2', 'scope': 'candidate', 'artifact': ['signed.rpm'],
             'unsigned_artifact': None, 'compiler_observation': str(tmp_path / 'compiler.json'),
             'candidate_key': None, 'candidate_fingerprint': None,
-            'repository': ['https://repo.almalinux.org/almalinux/10/BaseOS/x86_64_v2/os/']}
+            'repository': ['https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64_v2/os/']}
     args.update(overrides)
     return SimpleNamespace(**args)
 
@@ -243,7 +295,7 @@ def test_ci_real_restricted_cpu_has_positive_v2_and_negative_avx2_control(tmp_pa
     assert collector.run(command + [str(tmp_path / 'avx2')])['exitCode'] == -4
 
 
-REPOSITORY = 'https://repo.almalinux.org/almalinux/10/BaseOS/x86_64_v2/os/'
+REPOSITORY = 'https://repo.almalinux.org/almalinux/10.2/BaseOS/x86_64_v2/os/'
 RPM_URL = REPOSITORY + 'Packages/cache-proof.rpm'
 
 
@@ -480,7 +532,7 @@ def signed_cache_packages(tmp_path_factory):
 
 
 @pytest.mark.parametrize('failure', [
-    'unsigned-vendor', 'installed-byte-mismatch', 'restricted-profile'])
+    'unsigned-vendor', 'installed-byte-mismatch', 'restricted-profile', 'release-mismatch'])
 def test_collection_cache_hits_still_authenticate_signature_and_bind_bytes(
         tmp_path, monkeypatch, network, signed_cache_packages, failure):
     packages = signed_cache_packages
@@ -512,12 +564,18 @@ def test_collection_cache_hits_still_authenticate_signature_and_bind_bytes(
     inventory = '\n'.join('\t'.join(identity[field] for field in collector.IDENTITY_FIELDS)
                           for identity in identities.values()) + '\n'
 
+    # A 10.3 consumer must not be bound against the 10.2 tree, or vice versa.
+    release = 'almalinux-release\t0\t{}\t21.el10\tx86_64_v2\n'.format(
+        '10.3' if failure == 'release-mismatch' else '10.2')
+
     def native_inventory(argv):
         # Only the installed RPM database is synthetic. Real RPM parsing,
         # GPG/RPM signature checks, payload extraction and ELF binding run.
         if argv[:2] == ['rpm', '--root']:
             if '-qa' in argv:
                 stdout = inventory
+            elif 'system-release' in argv:
+                stdout = release
             else:
                 identity = identities['cache-proof' if '--whatprovides' in argv else 'evtest']
                 stdout = '\t'.join(identity[field] for field in collector.IDENTITY_FIELDS) + '\n'
@@ -529,6 +587,12 @@ def test_collection_cache_hits_still_authenticate_signature_and_bind_bytes(
         tmp_path, consumer_root=str(root), artifact=[str(packages.rpms['evtest'])],
         unsigned_artifact=[str(packages.unsigned)], candidate_key=str(packages.key),
         candidate_fingerprint=packages.fingerprint, repository=[REPOSITORY], cache_dir=cache), cpu)
+    if failure == 'release-mismatch':
+        # Fails before any native metadata is fetched or trusted.
+        assert requests == [collector.ALMA_KEY]
+        assert result['blockers'] == ['repository-release-mismatch']
+        assert result['readiness'] is False
+        return
     # No network transport for either cached blob; trust roots are still fresh.
     assert requests == [collector.ALMA_KEY, REPOSITORY + 'repodata/repomd.xml']
     assert result['repositories'][0]['primary']['fromCache'] is True
@@ -537,6 +601,7 @@ def test_collection_cache_hits_still_authenticate_signature_and_bind_bytes(
                 'restricted-profile': 'ambiguous-restricted-loader-or-executable'}[failure]
     assert expected in result['blockers']
     assert result['readiness'] is False
+    assert result['nativeReleaseRepository'] == 'https://repo.almalinux.org/almalinux/10.2/'
     if failure != 'unsigned-vendor':
         signature = json.loads((tmp_path / 'output/native-signature-1.json').read_text())
         assert signature['fingerprint'] == packages.fingerprint

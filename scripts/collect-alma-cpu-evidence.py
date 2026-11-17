@@ -246,9 +246,27 @@ def timed_call(timings, phase, operation, *args):
 
 
 def repository_url(url):
-    if not re.fullmatch(r'https://(?:repo\.almalinux\.org/almalinux/10|kitten\.repo\.almalinux\.org/10-kitten)/(?:BaseOS|AppStream|CRB)/(?:x86_64_v2|aarch64)/os/', url):
+    # Stable AlmaLinux is accepted only by minor release (10.N). The floating
+    # /10/ alias drops the previous minor's NEVRAs on every point release, so it
+    # cannot bind a digest-pinned image's installed packages (issue #1027).
+    if not re.fullmatch(r'https://(?:repo\.almalinux\.org/almalinux/10\.[0-9]+|kitten\.repo\.almalinux\.org/10-kitten)/(?:BaseOS|AppStream|CRB)/(?:x86_64_v2|aarch64)/os/', url):
         raise CollectionError('unapproved-native-repository')
     return url
+
+
+def release_repository_root(root):
+    """Select the one vendor tree that retains the measured consumer's release.
+
+    The consumer's own system-release package names it, so the tree moves with
+    the pinned image digest rather than with the vendor's floating alias.
+    """
+    release = native_identity(checked(native_rpm_command(
+        root, ['-q', '--whatprovides', 'system-release', '--qf', QUERY]))['stdout'])
+    if release['name'] == 'almalinux-kitten-release' and re.fullmatch(r'10\.[0-9]+', release['version']):
+        return 'https://kitten.repo.almalinux.org/10-kitten/'
+    if release['name'] == 'almalinux-release' and re.fullmatch(r'10\.[0-9]+', release['version']):
+        return 'https://repo.almalinux.org/almalinux/' + release['version'] + '/'
+    raise CollectionError('unsupported-native-release')
 
 
 def relative_url(base, path):
@@ -554,6 +572,10 @@ def collect(args, cpu):
         native_arch = 'x86_64_v2' if args.baseline == 'x86-64-v2' else 'aarch64'
         if any('/' + native_arch + '/os/' not in repository_url(url) for url in args.repository):
             raise CollectionError('repository-architecture-baseline-mismatch')
+        release_root = release_repository_root(root)
+        observation['nativeReleaseRepository'] = release_root
+        if any(not url.startswith(release_root) for url in args.repository):
+            raise CollectionError('repository-release-mismatch')
         repositories = [timed_call(timings, 'input-acquisition', Repository, url,
                                    output / ('repository-' + str(i)), cache_dir)
                         for i, url in enumerate(args.repository)]
