@@ -46,7 +46,9 @@ NATIVE_DBPATH = '/usr/lib/sysimage/rpm'
 # dies with SIGILL under the restricted CPU before it prints anything.
 CPUID_SOURCE = r'''#include <cpuid.h>
 static long sys3(long n, long a, long b, long c) {
- long r; __asm__ volatile("syscall" : "=a"(r) : "a"(n), "D"(a), "S"(b), "d"(c) : "rcx", "r11", "memory");
+ long r;
+ __asm__ volatile("syscall" : "=a"(r) : "a"(n), "D"(a), "S"(b), "d"(c)
+                  : "rcx", "r11", "memory");
  return r;
 }
 static void put(const char *s) { long n = 0; while (s[n]) n++; sys3(1, 1, (long)s, n); }
