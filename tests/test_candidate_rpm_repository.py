@@ -48,6 +48,8 @@ elif name=='rpmkeys':
     if mode=='tampered': print('RSA Signature: BAD'); sys.exit(1)
     if mode=='digest_only': print('Payload SHA256 digest: OK')
     elif mode=='bad_with_digest_ok': print('RSA Signature: NOT OK\\nPayload SHA256 digest: OK')
+    elif mode=='rpm6_valid': print('Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: 0123456789abcdef0123456789abcdef01234567: OK')
+    elif mode=='rpm6_bad': print('Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: 0123456789abcdef0123456789abcdef01234567: BAD\\nPayload SHA256 digest: OK')
     else: print('Header V4 RSA/SHA256 Signature, key ID 01234567: OK')
 elif name=='createrepo_c':
     p=pathlib.Path(option('--outputdir'))/'repodata';p.mkdir(exist_ok=True)
@@ -148,7 +150,16 @@ def test_exact_staged_rpm_is_verified_with_only_candidate_key_before_replace(can
     assert not list(repo.glob('.candidate-*'))
 
 
-@pytest.mark.parametrize('mode', ['tampered', 'digest_only', 'bad_with_digest_ok'])
+def test_rpm6_signature_line_is_accepted(candidate, tmp_path):
+    bootstrap(candidate)
+    source = tmp_path / "built.rpm"
+    source.write_bytes(b"original")
+    result = invoke(candidate, 'install', source, SIGNATURE_MODE='rpm6_valid')
+    assert result.returncode == 0, result.stderr
+    assert (candidate[1] / source.name).read_bytes() == b'original SIGNED'
+
+
+@pytest.mark.parametrize('mode', ['tampered', 'digest_only', 'bad_with_digest_ok', 'rpm6_bad'])
 def test_bad_signature_never_replaces_last_candidate(candidate, tmp_path, mode):
     bootstrap(candidate)
     repo = candidate[1]
