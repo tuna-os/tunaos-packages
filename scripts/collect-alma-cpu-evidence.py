@@ -41,21 +41,35 @@ MAX_PACKAGES = 256
 IDENTITY_FIELDS = ('name', 'epoch', 'version', 'release', 'architecture')
 QUERY = '%{NAME}\t%{EPOCHNUM}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\n'
 NATIVE_DBPATH = '/usr/lib/sysimage/rpm'
+# Freestanding: no libc. Ubuntu 26.04 runners install amd64v3 packages, so a
+# probe linked against the host's static libc already holds AVX2 code and
+# dies with SIGILL under the restricted CPU before it prints anything.
 CPUID_SOURCE = r'''#include <cpuid.h>
-#include <stdio.h>
-int main(void) {
+static long sys3(long n, long a, long b, long c) {
+ long r; __asm__ volatile("syscall" : "=a"(r) : "a"(n), "D"(a), "S"(b), "d"(c) : "rcx", "r11", "memory");
+ return r;
+}
+static void put(const char *s) { long n = 0; while (s[n]) n++; sys3(1, 1, (long)s, n); }
+static void flag(const char *name, int value) { put(name); put(value ? "1" : "0"); }
+static int probe(void) {
  unsigned a,b,c,d; __cpuid(1,a,b,c,d);
  unsigned v1=(1u<<0)|(1u<<8)|(1u<<15)|(1u<<23)|(1u<<24)|(1u<<25)|(1u<<26);
  unsigned v2=(1u<<0)|(1u<<9)|(1u<<13)|(1u<<19)|(1u<<20)|(1u<<23);
- printf("v1=%d v2=%d avx=%d\n",(d&v1)==v1,(c&v2)==v2,!!(c&(1u<<28)));
+ flag("v1=",(d&v1)==v1); flag(" v2=",(c&v2)==v2); flag(" avx=",!!(c&(1u<<28))); put("\n");
  if((d&v1)!=v1 || (c&v2)!=v2 || (c&(1u<<28))) return 1;
  __cpuid(0x80000001,a,b,c,d);
- printf("lahf=%d longmode=%d\n",!!(c&1),!!(d&(1u<<29)));
+ flag("lahf=",!!(c&1)); flag(" longmode=",!!(d&(1u<<29))); put("\n");
  if(!(c&1) || !(d&(1u<<29))) return 2;
- __cpuid_count(7,0,a,b,c,d); printf("avx2=%d\n",!!(b&(1u<<5)));
+ __cpuid_count(7,0,a,b,c,d); flag("avx2=",!!(b&(1u<<5))); put("\n");
  return !!(b&(1u<<5));
 }
+__attribute__((force_align_arg_pointer, noreturn)) void _start(void) {
+ sys3(60, probe(), 0, 0);
+ for (;;) {}
+}
 '''
+CPUID_CFLAGS = ['-static', '-nostdlib', '-ffreestanding', '-fno-builtin', '-fno-stack-protector',
+                '-mgeneral-regs-only', '-march=x86-64', '-O1']
 AVX2_SOURCE = '.global _start\n.text\n_start:\n vpbroadcastd %xmm0, %ymm0\n mov $60,%eax\n xor %edi,%edi\n syscall\n'
 
 
@@ -481,7 +495,7 @@ def restricted_evtest(cpu, artifacts, payloads, output):
     (directory / 'evtest').chmod(0o755)
     (directory / 'cpuid.c').write_text(CPUID_SOURCE)
     (directory / 'avx2.S').write_text(AVX2_SOURCE)
-    checked(['gcc', '-static', '-march=x86-64', '-o', str(directory / 'cpuid'), str(directory / 'cpuid.c')])
+    checked(['gcc', *CPUID_CFLAGS, '-o', str(directory / 'cpuid'), str(directory / 'cpuid.c')])
     checked(['gcc', '-nostdlib', '-static', '-o', str(directory / 'avx2'), str(directory / 'avx2.S')])
     runner = qemu_x86_64_runner()
     runner_digest = digest(bounded_file(runner))

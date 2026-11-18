@@ -303,7 +303,7 @@ def test_ci_real_restricted_cpu_has_positive_v2_and_negative_avx2_control(tmp_pa
     assert runner is not None, 'CI must install qemu-user (static qemu-x86_64)'
     (tmp_path / 'cpuid.c').write_text(collector.CPUID_SOURCE)
     (tmp_path / 'avx2.S').write_text(collector.AVX2_SOURCE)
-    collector.checked(['gcc', '-static', '-march=x86-64', '-o', str(tmp_path / 'cpuid'), str(tmp_path / 'cpuid.c')])
+    collector.checked(['gcc', *collector.CPUID_CFLAGS, '-o', str(tmp_path / 'cpuid'), str(tmp_path / 'cpuid.c')])
     collector.checked(['gcc', '-nostdlib', '-static', '-o', str(tmp_path / 'avx2'), str(tmp_path / 'avx2.S')])
     command = [str(runner), '-cpu', 'Nehalem-v1']
     result = collector.run(command + [str(tmp_path / 'cpuid')])
