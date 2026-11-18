@@ -284,12 +284,13 @@ def test_vendor_input_suffix_cannot_match_publishable_rpm_glob(tmp_path):
 def test_ci_real_restricted_cpu_has_positive_v2_and_negative_avx2_control(tmp_path):
     """Real execution controls run in CI; fixtures cannot establish CPU limits."""
     assert shutil.which('gcc'), 'CI must install gcc/static libc development files'
-    assert Path('/usr/bin/qemu-x86_64-static').is_file(), 'CI must install qemu-user-static'
+    runner = next((path for path in collector.QEMU_X86_64_RUNNERS if path.is_file()), None)
+    assert runner is not None, 'CI must install qemu-user (static qemu-x86_64)'
     (tmp_path / 'cpuid.c').write_text(collector.CPUID_SOURCE)
     (tmp_path / 'avx2.S').write_text(collector.AVX2_SOURCE)
     collector.checked(['gcc', '-static', '-march=x86-64', '-o', str(tmp_path / 'cpuid'), str(tmp_path / 'cpuid.c')])
     collector.checked(['gcc', '-nostdlib', '-static', '-o', str(tmp_path / 'avx2'), str(tmp_path / 'avx2.S')])
-    command = ['/usr/bin/qemu-x86_64-static', '-cpu', 'Nehalem-v1']
+    command = [str(runner), '-cpu', 'Nehalem-v1']
     result = collector.checked(command + [str(tmp_path / 'cpuid')])
     assert all(value in result['stdout'] for value in ('v1=1', 'v2=1', 'avx=0', 'avx2=0', 'lahf=1', 'longmode=1'))
     assert collector.run(command + [str(tmp_path / 'avx2')])['exitCode'] == -4

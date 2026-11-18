@@ -481,7 +481,7 @@ def restricted_evtest(cpu, artifacts, payloads, output):
     (directory / 'avx2.S').write_text(AVX2_SOURCE)
     checked(['gcc', '-static', '-march=x86-64', '-o', str(directory / 'cpuid'), str(directory / 'cpuid.c')])
     checked(['gcc', '-nostdlib', '-static', '-o', str(directory / 'avx2'), str(directory / 'avx2.S')])
-    runner = Path('/usr/bin/qemu-x86_64-static')
+    runner = qemu_x86_64_runner()
     runner_digest = digest(bounded_file(runner))
     prefix = [str(runner), '-cpu', 'Nehalem-v1']
     positive = checked(prefix + [str(directory / 'cpuid')])
@@ -504,6 +504,19 @@ def restricted_evtest(cpu, artifacts, payloads, output):
     artifact['execution'] = {'artifactDigest': artifact['digest'], 'baseline': 'x86-64-v2',
                              'runnerDigest': runner_digest, 'evidenceDigest': evidence_digest,
                              'exitCode': 0, 'elfDigests': [digest(body)]}
+
+
+# Ubuntu 26.04 drops the qemu-user-static package: qemu-user ships a
+# static-pie /usr/bin/qemu-x86_64 instead. Older images still ship the
+# -static name. The runner digest records which binary ran.
+QEMU_X86_64_RUNNERS = (Path('/usr/bin/qemu-x86_64-static'), Path('/usr/bin/qemu-x86_64'))
+
+
+def qemu_x86_64_runner():
+    for candidate in QEMU_X86_64_RUNNERS:
+        if candidate.is_file():
+            return candidate
+    raise CollectionError('qemu-x86_64-runner-missing')
 
 
 def collect(args, cpu):
