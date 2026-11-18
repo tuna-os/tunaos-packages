@@ -199,7 +199,7 @@ jobs:
       - name: Install native CPU proof tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm rpm2cpio gnupg binutils gcc libc6-dev qemu-user-static createrepo-c debhelper fakeroot dpkg-dev make
+          sudo apt-get install -y rpm rpm2cpio gnupg binutils gcc libc6-dev qemu-user createrepo-c debhelper fakeroot dpkg-dev make
 
       - name: Run pytest
         env:
