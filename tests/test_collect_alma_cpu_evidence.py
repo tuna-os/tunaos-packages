@@ -190,12 +190,27 @@ def test_signature_key_must_match_pinned_fingerprint(tmp_path, monkeypatch):
     'Header RSA Signature, key ID c2a1e572: NOKEY\nPayload SHA256 digest: OK\n',
     'RSA Signature, key ID deadbeef: OK\nPayload SHA256 digest: OK\n',
     'RSA Signature, key ID c2a1e572: OK\nPayload SHA256 digest: NOT OK\n',
+    'OpenPGP V4 RSA/SHA512 signature, key fingerprint: ' + 'd' * 40 + ': OK\nPayload SHA256 digest: OK\n',
 ])
 def test_unsigned_or_wrongly_signed_native_rpm_is_rejected(tmp_path, monkeypatch, signature):
     monkeypatch.setattr(collector, 'key_fingerprint', lambda key, directory: (collector.ALMA_FINGERPRINT, {}))
     monkeypatch.setattr(collector, 'checked', lambda argv: {'stdout': signature, 'stderr': '', 'exitCode': 0})
     with pytest.raises(collector.CollectionError, match='unverified-rpm-signature'):
         collector.verify_signature(tmp_path / 'rpm', tmp_path / 'key', collector.ALMA_FINGERPRINT, tmp_path)
+
+
+@pytest.mark.parametrize('signature', [
+    'Header V4 RSA/SHA256 Signature, key ID {short}: OK\nPayload SHA256 digest: OK\n',
+    'Header OpenPGP V4 RSA/SHA512 signature, key fingerprint: {full}: OK\nPayload SHA256 digest: OK\n',
+])
+def test_rpm4_and_rpm6_signature_lines_are_accepted(tmp_path, monkeypatch, signature):
+    fingerprint = collector.ALMA_FINGERPRINT
+    text = signature.format(short=fingerprint[-8:].lower(), full=fingerprint.lower())
+    monkeypatch.setattr(collector, 'key_fingerprint', lambda key, directory: (fingerprint, {}))
+    monkeypatch.setattr(collector, 'checked', lambda argv: {'stdout': text, 'stderr': '', 'exitCode': 0})
+    monkeypatch.setattr(collector, 'bounded_file', lambda path: b'')
+    result = collector.verify_signature(tmp_path / 'rpm', tmp_path / 'key', fingerprint, tmp_path)
+    assert result['fingerprint'] == fingerprint
 
 
 def test_unsupported_package_cannot_receive_evtest_execution_claim(tmp_path):
@@ -284,13 +299,15 @@ def test_vendor_input_suffix_cannot_match_publishable_rpm_glob(tmp_path):
 def test_ci_real_restricted_cpu_has_positive_v2_and_negative_avx2_control(tmp_path):
     """Real execution controls run in CI; fixtures cannot establish CPU limits."""
     assert shutil.which('gcc'), 'CI must install gcc/static libc development files'
-    assert Path('/usr/bin/qemu-x86_64-static').is_file(), 'CI must install qemu-user-static'
+    runner = next((path for path in collector.QEMU_X86_64_RUNNERS if path.is_file()), None)
+    assert runner is not None, 'CI must install qemu-user (static qemu-x86_64)'
     (tmp_path / 'cpuid.c').write_text(collector.CPUID_SOURCE)
     (tmp_path / 'avx2.S').write_text(collector.AVX2_SOURCE)
-    collector.checked(['gcc', '-static', '-march=x86-64', '-o', str(tmp_path / 'cpuid'), str(tmp_path / 'cpuid.c')])
+    collector.checked(['gcc', *collector.CPUID_CFLAGS, '-o', str(tmp_path / 'cpuid'), str(tmp_path / 'cpuid.c')])
     collector.checked(['gcc', '-nostdlib', '-static', '-o', str(tmp_path / 'avx2'), str(tmp_path / 'avx2.S')])
-    command = ['/usr/bin/qemu-x86_64-static', '-cpu', 'Nehalem-v1']
-    result = collector.checked(command + [str(tmp_path / 'cpuid')])
+    command = [str(runner), '-cpu', 'Nehalem-v1']
+    result = collector.run(command + [str(tmp_path / 'cpuid')])
+    assert result['exitCode'] == 0, result
     assert all(value in result['stdout'] for value in ('v1=1', 'v2=1', 'avx=0', 'avx2=0', 'lahf=1', 'longmode=1'))
     assert collector.run(command + [str(tmp_path / 'avx2')])['exitCode'] == -4
 
