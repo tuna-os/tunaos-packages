@@ -400,7 +400,9 @@ def verify_signature(rpm, key, fingerprint, directory):
     result = checked(['rpm', '--dbpath', str(db.resolve()), '-Kv', str(rpm)])
     text = result['stdout'] + result['stderr']
     if (re.search(r'NOT OK|NOKEY|NOTTRUSTED', text) or
-            not re.search(r'Signature.*key ID ' + fingerprint[-8:].lower() + r': OK', text, re.I) or
+            # RPM 4 prints "key ID <last 8>"; RPM 6 prints "key fingerprint: <all 40>".
+            not re.search(r'Signature.*(?:key ID ' + fingerprint[-8:].lower() +
+                          r'|key fingerprint: ' + fingerprint.lower() + r'): OK', text, re.I) or
             'Payload SHA256 digest: OK' not in text):
         raise CollectionError('unverified-rpm-signature')
     return {'fingerprint': actual, 'keyDigest': digest(bounded_file(key)),
