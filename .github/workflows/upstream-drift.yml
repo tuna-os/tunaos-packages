@@ -114,6 +114,9 @@ jobs:
       # create-pull-request pushes the branch and opens the PR.
       contents: write
       pull-requests: write
+      # Dispatch lint.yml on the PR branch: a PR opened with GITHUB_TOKEN
+      # starts no pull_request checks, so required-checks never reports.
+      actions: write
     strategy:
       fail-fast: false
       matrix:
@@ -167,6 +170,7 @@ jobs:
           cat /tmp/pr-body.md
 
       - name: Propose the regenerated measurement
+        id: cpr
         uses: peter-evans/create-pull-request@v8.1.3
         with:
           branch: upstream-drift/${{ matrix.target }}
@@ -184,6 +188,17 @@ jobs:
             Opened by .github/workflows/upstream-drift.yml.
           body-path: /tmp/pr-body.md
           labels: package-factory
+
+      # A PR opened with GITHUB_TOKEN triggers no pull_request workflows, so
+      # lint.yml's required-checks never reports and the PR stays BLOCKED.
+      # A workflow_dispatch made with GITHUB_TOKEN does start a run, and its
+      # required-checks check run lands on the branch head SHA.
+      - name: Run required checks on the PR branch
+        if: steps.cpr.outputs.pull-request-operation == 'created' || steps.cpr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MATRIX_TARGET: ${{ matrix.target }}
+        run: gh workflow run lint.yml --ref "upstream-drift/${MATRIX_TARGET}"
 
       # Deliberately AFTER the pull request is opened, and deliberately able
       # to fail the job.
