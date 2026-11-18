@@ -92,7 +92,9 @@ def verify_rpm(path, state):
         run('rpm', '--dbpath', directory, '--import', str(state / 'keys/candidate-public.gpg'))
         result = run('rpmkeys', '--dbpath', directory, '--checksig', '--verbose', str(path),
                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        if not re.search(r'^.*Signature[^\n]*:\s*OK\s*$', result.stdout, re.MULTILINE):
+        # RPM 4 says "Signature, key ID ...: OK"; RPM 6 says "signature, key fingerprint: ...: OK".
+        signed = re.compile(r'^.*Signature[^\n]*:\s*OK\s*$', re.MULTILINE | re.IGNORECASE)
+        if not signed.search(result.stdout):
             raise ValueError('candidate RPM has no verified signature')
 
 
