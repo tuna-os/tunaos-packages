@@ -192,6 +192,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # Dispatch lint.yml on the bot PR branch (GITHUB_TOKEN PRs start no checks).
+      actions: write
     steps:
       - uses: actions/checkout@v7.0.1  # zizmor: ignore[artipacked] a later step runs git push with the persisted credentials
       - uses: actions/setup-python@v7.1.0
@@ -236,6 +238,8 @@ jobs:
               --title "docs: update reproducibility verification status" \
               --body "Sampled reproducibility rebuild results updated by \`Reproducibility Verifier\` workflow."
           fi
+          gh workflow run lint.yml --ref "$BRANCH" ||
+            echo "::warning::could not dispatch lint.yml on $BRANCH"
           pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
           if [[ -n "$pr" ]]; then
             gh pr merge --auto --merge "$pr" || true

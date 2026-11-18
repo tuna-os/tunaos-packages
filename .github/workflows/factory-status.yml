@@ -5,8 +5,9 @@
 # Same design as tunaOS's matrix-status.yml, which hit every problem this
 # workflow would otherwise rediscover: a protected main means the refresh
 # lands via a bot PR, and a bot-token PR triggers no pull_request checks —
-# but the merge queue runs its required checks on the merge group itself,
-# so arming auto-merge is sufficient for the refresh to land unattended.
+# so the workflow dispatches lint.yml on the bot branch (workflow_dispatch
+# made with GITHUB_TOKEN does start a run) to report required-checks, then
+# arms auto-merge so the refresh lands once they pass.
 name: Factory Status
 
 on:
@@ -27,6 +28,8 @@ permissions:
   contents: write
   # Needed to open the refresh PR; `main` only accepts merge-queue changes.
   pull-requests: write
+  # Needed to dispatch lint.yml on the bot PR branch.
+  actions: write
 
 concurrency:
   group: factory-status
@@ -86,10 +89,15 @@ jobs:
             echo "PR already open for $BRANCH -- force-push refreshed it."
           fi
 
-          # Arm auto-merge so the refresh lands without a human — the
-          # bot-token/merge-queue mechanics proven on tunaOS#1871 and this
-          # repo's own #419 apply here identically. Re-armed every refresh
-          # because a merge clears it.
+          # A PR opened with GITHUB_TOKEN starts no pull_request checks, so
+          # dispatch lint.yml explicitly; its required-checks check run lands
+          # on the branch head SHA.
+          gh workflow run lint.yml --ref "$BRANCH" ||
+            echo "::warning::could not dispatch lint.yml on $BRANCH -- required-checks will not report"
+
+          # Arm auto-merge so the refresh lands without a human once the
+          # required checks pass. Re-armed every refresh because a merge
+          # clears it.
           pr=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
           if [[ -n "$pr" ]]; then
             gh pr merge --auto --merge "$pr" ||
