@@ -208,13 +208,29 @@ def sample_cells(
     return sorted(sampled, key=lambda c: c["id"])
 
 
-def digest_artifacts_dir(artifact_dir: pathlib.Path) -> dict[str, dict[str, Any]]:
-    """Scan and digest all regular files in an artifact directory."""
+# Diagnostic evidence rides inside artifacts/ so a red run can be diffed against
+# a green one (scripts/run-package-factory-cell.sh), but it records the build
+# environment, not the product: dnf history and repolist carry timestamps, and
+# build.log is a tee of the whole build. Two honest builds never match on it, so
+# an A/B comparison that hashed it failed every Alma cell regardless of the RPM.
+EVIDENCE_DIRS = frozenset({"buildroots"})
+
+
+def digest_artifacts_dir(
+    artifact_dir: pathlib.Path,
+    skip_dirs: frozenset[str] = frozenset(),
+) -> dict[str, dict[str, Any]]:
+    """Scan and digest all regular files in an artifact directory.
+
+    Files below a top-level directory named in ``skip_dirs`` are left out.
+    """
     artifacts: dict[str, dict[str, Any]] = {}
     if not artifact_dir.is_dir():
         return artifacts
     for path in sorted(artifact_dir.rglob("*")):
         if not path.is_file() or path.is_symlink():
+            continue
+        if path.relative_to(artifact_dir).parts[0] in skip_dirs:
             continue
         name = action_cache.safe_artifact_name(path.name)
         if name in artifacts:
@@ -304,8 +320,8 @@ def compare_two_dirs(
     action_key: str = "",
 ) -> dict[str, Any]:
     """Compare artifacts from two independent build directories."""
-    artifacts_a = digest_artifacts_dir(dir_a)
-    artifacts_b = digest_artifacts_dir(dir_b)
+    artifacts_a = digest_artifacts_dir(dir_a, skip_dirs=EVIDENCE_DIRS)
+    artifacts_b = digest_artifacts_dir(dir_b, skip_dirs=EVIDENCE_DIRS)
     return compare_artifact_maps(artifacts_a, artifacts_b, action_key=action_key)
 
 
