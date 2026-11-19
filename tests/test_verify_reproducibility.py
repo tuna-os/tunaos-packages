@@ -54,6 +54,24 @@ def test_artifact_comparison_exact_match(tmp_path):
     assert res["extra"] == []
 
 
+def test_two_dir_comparison_ignores_buildroot_evidence(tmp_path):
+    dir_a = tmp_path / "a"
+    dir_b = tmp_path / "b"
+    for directory, stamp in ((dir_a, b"begin 10:00"), (dir_b, b"begin 10:07")):
+        (directory / "buildroots" / "alma").mkdir(parents=True)
+        (directory / "buildroots" / "alma" / "dependency-transaction.txt").write_bytes(stamp)
+        (directory / "package-1.0.rpm").write_bytes(b"exact binary payload")
+
+    res = vr.compare_two_dirs(dir_a, dir_b, action_key="sha256:" + "a" * 64)
+    assert res["reproducible"] is True
+    assert res["matching"] == ["package-1.0.rpm"]
+
+    (dir_b / "package-1.0.rpm").write_bytes(b"different payload")
+    res = vr.compare_two_dirs(dir_a, dir_b, action_key="sha256:" + "a" * 64)
+    assert res["reproducible"] is False
+    assert [m["name"] for m in res["mismatches"]] == ["package-1.0.rpm"]
+
+
 def test_artifact_comparison_digest_mismatch(tmp_path):
     dir_a = tmp_path / "a"
     dir_b = tmp_path / "b"
