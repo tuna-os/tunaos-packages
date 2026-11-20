@@ -1,12 +1,10 @@
-%global commit 6084a85f7e08c29790dd0ab08156e65f17c0e945
-%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: xfconf
 Version: 4.21.2
-Release: 6%{?dist}
+Release: 7%{?dist}
 Summary: Xfce configuration daemon and library
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/xfconf
-Source0: https://gitlab.xfce.org/xfce/xfconf/-/archive/%{commit}/xfconf-%{commit}.tar.gz
+Source0: https://archive.xfce.org/src/xfce/xfconf/4.21/xfconf-%{version}.tar.xz
 BuildRequires: gcc, meson, ninja-build
 BuildRequires: glib2-devel, dbus-devel, libxfce4util-devel
 BuildRequires: gobject-introspection-devel, vala, intltool, gettext
@@ -29,7 +27,7 @@ Headers, pkgconfig, GObject-Introspection typelib, and Vala bindings for
 building against xfconf.
 
 %prep
-%autosetup -n xfconf-%{commit}
+%autosetup -n xfconf-%{version}
 
 # This commit has fully migrated to meson (no configure.ac/autogen.sh at
 # all), so nothing here runs xdt-autogen; gtk-doc defaults to false in
@@ -62,6 +60,11 @@ building against xfconf.
 %{_datadir}/vala/vapi/*
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.2-7
+- Build the 4.21.2 release instead of a master snapshot: master now needs
+  gobject-introspection >= 1.80.1 and EL10 ships 1.79.1. 4.21.2 is what
+  xfwl4 requires.
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
 - Packaged for the XFCE Wayland stack (tuna-os/tunaos-packages#65)
 

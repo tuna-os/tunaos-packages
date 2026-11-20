@@ -60,6 +60,7 @@ building against libxfce4util.
 %{_libdir}/girepository-1.0/Libxfce4util-1.0.typelib
 %{_datadir}/gir-1.0/Libxfce4util-1.0.gir
 %{_datadir}/vala/vapi/libxfce4util-1.0.vapi
+%{_datadir}/vala/vapi/libxfce4util-1.0.deps
 
 %changelog
 * Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.0-1

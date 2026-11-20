@@ -327,9 +327,19 @@
     },
     {
       "customType": "regex",
+      "description": "xfconf RPM spec: follow upstream release tags. The master snapshot stopped building on EL10 (gobject-introspection/libgtop floors above what EL10 ships), and the 4.21 tags meet xfwl4's minimums. The Arch PKGBUILD keeps the master-branch manager below.",
+      "fileMatch": ["^src/xfce-wayland/xfconf/xfconf\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>[\\d.]+)"],
+      "datasourceTemplate": "git-tags",
+      "depNameTemplate": "xfconf",
+      "depTypeTemplate": "upstream-source",
+      "packageNameTemplate": "https://gitlab.xfce.org/xfce/xfconf",
+      "extractVersionTemplate": "^xfconf-(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
       "description": "xfconf: tracks gitlab.xfce.org/xfce/xfconf's master branch (no stable release yet \u2014 xfwl4's crates require post-4.20 development commits). Deliberately NOT packages/xfconf/package.yaml: a Tideforge recipe pins source.sha256 and source.directory alongside the URL, and a regex manager can only rewrite the digest, so #339 bumped the URL to eab1533 while leaving the a6f0a7aa checksum and directory behind and broke Validate Package Factory for every branch (#170).",
       "fileMatch": [
-        "^src/xfce-wayland/xfconf/xfconf\\.spec$",
         "^src/xfce-wayland/xfconf/packaging/arch/PKGBUILD$"
       ],
       "matchStrings": [
@@ -343,9 +353,19 @@
     },
     {
       "customType": "regex",
+      "description": "libxfce4ui RPM spec: follow upstream release tags. The master snapshot stopped building on EL10 (gobject-introspection/libgtop floors above what EL10 ships), and the 4.21 tags meet xfwl4's minimums. The Arch PKGBUILD keeps the master-branch manager below.",
+      "fileMatch": ["^src/xfce-wayland/libxfce4ui/libxfce4ui\\.spec$"],
+      "matchStrings": ["^Version:\\s*(?<currentValue>[\\d.]+)"],
+      "datasourceTemplate": "git-tags",
+      "depNameTemplate": "libxfce4ui",
+      "depTypeTemplate": "upstream-source",
+      "packageNameTemplate": "https://gitlab.xfce.org/xfce/libxfce4ui",
+      "extractVersionTemplate": "^libxfce4ui-(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
       "description": "libxfce4ui: tracks gitlab.xfce.org/xfce/libxfce4ui's master branch \u2014 same reason as xfconf, xfwl4 needs libxfce4kbd-private-3 >= 4.21.4.",
       "fileMatch": [
-        "^src/xfce-wayland/libxfce4ui/libxfce4ui\\.spec$",
         "^src/xfce-wayland/libxfce4ui/packaging/arch/PKGBUILD$"
       ],
       "matchStrings": [
