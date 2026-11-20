@@ -1,29 +1,23 @@
 %global _hardened_build 1
 
 Name:           libxfce4util
-Version:        4.20.1
-Release:        17%{?dist}
+Version:        4.21.0
+Release:        1%{?dist}
 Summary:        Basic utility library for Xfce4
 
 License:        LGPL-2.0-or-later
 URL:            https://gitlab.xfce.org/xfce/libxfce4util
-Source0: https://archive.xfce.org/src/xfce/libxfce4util/4.20/libxfce4util-%{version}.tar.bz2
+Source0: https://archive.xfce.org/src/xfce/libxfce4util/4.21/libxfce4util-%{version}.tar.xz
 
-%if 0%{?rhel} >= 10
-BuildRequires: xfce4-dev-tools
-BuildRequires: autoconf automake libtool gettext-devel
+# 4.21 builds with meson only (upstream dropped autotools).
+BuildRequires:  gcc
+BuildRequires:  meson
+BuildRequires:  ninja-build
+BuildRequires:  xfce4-dev-tools
 BuildRequires:  glib2-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  vala
-BuildRequires:  intltool
 BuildRequires:  gettext
-BuildRequires:  gtk-doc
-%else
-BuildRequires:  glib2-devel
-BuildRequires:  gobject-introspection-devel
-BuildRequires:  vala
-BuildRequires:  intltool
-%endif
 
 Requires:       glib2%{?_isa}
 
@@ -42,17 +36,12 @@ building against libxfce4util.
 %prep
 %autosetup -n libxfce4util-%{version}
 
-# The dist tarball bundles a configure script generated against an
-# older libtool than EL10 ships; its nm-output parsing predates current
-# binutils and mis-detects (breaks with a bogus command in the symbol
-# pipe). Regenerating against the system libtool fixes it.
 %build
-autoreconf -fi
-%configure --disable-gtk-doc
-%make_build
+%meson -Dgtk-doc=false
+%meson_build
 
 %install
-%make_install
+%meson_install
 %find_lang libxfce4util
 
 %post -p /sbin/ldconfig
@@ -60,7 +49,7 @@ autoreconf -fi
 
 %files -f libxfce4util.lang
 %license COPYING
-%doc AUTHORS ChangeLog NEWS
+%doc NEWS README.md
 %{_libdir}/libxfce4util.so.*
 %{_sbindir}/xfce4-kiosk-query
 
@@ -71,8 +60,10 @@ autoreconf -fi
 %{_libdir}/girepository-1.0/Libxfce4util-1.0.typelib
 %{_datadir}/gir-1.0/Libxfce4util-1.0.gir
 %{_datadir}/vala/vapi/libxfce4util-1.0.vapi
-%{_datadir}/gtk-doc/html/libxfce4util/
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.0-1
+- Update to the 4.21.0 release tarball (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Sat Jun 27 2026 TunaOS Bot <bot@tunaos.org> - 4.20.1-17
 - Initial XFCE Wayland package for TunaOS

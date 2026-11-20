@@ -1,6 +1,6 @@
 Name: libxfce4windowing
-Version: 4.20.6
-Release: 2%{?dist}
+Version: 4.20.7
+Release: 1%{?dist}
 Summary: X11/Wayland windowing abstraction for Xfce
 License: LGPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/libxfce4windowing
@@ -43,6 +43,9 @@ Headers and pkgconfig files for building against libxfce4windowing.
 %{_datadir}/vala/vapi/*
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.20.7-1
+- Update to the 4.20.7 release tarball (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Tue Oct 20 2026 TunaOS Bot <bot@tunaos.org> - 4.20.6-2
 - Disable the X11 backend for pure Wayland targets, including Fedora ELN.
 

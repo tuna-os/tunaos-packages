@@ -47,12 +47,18 @@ tiers:
       - path: src/xfce-wayland/garcon
       - path: src/xfce-wayland/exo
 
-  # Tier 3: Core desktop components (panel, session, settings, file manager,
-  # thumbnailer) — all depend on the ui-libs tier.
+  # Tier 2c: xfce4-session 4.21.2 provides libxfce4session-client-1, which
+  # xfce4-panel 4.21.3, thunar 4.21.7 and xfdesktop 4.21.1 link against, so
+  # it builds before the desktop-core tier.
+  - name: xfce-session
+    packages:
+      - path: src/xfce-wayland/xfce4-session
+
+  # Tier 3: Core desktop components (panel, settings, file manager,
+  # thumbnailer) — all depend on the ui-libs and session tiers.
   - name: xfce-desktop-core
     packages:
       - path: src/xfce-wayland/xfce4-panel
-      - path: src/xfce-wayland/xfce4-session
       - path: src/xfce-wayland/xfce4-settings
       - path: src/xfce-wayland/thunar
       - path: src/xfce-wayland/tumbler

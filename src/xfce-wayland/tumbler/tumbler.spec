@@ -1,12 +1,10 @@
-%global commit 821c7fe0a4c99c424f688116143e3d5757b35e5f
-%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: tumbler
 Version: 4.21.1
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: D-Bus thumbnailing service for Xfce
 License: GPL-2.0-or-later AND LGPL-2.1-or-later
 URL: https://gitlab.xfce.org/xfce/tumbler
-Source0: https://gitlab.xfce.org/xfce/tumbler/-/archive/%{commit}/tumbler-%{commit}.tar.gz
+Source0: https://archive.xfce.org/src/xfce/tumbler/4.21/tumbler-%{version}.tar.xz
 BuildRequires: gcc, gtk3-devel, glib2-devel, dbus-devel, freetype-devel, libjpeg-turbo-devel, libpng-devel, libgsf-devel, intltool, gettext, meson, ninja-build
 BuildRequires: libxfce4util-devel, poppler-glib-devel
 %description
@@ -21,7 +19,7 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 Headers and pkgconfig files for building tumbler thumbnailer plugins.
 
 %prep
-%autosetup -n tumbler-%{commit}
+%autosetup -n tumbler-%{version}
 %build
 # meson's --auto-features=enabled forces every "auto" thumbnailer plugin on;
 # disable the ones needing heavier/niche deps we don't otherwise want in the
@@ -47,5 +45,8 @@ Headers and pkgconfig files for building tumbler thumbnailer plugins.
 %{_libdir}/pkgconfig/tumbler-1.pc
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.1-2
+- Build from the 4.21.1 release tarball instead of the same commit's git archive (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.1-1
 - Initial XFCE Wayland package for TunaOS EL10

@@ -1,12 +1,10 @@
-%global commit f6e83d2c95a7adf58cf62b5b69c50ac11a51a2d9
-%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: xfce4-power-manager
 Version: 4.21.1
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Power manager for the Xfce desktop environment (Wayland)
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/xfce4-power-manager
-Source0: https://gitlab.xfce.org/xfce/xfce4-power-manager/-/archive/%{commit}/xfce4-power-manager-%{commit}.tar.gz
+Source0: https://archive.xfce.org/src/xfce/xfce4-power-manager/4.21/xfce4-power-manager-%{version}.tar.xz
 
 BuildRequires: gcc
 BuildRequires: gtk3-devel
@@ -34,7 +32,7 @@ Requires: libxfce4windowing
 Power manager for the Xfce desktop environment with Wayland support.
 
 %prep
-%autosetup -n xfce4-power-manager-%{commit}
+%autosetup -n xfce4-power-manager-%{version}
 
 %build
 %meson -Dwayland=enabled
@@ -63,5 +61,8 @@ Power manager for the Xfce desktop environment with Wayland support.
 %{_datadir}/metainfo/*.xml
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.1-2
+- Build from the 4.21.1 release tarball instead of the same commit's git archive (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.1-1
 - Initial XFCE Wayland package for TunaOS EL10

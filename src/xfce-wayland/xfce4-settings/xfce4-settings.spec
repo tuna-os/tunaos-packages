@@ -1,13 +1,11 @@
-%global commit 8e9f1a16f189a27b6d36c444d86a8b220ee90062
-%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name:           xfce4-settings
-Version:        4.21.0
+Version:        4.21.3
 Release:        1%{?dist}
 Summary:        Settings manager for the Xfce desktop environment
 
 License:        GPL-2.0-or-later
 URL:            https://gitlab.xfce.org/xfce/xfce4-settings
-Source0: https://gitlab.xfce.org/xfce/xfce4-settings/-/archive/%{commit}/xfce4-settings-%{commit}.tar.gz
+Source0: https://archive.xfce.org/src/xfce/xfce4-settings/4.21/xfce4-settings-%{version}.tar.xz
 
 BuildRequires: gcc
 BuildRequires:  gtk3-devel
@@ -33,7 +31,7 @@ display, keyboard, mouse, MIME types, and more. The settings daemon
 xfsettingsd applies preferences at session startup.
 
 %prep
-%autosetup -n xfce4-settings-%{commit}
+%autosetup -n xfce4-settings-%{version}
 
 %build
 # Wayland-only build (matches this stack's convention elsewhere) — avoids
@@ -71,5 +69,8 @@ xfsettingsd applies preferences at session startup.
 %{_sysconfdir}/xdg/autostart/*.desktop
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.3-1
+- Update to the 4.21.3 release tarball (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-1
 - Initial XFCE Wayland package for TunaOS EL10

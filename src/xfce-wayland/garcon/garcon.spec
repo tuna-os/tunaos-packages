@@ -1,12 +1,14 @@
 Name: garcon
-Version: 4.20.0
+Version: 4.21.0
 Release: 1%{?dist}
 Summary: Xfce menu handling library
 License: LGPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/garcon
-Source0: https://archive.xfce.org/src/xfce/garcon/4.20/garcon-%{version}.tar.bz2
+Source0: https://archive.xfce.org/src/xfce/garcon/4.21/garcon-%{version}.tar.xz
+# 4.21 builds with meson only (upstream dropped autotools).
+BuildRequires: gcc, meson, ninja-build, gettext
 BuildRequires: xfce4-dev-tools
-BuildRequires: autoconf automake libtool gettext-devel gtk-doc
+BuildRequires: gobject-introspection-devel
 BuildRequires: glib2-devel, libxfce4util-devel
 BuildRequires: gtk3-devel, libxfce4ui-devel
 %description
@@ -21,16 +23,13 @@ Headers and pkgconfig files for building against garcon.
 
 %prep
 %autosetup -n garcon-%{version}
-# The dist tarball bundles a configure script generated against an
-# older libtool than EL10 ships; its nm-output parsing predates current
-# binutils and mis-detects (breaks with a bogus command in the symbol
-# pipe). Regenerating against the system libtool fixes it.
+
 %build
-autoreconf -fi
-%configure --disable-gtk-doc
-%make_build
+%meson -Dgtk-doc=false
+%meson_build
+
 %install
-%make_install
+%meson_install
 %find_lang %{name}
 
 %files -f %{name}.lang
@@ -45,9 +44,13 @@ autoreconf -fi
 %{_includedir}/garcon-gtk3-1/
 %{_libdir}/libgarcon*.so
 %{_libdir}/pkgconfig/*.pc
-%doc %{_datadir}/gtk-doc/
+%{_libdir}/girepository-1.0/*.typelib
+%{_datadir}/gir-1.0/*.gir
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.0-1
+- Update to the 4.21.0 release tarball (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
 - Packaged for the XFCE Wayland stack (tuna-os/tunaos-packages#65)
 

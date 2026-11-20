@@ -1,18 +1,18 @@
-%global commit eec4d04e10c66f0a537961f63b435755ef357bf2
-%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name:           thunar
-Version:        4.21.0
+Version:        4.21.7
 Release:        1%{?dist}
 Summary:        File manager for the Xfce desktop environment (Wayland)
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
 URL:            https://gitlab.xfce.org/xfce/thunar
-Source0: https://gitlab.xfce.org/xfce/thunar/-/archive/%{commit}/thunar-%{commit}.tar.gz
+Source0: https://archive.xfce.org/src/xfce/thunar/4.21/thunar-%{version}.tar.xz
 
 BuildRequires: gcc
 BuildRequires:  gtk3-devel
 BuildRequires:  libxfce4ui-devel
 BuildRequires:  libxfce4util-devel
+# libxfce4session-client-1 >= 4.21.2
+BuildRequires:  xfce4-session-devel >= 4.21.2
 BuildRequires:  garcon-devel
 BuildRequires:  xfconf-devel
 BuildRequires:  libnotify-devel
@@ -42,7 +42,7 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 Headers and pkgconfig files for building Thunar (thunarx) plugins.
 
 %prep
-%autosetup -n thunar-%{commit}
+%autosetup -n thunar-%{version}
 
 %build
 # EL10's polkit (125) predates upstream polkit shipping its own gettext ITS
@@ -114,5 +114,8 @@ export GETTEXTDATADIRS="$(pwd)/gettext-its-workaround${GETTEXTDATADIRS:+:${GETTE
 %{_libdir}/pkgconfig/thunarx-3.pc
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.7-1
+- Update to the 4.21.7 release tarball (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-1
 - Initial XFCE Wayland package for TunaOS EL10

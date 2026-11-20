@@ -1,23 +1,19 @@
-%global commit 3467f08522846be0ba294c867f456eaf74274dbd
-%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name:           xfce4-panel
-Version:        4.21.0
-Release:        2%{?dist}
+Version:        4.21.3
+Release:        1%{?dist}
 Summary:        Panel for the Xfce desktop environment (Wayland-ready)
 
 License:        GPL-2.0-or-later AND LGPL-2.1-or-later
 URL:            https://gitlab.xfce.org/xfce/xfce4-panel
-Source0: https://gitlab.xfce.org/xfce/xfce4-panel/-/archive/%{commit}/xfce4-panel-%{commit}.tar.gz
-# The #ifndef guard around the shim is inert (autoptr cleanup funcs are
-# inline functions, not macros), so it collides with the definition our
-# libxfce4ui 4.21.x ships. See the patch header.
-Patch0: 0001-drop-XfceTitledDialog-autoptr-shim.patch
+Source0: https://archive.xfce.org/src/xfce/xfce4-panel/4.21/xfce4-panel-%{version}.tar.xz
 
 BuildRequires: gcc
 BuildRequires:  gtk3-devel
 BuildRequires:  libxfce4ui-devel
 BuildRequires:  libxfce4util-devel
 BuildRequires:  libxfce4windowing-devel
+# libxfce4session-client-1 >= 4.21.2
+BuildRequires:  xfce4-session-devel >= 4.21.2
 BuildRequires:  garcon-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  vala
@@ -47,7 +43,7 @@ Headers, pkgconfig, GObject-Introspection typelib, and Vala bindings for
 building xfce4-panel plugins.
 
 %prep
-%autosetup -n xfce4-panel-%{commit} -p1
+%autosetup -n xfce4-panel-%{version}
 
 %build
 # Wayland-only build (matches thunar's -Dx11=disabled convention in this
@@ -82,6 +78,9 @@ building xfce4-panel plugins.
 %{_datadir}/vala/vapi/*
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.3-1
+- Update to the 4.21.3 release tarball (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Thu Aug 20 2026 TunaOS Bot <bot@tunaos.org> - 4.21.0-2
 - Drop the XfceTitledDialog autoptr shim that collides with libxfce4ui 4.21
 

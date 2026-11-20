@@ -1,10 +1,10 @@
 Name: xfce4-dev-tools
-Version: 4.20.0
+Version: 4.21.2
 Release: 1%{?dist}
 Summary: Xfce developer tools (xdt-autogen, m4 macros)
 License: GPL-2.0-or-later
 URL: https://docs.xfce.org/xfce/xfce4-dev-tools/start
-Source0: https://archive.xfce.org/src/xfce/xfce4-dev-tools/4.20/xfce4-dev-tools-%{version}.tar.bz2
+Source0: https://archive.xfce.org/src/xfce/xfce4-dev-tools/4.21/xfce4-dev-tools-%{version}.tar.bz2
 
 BuildRequires: gcc
 BuildRequires: make
@@ -40,5 +40,8 @@ autoreconf -fi
 %{_mandir}/man1/xdt-csource.1*
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.2-1
+- Update to the 4.21.2 release tarball (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.20.0-1
 - Initial package: build-time bootstrap for git-snapshot Xfce components

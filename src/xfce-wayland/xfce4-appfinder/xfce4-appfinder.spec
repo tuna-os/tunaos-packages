@@ -1,12 +1,10 @@
-%global commit 1ce6be94d8bc0abdd8fd565a55133a1be90496b8
-%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: xfce4-appfinder
 Version: 4.21.1
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Application finder for the Xfce desktop environment
 License: GPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/xfce4-appfinder
-Source0: https://gitlab.xfce.org/xfce/xfce4-appfinder/-/archive/%{commit}/xfce4-appfinder-%{commit}.tar.gz
+Source0: https://archive.xfce.org/src/xfce/xfce4-appfinder/4.21/xfce4-appfinder-%{version}.tar.xz
 
 BuildRequires: gcc
 BuildRequires: gtk3-devel
@@ -24,7 +22,7 @@ Requires: garcon
 Application finder for the Xfce desktop environment.
 
 %prep
-%autosetup -n xfce4-appfinder-%{commit}
+%autosetup -n xfce4-appfinder-%{version}
 
 %build
 %meson
@@ -44,5 +42,8 @@ Application finder for the Xfce desktop environment.
 %{_datadir}/icons/hicolor/*/apps/org.xfce.appfinder.*
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.1-2
+- Build from the 4.21.1 release tarball instead of the same commit's git archive (XFCE 4.21 tag set shared with tuna-os/brussels)
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - 4.21.1-1
 - Initial XFCE Wayland package for TunaOS EL10
