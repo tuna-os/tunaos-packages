@@ -2907,8 +2907,8 @@ packages:
       rpm:
         native: src/xfce-wayland/garcon
     upstream:
-      version: 4.20.0
-      source: https://archive.xfce.org/src/xfce/garcon/4.20/garcon-%{version}.tar.bz2
+      version: 4.21.0
+      source: https://archive.xfce.org/src/xfce/garcon/4.21/garcon-%{version}.tar.xz
       spec: src/xfce-wayland/garcon/garcon.spec
     targets:
       - hummingbird
@@ -2922,8 +2922,8 @@ packages:
       rpm:
         native: src/xfce-wayland/garcon
     upstream:
-      version: 4.20.0
-      source: https://archive.xfce.org/src/xfce/garcon/4.20/garcon-%{version}.tar.bz2
+      version: 4.21.0
+      source: https://archive.xfce.org/src/xfce/garcon/4.21/garcon-%{version}.tar.xz
       spec: src/xfce-wayland/garcon/garcon.spec
     targets:
       - alma10
@@ -8281,8 +8281,8 @@ packages:
       rpm:
         native: src/xfce-wayland/libxfce4util
     upstream:
-      version: 4.20.1
-      source: https://archive.xfce.org/src/xfce/libxfce4util/4.20/libxfce4util-%{version}.tar.bz2
+      version: 4.21.0
+      source: https://archive.xfce.org/src/xfce/libxfce4util/4.21/libxfce4util-%{version}.tar.xz
       spec: src/xfce-wayland/libxfce4util/libxfce4util.spec
     targets:
       - hummingbird
@@ -8296,8 +8296,8 @@ packages:
       rpm:
         native: src/xfce-wayland/libxfce4util
     upstream:
-      version: 4.20.1
-      source: https://archive.xfce.org/src/xfce/libxfce4util/4.20/libxfce4util-%{version}.tar.bz2
+      version: 4.21.0
+      source: https://archive.xfce.org/src/xfce/libxfce4util/4.21/libxfce4util-%{version}.tar.xz
       spec: src/xfce-wayland/libxfce4util/libxfce4util.spec
     targets:
       - alma10
@@ -8314,7 +8314,7 @@ packages:
       rpm:
         native: src/xfce-wayland/libxfce4windowing
     upstream:
-      version: 4.20.6
+      version: 4.20.7
       source: https://archive.xfce.org/src/xfce/libxfce4windowing/4.20/libxfce4windowing-%{version}.tar.bz2
       spec: src/xfce-wayland/libxfce4windowing/libxfce4windowing.spec
     targets:
@@ -8329,7 +8329,7 @@ packages:
       rpm:
         native: src/xfce-wayland/libxfce4windowing
     upstream:
-      version: 4.20.6
+      version: 4.20.7
       source: https://archive.xfce.org/src/xfce/libxfce4windowing/4.20/libxfce4windowing-%{version}.tar.bz2
       spec: src/xfce-wayland/libxfce4windowing/libxfce4windowing.spec
     targets:
@@ -11954,8 +11954,8 @@ packages:
       rpm:
         native: src/xfce-wayland/thunar
     upstream:
-      version: 4.21.0
-      source: https://gitlab.xfce.org/xfce/thunar/-/archive/%{commit}/thunar-%{commit}.tar.gz
+      version: 4.21.7
+      source: https://archive.xfce.org/src/xfce/thunar/4.21/thunar-%{version}.tar.xz
       spec: src/xfce-wayland/thunar/thunar.spec
     targets:
       - alma10
@@ -12033,7 +12033,7 @@ packages:
         native: src/xfce-wayland/tumbler
     upstream:
       version: 4.21.1
-      source: https://gitlab.xfce.org/xfce/tumbler/-/archive/%{commit}/tumbler-%{commit}.tar.gz
+      source: https://archive.xfce.org/src/xfce/tumbler/4.21/tumbler-%{version}.tar.xz
       spec: src/xfce-wayland/tumbler/tumbler.spec
     targets:
       - hummingbird
@@ -12048,7 +12048,7 @@ packages:
         native: src/xfce-wayland/tumbler
     upstream:
       version: 4.21.1
-      source: https://gitlab.xfce.org/xfce/tumbler/-/archive/%{commit}/tumbler-%{commit}.tar.gz
+      source: https://archive.xfce.org/src/xfce/tumbler/4.21/tumbler-%{version}.tar.xz
       spec: src/xfce-wayland/tumbler/tumbler.spec
     targets:
       - alma10
@@ -12455,7 +12455,7 @@ packages:
       rpm:
         native: src/deps/wayland-protocols
     upstream:
-      version: '1.47'
+      version: '1.48'
       source: https://gitlab.freedesktop.org/wayland/%{name}/-/releases/%{version}/downloads/%{name}-%{version}.tar.xz
       spec: src/deps/wayland-protocols/wayland-protocols.spec
     targets:
@@ -12472,7 +12472,7 @@ packages:
       rpm:
         native: src/deps/wayland-protocols
     upstream:
-      version: '1.47'
+      version: '1.48'
       source: https://gitlab.freedesktop.org/wayland/%{name}/-/releases/%{version}/downloads/%{name}-%{version}.tar.xz
       spec: src/deps/wayland-protocols/wayland-protocols.spec
     targets:
@@ -12918,7 +12918,7 @@ packages:
         native: src/xfce-wayland/xfce4-appfinder
     upstream:
       version: 4.21.1
-      source: https://gitlab.xfce.org/xfce/xfce4-appfinder/-/archive/%{commit}/xfce4-appfinder-%{commit}.tar.gz
+      source: https://archive.xfce.org/src/xfce/xfce4-appfinder/4.21/xfce4-appfinder-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-appfinder/xfce4-appfinder.spec
     targets:
       - alma10
@@ -12989,8 +12989,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-dev-tools
     upstream:
-      version: 4.20.0
-      source: https://archive.xfce.org/src/xfce/xfce4-dev-tools/4.20/xfce4-dev-tools-%{version}.tar.bz2
+      version: 4.21.2
+      source: https://archive.xfce.org/src/xfce/xfce4-dev-tools/4.21/xfce4-dev-tools-%{version}.tar.bz2
       spec: src/xfce-wayland/xfce4-dev-tools/xfce4-dev-tools.spec
     targets:
       - alma10
@@ -13061,8 +13061,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-panel
     upstream:
-      version: 4.21.0
-      source: https://gitlab.xfce.org/xfce/xfce4-panel/-/archive/%{commit}/xfce4-panel-%{commit}.tar.gz
+      version: 4.21.3
+      source: https://archive.xfce.org/src/xfce/xfce4-panel/4.21/xfce4-panel-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-panel/xfce4-panel.spec
     targets:
       - hummingbird
@@ -13076,8 +13076,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-panel
     upstream:
-      version: 4.21.0
-      source: https://gitlab.xfce.org/xfce/xfce4-panel/-/archive/%{commit}/xfce4-panel-%{commit}.tar.gz
+      version: 4.21.3
+      source: https://archive.xfce.org/src/xfce/xfce4-panel/4.21/xfce4-panel-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-panel/xfce4-panel.spec
     targets:
       - alma10
@@ -13095,7 +13095,7 @@ packages:
         native: src/xfce-wayland/xfce4-power-manager
     upstream:
       version: 4.21.1
-      source: https://gitlab.xfce.org/xfce/xfce4-power-manager/-/archive/%{commit}/xfce4-power-manager-%{commit}.tar.gz
+      source: https://archive.xfce.org/src/xfce/xfce4-power-manager/4.21/xfce4-power-manager-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-power-manager/xfce4-power-manager.spec
     targets:
       - alma10
@@ -13166,8 +13166,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-session
     upstream:
-      version: 4.21.0
-      source: https://gitlab.xfce.org/xfce/xfce4-session/-/archive/%{commit}/xfce4-session-%{commit}.tar.gz
+      version: 4.21.2
+      source: https://archive.xfce.org/src/xfce/xfce4-session/4.21/xfce4-session-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-session/xfce4-session.spec
     targets:
       - hummingbird
@@ -13181,8 +13181,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-session
     upstream:
-      version: 4.21.0
-      source: https://gitlab.xfce.org/xfce/xfce4-session/-/archive/%{commit}/xfce4-session-%{commit}.tar.gz
+      version: 4.21.2
+      source: https://archive.xfce.org/src/xfce/xfce4-session/4.21/xfce4-session-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-session/xfce4-session.spec
     targets:
       - alma10
@@ -13199,8 +13199,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-settings
     upstream:
-      version: 4.21.0
-      source: https://gitlab.xfce.org/xfce/xfce4-settings/-/archive/%{commit}/xfce4-settings-%{commit}.tar.gz
+      version: 4.21.3
+      source: https://archive.xfce.org/src/xfce/xfce4-settings/4.21/xfce4-settings-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-settings/xfce4-settings.spec
     targets:
       - hummingbird
@@ -13214,8 +13214,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-settings
     upstream:
-      version: 4.21.0
-      source: https://gitlab.xfce.org/xfce/xfce4-settings/-/archive/%{commit}/xfce4-settings-%{commit}.tar.gz
+      version: 4.21.3
+      source: https://archive.xfce.org/src/xfce/xfce4-settings/4.21/xfce4-settings-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-settings/xfce4-settings.spec
     targets:
       - alma10
@@ -13450,8 +13450,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfdesktop
     upstream:
-      version: 4.21.0
-      source: https://gitlab.xfce.org/xfce/xfdesktop/-/archive/%{commit}/xfdesktop-%{commit}.tar.gz
+      version: 4.21.1
+      source: https://archive.xfce.org/src/xfce/xfdesktop/4.21/xfdesktop-%{version}.tar.xz
       spec: src/xfce-wayland/xfdesktop/xfdesktop.spec
     targets:
       - hummingbird
@@ -13465,8 +13465,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfdesktop
     upstream:
-      version: 4.21.0
-      source: https://gitlab.xfce.org/xfce/xfdesktop/-/archive/%{commit}/xfdesktop-%{commit}.tar.gz
+      version: 4.21.1
+      source: https://archive.xfce.org/src/xfce/xfdesktop/4.21/xfdesktop-%{version}.tar.xz
       spec: src/xfce-wayland/xfdesktop/xfdesktop.spec
     targets:
       - alma10
