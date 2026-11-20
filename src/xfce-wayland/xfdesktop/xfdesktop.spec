@@ -53,6 +53,8 @@ Wayland compositors for use in TunaOS EL10.
 %{_bindir}/xfdesktop
 %{_bindir}/xfdesktop-settings
 %{_datadir}/applications/*.desktop
+# 4.21 adds a session-autostart entry under the Xfce-only applications dir.
+%{_datadir}/xfce4/applications/xfdesktop.desktop
 %{_datadir}/backgrounds/xfce/
 %{_datadir}/icons/hicolor/*/apps/org.xfce.xfdesktop.*
 %{_datadir}/pixmaps/xfce4_xicon*.png
