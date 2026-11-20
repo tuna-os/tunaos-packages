@@ -20,6 +20,11 @@ boot gate timing out 15 minutes later.
 publish-rpm-wave.sh's NEVER SHRINK guard cannot catch this. It counts RPMs
 in the local tree, and the lost files were never synced down to be counted.
 The guard has to live at the sync-down.
+
+scripts/r2-sync-down.sh is that guard's single owner, and
+tests/test_r2_sync_down.py runs it. A publisher that calls the script
+satisfies the shape checks below; one that still carries the guard inline
+must carry all of it.
 """
 
 import re
@@ -27,6 +32,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
+GUARD_SCRIPT = "scripts/r2-sync-down.sh"
+INLINE_SYNC_DOWN = re.compile(r'rclone sync "r2:\$\{R2_BUCKET\}/[^"]+" repo/')
 
 
 def _sync_down_publishers():
@@ -34,11 +41,16 @@ def _sync_down_publishers():
     out = []
     for f in sorted(WORKFLOWS.glob("*.yml")):
         text = f.read_text(encoding="utf-8")
-        if re.search(r'rclone sync "r2:\$\{R2_BUCKET\}/[^"]+" repo/', text) and re.search(
+        if (INLINE_SYNC_DOWN.search(text) or GUARD_SCRIPT in text) and re.search(
             r'rclone sync repo/ "r2:\$\{R2_BUCKET\}', text
         ):
             out.append((f, text))
     return out
+
+
+def _inline_publishers():
+    """Publishers that still carry the guard inline rather than calling the script."""
+    return [(f, text) for f, text in _sync_down_publishers() if GUARD_SCRIPT not in text]
 
 
 def test_there_is_something_to_check():
@@ -71,7 +83,7 @@ def test_no_publisher_swallows_its_sync_down():
 
 def test_a_failed_sync_down_stops_before_the_destructive_sync_up():
     """Exit 3 is first-publish; anything else must abort the job."""
-    for path, text in _sync_down_publishers():
+    for path, text in _inline_publishers():
         assert "_sync_rc" in text, f"{path.name}: sync-down status is never captured"
         assert "_sync_rc == 3" in text, (
             f"{path.name}: must special-case rclone exit 3 (directory not "
@@ -84,8 +96,16 @@ def test_a_failed_sync_down_stops_before_the_destructive_sync_up():
 
 def test_the_abort_happens_before_the_sync_up():
     for path, text in _sync_down_publishers():
-        down = text.index('rclone sync "r2:${R2_BUCKET}')
         up = text.index('rclone sync repo/ "r2:${R2_BUCKET}')
+        if GUARD_SCRIPT in text:
+            # The script syncs down and guards in one call.
+            down = guard = text.index(GUARD_SCRIPT)
+            assert guard < up, (
+                f"{path.name}: {GUARD_SCRIPT} must run before the sync-up to "
+                "be able to prevent the deletion"
+            )
+            continue
+        down = text.index('rclone sync "r2:${R2_BUCKET}')
         guard = text.index("_sync_rc != 0")
         assert down < guard < up, (
             f"{path.name}: the sync-down guard must sit between the sync-down "

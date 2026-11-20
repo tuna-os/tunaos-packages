@@ -202,7 +202,10 @@ def test_the_repo_wipe_guard_is_still_enforced_in_the_workflow():
     checking it."""
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "min_rpms" in text
-    assert "refusing to risk a repo wipe" in text
+    # Inline, or through the shared guard (tests/test_r2_sync_down.py runs it).
+    assert "refusing to risk a repo wipe" in text or (
+        'scripts/r2-sync-down.sh' in text and '--min-files "${MATRIX_MIN_RPMS' in text
+    )
 
 
 def test_the_artifact_name_carries_the_target():
