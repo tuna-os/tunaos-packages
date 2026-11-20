@@ -47,9 +47,17 @@ def load_yaml(path: pathlib.Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+class _IndentedSequenceDumper(yaml.SafeDumper):
+    """Indent block sequences under their parent key (yamllint indent-sequences)."""
+
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> Any:
+        return super().increase_indent(flow, False)
+
+
 def save_yaml(data: Any, path: pathlib.Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    text = yaml.dump(data, Dumper=_IndentedSequenceDumper, sort_keys=False)
+    path.write_text(text, encoding="utf-8")
 
 
 def load_json(path: pathlib.Path) -> dict[str, Any] | None:

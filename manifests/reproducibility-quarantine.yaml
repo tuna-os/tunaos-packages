@@ -1,2 +1,18 @@
 schema: 1
-quarantined_packages: []
+quarantined_packages:
+  - package: tuna-desktop
+    target: gentoo
+    architecture: amd64
+    engine: tideforge
+    format: gpkg
+    quarantined_at: '2026-11-20T16:42:23+00:00'
+    reason: 'Artifact digest divergence between independent builds: [{''actual_digest'':
+      ''sha256:7317c8c391b866d3c1011de223c0e9b8d6a2ae256fcb84e01255179dc20838a4'',
+      ''actual_size'': 19548160, ''expected_digest'': ''sha256:f828551416b3ca0c7a7a03e8c9514c4f227c5c983540f5a16214d603227b9603'',
+      ''expected_size'': 19548160, ''name'': ''tuna-desktop-1.0.0_beta3-1.gpkg.tar''}]'
+    divergent_artifacts:
+      - actual_digest: sha256:7317c8c391b866d3c1011de223c0e9b8d6a2ae256fcb84e01255179dc20838a4
+        actual_size: 19548160
+        expected_digest: sha256:f828551416b3ca0c7a7a03e8c9514c4f227c5c983540f5a16214d603227b9603
+        expected_size: 19548160
+        name: tuna-desktop-1.0.0_beta3-1.gpkg.tar
