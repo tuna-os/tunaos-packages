@@ -1,12 +1,10 @@
-%global commit 34b800da7ec933cefd76dd538ecd401001d8b3a5
-%global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: libxfce4ui
-Version: 4.21.7
-Release: 70%{?dist}
+Version: 4.21.9
+Release: 1%{?dist}
 Summary: Common UI library for Xfce
 License: LGPL-2.0-or-later
 URL: https://gitlab.xfce.org/xfce/libxfce4ui
-Source0: https://gitlab.xfce.org/xfce/libxfce4ui/-/archive/%{commit}/libxfce4ui-%{commit}.tar.gz
+Source0: https://archive.xfce.org/src/xfce/libxfce4ui/4.21/libxfce4ui-%{version}.tar.xz
 BuildRequires: gcc, meson, ninja-build
 BuildRequires: gtk3-devel, libxfce4util-devel, xfconf-devel
 BuildRequires: libSM-devel
@@ -28,7 +26,7 @@ Headers, pkgconfig, GObject-Introspection typelib, and Vala bindings for
 building against libxfce4ui.
 
 %prep
-%autosetup -n libxfce4ui-%{commit}
+%autosetup -n libxfce4ui-%{version}
 
 # This commit has fully migrated to meson (no configure.ac/autogen.sh).
 %build
@@ -63,6 +61,10 @@ building against libxfce4ui.
 %{_datadir}/vala/vapi/*
 
 %changelog
+* Fri Nov 20 2026 James Reilly <jreilly1821@gmail.com> - 4.21.9-1
+- Build the 4.21.9 release instead of a master snapshot: master now needs
+  libgtop >= 2.41.3 and EL10 ships 2.41.2. xfwl4 needs >= 4.21.4.
+
 * Thu Jul 03 2026 TunaOS Bot <bot@tunaos.org> - %{version}-%{release}
 - Packaged for the XFCE Wayland stack (tuna-os/tunaos-packages#65)
 

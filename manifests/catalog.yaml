@@ -8218,8 +8218,8 @@ packages:
       rpm:
         native: src/xfce-wayland/libxfce4ui
     upstream:
-      version: 4.21.7
-      source: https://gitlab.xfce.org/xfce/libxfce4ui/-/archive/%{commit}/libxfce4ui-%{commit}.tar.gz
+      version: 4.21.9
+      source: https://archive.xfce.org/src/xfce/libxfce4ui/4.21/libxfce4ui-%{version}.tar.xz
       spec: src/xfce-wayland/libxfce4ui/libxfce4ui.spec
     targets:
       - hummingbird
@@ -8247,8 +8247,8 @@ packages:
       rpm:
         native: src/xfce-wayland/libxfce4ui
     upstream:
-      version: 4.21.7
-      source: https://gitlab.xfce.org/xfce/libxfce4ui/-/archive/%{commit}/libxfce4ui-%{commit}.tar.gz
+      version: 4.21.9
+      source: https://archive.xfce.org/src/xfce/libxfce4ui/4.21/libxfce4ui-%{version}.tar.xz
       spec: src/xfce-wayland/libxfce4ui/libxfce4ui.spec
     targets:
       - alma10
@@ -8267,8 +8267,8 @@ packages:
       rpm:
         native: src/xfce-wayland/libxfce4ui
     upstream:
-      version: 4.21.7
-      source: https://gitlab.xfce.org/xfce/libxfce4ui/-/archive/%{commit}/libxfce4ui-%{commit}.tar.gz
+      version: 4.21.9
+      source: https://archive.xfce.org/src/xfce/libxfce4ui/4.21/libxfce4ui-%{version}.tar.xz
       spec: src/xfce-wayland/libxfce4ui/libxfce4ui.spec
     targets:
       - fedora
@@ -13363,7 +13363,7 @@ packages:
         native: src/xfce-wayland/xfconf
     upstream:
       version: 4.21.2
-      source: https://gitlab.xfce.org/xfce/xfconf/-/archive/%{commit}/xfconf-%{commit}.tar.gz
+      source: https://archive.xfce.org/src/xfce/xfconf/4.21/xfconf-%{version}.tar.xz
       spec: src/xfce-wayland/xfconf/xfconf.spec
     targets:
       - hummingbird
@@ -13417,7 +13417,7 @@ packages:
         native: src/xfce-wayland/xfconf
     upstream:
       version: 4.21.2
-      source: https://gitlab.xfce.org/xfce/xfconf/-/archive/%{commit}/xfconf-%{commit}.tar.gz
+      source: https://archive.xfce.org/src/xfce/xfconf/4.21/xfconf-%{version}.tar.xz
       spec: src/xfce-wayland/xfconf/xfconf.spec
     targets:
       - alma10
@@ -13437,7 +13437,7 @@ packages:
         native: src/xfce-wayland/xfconf
     upstream:
       version: 4.21.2
-      source: https://gitlab.xfce.org/xfce/xfconf/-/archive/%{commit}/xfconf-%{commit}.tar.gz
+      source: https://archive.xfce.org/src/xfce/xfconf/4.21/xfconf-%{version}.tar.xz
       spec: src/xfce-wayland/xfconf/xfconf.spec
     targets:
       - fedora

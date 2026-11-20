@@ -31,8 +31,15 @@ autoreconf -fi
 
 %install
 %make_install
+# 4.21 installs a cppcheck library config when the build root has cppcheck
+# (Fedora ELN does, EL10 does not); package it wherever it appears.
+if [ -d %{buildroot}%{_libdir}/cppcheck ]; then
+  echo '%{_libdir}/cppcheck/' > cppcheck.files
+else
+  : > cppcheck.files
+fi
 
-%files
+%files -f cppcheck.files
 %license COPYING
 %{_bindir}/xdt-*
 %{_bindir}/xfce-*
