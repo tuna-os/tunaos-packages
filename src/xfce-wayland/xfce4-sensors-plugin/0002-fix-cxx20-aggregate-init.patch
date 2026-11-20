@@ -1,3 +1,15 @@
+From: TunaOS packagers <packages@tunaos.org>
+Subject: [PATCH] xfce4++: give the bool wrapper structs a constructor
+
+Upstream: https://gitlab.xfce.org/panel-plugins/xfce4-sensors-plugin
+Upstream-Status: Pending (not submitted yet; 1.5.0 still declares only a
+ deleted default constructor)
+Reason: PluginSize, Propagation, TimeoutResponse and TooltipTime are
+ brace-initialised from a bool. With a deleted default constructor they
+ stop being aggregates under C++20 (P1008R1), so the build fails with the
+ newer default -std of Fedora ELN's gcc. A constexpr explicit bool
+ constructor keeps the same brace-init valid on every standard.
+
 --- a/xfce4++/util/gtk.h
 +++ b/xfce4++/util/gtk.h
 @@ -63,21 +63,25 @@

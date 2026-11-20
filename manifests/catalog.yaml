@@ -13007,8 +13007,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-genmon-plugin
     upstream:
-      version: 4.2.1
-      source: https://archive.xfce.org/src/panel-plugins/xfce4-genmon-plugin/4.2/xfce4-genmon-plugin-4.2.1.tar.bz2
+      version: 4.3.0
+      source: https://archive.xfce.org/src/panel-plugins/xfce4-genmon-plugin/4.3/xfce4-genmon-plugin-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-genmon-plugin/xfce4-genmon-plugin.spec
     targets:
       - alma10
@@ -13112,8 +13112,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-pulseaudio-plugin
     upstream:
-      version: 0.4.9
-      source: https://archive.xfce.org/src/panel-plugins/xfce4-pulseaudio-plugin/0.4/xfce4-pulseaudio-plugin-0.4.9.tar.bz2
+      version: 0.5.1
+      source: https://archive.xfce.org/src/panel-plugins/xfce4-pulseaudio-plugin/0.5/xfce4-pulseaudio-plugin-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-pulseaudio-plugin/xfce4-pulseaudio-plugin.spec
     targets:
       - alma10
@@ -13148,8 +13148,8 @@ packages:
       rpm:
         native: src/xfce-wayland/xfce4-sensors-plugin
     upstream:
-      version: 1.4.5
-      source: https://archive.xfce.org/src/panel-plugins/xfce4-sensors-plugin/1.4/xfce4-sensors-plugin-%{version}.tar.bz2
+      version: 1.5.0
+      source: https://archive.xfce.org/src/panel-plugins/xfce4-sensors-plugin/1.5/xfce4-sensors-plugin-%{version}.tar.xz
       spec: src/xfce-wayland/xfce4-sensors-plugin/xfce4-sensors-plugin.spec
     targets:
       - alma10
