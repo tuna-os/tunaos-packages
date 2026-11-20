@@ -25,6 +25,7 @@ BuildRequires:  libgudev-devel
 BuildRequires:  gobject-introspection-devel
 BuildRequires:  libexif-devel
 BuildRequires:  libcanberra-devel
+BuildRequires:  polkit-devel
 # 4.21.7 has a "terminal" feature (embedded VTE terminal). %%meson turns
 # auto features on, so VTE (GTK 3 API) must be in the buildroot.
 BuildRequires:  vte291-devel
