@@ -79,7 +79,10 @@ export GETTEXTDATADIRS="$(pwd)/gettext-its-workaround${GETTEXTDATADIRS:+:${GETTE
 # thunar-tpa (the Thunar/xfce4-panel trash applet integration) needs
 # libxfce4panel-2.0, which would make this depend on xfce4-panel — a sibling
 # in the same build tier. Disable it to avoid the cross-tier ordering issue.
-%meson -Dx11=disabled -Dthunar-tpa=disabled
+# gexiv2 (image metadata in the properties dialog) is not in the EL10
+# repositories the xfce chain builds against, and %meson turns auto
+# features on, so switch it off explicitly.
+%meson -Dx11=disabled -Dthunar-tpa=disabled -Dgexiv2=disabled
 %meson_build
 
 %install
