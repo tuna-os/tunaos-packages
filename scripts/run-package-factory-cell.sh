@@ -43,7 +43,7 @@ if [[ $engine == build-chain ]]; then
     export FAILURE_LOGS="$out/artifacts/failure-logs"
     args=(--manifest "${MANIFEST:?}" --backend podman --image "$image"
           --mock-config "${MOCK_CONFIG:?}" --local-repo "$out/artifacts"
-          --with-checks)
+          --target "$target" --with-checks)
     if [[ -n ${TIERS:-} ]]; then
       args+=(--stream --tiers "$TIERS")
     fi

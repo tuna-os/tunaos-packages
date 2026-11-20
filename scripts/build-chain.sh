@@ -184,6 +184,11 @@ JOBS=$(( $(nproc) / 2 ))
 FILTER_TIER=""
 FILTER_PACKAGE=""
 FILTER_TIERS=""
+# --target: the factory target (manifests/package-factory.yaml) this chain
+# builds for. Manifest entries whose exclude_targets names it are skipped, so
+# one build order serves targets that cannot satisfy a package (gtkgreet
+# Requires greetd, which no Alma 10 repository carries). Unset = build all.
+FACTORY_TARGET=""
 # --packages-file: build ONLY the paths listed (one src/... path per line,
 # blank lines and #-comments ignored). The shard runner in
 # build-chain-fanout.yml is the intended caller: packages within a tier are
@@ -248,6 +253,7 @@ usage() {
     echo "  --tier <name>        Only build a specific tier"
     echo "  --tiers <list>       Comma-separated tiers to build (used with --stream)"
     echo "  --package <path>     Only build a specific package path"
+    echo "  --target <name>      Factory target; skips entries whose exclude_targets names it"
     echo "  --stream             Stream all tiers as one wavefront (no tier barriers)"
     echo "  --with-checks        Run the RPM %check section"
     echo "  --dry-run            Print what would be built without building"
@@ -273,6 +279,7 @@ while [[ $# -gt 0 ]]; do
         --tier)        FILTER_TIER="$2"; shift 2 ;;
         --tiers)       FILTER_TIERS="$2"; shift 2 ;;
         --package)     FILTER_PACKAGE="$2"; shift 2 ;;
+        --target)      FACTORY_TARGET="$2"; shift 2 ;;
         --packages-file) FILTER_PACKAGES_FILE="$2"; shift 2 ;;
         --served-nvrs)   SERVED_NVRS_FILE="$2"; shift 2 ;;
         --with-checks)  WITH_CHECKS=true; shift ;;
@@ -655,7 +662,7 @@ build_tier() {
         active=$(( active + 1 ))
         log "  Queued ${pkg_path} (pid ${pid})"
 
-    done < <(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --tier "$tier_name")
+    done < <(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --tier "$tier_name" ${FACTORY_TARGET:+--target "$FACTORY_TARGET"})
 
     while [[ $active -gt 0 ]]; do
         wait_one
@@ -804,7 +811,7 @@ build_stream() {
         active=$(( active + 1 ))
         log "  Queued ${pkg_path} (pid ${pid})"
 
-    done < <(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --all ${FILTER_TIERS:+--tiers-filter "${FILTER_TIERS}"})
+    done < <(python3 "${SCRIPT_DIR}/parse-build-order.py" "$MANIFEST" --all ${FILTER_TIERS:+--tiers-filter "${FILTER_TIERS}"} ${FACTORY_TARGET:+--target "$FACTORY_TARGET"})
 
     while [[ $active -gt 0 ]]; do
         wait_one
@@ -847,6 +854,7 @@ main() {
     [[ -n "$FILTER_TIER" ]]    && log "  Tier filter: ${FILTER_TIER}"
     [[ -n "$FILTER_TIERS" ]]   && log "  Tiers:       ${FILTER_TIERS}"
     [[ -n "$FILTER_PACKAGE" ]] && log "  Pkg filter:  ${FILTER_PACKAGE}"
+    [[ -n "$FACTORY_TARGET" ]] && log "  Target:      ${FACTORY_TARGET}"
     $WITH_CHECKS && log "  RPM %check: enabled"
     $STREAM && log "  Stream mode: no tier barriers"
 
