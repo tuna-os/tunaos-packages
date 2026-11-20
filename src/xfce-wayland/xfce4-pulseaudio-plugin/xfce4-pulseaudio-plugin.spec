@@ -16,6 +16,7 @@ BuildRequires: xfce4-panel-devel
 BuildRequires: libxfce4windowing-devel
 BuildRequires: exo-devel
 BuildRequires: pulseaudio-libs-devel
+BuildRequires: libcanberra-devel
 BuildRequires: libnotify-devel
 BuildRequires: gettext
 
