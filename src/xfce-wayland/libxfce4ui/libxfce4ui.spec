@@ -1,4 +1,4 @@
-%global commit ea36399eec54528d37ec6bbbe0c83f002cce89d8
+%global commit 34b800da7ec933cefd76dd538ecd401001d8b3a5
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
 Name: libxfce4ui
 Version: 4.21.7
