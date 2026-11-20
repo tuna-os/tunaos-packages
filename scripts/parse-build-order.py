@@ -54,6 +54,16 @@ def validate_manifest(manifest_path):
     print("    Schema valid")
 
 
+def built_for(pkg, target):
+    """False when the entry opts this factory target out via exclude_targets.
+
+    Lets one shared manifest serve targets whose repositories cannot satisfy a
+    package's runtime Requires (gtkgreet needs greetd, which no Alma 10
+    repository carries) without forking the manifest per target.
+    """
+    return not target or target not in (pkg.get("exclude_targets") or [])
+
+
 def main():
     parser = argparse.ArgumentParser(description="Parse build-order.yml")
     parser.add_argument("manifest", help="Path to build-order.yml")
@@ -68,6 +78,10 @@ def main():
     parser.add_argument(
         "--tiers-filter", default="",
         help="Comma-separated tier names; when set, --all only outputs these tiers"
+    )
+    parser.add_argument(
+        "--target", default="",
+        help="Factory target (e.g. alma10); omits packages whose exclude_targets names it"
     )
     parser.add_argument(
         "--validate", action="store_true", help="Validate manifest against schema"
@@ -92,7 +106,7 @@ def main():
             if allowed and tier["name"] not in allowed:
                 continue
             for pkg in tier.get("packages", []):
-                if "path" not in pkg:
+                if "path" not in pkg or not built_for(pkg, args.target):
                     continue
                 spec = pkg.get("spec_override", "")
                 print(f"{pkg['path']}\t{spec}")
@@ -102,8 +116,8 @@ def main():
         for tier in data["tiers"]:
             if tier["name"] == args.tier:
                 for pkg in tier.get("packages", []):
-                    if "path" not in pkg:
-                        continue  # skip copr_name-only entries
+                    if "path" not in pkg or not built_for(pkg, args.target):
+                        continue  # skip copr_name-only and excluded entries
                     spec = pkg.get("spec_override", "")
                     print(f"{pkg['path']}\t{spec}")
                 return
@@ -114,8 +128,8 @@ def main():
     for tier in data["tiers"]:
         print(f"=== {tier['name']} ===")
         for pkg in tier.get("packages", []):
-            if "path" not in pkg:
-                continue  # skip copr_name-only entries
+            if "path" not in pkg or not built_for(pkg, args.target):
+                continue  # skip copr_name-only and excluded entries
             spec = pkg.get("spec_override", "")
             line = pkg["path"]
             if spec:

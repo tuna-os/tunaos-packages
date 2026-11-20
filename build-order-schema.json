@@ -31,7 +31,13 @@
         "distgit": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]*$"},
         "spec_override": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]*\\.spec$"},
         "build_tool": {"type": "boolean"},
-        "bootstrap": {"type": "boolean"}
+        "bootstrap": {"type": "boolean"},
+        "exclude_targets": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"}
+        }
       }
     }
   }

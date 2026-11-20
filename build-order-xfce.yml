@@ -83,9 +83,18 @@ tiers:
   # greetd's stock agreety would drop to a shell with no session and no theme.
   # Hosted by cage (already in EL10 base) — see the xfce manifest's greetd
   # config.toml.
+  #
+  # Not built for alma10/alma10-kitten. gtkgreet Requires greetd, and no Alma
+  # 10 repository carries it: not BaseOS/AppStream/CRB, not EPEL 10, and the
+  # hermetic Alma chain may not borrow el10's factory-built greetd. Every
+  # alma10 xfce cell died on "nothing provides greetd needed by gtkgreet" in
+  # the clean-install verify (run 44751059063). Brussels uses GDM, and tunaOS
+  # installs gtkgreet only via install_available, requiring it only once
+  # greetd is present. Drop the exclusion when the Alma supply ships greetd.
   - name: xfce-greeter
     packages:
       - path: src/xfce-wayland/gtkgreet
+        exclude_targets: [alma10, alma10-kitten]
 
   # Tier 5: Applications that depend on xfce4-panel / desktop-core.
   #
