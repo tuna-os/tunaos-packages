@@ -64,6 +64,8 @@ building xfce4-panel plugins.
 %{_libdir}/libxfce4panel*.so.*
 %{_libdir}/xfce4/panel/
 %{_datadir}/applications/*.desktop
+# 4.21 adds a session-autostart entry under the Xfce-only applications dir.
+%{_datadir}/xfce4/applications/xfce4-panel.desktop
 %{_datadir}/xfce4/panel/
 %{_datadir}/icons/hicolor/*/apps/org.xfce.panel*.png
 %{_datadir}/icons/hicolor/*/apps/org.xfce.panel*.svg

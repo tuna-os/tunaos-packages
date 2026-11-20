@@ -1,3 +1,15 @@
+From: TunaOS packagers <packages@tunaos.org>
+Subject: [PATCH] Include the libxfce4panel umbrella header
+
+Upstream: https://gitlab.xfce.org/panel-plugins/xfce4-datetime-plugin
+Upstream-Status: Pending (not submitted yet; master at 78c89324 still has
+ the direct include, and the last release, 0.8.3, is from 2023)
+Reason: datetime-dialog.c includes libxfce4panel/xfce-panel-plugin.h
+ directly. Since xfce4-panel 4.21 the sub-headers error out unless they
+ come through libxfce4panel/libxfce4panel.h, so the plugin does not build
+ against the 4.21 series. The other panel plugins made the same change in
+ their 2025 releases.
+
 --- a/panel-plugin/datetime-dialog.c
 +++ b/panel-plugin/datetime-dialog.c
 @@ -31,7 +31,7 @@
