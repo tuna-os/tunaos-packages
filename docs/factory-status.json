@@ -605,61 +605,192 @@
         }
       },
       "measured_at": "2026-11-18T14:24:09+00:00"
+    },
+    {
+      "counts": {
+        "debian/amd64": {
+          "built": 6,
+          "needed": 51
+        },
+        "debian/arm64": {
+          "built": 6,
+          "needed": 51
+        },
+        "el10/aarch64": {
+          "built": 44,
+          "needed": 100
+        },
+        "el10/x86_64": {
+          "built": 117,
+          "needed": 27
+        },
+        "eln/aarch64": {
+          "built": 2,
+          "needed": 36
+        },
+        "eln/x86_64": {
+          "built": 2,
+          "needed": 36
+        },
+        "fedora/x86_64": {
+          "built": 4,
+          "needed": 0
+        },
+        "gentoo/amd64": {
+          "built": 1,
+          "needed": 0
+        },
+        "hummingbird/aarch64": {
+          "built": 617,
+          "needed": 60
+        },
+        "hummingbird/x86_64": {
+          "built": 639,
+          "needed": 38
+        },
+        "noble/amd64": {
+          "built": 2,
+          "needed": 0
+        },
+        "noble/arm64": {
+          "built": 2,
+          "needed": 0
+        },
+        "opensuse-tumbleweed/aarch64": {
+          "built": 11,
+          "needed": 9
+        },
+        "opensuse-tumbleweed/x86_64": {
+          "built": 11,
+          "needed": 9
+        },
+        "rawhide/aarch64": {
+          "built": 1,
+          "needed": 0
+        },
+        "rawhide/x86_64": {
+          "built": 1,
+          "needed": 0
+        },
+        "trixie/amd64": {
+          "built": 1,
+          "needed": 0
+        },
+        "trixie/arm64": {
+          "built": 1,
+          "needed": 0
+        },
+        "ubuntu/amd64": {
+          "built": 6,
+          "needed": 51
+        },
+        "ubuntu/arm64": {
+          "built": 6,
+          "needed": 51
+        }
+      },
+      "measured_at": "2026-11-19T14:35:11+00:00"
     }
   ],
-  "measured_at": "2026-11-19T14:35:11+00:00",
+  "measured_at": "2026-11-21T13:46:28+00:00",
   "reproducibility": {
     "by_coordinate": {
-      "tideforge/deb/arm64": {
-        "divergent": 0,
-        "rate": 100.0,
-        "reproducible": 1,
+      "tideforge/gpkg/amd64": {
+        "divergent": 1,
+        "rate": 0.0,
+        "reproducible": 0,
         "sampled": 1
       }
     },
     "by_engine": {
       "tideforge": {
-        "divergent": 0,
-        "rate": 100.0,
-        "reproducible": 1,
+        "divergent": 1,
+        "rate": 0.0,
+        "reproducible": 0,
         "sampled": 1
       }
     },
     "by_format": {
-      "deb": {
-        "divergent": 0,
-        "rate": 100.0,
-        "reproducible": 1,
+      "gpkg": {
+        "divergent": 1,
+        "rate": 0.0,
+        "reproducible": 0,
         "sampled": 1
       }
     },
-    "history": [],
-    "measured_at": "2026-11-18T16:43:06+00:00",
-    "quarantined": [],
+    "history": [
+      {
+        "measured_at": "2026-11-18T16:43:06+00:00",
+        "summary": {
+          "divergent": 0,
+          "quarantined": 0,
+          "reproducibility_rate": 100.0,
+          "reproducible": 1,
+          "sampled": 1
+        }
+      },
+      {
+        "measured_at": "2026-11-19T16:49:38+00:00",
+        "summary": {
+          "divergent": 0,
+          "quarantined": 0,
+          "reproducibility_rate": null,
+          "reproducible": 0,
+          "sampled": 0
+        }
+      }
+    ],
+    "measured_at": "2026-11-20T16:42:23+00:00",
+    "quarantined": [
+      {
+        "architecture": "amd64",
+        "divergent_artifacts": [
+          {
+            "actual_digest": "sha256:7317c8c391b866d3c1011de223c0e9b8d6a2ae256fcb84e01255179dc20838a4",
+            "actual_size": 19548160,
+            "expected_digest": "sha256:f828551416b3ca0c7a7a03e8c9514c4f227c5c983540f5a16214d603227b9603",
+            "expected_size": 19548160,
+            "name": "tuna-desktop-1.0.0_beta3-1.gpkg.tar"
+          }
+        ],
+        "engine": "tideforge",
+        "format": "gpkg",
+        "package": "tuna-desktop",
+        "quarantined_at": "2026-11-20T16:42:23+00:00",
+        "reason": "Artifact digest divergence between independent builds: [{'actual_digest': 'sha256:7317c8c391b866d3c1011de223c0e9b8d6a2ae256fcb84e01255179dc20838a4', 'actual_size': 19548160, 'expected_digest': 'sha256:f828551416b3ca0c7a7a03e8c9514c4f227c5c983540f5a16214d603227b9603', 'expected_size': 19548160, 'name': 'tuna-desktop-1.0.0_beta3-1.gpkg.tar'}]",
+        "target": "gentoo"
+      }
+    ],
     "results": [
       {
-        "action_key": "sha256:3c38b1bfb619f4269ca9c7dc3442006825c702d7256447b3016d73082990403c",
-        "architecture": "arm64",
-        "cell_id": "tideforge-wayland-protocols-debian-arm64",
+        "action_key": "sha256:f60038894f6e94c30795605e8cb573ee1827d47e6808d1dc9463fc12de12deed",
+        "architecture": "amd64",
+        "cell_id": "tideforge-tuna-desktop-gentoo-amd64",
         "engine": "tideforge",
         "extra": [],
-        "format": "deb",
-        "matching": [
-          "wayland-protocols_1.49-1_arm64.deb"
+        "format": "gpkg",
+        "matching": [],
+        "mismatches": [
+          {
+            "actual_digest": "sha256:7317c8c391b866d3c1011de223c0e9b8d6a2ae256fcb84e01255179dc20838a4",
+            "actual_size": 19548160,
+            "expected_digest": "sha256:f828551416b3ca0c7a7a03e8c9514c4f227c5c983540f5a16214d603227b9603",
+            "expected_size": 19548160,
+            "name": "tuna-desktop-1.0.0_beta3-1.gpkg.tar"
+          }
         ],
-        "mismatches": [],
         "missing": [],
-        "package": "wayland-protocols",
-        "reproducible": true,
-        "target": "debian"
+        "package": "tuna-desktop",
+        "reproducible": false,
+        "target": "gentoo"
       }
     ],
     "schema": 1,
     "summary": {
-      "divergent": 0,
-      "quarantined": 0,
-      "reproducibility_rate": 100.0,
-      "reproducible": 1,
+      "divergent": 1,
+      "quarantined": 1,
+      "reproducibility_rate": 0.0,
+      "reproducible": 0,
       "sampled": 1
     }
   },
@@ -3022,7 +3153,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 34
+          "days": 36
         }
       },
       "debian/arm64": {
@@ -3034,7 +3165,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 34
+          "days": 36
         }
       },
       "el10/aarch64": {
@@ -3046,7 +3177,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 34
+          "days": 36
         }
       },
       "el10/x86_64": {
@@ -3058,7 +3189,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "eln/aarch64": {
@@ -3070,7 +3201,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "eln/x86_64": {
@@ -3082,7 +3213,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "fedora/x86_64": {
@@ -3094,7 +3225,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 34
+          "days": 36
         }
       },
       "gentoo/amd64": {
@@ -3106,7 +3237,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "hummingbird/aarch64": {
@@ -3118,7 +3249,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "hummingbird/x86_64": {
@@ -3130,7 +3261,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "noble/amd64": {
@@ -3142,7 +3273,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "noble/arm64": {
@@ -3154,7 +3285,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "opensuse-tumbleweed/aarch64": {
@@ -3166,7 +3297,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 34
+          "days": 36
         }
       },
       "opensuse-tumbleweed/x86_64": {
@@ -3178,7 +3309,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 34
+          "days": 36
         }
       },
       "rawhide/aarch64": {
@@ -3190,7 +3321,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "rawhide/x86_64": {
@@ -3202,7 +3333,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "trixie/amd64": {
@@ -3214,7 +3345,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "trixie/arm64": {
@@ -3226,7 +3357,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 1
+          "days": 2
         }
       },
       "ubuntu/amd64": {
@@ -3238,7 +3369,7 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 34
+          "days": 36
         }
       },
       "ubuntu/arm64": {
@@ -3250,11 +3381,11 @@
         "retired": [],
         "stalled": {
           "at_least": false,
-          "days": 34
+          "days": 36
         }
       }
     },
-    "since": "2026-11-18T14:24:09+00:00",
+    "since": "2026-11-19T14:35:11+00:00",
     "staleness_days": 1
   },
   "unmeasured_targets": {
