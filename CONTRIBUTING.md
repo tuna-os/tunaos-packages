@@ -105,6 +105,22 @@ manifest, and the Bats suite. If your change touches shell workflows, install Ba
 the relevant file under `tests/bats/`; see
 [`tests/bats/README.md`](tests/bats/README.md) for setup and examples.
 
+The Python test suite also needs these items. CI supplies them. Without them,
+`just check` reports failures that CI does not show:
+
+- A checkout of tuna-os/tunaOS at the revision in `tests/consumer-source.json`.
+  Set `TUNAOS_CONSUMER_ROOT` to its path, or put it at `.test-deps/tunaos`. See
+  [`tests/README-consumer-contracts.md`](tests/README-consumer-contracts.md).
+- The native tools that the `Python Tests` job in `.github/workflows/lint.yml`
+  installs. On Ubuntu, run the same command as CI:
+
+  ```bash
+  sudo apt-get update
+  sudo apt-get install -y rpm rpm2cpio gnupg binutils gcc libc6-dev qemu-user createrepo-c debhelper fakeroot dpkg-dev make
+  ```
+
+- `cargo`. CI uses the Rust toolchain that comes with the runner image.
+
 Two other CI checks can fail a pull request:
 
 - The `actions-security` workflow verifies `.github/workflows/actions.lock`
