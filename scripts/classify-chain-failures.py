@@ -36,6 +36,8 @@ has actually paid for. The class is what decides whether a fix is mechanical
 (an agent can write it) or a decision (a human owes an answer), which is the
 autonomy boundary docs/rfc/rfc012 draws:
 
+    upstream-fetch                  an upstream mirror or registry could not
+                                    be read; nothing was validated (#489)
     chain-infra                     the builder died, not the package
     spec-changelog                  %changelog entries under %autochangelog
     unconditional-test-buildrequires  a dist-git spec whose test-only
@@ -68,11 +70,23 @@ import sys
 # compile-error must come last of the substantive classes.
 CLASSES: tuple[tuple[str, str, str], ...] = (
     (
+        # Above chain-infra: "Failed to download metadata for repo" is an
+        # upstream fault, and the more specific class must win. A cell in this
+        # class has NOT validated anything, so the gate keeps it red; it is
+        # labelled infra so nobody goes looking for a build bug (#489).
+        "upstream-fetch",
+        r"not found on medium"
+        r"|Failed to retrieve new repository metadata"
+        r"|Cannot download [^\n]*All mirrors were tried"
+        r"|toomanyrequests|You have reached your (pull|unauthenticated pull) rate limit"
+        r"|Failed to download metadata for repo",
+        "upstream unavailable (infra): a mirror or registry could not be read",
+    ),
+    (
         "chain-infra",
         r"Temporary repodata directory .* already exists"
         r"|createrepo_c .* failed"
         r"|cannot clone: Permission denied"
-        r"|Failed to download metadata for repo"
         r"|No space left on device",
         "the builder failed, not the package",
     ),
@@ -113,6 +127,21 @@ CLASSES: tuple[tuple[str, str, str], ...] = (
         r"Bad exit status from|error:|\berror\b:.*\[-Werror",
         "the build reached the compiler and failed there",
     ),
+    (
+        # Last, not first: dnf prints `Curl error (N)` for a mirror it then
+        # retries successfully, so the line is weak evidence. If any other
+        # class matched, the build got past the fetch and that class is the
+        # real failure; a bare curl error only explains a log with nothing
+        # else wrong in it.
+        "upstream-fetch",
+        r"Curl error \(\d+\)",
+        "upstream unavailable (infra): a mirror or registry could not be read",
+    ),
+)
+
+_UPSTREAM = re.compile(
+    "|".join(f"(?:{p})" for n, p, _ in CLASSES if n == "upstream-fetch"),
+    re.IGNORECASE,
 )
 
 # A package the chain skipped or failed is named in the summary like:
@@ -176,6 +205,20 @@ def classify(text: str) -> tuple[str, str, str]:
         "no known failure class matched -- read the log rather than guess",
         "",
     )
+
+
+_HOST = re.compile(r"https?://(?P<host>[A-Za-z0-9.-]+)")
+
+
+def upstream_host(text: str) -> str:
+    """The host of the first URL on an upstream-fetch evidence line."""
+    for line in text.splitlines():
+        if _UPSTREAM.search(line):
+            match = _HOST.search(line)
+            if match:
+                return match["host"]
+    match = _HOST.search(text)
+    return match["host"] if match else "unknown"
 
 
 def _test_only(text: str) -> bool:
@@ -276,6 +319,8 @@ def analyse_names(packages: list[str], logs_dir: pathlib.Path | None,
                 "a test-only BuildRequires with no %bcond guard, so the "
                 "chain's --without check cannot disable it"
             )
+        if name == "upstream-fetch":
+            why = f"upstream unavailable (infra): {upstream_host(text)}"
         records.append({
             "package": package,
             "kind": "root",
