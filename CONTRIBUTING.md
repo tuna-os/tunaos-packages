@@ -39,9 +39,9 @@ Useful pipeline references:
   packages
 - [Upstream parity register](docs/UPSTREAM_PARITY.md) — source and behavior
   differences that need explicit records
-- [Withdrawing a shadowed package](docs/WITHDRAWN-PACKAGES.md) — removing a
-  served build from a target's index without deleting it, when upstream
-  ships a newer one
+- [Withdraw a shadowed package](docs/WITHDRAWN-PACKAGES.md) — hide a served
+  build in a target's index. Keep the file. Do this when upstream ships a
+  newer build.
 
 `AGENTS.md` contains additional GNOME 49/50 conventions. Its scope note lists
 the package families it does and does not cover.
