@@ -48,10 +48,10 @@ the package families it does and does not cover.
 
 ## Choose the correct package layout
 
-Do not commit vendored source tarballs. Fetch sources at build time from a
+Do not add source tarballs to the repository. Fetch sources at build time from a
 pinned URL with a sha256 checksum. The test suite fails when a tracked file
-under `src/` is larger than 5 MB (`scripts/check_src_blob_size.py`). History is
-not rewritten; 11 old tarballs (163 MB) stay in it
+under `src/` is larger than 5 MB (`scripts/check_src_blob_size.py`). We did not
+rewrite history; 11 old tarballs (163 MB) stay in it
 ([#654](https://github.com/tuna-os/tunaos-packages/issues/654)).
 
 Do not create a generic source directory unless the package spec needs one.
