@@ -208,7 +208,7 @@ Establishing that took a person twenty minutes; it is now a function of the
 logs.
 
 Roots are then classified into the classes this factory has actually paid for
-— `chain-infra`, `spec-changelog`, `unconditional-test-buildrequires`,
+— `upstream-fetch`, `chain-infra`, `spec-changelog`, `unconditional-test-buildrequires`,
 `version-blocked`, `unsatisfied-buildrequires`, `patch-rejected`,
 `compile-error`, `no-output` — plus `unclassified` and `not-reached`, which
 are first-class outcomes. A classifier that always answers would assert a

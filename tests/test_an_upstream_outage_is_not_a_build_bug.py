@@ -60,3 +60,12 @@ def test_signature_is_upstream_fetch_and_names_the_host(tmp_path, name):
 def test_a_real_compile_error_is_not_upstream(tmp_path):
     (tmp_path / "pkg.build.log").write_text("foo.c:3: error: expected ';'\n")
     assert classify.analyse_names(["pkg"], tmp_path)["records"][0]["class"] == "compile-error"
+
+
+def test_a_retried_curl_warning_does_not_mask_a_real_failure(tmp_path):
+    (tmp_path / "pkg.root.log").write_text(
+        "Curl error (28): Timeout for https://mirror.example/repodata/x.xml\n"
+        "(retrying on next mirror, ok)\n"
+    )
+    (tmp_path / "pkg.build.log").write_text("foo.c:3: error: expected ';'\n")
+    assert classify.analyse_names(["pkg"], tmp_path)["records"][0]["class"] == "compile-error"

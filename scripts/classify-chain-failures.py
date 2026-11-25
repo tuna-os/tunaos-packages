@@ -77,7 +77,6 @@ CLASSES: tuple[tuple[str, str, str], ...] = (
         "upstream-fetch",
         r"not found on medium"
         r"|Failed to retrieve new repository metadata"
-        r"|Curl error \(\d+\)"
         r"|Cannot download [^\n]*All mirrors were tried"
         r"|toomanyrequests|You have reached your (pull|unauthenticated pull) rate limit"
         r"|Failed to download metadata for repo",
@@ -128,6 +127,21 @@ CLASSES: tuple[tuple[str, str, str], ...] = (
         r"Bad exit status from|error:|\berror\b:.*\[-Werror",
         "the build reached the compiler and failed there",
     ),
+    (
+        # Last, not first: dnf prints `Curl error (N)` for a mirror it then
+        # retries successfully, so the line is weak evidence. If any other
+        # class matched, the build got past the fetch and that class is the
+        # real failure; a bare curl error only explains a log with nothing
+        # else wrong in it.
+        "upstream-fetch",
+        r"Curl error \(\d+\)",
+        "upstream unavailable (infra): a mirror or registry could not be read",
+    ),
+)
+
+_UPSTREAM = re.compile(
+    "|".join(f"(?:{p})" for n, p, _ in CLASSES if n == "upstream-fetch"),
+    re.IGNORECASE,
 )
 
 # A package the chain skipped or failed is named in the summary like:
@@ -199,7 +213,7 @@ _HOST = re.compile(r"https?://(?P<host>[A-Za-z0-9.-]+)")
 def upstream_host(text: str) -> str:
     """The host of the first URL on an upstream-fetch evidence line."""
     for line in text.splitlines():
-        if re.search(CLASSES[0][1], line, re.IGNORECASE):
+        if _UPSTREAM.search(line):
             match = _HOST.search(line)
             if match:
                 return match["host"]
