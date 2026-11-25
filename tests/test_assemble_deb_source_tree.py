@@ -189,7 +189,7 @@ def native_project(tmp_path_factory):
     project = tmp_path_factory.mktemp("native-deb")
     scripts = project / "scripts"
     scripts.mkdir()
-    for name in ("tideforge.py", "tideforge_cache.py", "factory_contract.py",
+    for name in ("tideforge.py", "tideforge_cache.py", "factory_contract.py", "artifact_contract.py",
                  "assemble-deb-source-tree.py"):
         shutil.copyfile(ROOT / "scripts" / name, scripts / name)
     (project / "manifests").mkdir()
