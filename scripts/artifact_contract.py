@@ -17,6 +17,7 @@ the header sections alone, DEB members are streamed through a byte-counting
 reader, and every archive path is validated before it enters the model. An
 unknown or malformed archive is an error, never a pass.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,8 +32,8 @@ import stat
 import struct
 import subprocess
 import sys
-import tempfile
 import tarfile
+import tempfile
 import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -201,7 +202,8 @@ def parse_rpm(handle) -> Model:
     for path, mode, flag in zip(paths, modes, flags):
         key = safe_path(path)
         model.files[key] = Entry(
-            _kind(mode), mode & 0o7777,
+            _kind(mode),
+            mode & 0o7777,
             config=bool(flag & RPMFILE_CONFIG),
             noreplace=bool(flag & RPMFILE_NOREPLACE),
             ghost=bool(flag & RPMFILE_GHOST),
@@ -278,14 +280,21 @@ def _tar_stream(handle, size: int, name: str):
         elif name.endswith(".zst"):
             zstd = shutil.which("zstd")
             if not zstd:
-                raise ContractError(f"{name}: zstd member but no zstd binary to read it (failing closed)")
+                raise ContractError(
+                    f"{name}: zstd member but no zstd binary to read it (failing closed)"
+                )
             if size > MAX_ZSTD_MEMBER:
                 raise ContractError(f"{name} exceeds the extraction bound")
             spool = tempfile.TemporaryFile()
             cleanup.append(spool.close)
             shutil.copyfileobj(io.BufferedReader(window), spool)
             spool.seek(0)
-            proc = subprocess.Popen([zstd, "-dc", "--no-progress"], stdin=spool, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            proc = subprocess.Popen(
+                [zstd, "-dc", "--no-progress"],
+                stdin=spool,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
             cleanup.append(proc.wait)
             cleanup.append(proc.stdout.close)
             cleanup.append(proc.kill)
@@ -365,7 +374,15 @@ def parse_deb(handle) -> Model:
                         if member.name in (".", "./"):
                             continue
                         key = safe_path(member.name)
-                        kind = "dir" if member.isdir() else "symlink" if member.issym() else "file" if member.isreg() or member.islnk() else "other"
+                        kind = (
+                            "dir"
+                            if member.isdir()
+                            else "symlink"
+                            if member.issym()
+                            else "file"
+                            if member.isreg() or member.islnk()
+                            else "other"
+                        )
                         files[key] = Entry(kind, member.mode & 0o7777)
             except tarfile.TarError as error:
                 raise ContractError(f"malformed DEB data archive: {error}") from None
@@ -375,7 +392,11 @@ def parse_deb(handle) -> Model:
     if not match:
         raise ContractError("malformed DEB: control has no Package field")
     model = Model("deb", match.group(1), files)
-    conffiles = {safe_path(line.strip()) for line in control.get("conffiles", "").splitlines() if line.strip()}
+    conffiles = {
+        safe_path(line.strip())
+        for line in control.get("conffiles", "").splitlines()
+        if line.strip()
+    }
     for path in conffiles:
         if path in model.files:
             model.files[path].config = True
@@ -417,8 +438,14 @@ def validate_contract(block) -> None:
 
     def scope(item, where):
         for key in ("formats",):
-            if key in item and (not isinstance(item[key], list) or not item[key] or not set(item[key]) <= set(FORMATS)):
-                raise ContractError(f"{where}.formats must be a non-empty list drawn from {list(FORMATS)}")
+            if key in item and (
+                not isinstance(item[key], list)
+                or not item[key]
+                or not set(item[key]) <= set(FORMATS)
+            ):
+                raise ContractError(
+                    f"{where}.formats must be a non-empty list drawn from {list(FORMATS)}"
+                )
         if "package" in item and (not isinstance(item["package"], str) or not item["package"]):
             raise ContractError(f"{where}.package must be a string")
 
@@ -432,13 +459,19 @@ def validate_contract(block) -> None:
         try:
             safe = safe_path(item["path"])
         except ContractError:
-            raise ContractError(f"{where}.path {item['path']!r} is not a clean absolute path") from None
+            raise ContractError(
+                f"{where}.path {item['path']!r} is not a clean absolute path"
+            ) from None
         if not item["path"].startswith("/") or safe != item["path"]:
             raise ContractError(f"{where}.path {item['path']!r} must be a normalised absolute path")
         if "type" in item and item["type"] not in KINDS:
             raise ContractError(f"{where}.type must be one of {list(KINDS)}")
-        if "mode" in item and not (isinstance(item["mode"], str) and re.fullmatch(r"[0-7]{4}", item["mode"])):
-            raise ContractError(f"{where}.mode must be a quoted four-digit octal string such as \"0644\"")
+        if "mode" in item and not (
+            isinstance(item["mode"], str) and re.fullmatch(r"[0-7]{4}", item["mode"])
+        ):
+            raise ContractError(
+                f'{where}.mode must be a quoted four-digit octal string such as "0644"'
+            )
         if "config" in item and not isinstance(item["config"], bool):
             raise ContractError(f"{where}.config must be true or false")
         scope(item, where)
@@ -446,7 +479,11 @@ def validate_contract(block) -> None:
         where = f"verify.artifact.absent[{i}]"
         if isinstance(item, str):
             item = {"path": item}
-        if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not item["path"].startswith("/"):
+        if (
+            not isinstance(item, dict)
+            or not isinstance(item.get("path"), str)
+            or not item["path"].startswith("/")
+        ):
             raise ContractError(f"{where} must be an absolute path")
         if set(item) - {"path", "formats", "package"}:
             raise ContractError(f"unknown {where} key(s)")
@@ -486,15 +523,25 @@ def check(model: Model, block: dict) -> list[str]:
             findings.append(f"{label}: {path}: mode {entry.mode:04o}, contract says {item['mode']}")
         if item.get("config") is True:
             if not entry.config:
-                findings.append(f"{label}: {path}: contract says configuration file, artifact ships it as an ordinary file")
+                findings.append(
+                    f"{label}: {path}: contract says configuration file, "
+                    "artifact ships it as an ordinary file"
+                )
             elif model.format == "rpm" and not entry.noreplace:
-                findings.append(f"{label}: {path}: marked %config but not noreplace; an upgrade would overwrite local edits to .rpmsave")
+                findings.append(
+                    f"{label}: {path}: marked %config but not noreplace; "
+                    "an upgrade would overwrite local edits to .rpmsave"
+                )
         elif item.get("config") is False and entry.config:
-            findings.append(f"{label}: {path}: contract says ordinary file, artifact marks it as configuration")
+            findings.append(
+                f"{label}: {path}: contract says ordinary file, artifact marks it as configuration"
+            )
     for item in block.get("absent", []):
         item = {"path": item} if isinstance(item, str) else item
         if _applies(item, model) and item["path"] in model.files:
-            findings.append(f"{label}: {item['path']}: must not ship but is present in the artifact")
+            findings.append(
+                f"{label}: {item['path']}: must not ship but is present in the artifact"
+            )
     for item in block.get("scriptlets", []):
         if not _applies(item, model):
             continue
@@ -502,7 +549,9 @@ def check(model: Model, block: dict) -> list[str]:
         if body is None:
             findings.append(f"{label}: required {item['name']} scriptlet is missing")
         elif "contains" in item and item["contains"] not in body:
-            findings.append(f"{label}: {item['name']} scriptlet does not contain {item['contains']!r}")
+            findings.append(
+                f"{label}: {item['name']} scriptlet does not contain {item['contains']!r}"
+            )
     return findings
 
 
@@ -525,7 +574,10 @@ def main(argv=None) -> int:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
     if block is None:
-        print(f"{args.recipe}: no verify.artifact contract (opt-in); archives parsed, nothing asserted")
+        print(
+            f"{args.recipe}: no verify.artifact contract (opt-in); "
+            "archives parsed, nothing asserted"
+        )
         return 0
     findings = []
     for path, model in models:
@@ -534,7 +586,9 @@ def main(argv=None) -> int:
     named = {model.name for _, model in models}
     for item in [*block.get("files", []), *block.get("scriptlets", [])]:
         if "package" in item and item["package"] not in named:
-            findings.append(f"contract names package {item['package']!r}, which no artifact supplied")
+            findings.append(
+                f"contract names package {item['package']!r}, which no artifact supplied"
+            )
     if findings:
         print("\n".join(f"FINDING: {line}" for line in sorted(set(findings))), file=sys.stderr)
         return 1
