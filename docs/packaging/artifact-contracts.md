@@ -39,6 +39,6 @@ verify:
 
 Extraction has fixed limits and never writes to disk. RPM metadata comes from
 the header sections only. The reader sets a cap on decompressed bytes, an entry
-cap and a size cap for each DEB member. The reader rejects path names that
-have `..`, `.`, a backslash, NUL or empty segments. An unknown, truncated or
+cap and a size cap for each DEB member. The reader rejects each path that
+has `..`, `.`, a backslash, NUL or empty segments. An unknown, truncated or
 malformed archive is an error and never a pass.
