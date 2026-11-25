@@ -268,10 +268,17 @@ jobs:
           python3 ../scripts/check-index-regression.py --format deb \
             --old Packages.old --new Packages
           rm -f Packages.old
-          gzip -9kf Packages
-          apt-ftparchive release . > Release
-          gpg --batch --yes -u "${STEPS_IMPORT_GPG_OUTPUTS_KEYID}" --clearsign -o InRelease Release
-          gpg --batch --yes -u "${STEPS_IMPORT_GPG_OUTPUTS_KEYID}" -abs -o Release.gpg Release
+          # -n: no name/mtime in the gzip header, so identical Packages gives
+          # identical Packages.gz and the Release hashes stay stable (#943).
+          gzip -9nkf Packages
+          apt-ftparchive release . > Release.new
+          # Preserve the verified Release/InRelease/Release.gpg when nothing
+          # but the Date changed; renew on changed indexes, staleness,
+          # expiry, bad or foreign signatures, or key rotation.
+          python3 ../scripts/deb-index-sign.py --repo . \
+            --candidate-release Release.new --pubkey ../public.gpg \
+            --keyid "${STEPS_IMPORT_GPG_OUTPUTS_KEYID}"
+          rm -f Release.new
           gpg --batch --yes --export "${STEPS_IMPORT_GPG_OUTPUTS_KEYID}" > tideforge.gpg
         env:
           STEPS_IMPORT_GPG_OUTPUTS_KEYID: ${{ steps.import-gpg.outputs.keyid }}
