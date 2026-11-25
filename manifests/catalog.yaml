@@ -2097,6 +2097,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -2121,6 +2122,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -2222,6 +2224,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -2246,6 +2249,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -2282,6 +2286,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -2306,6 +2311,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -2329,6 +2335,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -2353,6 +2360,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -2376,6 +2384,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -2400,6 +2409,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -3939,6 +3949,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -3963,6 +3974,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -4677,8 +4689,14 @@ packages:
     packaging:
       rpm:
         implementation: native-spec
+        tideforge: packages/iio-niri
+    upstream:
+      version: 2.3.1
+      source: https://github.com/Zhaith-Izaliel/iio-niri/archive/refs/tags/v2.3.1.tar.gz
+      sha256: b30cb1934a9a0a8e1be3b0f89e37349b6b3f7f87d25a2a526d92dabf4a5a22b1
     targets:
       - el10
+      - eln
     membership: runtime
     referenced_by:
       - manifests/target-queues/niri.yaml
@@ -4701,6 +4719,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -9012,6 +9031,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -9036,6 +9056,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -11095,6 +11116,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime
@@ -11119,6 +11141,7 @@ packages:
       - arch
       - debian
       - el10
+      - eln
       - opensuse-tumbleweed
       - ubuntu
     membership: runtime

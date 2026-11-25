@@ -135,6 +135,7 @@ dependencies:
       # for every module in the list above, so this round is intended to be
       # the last dependency round for deb.
       el10: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, cli11-devel, cpptrace-devel, wayland-protocols]
+      eln: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, cli11-devel, cpptrace-devel, wayland-protocols]
       alma10: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, cli11-devel, cpptrace-devel, wayland-protocols]
       alma10-kitten: [cmake, gcc-c++, qt6-qtbase-devel, qt6-qtbase-private-devel, qt6-qtdeclarative-devel, qt6-qtwayland-devel, qt6-qtshadertools-devel, pipewire-devel, pam-devel, polkit-devel, libdrm-devel, mesa-libgbm-devel, cli11-devel, cpptrace-devel, wayland-protocols]
       ubuntu: [cmake, g++, qt6-base-dev, qt6-declarative-dev, qt6-declarative-private-dev, qt6-wayland-dev, qt6-shadertools-dev, libpipewire-0.3-dev, libpam0g-dev, libpolkit-gobject-1-dev, libdrm-dev, libjemalloc-dev, libcli11-dev, libcpptrace-dev, wayland-protocols, libgbm-dev, libegl-dev, libpolkit-agent-1-dev]
@@ -175,4 +176,4 @@ files:
     - usr/share/icons/hicolor/scalable/apps/org.quickshell.svg
 verify:
   smoke: "quickshell --help"
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]
+targets: [el10, eln, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]
