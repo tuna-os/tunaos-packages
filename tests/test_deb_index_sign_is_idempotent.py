@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import datetime as dt
 import importlib.util
-import os
 import pathlib
 import shutil
 import subprocess
@@ -21,7 +20,7 @@ spec.loader.exec_module(mod)
 
 pytestmark = pytest.mark.skipif(shutil.which("gpg") is None, reason="needs gpg")
 
-NOW = dt.datetime(2026, 11, 25, 12, 0, tzinfo=dt.timezone.utc)
+NOW = dt.datetime(2026, 11, 25, 12, 0, tzinfo=dt.UTC)
 
 
 def release(date="Wed, 25 Nov 2026 10:00:00 UTC", sha="a" * 64, extra=""):
