@@ -201,13 +201,34 @@ raise SystemExit(0 if (recipe.get("verify") or {}).get("artifact") else 1)
 PY
 then
   shopt -s nullglob
-  contract_archives=("$artifacts"/*.rpm "$artifacts"/*.deb)
+  # The contract describes the main package. Debug-symbol and source archives
+  # are separate build products that deliberately omit the declared paths, and
+  # the reader parses only RPM and DEB, so gpkg and pkg.tar.* cells have
+  # nothing it can check (their install smoke below stays authoritative).
+  contract_archives=()
+  for archive in "$artifacts"/*.rpm "$artifacts"/*.deb; do
+    [ -e "$archive" ] || continue
+    case "${archive##*/}" in
+      *.src.rpm | *-dbgsym_*.deb | *-debuginfo-*.rpm | *-debugsource-*.rpm) continue ;;
+    esac
+    contract_archives+=("$archive")
+  done
   shopt -u nullglob
-  if [ "${#contract_archives[@]}" -eq 0 ]; then
-    echo "verify.artifact is declared but no .rpm/.deb was built in $artifacts" >&2
-    exit 1
+  case "${FORMAT:-}" in
+    gpkg | pkg.tar.zst)
+      echo "==> verify.artifact: the contract reader parses RPM/DEB only; skipped for ${FORMAT} cell"
+      contract_archives=()
+      ;;
+    *)
+      if [ "${#contract_archives[@]}" -eq 0 ]; then
+        echo "verify.artifact is declared but no main .rpm/.deb was built in $artifacts" >&2
+        exit 1
+      fi
+      ;;
+  esac
+  if [ "${#contract_archives[@]}" -gt 0 ]; then
+    python3 scripts/artifact_contract.py "$recipe" "${contract_archives[@]}"
   fi
-  python3 scripts/artifact_contract.py "$recipe" "${contract_archives[@]}"
 fi
 
 # Cross-cell dependency resolution (#440): a clean-install verify of a package
