@@ -16,7 +16,8 @@ published under an identity that already exists. Adapted, not adopted:
 from __future__ import annotations
 
 import collections
-from typing import Iterable, NamedTuple
+from collections.abc import Iterable
+from typing import NamedTuple
 
 KINDS = ("binary", "source")
 
