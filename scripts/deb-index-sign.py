@@ -116,7 +116,7 @@ def normalized(text: str) -> dict[str, str]:
 
 def _when(value: str) -> dt.datetime:
     d = email.utils.parsedate_to_datetime(value)
-    return d if d.tzinfo else d.replace(tzinfo=dt.timezone.utc)
+    return d if d.tzinfo else d.replace(tzinfo=dt.UTC)
 
 
 def stale_reason(text: str, now: dt.datetime, max_age: dt.timedelta) -> str | None:
@@ -169,7 +169,7 @@ def run(repo, candidate, pubkey, keyid, max_age_days=7.0, now=None,
     The pinned key is imported into an isolated home for verification.
     Signing uses `signing_home` (default: the caller's GNUPGHOME) because the
     private key lives there; verification never trusts that keyring."""
-    now = now or dt.datetime.now(dt.timezone.utc)
+    now = now or dt.datetime.now(dt.UTC)
     with tempfile.TemporaryDirectory() as t:
         vhome = pathlib.Path(t)
         os.chmod(vhome, 0o700)
