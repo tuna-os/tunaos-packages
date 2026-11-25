@@ -21,6 +21,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = ROOT / "manifests" / "package-factory.yaml"
 sys.path.insert(0, str(ROOT / "scripts"))
+import artifact_contract  # noqa: E402
 import factory_contract  # noqa: E402
 
 VALID_BUILD_SYSTEMS = {"meson", "autotools", "cmake", "cargo", "go", "data", "custom", "python"}
@@ -665,9 +666,14 @@ def validate_verify(recipe: dict) -> None:
         return
     if not isinstance(block, dict):
         fail("verify must be a mapping")
-    unknown = set(block) - {"smoke", "install_name", "targets"}
+    unknown = set(block) - {"smoke", "install_name", "targets", "artifact"}
     if unknown:
         fail(f"unknown verify key(s): {sorted(unknown)}")
+    if "artifact" in block:
+        try:
+            artifact_contract.validate_contract(block["artifact"])
+        except artifact_contract.ContractError as error:
+            fail(str(error))
     if not isinstance(block.get("smoke", ""), str) or not block.get("smoke", "").strip():
         fail("verify.smoke must be a non-empty string")
     if "install_name" in block and not isinstance(block["install_name"], str):

@@ -191,6 +191,25 @@ PY
 )
 fi
 
+# Opt-in semantic artifact contract (#944): when the recipe declares
+# `verify.artifact`, check the BUILT archives before any install runs. It reads
+# archive metadata only; the native install smoke below stays authoritative.
+if python3 - "$recipe" <<'PY'
+import pathlib, sys, yaml
+recipe = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text()) or {}
+raise SystemExit(0 if (recipe.get("verify") or {}).get("artifact") else 1)
+PY
+then
+  shopt -s nullglob
+  contract_archives=("$artifacts"/*.rpm "$artifacts"/*.deb)
+  shopt -u nullglob
+  if [ "${#contract_archives[@]}" -eq 0 ]; then
+    echo "verify.artifact is declared but no .rpm/.deb was built in $artifacts" >&2
+    exit 1
+  fi
+  python3 scripts/artifact_contract.py "$recipe" "${contract_archives[@]}"
+fi
+
 # Cross-cell dependency resolution (#440): a clean-install verify of a package
 # whose runtime deps are themselves in the gap (e.g. niri needs libseat) can
 # only resolve them from the PUBLISHED factory repo, built by earlier waves.
