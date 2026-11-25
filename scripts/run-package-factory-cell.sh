@@ -148,6 +148,13 @@ case ${FORMAT:?} in
         --env TARGET="$target" --env PUBLISHED_INDEX="$published_index" \
         --volume "$root:/work" "$image" bash -lc '
           set -euo pipefail
+          # bootc-derived images (eln-bootc) make /root a symlink to
+          # /var/roothome, which does not exist in a plain container. Go and
+          # cargo then die creating their caches under $HOME with
+          # "mkdir /root: file exists" (PR 1083 danksearch/niri on ELN).
+          if [[ -L /root && ! -e /root ]]; then
+            mkdir -p "$(readlink -m /root)"
+          fi
           dnf -y install rpm-build
           # builddep (and config-manager for el10) is a plugin. dnf4 (el10)
           # gets it from dnf-plugins-core; dnf5 gets it from dnf5-plugins.
