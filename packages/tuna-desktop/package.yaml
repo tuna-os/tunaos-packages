@@ -325,6 +325,34 @@ verify:
     && grep -qx 'org.freedesktop.impl.portal.Lockdown=tuna;' /usr/share/xdg-desktop-portal/tuna-portals.conf
     && test -x /usr/libexec/tuna-geoclue-agent-policy
     && test -f /usr/share/tuna-desktop/icons/Adwaita/index.theme
+  # Opt-in contract over the BUILT RPM/DEB (scripts/artifact_contract.py,
+  # docs/packaging/artifact-contracts.md): what a consumer finds in the
+  # archive, checked before publication. The smoke above stays the runtime
+  # proof. Config designation of the /etc/pam.d files is deliberately not
+  # asserted yet: the rendered RPM lists them as ordinary files.
+  artifact:
+    files:
+      - {path: /usr/bin/tuna-compositor, type: file, mode: "0755"}
+      - {path: /usr/bin/tuna-session, type: file, mode: "0755"}
+      - {path: /usr/bin/tuna-shell-host, type: file, mode: "0755"}
+      - {path: /usr/bin/tuna-shell-gtk, type: file, mode: "0755"}
+      - {path: /usr/bin/tuna-ibus-bridge, type: file, mode: "0755"}
+      - {path: /usr/bin/tuna-wallpaper-svg, type: file, mode: "0755"}
+      - {path: /usr/libexec/tuna-geoclue-agent-policy, type: file, mode: "0755"}
+      - {path: /usr/share/wayland-sessions/tuna.desktop, type: file, mode: "0644"}
+      - {path: /usr/share/wayland-sessions/roost.desktop, type: file, mode: "0644"}
+      - {path: /usr/lib/systemd/user/tuna-session.target, type: file, mode: "0644"}
+      - {path: /usr/share/xdg-desktop-portal/portals/tuna.portal, type: file, mode: "0644"}
+      - {path: /usr/share/xdg-desktop-portal/tuna-portals.conf, type: file, mode: "0644"}
+      - {path: /etc/pam.d/tuna-lock, type: file, mode: "0644"}
+      - {path: /etc/pam.d/roost-lock, type: file, mode: "0644"}
+    absent:
+      - /usr/bin/roost-compositor
+      - /usr/bin/roost-session
+      - /usr/bin/roost-shell-host
+      - /usr/bin/roost-shell-gtk
+      - /usr/bin/roost-ibus-bridge
+      - /usr/bin/roost-wallpaper-svg
 # The ebuild's category in the tunaos overlay: gui-wm/tuna-desktop.
 outputs:
   arch:

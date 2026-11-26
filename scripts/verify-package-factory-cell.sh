@@ -191,6 +191,46 @@ PY
 )
 fi
 
+# Opt-in semantic artifact contract (#944): when the recipe declares
+# `verify.artifact`, check the BUILT archives before any install runs. It reads
+# archive metadata only; the native install smoke below stays authoritative.
+if python3 - "$recipe" <<'PY'
+import pathlib, sys, yaml
+recipe = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text()) or {}
+raise SystemExit(0 if (recipe.get("verify") or {}).get("artifact") else 1)
+PY
+then
+  shopt -s nullglob
+  # The contract describes the main package. Debug-symbol and source archives
+  # are separate build products that deliberately omit the declared paths, and
+  # the reader parses only RPM and DEB, so gpkg and pkg.tar.* cells have
+  # nothing it can check (their install smoke below stays authoritative).
+  contract_archives=()
+  for archive in "$artifacts"/*.rpm "$artifacts"/*.deb; do
+    [ -e "$archive" ] || continue
+    case "${archive##*/}" in
+      *.src.rpm | *-dbgsym_*.deb | *-debuginfo-*.rpm | *-debugsource-*.rpm) continue ;;
+    esac
+    contract_archives+=("$archive")
+  done
+  shopt -u nullglob
+  case "${FORMAT:-}" in
+    gpkg | pkg.tar.zst)
+      echo "==> verify.artifact: the contract reader parses RPM/DEB only; skipped for ${FORMAT} cell"
+      contract_archives=()
+      ;;
+    *)
+      if [ "${#contract_archives[@]}" -eq 0 ]; then
+        echo "verify.artifact is declared but no main .rpm/.deb was built in $artifacts" >&2
+        exit 1
+      fi
+      ;;
+  esac
+  if [ "${#contract_archives[@]}" -gt 0 ]; then
+    python3 scripts/artifact_contract.py "$recipe" "${contract_archives[@]}"
+  fi
+fi
+
 # Cross-cell dependency resolution (#440): a clean-install verify of a package
 # whose runtime deps are themselves in the gap (e.g. niri needs libseat) can
 # only resolve them from the PUBLISHED factory repo, built by earlier waves.
