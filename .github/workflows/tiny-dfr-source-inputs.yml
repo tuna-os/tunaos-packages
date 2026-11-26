@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# A newer push to a pull request supersedes the run for the older head. Pushes
+# to main and manual runs are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   source-boundaries:
     if: github.event_name == 'pull_request'
