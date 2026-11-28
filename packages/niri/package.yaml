@@ -18,6 +18,7 @@ dependencies:
     capabilities: [rust]
     targets:
       el10: [gcc, clang-devel, pkgconfig, glib2-devel, cairo-devel, cairo-gobject-devel, pango-devel, pipewire-devel, libdrm-devel, mesa-libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
+      eln: [gcc, clang-devel, pkgconfig, glib2-devel, cairo-devel, cairo-gobject-devel, pango-devel, pipewire-devel, libdrm-devel, mesa-libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
       alma10: [gcc, clang-devel, pkgconfig, glib2-devel, cairo-devel, cairo-gobject-devel, pango-devel, pipewire-devel, libdrm-devel, mesa-libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
       alma10-kitten: [gcc, clang-devel, pkgconfig, glib2-devel, cairo-devel, cairo-gobject-devel, pango-devel, pipewire-devel, libdrm-devel, mesa-libgbm-devel, libdisplay-info-devel, libxkbcommon-devel, libinput-devel, libseat-devel, wayland-protocols-devel]
       # Upstream's documented Ubuntu build dependencies (Getting-Started wiki),
@@ -42,6 +43,7 @@ dependencies:
   runtime:
     targets:
       el10: [libseat]
+      eln: [libseat]
       alma10: [libseat]
       alma10-kitten: [libseat]
       ubuntu: [libseat1]
@@ -82,4 +84,4 @@ verify:
     # (it is held by #156 right now).
     arch:
       smoke: niri --help
-targets: [el10, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]
+targets: [el10, eln, ubuntu, debian, opensuse-tumbleweed, arch, alma10, alma10-kitten]

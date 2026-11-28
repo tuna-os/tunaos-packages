@@ -5,6 +5,11 @@ queues:
     implementation: native-spec
     roots: [niri, quickshell, greetd, dms, dms-cli, dms-greeter, dgop, danksearch, iio-niri]
     gates: [mock-build, rpm-md-stage-install, greetd-login, niri-session-smoke]
+  eln:
+    format: rpm
+    implementation: tideforge-rpm
+    roots: [niri, quickshell, greetd, dms, dms-cli, dms-greeter, dgop, danksearch, iio-niri]
+    gates: [container-build, rpm-md-stage-install, greetd-login, niri-session-smoke]
   ubuntu:
     format: deb
     implementation: tideforge-debian
