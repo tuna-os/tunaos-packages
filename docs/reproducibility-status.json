@@ -1,25 +1,25 @@
 {
   "by_coordinate": {
-    "tideforge/gpkg/amd64": {
-      "divergent": 1,
-      "rate": 0.0,
-      "reproducible": 0,
+    "tideforge/deb/arm64": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
       "sampled": 1
     }
   },
   "by_engine": {
     "tideforge": {
-      "divergent": 1,
-      "rate": 0.0,
-      "reproducible": 0,
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
       "sampled": 1
     }
   },
   "by_format": {
-    "gpkg": {
-      "divergent": 1,
-      "rate": 0.0,
-      "reproducible": 0,
+    "deb": {
+      "divergent": 0,
+      "rate": 100.0,
+      "reproducible": 1,
       "sampled": 1
     }
   },
@@ -43,9 +43,19 @@
         "reproducible": 0,
         "sampled": 0
       }
+    },
+    {
+      "measured_at": "2026-11-20T16:42:23+00:00",
+      "summary": {
+        "divergent": 1,
+        "quarantined": 1,
+        "reproducibility_rate": 0.0,
+        "reproducible": 0,
+        "sampled": 1
+      }
     }
   ],
-  "measured_at": "2026-11-20T16:42:23+00:00",
+  "measured_at": "2026-11-28T16:31:19+00:00",
   "quarantined": [
     {
       "architecture": "amd64",
@@ -68,34 +78,28 @@
   ],
   "results": [
     {
-      "action_key": "sha256:f60038894f6e94c30795605e8cb573ee1827d47e6808d1dc9463fc12de12deed",
-      "architecture": "amd64",
-      "cell_id": "tideforge-tuna-desktop-gentoo-amd64",
+      "action_key": "sha256:bafc0224cae1f0ed19e056f68b4b9620f381588a07ab4b0af4e05b61ad30a821",
+      "architecture": "arm64",
+      "cell_id": "tideforge-wayland-protocols-debian-arm64",
       "engine": "tideforge",
       "extra": [],
-      "format": "gpkg",
-      "matching": [],
-      "mismatches": [
-        {
-          "actual_digest": "sha256:7317c8c391b866d3c1011de223c0e9b8d6a2ae256fcb84e01255179dc20838a4",
-          "actual_size": 19548160,
-          "expected_digest": "sha256:f828551416b3ca0c7a7a03e8c9514c4f227c5c983540f5a16214d603227b9603",
-          "expected_size": 19548160,
-          "name": "tuna-desktop-1.0.0_beta3-1.gpkg.tar"
-        }
+      "format": "deb",
+      "matching": [
+        "wayland-protocols_1.49-1_arm64.deb"
       ],
+      "mismatches": [],
       "missing": [],
-      "package": "tuna-desktop",
-      "reproducible": false,
-      "target": "gentoo"
+      "package": "wayland-protocols",
+      "reproducible": true,
+      "target": "debian"
     }
   ],
   "schema": 1,
   "summary": {
-    "divergent": 1,
+    "divergent": 0,
     "quarantined": 1,
-    "reproducibility_rate": 0.0,
-    "reproducible": 0,
+    "reproducibility_rate": 100.0,
+    "reproducible": 1,
     "sampled": 1
   }
 }
